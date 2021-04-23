@@ -1,0 +1,10 @@
+default:
+  image: golang:latest
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - go test -v

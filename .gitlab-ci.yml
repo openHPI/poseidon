@@ -2,9 +2,25 @@ default:
   image: golang:latest
 
 stages:
+  - lint
   - test
+
+golangci-lint:
+  stage: lint
+  needs: []
+  image: golangci/golangci-lint:latest
+  script:
+    - golangci-lint run
+
+golint:
+  stage: lint
+  needs: []
+  script:
+    - go get -u golang.org/x/lint/golint
+    - golint -set_exit_status
 
 test:
   stage: test
+  needs: []
   script:
     - go test -v

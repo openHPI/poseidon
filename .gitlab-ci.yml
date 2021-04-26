@@ -23,4 +23,4 @@ test:
   stage: test
   needs: []
   script:
-    - go test -v
+    - go test ./... -v

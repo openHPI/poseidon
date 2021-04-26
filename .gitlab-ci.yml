@@ -2,8 +2,26 @@ default:
   image: golang:latest
 
 stages:
+  - build
   - lint
   - test
+  - docker
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_NAME: $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME/$CI_COMMIT_REF_SLUG:latest
+
+compile:
+  stage: build
+  needs: []
+  variables:
+    CGO_ENABLED: 0
+  script:
+    - go build -o poseidon
+  artifacts:
+    paths:
+      - poseidon
+    expire_in: 1 week
 
 golangci-lint:
   stage: lint
@@ -24,3 +42,19 @@ test:
   needs: []
   script:
     - go test ./... -v
+
+dockerimage:
+  stage: docker
+  image: docker:latest
+  services:
+    - name: docker:dind
+      alias: docker
+  needs:
+    - compile
+  script:
+    - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
+    # Prevent pull rate limit but still have normal alpine image in Dockerfile
+    - docker pull $DOCKER_REGISTRY/library/alpine:latest
+    - docker tag $DOCKER_REGISTRY/library/alpine:latest alpine:latest
+    - docker build -t $IMAGE_NAME .
+    - docker push $IMAGE_NAME

@@ -1,12 +1,14 @@
 package main
 
-import "fmt"
-
-// HelloCodeMoon returns 'Hello, CodeMoon!'
-func HelloCodeMoon() string {
-	return "Hello, CodeMoon!"
-}
+import (
+	"gitlab.hpi.de/codeocean/codemoon/coolcodeoceannomadmiddleware/api"
+	"log"
+	"net/http"
+)
 
 func main() {
-	fmt.Println(HelloCodeMoon())
+	err := http.ListenAndServe("0.0.0.0:4000", api.NewRouter())
+	if err != nil {
+		log.Fatal("Error during listening and serving: ", err)
+	}
 }

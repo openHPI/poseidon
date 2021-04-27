@@ -6,10 +6,14 @@ stages:
   - lint
   - test
   - docker
+  - deploy
+  - cleanup
 
 variables:
   DOCKER_TLS_CERTDIR: ""
-  IMAGE_NAME: $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME/$CI_COMMIT_REF_SLUG:latest
+  NOMAD_SLUG: $NOMAD_PREFIX-$CI_ENVIRONMENT_SLUG
+  IMAGE_NAME_ENV: $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME/$CI_COMMIT_REF_SLUG:$CI_PIPELINE_IID
+  IMAGE_NAME_GENERAL: $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME/$CI_COMMIT_REF_SLUG:latest
 
 compile:
   stage: build
@@ -56,5 +60,83 @@ dockerimage:
     # Prevent pull rate limit but still have normal alpine image in Dockerfile
     - docker pull $DOCKER_REGISTRY/library/alpine:latest
     - docker tag $DOCKER_REGISTRY/library/alpine:latest alpine:latest
-    - docker build -t $IMAGE_NAME .
-    - docker push $IMAGE_NAME
+    - docker build -t $IMAGE_NAME_ENV .
+    - docker push $IMAGE_NAME_ENV
+    - docker tag $IMAGE_NAME_ENV $IMAGE_NAME_GENERAL
+    - docker push $IMAGE_NAME_GENERAL
+
+.start_deployment: &start_deployment
+  image: drp.codemoon.xopic.de/nomad-ci:latest
+  stage: deploy
+  needs:
+    - job: dockerimage
+      artifacts: false
+  script:
+    # Only replace set env vars
+    - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < nomad/api.tpl.nomad > nomad/api.nomad
+    # Make sure to set NOMAD_ADDR, NOMAD_SKIP_VERIFY and NOMAD_TOKEN env vars in CI settings appropriately
+    - nomad validate nomad/api.nomad
+    # nomad plan returns 1 if allocation is created or destroyed which is what we want here
+    - nomad plan     nomad/api.nomad || [ $? == 1 ]
+    - nomad run      nomad/api.nomad
+  artifacts:
+    paths:
+      - nomad/api.nomad
+    expire_in: 1 month
+    expose_as: api-nomad
+
+deploy_review:
+  <<: *start_deployment
+  variables:
+    HOSTNAME: $CI_ENVIRONMENT_SLUG.$BASE_DOMAIN
+  environment:
+    name: $CI_COMMIT_REF_SLUG
+    url: http://$HOSTNAME
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - main
+
+stop_review:
+  # See:
+  # https://gitlab.com/gitlab-org/gitlab-foss/blob/master/lib/gitlab/ci/templates/Jobs/Deploy.gitlab-ci.yml
+  stage: cleanup
+  image: drp.codemoon.xopic.de/nomad-ci:latest
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - nomad stop $NOMAD_SLUG
+  environment:
+    name: $CI_COMMIT_REF_SLUG
+    action: stop
+  needs: []
+  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: never
+    - if: '$CI_COMMIT_TAG || $CI_COMMIT_BRANCH'
+      when: manual
+
+deploy_staging:
+  <<: *start_deployment
+  variables:
+    NOMAD_SLUG: $NOMAD_PREFIX-staging
+    HOSTNAME: staging.$BASE_DOMAIN
+  environment:
+    name: staging
+    url: http://$HOSTNAME
+  only:
+    - main
+
+deploy_production:
+  <<: *start_deployment
+  variables:
+    NOMAD_SLUG: $NOMAD_PREFIX-production
+    HOSTNAME: $PRODUCTION_URL
+  environment:
+    name: production
+    url: https://$HOSTNAME
+  only:
+    - main
+  when: manual

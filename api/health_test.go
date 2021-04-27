@@ -9,15 +9,15 @@ import (
 )
 
 func TestHealthRoute(t *testing.T) {
-	req, err := http.NewRequest("GET", "/health", nil)
+	request, err := http.NewRequest(http.MethodGet, "/health", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec := httptest.NewRecorder()
-	http.HandlerFunc(Health).ServeHTTP(rec, req)
-	res := &Message{}
-	_ = json.NewDecoder(rec.Body).Decode(res)
+	recorder := httptest.NewRecorder()
+	http.HandlerFunc(Health).ServeHTTP(recorder, request)
+	result := Message{}
+	_ = json.Unmarshal(recorder.Body.Bytes(), &result)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "I'm alive!", res.Msg)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, "I'm alive!", result.Message)
 }

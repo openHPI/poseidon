@@ -1,7 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
 )
 
@@ -17,4 +19,18 @@ func NewRouter() *mux.Router {
 	v1.HandleFunc("/health", Health).Methods(http.MethodGet)
 
 	return v1
+}
+
+func writeJson(writer http.ResponseWriter, content interface{}) {
+	writer.Header().Set("Content-Type", "application/json")
+	response, err := json.Marshal(content)
+	if err != nil {
+		log.Printf("JSON marshal error: %v\n", err)
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := writer.Write(response); err != nil {
+		log.Printf("Error writing JSON to response: %v\n", err)
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+	}
 }

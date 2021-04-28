@@ -55,6 +55,10 @@ job "${NOMAD_SLUG}" {
         image = "${IMAGE_NAME_ENV}"
       }
 
+      env {
+        POSEIDON_SERVER_ADDRESS = "${POSEIDON_LISTEN_ADDRESS}"
+      }
+
       resources {
         memory = "100" // 100 MB RAM
         cpu    = "100" // 100 MHz

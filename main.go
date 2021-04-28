@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"log"
 	"net/http"
 	"os"
@@ -11,8 +13,10 @@ import (
 )
 
 func main() {
+	config.InitConfig()
+
 	server := &http.Server{
-		Addr:         "0.0.0.0:3000",
+		Addr:         fmt.Sprintf("%s:%d", config.Config.Server.Address, config.Config.Server.Port),
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,

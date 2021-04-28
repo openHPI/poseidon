@@ -26,7 +26,7 @@ var (
 			KeyFile:  "",
 		},
 		Nomad: nomad{
-			Address: "",
+			Address: "127.0.0.1",
 			Port:    4646,
 			Token:   "",
 			TLS:     false,

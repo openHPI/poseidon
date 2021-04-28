@@ -27,12 +27,12 @@ func provideRunner(writer http.ResponseWriter, request *http.Request) {
 	if err := parseJSONRequestBody(writer, request, runnerRequest); err != nil {
 		return
 	}
-	environment, err := environment.GetExecutionEnvironment(runnerRequest.ExecutionEnvironmentId)
+	env, err := environment.GetExecutionEnvironment(runnerRequest.ExecutionEnvironmentId)
 	if err != nil {
 		writeNotFound(writer, err)
 		return
 	}
-	runner, err := environment.NextRunner()
+	runner, err := env.NextRunner()
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorNomadOverload)
 		return

@@ -12,9 +12,7 @@ import (
 * For the e2e tests a nomad cluster must be connected and poseidon must be running.
  */
 
-var baseURL = config.Config.PoseidonAPIURL().String()
-
 func buildURL(parts ...string) (url string) {
-	parts = append([]string{baseURL, api.RouteBase}, parts...)
+	parts = append([]string{config.Config.PoseidonAPIURL().String(), api.RouteBase}, parts...)
 	return strings.Join(parts, "")
 }

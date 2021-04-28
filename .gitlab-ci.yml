@@ -48,14 +48,32 @@ test:
   stage: test
   needs: []
   script:
-    - go test $(go list ./... | grep -v /e2e) -v -coverprofile coverage.cov
+    - go test $(go list ./... | grep -v /e2e | grep -v /poseidon$) -v -coverprofile coverage.cov
     - go tool cover -func=coverage.cov
-    - go tool cover -html=coverage.cov -o coverage.html
+    - go tool cover -html=coverage.cov -o coverage_unit.html
   artifacts:
     paths:
-      - coverage.html
+      - coverage_unit.html
     expire_in: 1 week
     expose_as: coverageReport
+
+e2e_test:
+  image: drp.codemoon.xopic.de/nomad-ci:latest
+  stage: test
+  services:
+    - name: docker:dind
+      alias: docker
+  script:
+    # Avoid docker pull limit
+    - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
+    - docker pull $DOCKER_REGISTRY/openhpi/co_execenv_python:3.8
+    - docker tag $DOCKER_REGISTRY/openhpi/co_execenv_python:3.8 openhpi/co_execenv_python:3.8
+    # Setup own nomad cluster
+    - export NOMAD_ADDR=http://localhost:4646
+    - nomad agent -dev -log-level=WARN &
+    - sleep 15
+    # Start tests
+    - go test ./ ./e2e -v
 
 dockerimage:
   stage: docker
@@ -85,8 +103,8 @@ nomadimage:
   script:
     - cd ci
     - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
-    - docker pull $DOCKER_REGISTRY/library/debian:buster-slim
-    - docker tag $DOCKER_REGISTRY/library/debian:buster-slim debian:buster-slim
+    - docker pull $DOCKER_REGISTRY/library/golang:latest
+    - docker tag $DOCKER_REGISTRY/library/golang:latest golang:latest
     # Pull base image to avoid rebuilding every pipeline if nothing changed, prioritize image from branch
     - docker pull $NOMAD_CI_IMAGE_NAME_GENERAL || docker pull $NOMAD_CI_BASE_IMAGE || true
     - docker build --cache-from $NOMAD_CI_BASE_IMAGE --cache-from $NOMAD_CI_IMAGE_NAME_GENERAL -t $NOMAD_CI_IMAGE_NAME_ENV -t $NOMAD_CI_IMAGE_NAME_GENERAL .

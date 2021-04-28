@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -53,7 +54,7 @@ func initServer(runnerPool pool.RunnerPool) *http.Server {
 func shutdownOnOSSignal(server *http.Server) {
 	// wait for SIGINT
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	<-signals
 	log.Info("Received SIGINT, shutting down ...")
 

@@ -12,6 +12,11 @@ type ExecutorApi struct {
 	mock.Mock
 }
 
+// CreateDebugJob provides a mock function with given fields:
+func (_m *ExecutorApi) CreateDebugJob() {
+	_m.Called()
+}
+
 // GetJobScale provides a mock function with given fields: jobId
 func (_m *ExecutorApi) GetJobScale(jobId string) (int, error) {
 	ret := _m.Called(jobId)

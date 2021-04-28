@@ -2,8 +2,11 @@ package nomad
 
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"net/url"
 )
+
+var log = logging.GetLogger("nomad")
 
 // ExecutorApi provides access to an container orchestration solution
 type ExecutorApi interface {
@@ -11,6 +14,7 @@ type ExecutorApi interface {
 	GetJobScale(jobId string) (jobScale int, err error)
 	SetJobScaling(jobId string, count int, reason string) (err error)
 	LoadRunners(jobId string) (runnerIds []string, err error)
+	CreateDebugJob()
 }
 
 // ApiClient provides access to the Nomad functionality
@@ -39,6 +43,25 @@ func (apiClient *ApiClient) init(nomadURL *url.URL) (err error) {
 func (apiClient *ApiClient) LoadJobList() (list []*nomadApi.JobListStub, err error) {
 	list, _, err = apiClient.client.Jobs().List(nil)
 	return
+}
+
+// CreateDebugJob creates a simple python job in the nomad cluster
+func (apiClient *ApiClient) CreateDebugJob() {
+	job := nomadApi.NewBatchJob("python", "python", "global", 50)
+	job.AddDatacenter("dc1")
+	group := nomadApi.NewTaskGroup("python", 5)
+	task := nomadApi.NewTask("python", "docker")
+	task.SetConfig("image", "openhpi/co_execenv_python:3.8")
+	task.SetConfig("command", "sleep")
+	task.SetConfig("args", []string{"infinity"})
+	group.AddTask(task)
+	job.AddTaskGroup(group)
+	register, w, err := apiClient.client.Jobs().Register(job, nil)
+	log.Printf("response: %+v", register)
+	log.Printf("meta: %+v", w)
+	if err != nil {
+		log.WithError(err).Fatal("Error creating nomad job")
+	}
 }
 
 // GetJobScale returns the scale of the passed job.

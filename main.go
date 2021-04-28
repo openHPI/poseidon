@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"gitlab.hpi.de/codeocean/codemoon/coolcodeoceannomadmiddleware/api"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"log"
 	"net/http"
 	"os"

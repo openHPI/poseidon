@@ -1,4 +1,4 @@
-module gitlab.hpi.de/codeocean/codemoon/coolcodeoceannomadmiddleware
+module gitlab.hpi.de/codeocean/codemoon/poseidon
 
 go 1.16
 

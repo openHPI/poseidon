@@ -91,7 +91,7 @@ deploy_review:
     HOSTNAME: $CI_ENVIRONMENT_SLUG.$BASE_DOMAIN
   environment:
     name: $CI_COMMIT_REF_SLUG
-    url: http://$HOSTNAME
+    url: http://$CI_ENVIRONMENT_SLUG.$BASE_DOMAIN
     on_stop: stop_review
   only:
     - branches
@@ -125,7 +125,7 @@ deploy_staging:
     HOSTNAME: staging.$BASE_DOMAIN
   environment:
     name: staging
-    url: http://$HOSTNAME
+    url: http://staging.$BASE_DOMAIN
   only:
     - main
 
@@ -136,7 +136,7 @@ deploy_production:
     HOSTNAME: $PRODUCTION_URL
   environment:
     name: production
-    url: https://$HOSTNAME
+    url: https://$PRODUCTION_URL
   only:
     - main
   when: manual

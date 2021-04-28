@@ -12,7 +12,7 @@ import (
 
 func main() {
 	server := &http.Server{
-		Addr:         "0.0.0.0:4000",
+		Addr:         "0.0.0.0:3000",
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,

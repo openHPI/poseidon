@@ -26,3 +26,29 @@ Right now we use two different linters in our CI. See their specific instruction
 ### Git hooks
 
 The repository contains a git pre-commit hook which runs the go formatting tool gofmt to ensure the code is formatted properly before committing. To enable it, you have to copy the hook file (`git_hooks/pre-commit`) to the `.git/hooks/` directory of the repository.
+
+## Configuration
+
+The file `config.go` contains a configuration struct containing all possible configuration options for Poseidon. The file also defines default values for all configuration options.  
+The options can be overridden with a `configuration.yaml` configuration file in the project root. `configuration.yaml.example` is an example for a configuration file.  
+The options can also be overridden by environment variables. Currently, only the Go types `string`, `int`, `bool` and `struct` (nesting is possible) are implemented. The name of the environment variable is constructed as follows: `POSEIDON_(<name of nested struct>_)*<name of field>` (all letters are uppercase).
+
+The precedence of configuration possibilities is:
+
+1. Environment variables
+1. `configuration.yaml`
+1. Default values
+
+If a value is not specified, the value of the subsequent possibility is used.
+
+### Example
+
+- The default value for the `Port` (type `int`) field in the `Server` field (type `struct`) of the configuration is `3000`.
+- This can be overwritten with the following `configuration.yaml`:
+
+  ```yaml
+  server:
+    port: 4000
+  ```
+
+- This can again be overwritten by the environment variable `POSEIDON_SERVER_PORT`. This can be done with `export POSEIDON_SERVER_PORT=5000`.

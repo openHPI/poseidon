@@ -3,9 +3,11 @@ package api
 import (
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"log"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"net/http"
 )
+
+var log = logging.GetLogger("api")
 
 // NewRouter returns an HTTP handler (http.Handler) which can be
 // used by the net/http package to serve the routes of our API. It
@@ -16,7 +18,9 @@ func NewRouter() http.Handler {
 	router := mux.NewRouter()
 	// this can later be restricted to a specific host with
 	// `router.Host(...)` and to HTTPS with `router.Schemes("https")`
-	return newRouterV1(router)
+	router = newRouterV1(router)
+	router.Use(logging.HTTPLoggingMiddleware)
+	return router
 }
 
 // newRouterV1 returns a subrouter containing the routes of version
@@ -31,12 +35,12 @@ func writeJson(writer http.ResponseWriter, content interface{}) {
 	writer.Header().Set("Content-Type", "application/json")
 	response, err := json.Marshal(content)
 	if err != nil {
-		log.Printf("JSON marshal error: %v\n", err)
+		log.WithError(err).Warn("JSON marshal error")
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if _, err := writer.Write(response); err != nil {
-		log.Printf("Error writing JSON to response: %v\n", err)
+		log.WithError(err).Warn("Error writing JSON to response")
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 }

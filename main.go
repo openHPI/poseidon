@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
-	"log"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 )
 
+var log = logging.GetLogger("main")
+
 func main() {
 	config.InitConfig()
+	logging.InitializeLogging(config.Config.Logger.Level)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", config.Config.Server.Address, config.Config.Server.Port),
@@ -22,12 +25,14 @@ func main() {
 		IdleTimeout:  time.Second * 60,
 		Handler:      api.NewRouter(),
 	}
+
+	log.WithField("address", server.Addr).Info("Starting server")
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
 			if err == http.ErrServerClosed {
-				log.Println(err)
+				log.WithError(err).Info("Server closed")
 			} else {
-				log.Fatal("Error during listening and serving: ", err)
+				log.WithError(err).Fatal("Error during listening and serving")
 			}
 		}
 	}()
@@ -36,7 +41,7 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 	<-signals
-	log.Println("Received SIGINT, shutting down ...")
+	log.Info("Received SIGINT, shutting down ...")
 
 	// shutdown the server but wait up to 15 seconds to close remaining connections
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

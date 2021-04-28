@@ -19,5 +19,6 @@ func TestHealthRoute(t *testing.T) {
 	_ = json.Unmarshal(recorder.Body.Bytes(), &result)
 
 	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
 	assert.Equal(t, "I'm alive!", result.Message)
 }

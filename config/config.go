@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
@@ -14,8 +15,11 @@ import (
 var (
 	Config = &configuration{
 		Server: server{
-			Address: "127.0.0.1",
-			Port:    3000,
+			Address:  "127.0.0.1",
+			Port:     3000,
+			TLS:      false,
+			CertFile: "",
+			KeyFile:  "",
 		},
 		Nomad: nomad{
 			Address: "",
@@ -26,12 +30,20 @@ var (
 			Level: "INFO",
 		},
 	}
-	log = logging.GetLogger("config")
+	log       = logging.GetLogger("config")
+	TLSConfig = &tls.Config{
+		MinVersion:               tls.VersionTLS13,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+	}
 )
 
 type server struct {
-	Address string
-	Port    int
+	Address  string
+	Port     int
+	TLS      bool
+	CertFile string
+	KeyFile  string
 }
 
 type nomad struct {

@@ -28,7 +28,18 @@ func main() {
 
 	log.WithField("address", server.Addr).Info("Starting server")
 	go func() {
-		if err := server.ListenAndServe(); err != nil {
+		var err error
+		if config.Config.Server.TLS {
+			server.TLSConfig = config.TLSConfig
+			log.
+				WithField("CertFile", config.Config.Server.CertFile).
+				WithField("KeyFile", config.Config.Server.KeyFile).
+				Debug("Using TLS")
+			err = server.ListenAndServeTLS(config.Config.Server.CertFile, config.Config.Server.KeyFile)
+		} else {
+			err = server.ListenAndServe()
+		}
+		if err != nil {
 			if err == http.ErrServerClosed {
 				log.WithError(err).Info("Server closed")
 			} else {

@@ -1,6 +1,9 @@
 server:
   address: 127.0.0.1
   port: 3000
+  tls: false
+  certfile: ./poseidon.crt
+  keyfile: ./poseidon.key
 nomad:
   address: http://127.0.0.1:4646
   token: SECRET

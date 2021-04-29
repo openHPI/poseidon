@@ -52,3 +52,7 @@ If a value is not specified, the value of the subsequent possibility is used.
   ```
 
 - This can again be overwritten by the environment variable `POSEIDON_SERVER_PORT`. This can be done with `export POSEIDON_SERVER_PORT=5000`.
+
+### Documentation
+
+For the OpenAPI 3.0 definition of the API Poseidon provides, see [`swagger.yaml`](docs/swagger.yaml).

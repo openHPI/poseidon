@@ -1,0 +1,367 @@
+openapi: 3.0.0
+info:
+  title: Poseidon API
+  description: |
+    This API is used by CodeOcean to run code in runners.
+  version: '0.2.0'
+
+components:
+  schemas:
+    ExecutionEnvironment:
+      type: object
+      properties:
+        id:
+          description: The id of the execution environment
+          type: integer
+          example: 6
+        image:
+          description: The name of the OCI image used for this execution environment
+          type: string
+          example: openhpi/co_execenv_python:latest
+        prewarmingPoolSize:
+          description: Number of runners with this configuration to prewarm
+          type: integer
+          example: 50
+        cpuLimit:
+          description: CPU limit for one runner in MHz
+          type: number
+          example: 100
+        memoryLimit:
+          description: Memory limit for one runner in MB
+          type: integer
+          example: 256
+        networkAccess:
+          description: Whether the runner is allowed to access the network or not
+          type: boolean
+          example: true
+        exposedPorts:
+          description: A list of ports inside the runner to expose to the outside
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 65535
+          example: [80, 443]
+      required:
+        - id
+        - image
+        - prewarmingPoolSize
+        - cpuLimit
+        - memoryLimit
+        - networkAccess
+        - exposedPorts
+      additionalProperties: false
+
+  responses:
+    NotFound:
+        description: Not found
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                description: Explanation on why the request is invalid
+                type: string
+    InternalServerError:
+      description: Request could not be handled
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                description: Explanation on why the request could not be handled
+                type: string
+                example: Nomad server unreachable
+              errorCode:
+                description: Machine readable error description
+                type: string
+                enum:
+                  - NOMAD_UNREACHABLE
+                  - NOMAD_OVERLOAD
+                  - NOMAD_INTERNAL_SERVER_ERROR
+                  - UNKNOWN
+                example: NOMAD_UNREACHABLE
+
+tags:
+  - name: runner
+    description: A unit of execution
+  - name: execution environment
+    description: A template for runners
+  - name: miscellaneous
+
+paths:
+  /health:
+    get:
+      summary: Check if the API is available
+      description: If this route does not return, the API is not available.
+      tags:
+        - miscellaneous
+      responses:
+        "204":
+          description: Everything okay
+
+  /runners:
+    post:
+      summary: Provide a runner
+      description: Provide a runner with the requested execution environment to the client (CodeOcean).
+      tags:
+        - runner
+      requestBody:
+        description: Runner attributes
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                inactivityTimeout:
+                  description: Specify how long the runner should be available when there is no activity (execution or file copy). Activity resets this timer. 0 means no timeout
+                  type: integer
+                  default: 0
+                  example: 60
+                executionEnvironmentId:
+                  description: Specifies the execution environment of the runner
+                  type: integer
+                  example: 6
+              required:
+                - executionEnvironment
+              additionalProperties: false
+      responses:
+        "200":
+          description: A runner was successfully reserved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runnerId:
+                    description: The UUID of the provided runner
+                    type: string
+                    example: 123e4567-e89b-12d3-a456-426614174000
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /runners/{runnerId}:
+    delete:
+      summary: Destroy the runner
+      description: The runner is no longer in use and should be destroyed.
+      tags:
+        - runner
+      parameters:
+        - name: runnerId
+          in: path
+          schema:
+            description: The UUID of the runner that should be destroyed
+            type: string
+            example: 123e4567-e89b-12d3-a456-426614174000
+          required: true
+      responses:
+        "204":
+          description: Success
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /runners/{runnerId}/files:
+    patch:
+      summary: Manipulate runner file system
+      description: Copy the enclosed files to the file system of the specified runner. Existing files get overwritten and results of previous file copy operations on the same runner are present when executing multiple requests.
+      tags:
+        - runner
+      parameters:
+        - name: runnerId
+          in: path
+          schema:
+            description: Runner on which the files should be placed
+            type: string
+            example: 123e4567-e89b-12d3-a456-426614174000
+          required: true
+      requestBody:
+        description: Files to copy or delete
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                files:
+                  description: Array of files that should be placed in the runner. The files are processed in the order in which they are given
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      filepath:
+                        description: Location where the file should be placed. Can be absolute (starting with /) or relative to the workspace directory. Missing parent directories get created. If this ends with a /, the path is interpreted as a directory and content is ignored
+                        type: string
+                        example: /etc/passwd
+                      content:
+                        description: The content of the file. Binary data is represented as escape sequences. Any c99 s-char-sequence surrounded by quotes is valid (e.g. "\x01\x02") and converted to its byte representation. If this is not given and delete is false, the file is created with no content
+                        type: string
+                        example: root:x:0:0::/root:/bin/bash
+                      delete:
+                        description: Specify that the path should be deleted. If this is true, content is ignored and the file or directory is deleted (recursively) instead
+                        type: boolean
+                        default: false
+                        example: false
+                    required:
+                      - filepath
+                    additionalProperties: false
+              required:
+                - files
+              additionalProperties: false
+      responses:
+        "204":
+          description: All files were saved
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /runners/{runnerId}/execute:
+    post:
+      summary: Execute a command
+      description: Execute a command in the runner. Whether this starts the actual execution or only prepares a Websocket URL to start it depends on the implementation.
+      tags:
+        - runner
+      parameters:
+        - name: runnerId
+          description: Runner on which the command should be executed
+          in: path
+          schema:
+            type: string
+            example: 123e4567-e89b-12d3-a456-426614174000
+          required: true
+      requestBody:
+        description: Description what and how to execute
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  description: The command to be executed. The working directory for this execution is the working directory of the image of the execution environment
+                  type: string
+                  example: python exercise.py
+                environment:
+                  description: Environment variables for this execution. The keys of this object are the variable names and the value of each key is the value of the variable with the same name
+                  type: object
+                  additionalProperties:
+                    type: string
+                    pattern: "[a-zA-Z_][a-zA-Z0-9_]+"
+                  default: {}
+                  example:
+                    PATH: /bin
+                timeLimit:
+                  description: Specifies the time in seconds until this execution should be killed. 0 means do not kill
+                  type: integer
+                  default: 0
+                  example: 5
+              required:
+                - command
+              additionalProperties: false
+      responses:
+        "200":
+          description: Success. Returns a Websocket URL to connect to
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  websocketUrl:
+                    description: A Websocket endpoint to connect to communicate with the process running in the runner
+                    type: string
+                    example: "ws://ws.example.com/path/to/websocket"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /execution-environments:
+    get:
+      summary: List execution environments
+      description: List all execution environments the API is aware of.
+      tags:
+        - execution environment
+      responses:
+        "200":
+          description: Success. Returns all execution environments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  executionEnvironments:
+                    description: A list of all execution environments
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ExecutionEnvironment"
+
+  /execution-environments/{executionEnvironmentId}:
+    parameters:
+      - name: executionEnvironmentId
+        in: path
+        description: Id of the execution environment
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Show an execution environment
+      description: Get a representation of the execution environment specified by the id.
+      tags:
+        - execution environment
+      responses:
+        "200":
+          description: Success. Returns the execution environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionEnvironment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Create or replace the execution environment
+      description: This is used for keeping execution environments in sync between the client and the provider of this API. By sending a request with an id, the execution environment is created if it does not exist and updated otherwise.
+      tags:
+        - execution environment
+      requestBody:
+        description: The new execution environment
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecutionEnvironment"
+      responses:
+        "201":
+          description: The executions environment did not exist and was created
+        "204":
+          description: The execution environment was replaced
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete the execution environment
+      description: Remove the specified execution environment from the API.
+      tags:
+        - execution environment
+      responses:
+        "204":
+          description: The execution environment was deleted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"

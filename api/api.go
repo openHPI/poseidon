@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"github.com/gorilla/mux"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/auth"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"net/http"
@@ -27,6 +28,9 @@ func NewRouter() http.Handler {
 	// `router.Host(...)` and to HTTPS with `router.Schemes("https")`
 	router = newRouterV1(router)
 	router.Use(logging.HTTPLoggingMiddleware)
+	if auth.InitializeAuthentication() {
+		router.Use(auth.HTTPAuthenticationMiddleware)
+	}
 	return router
 }
 

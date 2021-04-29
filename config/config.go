@@ -16,8 +16,9 @@ import (
 var (
 	Config = &configuration{
 		Server: server{
-			Address:  "127.0.0.1",
+			Address: "127.0.0.1",
 			Port:     3000,
+			Token:    "",
 			TLS:      false,
 			CertFile: "",
 			KeyFile:  "",
@@ -43,6 +44,7 @@ var (
 type server struct {
 	Address  string
 	Port     int
+	Token    string
 	TLS      bool
 	CertFile string
 	KeyFile  string

@@ -3,8 +3,8 @@ package config
 import (
 	"flag"
 	"fmt"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gopkg.in/yaml.v3"
-	"log"
 	"os"
 	"reflect"
 	"strconv"
@@ -26,6 +26,7 @@ var (
 			Level: "INFO",
 		},
 	}
+	log = logging.GetLogger("config")
 )
 
 type server struct {
@@ -60,14 +61,14 @@ func readConfigFile() []byte {
 	flag.StringVar(&configFilePath, "config", "./configuration.yaml", "path of the yaml config file")
 	data, err := os.ReadFile(configFilePath)
 	if err != nil {
-		log.Printf("Using default configuration... (%v)", err)
+		log.WithError(err).Info("Using default configuration...")
 	}
 	return data
 }
 
 func (c *configuration) mergeYaml(content []byte) {
 	if err := yaml.Unmarshal(content, c); err != nil {
-		log.Fatalf("Could not parse configuration: %v", err)
+		log.WithError(err).Fatal("Could not parse configuration file")
 	}
 }
 
@@ -82,6 +83,11 @@ func readFromEnvironment(prefix string, value reflect.Value) {
 
 	if value.Kind() != reflect.Struct {
 		content, ok := os.LookupEnv(prefix)
+
+		logEntry := log.
+			WithField("prefix", prefix).
+			WithField("content", content)
+
 		if !ok {
 			return
 		}
@@ -91,20 +97,20 @@ func readFromEnvironment(prefix string, value reflect.Value) {
 		case reflect.Int:
 			integer, err := strconv.Atoi(content)
 			if err != nil {
-				log.Printf("Could not parse environment variable %s with value '%q' as integer", prefix, content)
+				logEntry.Warn("Could not parse environment variable as integer")
 				return
 			}
 			value.SetInt(int64(integer))
 		case reflect.Bool:
 			boolean, err := strconv.ParseBool(content)
 			if err != nil {
-				log.Printf("Could not parse environment variable %s with value '%q' as boolean", prefix, content)
+				logEntry.Warn("Could not parse environment variable as boolean")
 				return
 			}
 			value.SetBool(boolean)
 		default:
 			// ignore this field
-			log.Printf("Setting configuration options of type %s via environment variables is not supported", value.Type().Name())
+			logEntry.WithField("type", value.Type().Name()).Warn("Setting configuration option via environment variables is not supported")
 		}
 	} else {
 		for i := 0; i < value.NumField(); i++ {

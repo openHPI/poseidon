@@ -45,7 +45,14 @@ test:
   stage: test
   needs: []
   script:
-    - go test ./... -v
+    - go test ./... -v -coverprofile coverage.cov
+    - go tool cover -func=coverage.cov
+    - go tool cover -html=coverage.cov -o coverage.html
+  artifacts:
+    paths:
+      - coverage.html
+    expire_in: 1 week
+    expose_as: coverageReport
 
 dockerimage:
   stage: docker

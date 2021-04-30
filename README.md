@@ -1,5 +1,8 @@
 # Poseidon
 
+[![pipeline status](https://gitlab.hpi.de/codeocean/codemoon/poseidon/badges/main/pipeline.svg)](https://gitlab.hpi.de/codeocean/codemoon/poseidon/-/commits/main)
+[![coverage report](https://gitlab.hpi.de/codeocean/codemoon/poseidon/badges/main/coverage.svg)](https://gitlab.hpi.de/codeocean/codemoon/poseidon/-/commits/main)
+
 ## Setup
 
 If you haven't installed Go on your system yet, follow the [golang installation guide](https://golang.org/doc/install).

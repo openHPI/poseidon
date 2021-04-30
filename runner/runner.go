@@ -7,6 +7,7 @@ import (
 )
 
 type Status string
+type ContextKey string
 
 const (
 	StatusReady    Status = "ready"
@@ -15,7 +16,7 @@ const (
 	StatusFinished Status = "finished"
 
 	// runnerContextKey is the key used to store runners in context.Context
-	runnerContextKey = "runner"
+	runnerContextKey ContextKey = "runner"
 )
 
 type Runner interface {
@@ -74,11 +75,11 @@ func (r *ExerciseRunner) Id() string {
 	return r.id
 }
 
-func NewContext(ctx context.Context, runner *Runner) context.Context {
+func NewContext(ctx context.Context, runner Runner) context.Context {
 	return context.WithValue(ctx, runnerContextKey, runner)
 }
 
-func FromContext(ctx context.Context) (*Runner, bool) {
-	runner, ok := ctx.Value(runnerContextKey).(*Runner)
+func FromContext(ctx context.Context) (Runner, bool) {
+	runner, ok := ctx.Value(runnerContextKey).(Runner)
 	return runner, ok
 }

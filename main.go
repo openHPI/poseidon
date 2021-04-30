@@ -38,13 +38,13 @@ func runServer(server *http.Server) {
 	}
 }
 
-func initServer() *http.Server {
+func initServer(runnerPool pool.RunnerPool) *http.Server {
 	return &http.Server{
 		Addr:         config.Config.PoseidonAPIURL().Host,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      api.NewRouter(),
+		Handler:      api.NewRouter(runnerPool),
 	}
 }
 
@@ -67,17 +67,19 @@ func main() {
 		log.WithError(err).Warn("Could not initialize configuration")
 	}
 	logging.InitializeLogging(config.Config.Logger.Level)
-	server := initServer()
-	log.WithField("address", server.Addr).Info("Starting server")
 
 	// API initialization
 	nomadAPIClient, err := nomad.New(config.Config.NomadAPIURL())
 	if err != nil {
 		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
 	}
+
 	// ToDo: Move to create execution environment
-	runnersPool := pool.NewLocalRunnerPool()
-	environment.DebugInit(runnersPool, nomadAPIClient)
+	runnerPool := pool.NewLocalRunnerPool()
+	environment.DebugInit(runnerPool, nomadAPIClient)
+
+	server := initServer(runnerPool)
+	log.WithField("address", server.Addr).Info("Starting server")
 
 	go runServer(server)
 	shutdownOnOSSignal(server)

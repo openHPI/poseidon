@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gorilla/mux"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/auth"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment/pool"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"net/http"
 )
@@ -21,18 +21,18 @@ const (
 // always returns a router for the newest version of our API. We
 // use gorilla/mux because it is more convenient than net/http, e.g.
 // when extracting path parameters.
-func NewRouter() http.Handler {
+func NewRouter(runnerPool pool.RunnerPool) *mux.Router {
 	router := mux.NewRouter()
-	router.Use(logging.HTTPLoggingMiddleware)
 	// this can later be restricted to a specific host with
 	// `router.Host(...)` and to HTTPS with `router.Schemes("https")`
-	newRouterV1(router)
+	router = newRouterV1(router, runnerPool)
+	router.Use(logging.HTTPLoggingMiddleware)
 	return router
 }
 
 // newRouterV1 returns a sub-router containing the routes of version
 // 1 of our API.
-func newRouterV1(router *mux.Router) *mux.Router {
+func newRouterV1(router *mux.Router, runnerPool pool.RunnerPool) *mux.Router {
 	v1 := router.PathPrefix(RouteBase).Subrouter()
 	v1.HandleFunc(RouteHealth, Health).Methods(http.MethodGet)
 
@@ -42,7 +42,7 @@ func newRouterV1(router *mux.Router) *mux.Router {
 		v1 = v1.PathPrefix("").Subrouter()
 		v1.Use(auth.HTTPAuthenticationMiddleware)
 	}
-	registerRunnerRoutes(v1.PathPrefix(RouteRunners).Subrouter())
+	registerRunnerRoutes(v1.PathPrefix(RouteRunners).Subrouter(), runnerPool)
 
 	return v1
 }

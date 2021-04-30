@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"log"
 	"net/http"
 )
 

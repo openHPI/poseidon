@@ -16,7 +16,7 @@ func TestProvideRunnerRoute(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "The response code should be ok")
 
-	runnerResponse := new(dto.ResponseRunner)
+	runnerResponse := new(dto.RunnerResponse)
 	err = json.NewDecoder(resp.Body).Decode(runnerResponse)
 	assert.NoError(t, err)
 

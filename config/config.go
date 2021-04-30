@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
@@ -13,6 +14,7 @@ import (
 	"strings"
 )
 
+// Config contains the default configuration of Poseidon.
 var (
 	Config = &configuration{
 		Server: server{
@@ -25,22 +27,25 @@ var (
 		},
 		Nomad: nomad{
 			Address: "",
-			Token:   "",
 			Port:    4646,
+			Token:   "",
 			TLS:     false,
 		},
 		Logger: logger{
 			Level: "INFO",
 		},
 	}
-	log       = logging.GetLogger("config")
-	TLSConfig = &tls.Config{
+	configurationFilePath    = "./configuration.yaml"
+	configurationInitialized = false
+	log                      = logging.GetLogger("config")
+	TLSConfig                = &tls.Config{
 		MinVersion:               tls.VersionTLS13,
 		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
 		PreferServerCipherSuites: true,
 	}
 )
 
+// server configures the Poseidon webserver.
 type server struct {
 	Address  string
 	Port     int
@@ -50,27 +55,39 @@ type server struct {
 	KeyFile  string
 }
 
+// nomad configures the used Nomad cluster.
 type nomad struct {
 	Address string
-	Token   string
 	Port    int
+	Token   string
 	TLS     bool
 }
 
+// logger configures the used logger.
 type logger struct {
 	Level string
 }
 
+// configuration contains the complete configuration of Poseidon.
 type configuration struct {
 	Server server
 	Nomad  nomad
 	Logger logger
 }
 
-func InitConfig() {
+// InitConfig merges configuration options from environment variables and
+// a configuration file into the default configuration. Calls of InitConfig
+// after the first call have no effect and return an error. InitConfig
+// should be called directly after starting the program.
+func InitConfig() error {
+	if configurationInitialized {
+		return errors.New("configuration is already initialized")
+	}
+	configurationInitialized = true
 	content := readConfigFile()
 	Config.mergeYaml(content)
 	Config.mergeEnvironmentVariables()
+	return nil
 }
 
 func (c *configuration) NomadAPIURL() *url.URL {
@@ -93,14 +110,19 @@ func parseURL(address string, port int, tls bool) *url.URL {
 }
 
 func readConfigFile() []byte {
-	var configFilePath string
-	flag.StringVar(&configFilePath, "config", "./configuration.yaml", "path of the yaml config file")
-	flag.Parse()
-	data, err := os.ReadFile(configFilePath)
+	parseFlags()
+	data, err := os.ReadFile(configurationFilePath)
 	if err != nil {
 		log.WithError(err).Info("Using default configuration...")
 	}
 	return data
+}
+
+func parseFlags() {
+	if flag.Lookup("config") == nil {
+		flag.StringVar(&configurationFilePath, "config", configurationFilePath, "path of the yaml config file")
+	}
+	flag.Parse()
 }
 
 func (c *configuration) mergeYaml(content []byte) {
@@ -114,20 +136,20 @@ func (c *configuration) mergeEnvironmentVariables() {
 }
 
 func readFromEnvironment(prefix string, value reflect.Value) {
-	if !value.CanSet() || !value.CanInterface() {
+	logEntry := log.WithField("prefix", prefix)
+	// if value was not derived from a pointer, it is not possible to alter its contents
+	if !value.CanSet() {
+		logEntry.Warn("Cannot overwrite struct field that can not be set")
 		return
 	}
 
 	if value.Kind() != reflect.Struct {
 		content, ok := os.LookupEnv(prefix)
-
-		logEntry := log.
-			WithField("prefix", prefix).
-			WithField("content", content)
-
 		if !ok {
 			return
 		}
+		logEntry = logEntry.WithField("content", content)
+
 		switch value.Kind() {
 		case reflect.String:
 			value.SetString(content)

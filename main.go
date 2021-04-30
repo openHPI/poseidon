@@ -63,7 +63,9 @@ func shutdownOnOSSignal(server *http.Server) {
 }
 
 func main() {
-	config.InitConfig()
+	if err := config.InitConfig(); err != nil {
+		log.WithError(err).Warn("Could not initialize configuration")
+	}
 	logging.InitializeLogging(config.Config.Logger.Level)
 	server := initServer()
 	log.WithField("address", server.Addr).Info("Starting server")

@@ -1,0 +1,30 @@
+# Configuration of the Poseidon webserver
+server:
+  # Address on which the webserver listens
+  address: 127.0.0.1
+  # Port on which the webserver listens
+  port: 3000
+  # If set, this token is required in the X-Poseidon-Token header for each route except /health
+  token: SECRET
+  # If set, the API uses TLS for all incoming connections
+  tls: true
+  # The path to the certificate file used for TLS
+  certfile: ./poseidon.crt
+  # The path to the key file used for TLS
+  keyfile: ./poseidon.key
+
+# Configuration of the used Nomad cluster
+nomad:
+  # IP address / domain of the Nomad server
+  address: 127.0.0.1
+  # Port of the Nomad server
+  port: 4646
+  # Authenticate requests to the Nomad server with this token
+  token: SECRET
+  # Specifies whether to use TLS when communicating with the Nomad server
+  tls: false
+
+# Configuration of the logger
+logger:
+  # Log level that is used after reading the config (INFO until then)
+  level: DEBUG

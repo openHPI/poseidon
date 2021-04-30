@@ -16,3 +16,6 @@ RUN wget "https://releases.hashicorp.com/nomad/1.0.4/nomad_1.0.4_linux_amd64.zip
 
 # Install Nomad
 RUN mv nomad /usr/sbin/ && nomad -version
+
+COPY nomad-run-and-wait /usr/sbin/
+RUN chmod +x /usr/sbin/nomad-run-and-wait

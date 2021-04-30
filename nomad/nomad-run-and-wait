@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Script that runs a Nomad job and watches the deployment status until it finished running
+# See https://github.com/hashicorp/nomad/issues/6818
+
+if [[ $# -eq 0 ]]; then
+  echo "Usage: $0 <path/to/job.nomad>"
+  exit 1
+fi
+
+output=$(nomad run $1 2>&1)
+
+if [[ $? -ne 0 ]]; then
+  echo $output
+  exit 1
+fi
+
+deployment=$(grep -oP "(?<=Evaluation within deployment: \").*(?=\")" <<<$output)
+
+echo "Monitoring deployment $deployment"
+
+timeout=300
+sleepDuration=4
+iterations=$((timeout / sleepDuration))
+
+for i in $(seq $iterations); do
+  if [[ $i -eq $iterations ]]; then
+    # timeout reached, fail deployment and exit
+    nomad deployment fail $deployment
+    exit 1
+  fi
+  output=$(nomad deployment status $deployment 2>&1)
+  grep -E "Status" <<<$output
+  running=$(grep -E "Status.*=.*running" <<<$output)
+  if [[ -z "$running" ]]; then
+    break
+  fi
+  sleep $sleepDuration
+done
+
+echo "#######"
+echo "$output"
+failed=$(grep -E "Status.*=.*failed" <<<$output)
+if [[ -n "$failed" ]]; then
+  exit 1
+fi
+
+exit 0

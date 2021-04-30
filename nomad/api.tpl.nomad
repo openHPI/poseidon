@@ -12,11 +12,16 @@ job "${NOMAD_SLUG}" {
       progress_deadline = "10m"
       auto_revert   = true
     }
+
+    // Don't allow rescheduling to fail deployment and pipeline if task fails
+    reschedule {
+      attempts = 0
+      unlimited = false
+    }
+
+    // No restarts to immediately fail the deployment and pipeline on first task fail
     restart {
-      attempts = 3
-      delay    = "15s"
-      interval = "30m"
-      mode     = "fail"
+      attempts = 0
     }
 
     network {

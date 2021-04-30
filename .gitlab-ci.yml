@@ -85,7 +85,7 @@ dockerimage:
     - nomad validate nomad/api.nomad
     # nomad plan returns 1 if allocation is created or destroyed which is what we want here
     - nomad plan     nomad/api.nomad || [ $? == 1 ]
-    - nomad run      nomad/api.nomad
+    - nomad-run-and-wait nomad/api.nomad
   artifacts:
     paths:
       - nomad/api.nomad

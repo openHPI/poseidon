@@ -28,7 +28,7 @@ job "${NOMAD_SLUG}" {
       mode = "bridge"
 
       port "http" {
-        to     = 3000
+        to     = 7200
       }
     }
 

@@ -4,5 +4,5 @@ RUN adduser --disabled-password api
 USER api
 COPY poseidon /home/api/
 
-EXPOSE 3000
+EXPOSE 7200
 CMD ["/home/api/poseidon"]

@@ -3,7 +3,7 @@ server:
   # Address on which the webserver listens
   address: 127.0.0.1
   # Port on which the webserver listens
-  port: 3000
+  port: 7200
   # If set, this token is required in the X-Poseidon-Token header for each route except /health
   token: SECRET
   # If set, the API uses TLS for all incoming connections

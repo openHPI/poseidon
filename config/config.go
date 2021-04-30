@@ -18,8 +18,8 @@ import (
 var (
 	Config = &configuration{
 		Server: server{
-			Address: "127.0.0.1",
-			Port:     3000,
+			Address:  "127.0.0.1",
+			Port:     7200,
 			Token:    "",
 			TLS:      false,
 			CertFile: "",

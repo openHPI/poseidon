@@ -60,6 +60,22 @@ If a value is not specified, the value of the subsequent possibility is used.
 
 For the OpenAPI 3.0 definition of the API Poseidon provides, see [`swagger.yaml`](docs/swagger.yaml).
 
+### Authentication
+
+⚠️ Don't use authentication without TLS enabled, as otherwise the token will be transmitted in clear text.
+
+⚠ We encourage you to enable authentication for this API. If disabled, everyone with access to your API has also indirectly access to your Nomad cluster as this API uses it.
+
+The API supports authentication via an HTTP header. To enable it, specify the `server.token` value in the `configuration.yaml` or the corresponding environment variable `POSEIDON_SERVER_TOKEN`.
+
+Once configured, all requests to the API, except the `health` route require the configured token in the `X-Poseidon-Token` header.
+
+An example `curl` command with the configured token being `SECRET` looks as follows:
+
+```bash
+$ curl -H "X-Poseidon-Token: SECRET" http://localhost:3000/api/v1/some-protected-route
+```
+
 ### TLS
 
 We highly encourage the use of TLS in this API to increase the security. To enable TLS, set `server.tls` or the corresponding environment variable to true and specify the `server.certfile` and `server.keyfile` options.

@@ -14,6 +14,28 @@ import (
 
 var log = logging.GetLogger("main")
 
+func runServer(server *http.Server) {
+	log.WithField("address", server.Addr).Info("Starting server")
+	var err error
+	if config.Config.Server.TLS {
+		server.TLSConfig = config.TLSConfig
+		log.
+			WithField("CertFile", config.Config.Server.CertFile).
+			WithField("KeyFile", config.Config.Server.KeyFile).
+			Debug("Using TLS")
+		err = server.ListenAndServeTLS(config.Config.Server.CertFile, config.Config.Server.KeyFile)
+	} else {
+		err = server.ListenAndServe()
+	}
+	if err != nil {
+		if err == http.ErrServerClosed {
+			log.WithError(err).Info("Server closed")
+		} else {
+			log.WithError(err).Fatal("Error during listening and serving")
+		}
+	}
+}
+
 func main() {
 	config.InitConfig()
 	logging.InitializeLogging(config.Config.Logger.Level)
@@ -26,27 +48,7 @@ func main() {
 		Handler:      api.NewRouter(),
 	}
 
-	log.WithField("address", server.Addr).Info("Starting server")
-	go func() {
-		var err error
-		if config.Config.Server.TLS {
-			server.TLSConfig = config.TLSConfig
-			log.
-				WithField("CertFile", config.Config.Server.CertFile).
-				WithField("KeyFile", config.Config.Server.KeyFile).
-				Debug("Using TLS")
-			err = server.ListenAndServeTLS(config.Config.Server.CertFile, config.Config.Server.KeyFile)
-		} else {
-			err = server.ListenAndServe()
-		}
-		if err != nil {
-			if err == http.ErrServerClosed {
-				log.WithError(err).Info("Server closed")
-			} else {
-				log.WithError(err).Fatal("Error during listening and serving")
-			}
-		}
-	}()
+	go runServer(server)
 
 	// wait for SIGINT
 	signals := make(chan os.Signal, 1)

@@ -59,3 +59,13 @@ If a value is not specified, the value of the subsequent possibility is used.
 ### Documentation
 
 For the OpenAPI 3.0 definition of the API Poseidon provides, see [`swagger.yaml`](docs/swagger.yaml).
+
+### TLS
+
+We highly encourage the use of TLS in this API to increase the security. To enable TLS, set `server.tls` or the corresponding environment variable to true and specify the `server.certfile` and `server.keyfile` options.
+
+You can create a self-signed certificate to use with this API using the following command.
+
+```shell
+$ openssl req -x509 -nodes -newkey rsa:2048 -keyout server.rsa.key -out server.rsa.crt -days 3650
+```

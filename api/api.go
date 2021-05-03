@@ -24,13 +24,10 @@ const (
 // when extracting path parameters.
 func NewRouter() http.Handler {
 	router := mux.NewRouter()
+	router.Use(logging.HTTPLoggingMiddleware)
 	// this can later be restricted to a specific host with
 	// `router.Host(...)` and to HTTPS with `router.Schemes("https")`
-	router = newRouterV1(router)
-	router.Use(logging.HTTPLoggingMiddleware)
-	if auth.InitializeAuthentication() {
-		router.Use(auth.HTTPAuthenticationMiddleware)
-	}
+	newRouterV1(router)
 	return router
 }
 
@@ -39,7 +36,15 @@ func NewRouter() http.Handler {
 func newRouterV1(router *mux.Router) *mux.Router {
 	v1 := router.PathPrefix(RouteBase).Subrouter()
 	v1.HandleFunc(RouteHealth, Health).Methods(http.MethodGet)
+
+	if auth.InitializeAuthentication() {
+		// Create new authenticated subrouter.
+		// All routes added to v1 after this require authentication.
+		v1 = v1.PathPrefix("").Subrouter()
+		v1.Use(auth.HTTPAuthenticationMiddleware)
+	}
 	registerRunnerRoutes(v1.PathPrefix(RouteRunners).Subrouter())
+
 	return v1
 }
 

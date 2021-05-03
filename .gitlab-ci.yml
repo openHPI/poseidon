@@ -14,6 +14,9 @@ variables:
   NOMAD_SLUG: $NOMAD_PREFIX-$CI_ENVIRONMENT_SLUG
   IMAGE_NAME_ENV: $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME/$CI_COMMIT_REF_SLUG:$CI_PIPELINE_IID
   IMAGE_NAME_GENERAL: $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME/$CI_COMMIT_REF_SLUG:latest
+  NOMAD_CI_IMAGE_NAME_ENV: $DOCKER_REGISTRY/nomad-ci/$CI_COMMIT_REF_SLUG:$CI_PIPELINE_IID
+  NOMAD_CI_IMAGE_NAME_GENERAL: $DOCKER_REGISTRY/nomad-ci/$CI_COMMIT_REF_SLUG:latest
+  NOMAD_CI_BASE_IMAGE: $DOCKER_REGISTRY/nomad-ci/main:latest
 
 compile:
   stage: build
@@ -72,12 +75,31 @@ dockerimage:
     - docker tag $IMAGE_NAME_ENV $IMAGE_NAME_GENERAL
     - docker push $IMAGE_NAME_GENERAL
 
+nomadimage:
+  stage: docker
+  image: docker:latest
+  services:
+    - name: docker:dind
+      alias: docker
+  needs: []
+  script:
+    - cd nomad
+    - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
+    - docker pull $DOCKER_REGISTRY/library/debian:buster-slim
+    - docker tag $DOCKER_REGISTRY/library/debian:buster-slim debian:buster-slim
+    # Pull base image to avoid rebuilding every pipeline if nothing changed, prioritize image from branch
+    - docker pull $NOMAD_CI_IMAGE_NAME_GENERAL || docker pull $NOMAD_CI_BASE_IMAGE || true
+    - docker build --cache-from $NOMAD_CI_BASE_IMAGE --cache-from $NOMAD_CI_IMAGE_NAME_GENERAL -t $NOMAD_CI_IMAGE_NAME_ENV -t $NOMAD_CI_IMAGE_NAME_GENERAL .
+    - docker push $NOMAD_CI_IMAGE_NAME_ENV
+    - docker push $NOMAD_CI_IMAGE_NAME_GENERAL
+
 .start_deployment: &start_deployment
-  image: drp.codemoon.xopic.de/nomad-ci:latest
+  image: $NOMAD_CI_IMAGE_NAME_ENV
   stage: deploy
   needs:
     - job: dockerimage
       artifacts: false
+    - job: nomadimage
   script:
     # Only replace set env vars
     - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < nomad/api.tpl.nomad > nomad/api.nomad
@@ -109,7 +131,7 @@ stop_review:
   # See:
   # https://gitlab.com/gitlab-org/gitlab-foss/blob/master/lib/gitlab/ci/templates/Jobs/Deploy.gitlab-ci.yml
   stage: cleanup
-  image: drp.codemoon.xopic.de/nomad-ci:latest
+  image: $NOMAD_CI_IMAGE_NAME_ENV
   variables:
     GIT_STRATEGY: none
   script:

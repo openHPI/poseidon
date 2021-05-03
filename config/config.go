@@ -90,10 +90,12 @@ func InitConfig() error {
 	return nil
 }
 
+// NomadAPIURL returns the URL for the configured Nomad cluster.
 func (c *configuration) NomadAPIURL() *url.URL {
 	return parseURL(Config.Nomad.Address, Config.Nomad.Port, Config.Nomad.TLS)
 }
 
+// PoseidonAPIURL returns the URL of the Poseidon webserver.
 func (c *configuration) PoseidonAPIURL() *url.URL {
 	return parseURL(Config.Server.Address, Config.Server.Port, false)
 }
@@ -114,6 +116,7 @@ func readConfigFile() []byte {
 	data, err := os.ReadFile(configurationFilePath)
 	if err != nil {
 		log.WithError(err).Info("Using default configuration...")
+		return nil
 	}
 	return data
 }

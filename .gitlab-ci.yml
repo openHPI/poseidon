@@ -83,7 +83,7 @@ nomadimage:
       alias: docker
   needs: []
   script:
-    - cd nomad
+    - cd ci
     - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
     - docker pull $DOCKER_REGISTRY/library/debian:buster-slim
     - docker tag $DOCKER_REGISTRY/library/debian:buster-slim debian:buster-slim
@@ -102,15 +102,15 @@ nomadimage:
     - job: nomadimage
   script:
     # Only replace set env vars
-    - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < nomad/api.tpl.nomad > nomad/api.nomad
+    - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < ci/api.tpl.nomad > ci/api.nomad
     # Make sure to set NOMAD_ADDR, NOMAD_SKIP_VERIFY and NOMAD_TOKEN env vars in CI settings appropriately
-    - nomad validate nomad/api.nomad
+    - nomad validate ci/api.nomad
     # nomad plan returns 1 if allocation is created or destroyed which is what we want here
-    - nomad plan     nomad/api.nomad || [ $? == 1 ]
-    - nomad-run-and-wait nomad/api.nomad
+    - nomad plan     ci/api.nomad || [ $? == 1 ]
+    - nomad-run-and-wait ci/api.nomad
   artifacts:
     paths:
-      - nomad/api.nomad
+      - ci/api.nomad
     expire_in: 1 month
     expose_as: api-nomad
 

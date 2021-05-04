@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gopkg.in/yaml.v3"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -24,6 +25,7 @@ var (
 		Nomad: nomad{
 			Address: "",
 			Token:   "",
+			Port:    4646,
 			TLS:     false,
 		},
 		Logger: logger{
@@ -49,6 +51,7 @@ type server struct {
 type nomad struct {
 	Address string
 	Token   string
+	Port    int
 	TLS     bool
 }
 
@@ -68,9 +71,29 @@ func InitConfig() {
 	Config.mergeEnvironmentVariables()
 }
 
+func (c *configuration) NomadAPIURL() *url.URL {
+	return parseURL(Config.Nomad.Address, Config.Nomad.Port, Config.Nomad.TLS)
+}
+
+func (c *configuration) PoseidonAPIURL() *url.URL {
+	return parseURL(Config.Server.Address, Config.Server.Port, false)
+}
+
+func parseURL(address string, port int, tls bool) *url.URL {
+	scheme := "http"
+	if tls {
+		scheme = "https"
+	}
+	return &url.URL{
+		Scheme: scheme,
+		Host:   fmt.Sprintf("%s:%d", address, port),
+	}
+}
+
 func readConfigFile() []byte {
 	var configFilePath string
 	flag.StringVar(&configFilePath, "config", "./configuration.yaml", "path of the yaml config file")
+	flag.Parse()
 	data, err := os.ReadFile(configFilePath)
 	if err != nil {
 		log.WithError(err).Info("Using default configuration...")

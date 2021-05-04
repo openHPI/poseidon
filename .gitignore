@@ -1,5 +1,8 @@
 # Project binary
 poseidon
+
 # TLS certificate/key
 *.crt
 *.key
+
+configuration.yaml

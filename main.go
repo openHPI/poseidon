@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment/pool"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"net/http"
 	"os"
 	"os/signal"
@@ -36,28 +38,45 @@ func runServer(server *http.Server) {
 	}
 }
 
-func main() {
-	config.InitConfig()
-	logging.InitializeLogging(config.Config.Logger.Level)
-
-	server := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", config.Config.Server.Address, config.Config.Server.Port),
+func initServer() *http.Server {
+	return &http.Server{
+		Addr:         config.Config.PoseidonAPIURL().Host,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
 		Handler:      api.NewRouter(),
 	}
+}
 
-	go runServer(server)
-
+// shutdownOnOSSignal listens for a signal from the operation system
+// When receiving a signal the server shuts down but waits up to 15 seconds to close remaining connections
+func shutdownOnOSSignal(server *http.Server) {
 	// wait for SIGINT
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 	<-signals
 	log.Info("Received SIGINT, shutting down ...")
 
-	// shutdown the server but wait up to 15 seconds to close remaining connections
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	_ = server.Shutdown(ctx)
+}
+
+func main() {
+	config.InitConfig()
+	logging.InitializeLogging(config.Config.Logger.Level)
+	server := initServer()
+	log.WithField("address", server.Addr).Info("Starting server")
+
+	// API initialization
+	nomadAPIClient, err := nomad.New(config.Config.NomadAPIURL())
+	if err != nil {
+		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
+	}
+	// ToDo: Move to create execution environment
+	runnersPool := pool.NewLocalRunnerPool()
+	environment.DebugInit(runnersPool, nomadAPIClient)
+
+	go runServer(server)
+	shutdownOnOSSignal(server)
 }

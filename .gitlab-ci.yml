@@ -48,7 +48,7 @@ test:
   stage: test
   needs: []
   script:
-    - go test ./... -v -coverprofile coverage.cov
+    - go test $(go list ./... | grep -v /e2e) -v -coverprofile coverage.cov
     - go tool cover -func=coverage.cov
     - go tool cover -html=coverage.cov -o coverage.html
   artifacts:

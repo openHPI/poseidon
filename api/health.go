@@ -7,8 +7,5 @@ import (
 // Health tries to respond that the server is alive.
 // If it is not, the response won't reach the client.
 func Health(writer http.ResponseWriter, _ *http.Request) {
-	writeJson(
-		writer,
-		Message{"I'm alive!"},
-	)
+	writer.WriteHeader(http.StatusNoContent)
 }

@@ -69,3 +69,11 @@ You can create a self-signed certificate to use with this API using the followin
 ```shell
 $ openssl req -x509 -nodes -newkey rsa:2048 -keyout server.rsa.key -out server.rsa.crt -days 3650
 ```
+
+## Tests
+
+As testing framework we use the [testify](https://github.com/stretchr/testify) toolkit.  
+For mocks we use [mockery](https://github.com/vektra/mockery).
+With Mockery, you can create mocks by running `mockery -r --name=<<interface_name>>` on a specific interface.
+If the interface changes, you can rerun this command.  
+For e2e tests we provide a separate package. E2e tests require the connection to a Nomad cluster.

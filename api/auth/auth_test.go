@@ -21,8 +21,7 @@ type AuthenticationMiddlewareTestSuite struct {
 }
 
 func (suite *AuthenticationMiddlewareTestSuite) SetupTest() {
-	config.Config.Server.Token = testToken
-	InitializeAuthentication()
+	correctAuthenticationToken = []byte(testToken)
 	suite.recorder = httptest.NewRecorder()
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/test", nil)
 	if err != nil {
@@ -33,6 +32,10 @@ func (suite *AuthenticationMiddlewareTestSuite) SetupTest() {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
+}
+
+func (suite *AuthenticationMiddlewareTestSuite) TearDownTest() {
+	correctAuthenticationToken = []byte(nil)
 }
 
 func (suite *AuthenticationMiddlewareTestSuite) TestReturns401WhenHeaderUnset() {
@@ -68,4 +71,21 @@ func (suite *AuthenticationMiddlewareTestSuite) TestPassesWhenTokenCorrect() {
 
 func TestHTTPAuthenticationMiddleware(t *testing.T) {
 	suite.Run(t, new(AuthenticationMiddlewareTestSuite))
+}
+
+func TestInitializeAuthentication(t *testing.T) {
+	t.Run("if token unset", func(t *testing.T) {
+		config.Config.Server.Token = ""
+		initialized := InitializeAuthentication()
+		assert.Equal(t, false, initialized)
+		assert.Equal(t, []byte(nil), correctAuthenticationToken, "it should not set correctAuthenticationToken")
+	})
+	t.Run("if token set", func(t *testing.T) {
+		config.Config.Server.Token = testToken
+		initialized := InitializeAuthentication()
+		assert.Equal(t, true, initialized)
+		assert.Equal(t, []byte(testToken), correctAuthenticationToken, "it should set correctAuthenticationToken")
+		config.Config.Server.Token = ""
+		correctAuthenticationToken = []byte(nil)
+	})
 }

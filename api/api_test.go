@@ -14,6 +14,7 @@ func mockHTTPHandler(writer http.ResponseWriter, _ *http.Request) {
 }
 
 func TestNewRouterV1WithAuthenticationDisabled(t *testing.T) {
+	config.Config.Server.Token = ""
 	router := mux.NewRouter()
 	v1 := newRouterV1(router)
 
@@ -64,4 +65,5 @@ func TestNewRouterV1WithAuthenticationEnabled(t *testing.T) {
 		router.ServeHTTP(recorder, request)
 		assert.Equal(t, http.StatusUnauthorized, recorder.Code)
 	})
+	config.Config.Server.Token = ""
 }

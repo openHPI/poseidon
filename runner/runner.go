@@ -14,7 +14,7 @@ type Status string
 // ContextKey is the type for keys in a request context.
 type ContextKey string
 
-// ExecutionId is an id for a execution in a Runner.
+// ExecutionId is an id for an execution in a Runner.
 type ExecutionId string
 
 const (
@@ -38,7 +38,7 @@ type Runner interface {
 	Id() string
 
 	// Execution looks up an ExecutionId for the runner and returns the associated RunnerRequest.
-	// If this request does not exits, ok is false, else true.
+	// If this request does not exit, ok is false, else true.
 	Execution(ExecutionId) (request dto.ExecutionRequest, ok bool)
 
 	// AddExecution saves the supplied ExecutionRequest for the runner and returns an ExecutionId to retrieve it again.
@@ -50,7 +50,7 @@ type Runner interface {
 
 // ExerciseRunner is an abstraction to communicate with Nomad allocations.
 type ExerciseRunner struct {
-	sync.Mutex
+	sync.RWMutex
 	id         string
 	status     Status
 	ch         chan bool
@@ -62,7 +62,6 @@ func NewExerciseRunner(id string) *ExerciseRunner {
 	return &ExerciseRunner{
 		id:         id,
 		status:     StatusReady,
-		Mutex:      sync.Mutex{},
 		ch:         make(chan bool),
 		executions: make(map[ExecutionId]dto.ExecutionRequest),
 	}
@@ -87,8 +86,8 @@ func (r *ExerciseRunner) SetStatus(status Status) {
 }
 
 func (r *ExerciseRunner) Status() Status {
-	r.Lock()
-	defer r.Unlock()
+	r.RLock()
+	defer r.RUnlock()
 	return r.status
 }
 
@@ -97,8 +96,8 @@ func (r *ExerciseRunner) Id() string {
 }
 
 func (r *ExerciseRunner) Execution(id ExecutionId) (executionRequest dto.ExecutionRequest, ok bool) {
-	r.Lock()
-	defer r.Unlock()
+	r.RLock()
+	defer r.RUnlock()
 	executionRequest, ok = r.executions[id]
 	return
 }

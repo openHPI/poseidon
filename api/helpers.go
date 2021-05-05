@@ -28,12 +28,12 @@ func sendJson(writer http.ResponseWriter, content interface{}, httpStatusCode in
 		return
 	}
 	if _, err = writer.Write(response); err != nil {
-		log.Printf("Error writing JSON to response: %v\n", err)
+		log.WithError(err).Error("Could not write JSON response")
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func parseRequestBodyJSON(writer http.ResponseWriter, request *http.Request, structure interface{}) error {
+func parseJSONRequestBody(writer http.ResponseWriter, request *http.Request, structure interface{}) error {
 	if err := json.NewDecoder(request.Body).Decode(structure); err != nil {
 		writeBadRequest(writer, err)
 		return err

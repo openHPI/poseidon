@@ -79,8 +79,6 @@ func main() {
 	environment.DebugInit(runnerPool, nomadAPIClient)
 
 	server := initServer(runnerPool)
-	log.WithField("address", server.Addr).Info("Starting server")
-
 	go runServer(server)
 	shutdownOnOSSignal(server)
 }

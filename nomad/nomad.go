@@ -11,6 +11,7 @@ type ExecutorApi interface {
 	GetJobScale(jobId string) (jobScale int, err error)
 	SetJobScaling(jobId string, count int, reason string) (err error)
 	LoadRunners(jobId string) (runnerIds []string, err error)
+	DeleteRunner(runnerId string) (err error)
 }
 
 // ApiClient provides access to the Nomad functionality
@@ -68,4 +69,13 @@ func (apiClient *ApiClient) LoadRunners(jobId string) (runnerIds []string, err e
 		runnerIds = append(runnerIds, stub.ID)
 	}
 	return
+}
+
+func (apiClient *ApiClient) DeleteRunner(runnerId string) (err error) {
+	allocation, _, err := apiClient.client.Allocations().Info(runnerId, nil)
+	if err != nil {
+		return
+	}
+	_, err = apiClient.client.Allocations().Stop(allocation, nil)
+	return err
 }

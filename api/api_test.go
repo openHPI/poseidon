@@ -17,7 +17,7 @@ func mockHTTPHandler(writer http.ResponseWriter, _ *http.Request) {
 func TestNewRouterV1WithAuthenticationDisabled(t *testing.T) {
 	config.Config.Server.Token = ""
 	router := mux.NewRouter()
-	v1 := newRouterV1(router, environment.NewLocalRunnerPool())
+	v1 := newRouterV1(router, nil, environment.NewLocalRunnerPool())
 
 	t.Run("health route is accessible", func(t *testing.T) {
 		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -44,7 +44,7 @@ func TestNewRouterV1WithAuthenticationDisabled(t *testing.T) {
 func TestNewRouterV1WithAuthenticationEnabled(t *testing.T) {
 	config.Config.Server.Token = "TestToken"
 	router := mux.NewRouter()
-	v1 := newRouterV1(router, environment.NewLocalRunnerPool())
+	v1 := newRouterV1(router, nil, environment.NewLocalRunnerPool())
 
 	t.Run("health route is accessible", func(t *testing.T) {
 		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)

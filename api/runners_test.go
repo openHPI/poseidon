@@ -3,11 +3,15 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/mocks"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"net/http/httptest"
@@ -67,7 +71,7 @@ func TestFindRunnerMiddleware(t *testing.T) {
 
 func TestExecuteRoute(t *testing.T) {
 	runnerPool := environment.NewLocalRunnerPool()
-	router := NewRouter(runnerPool)
+	router := NewRouter(nil, runnerPool)
 	testRunner := runner.NewExerciseRunner("testRunner")
 	runnerPool.Add(testRunner)
 
@@ -126,4 +130,90 @@ func TestExecuteRoute(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
+}
+
+func TestDeleteRunnerRouteTestSuite(t *testing.T) {
+	suite.Run(t, new(DeleteRunnerRouteTestSuite))
+}
+
+type DeleteRunnerRouteTestSuite struct {
+	suite.Suite
+	runnerPool environment.RunnerPool
+	apiClient  *mocks.ExecutorApi
+	router     *mux.Router
+	testRunner runner.Runner
+	path       string
+}
+
+func (suite *DeleteRunnerRouteTestSuite) SetupTest() {
+	suite.runnerPool = environment.NewLocalRunnerPool()
+	suite.apiClient = &mocks.ExecutorApi{}
+	suite.router = NewRouter(suite.apiClient, suite.runnerPool)
+
+	suite.testRunner = runner.NewExerciseRunner("testRunner")
+	suite.runnerPool.Add(suite.testRunner)
+
+	var err error
+	runnerUrl, err := suite.router.Get(DeleteRoute).URL(RunnerIdKey, suite.testRunner.Id())
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+	suite.path = runnerUrl.String()
+}
+
+func (suite *DeleteRunnerRouteTestSuite) TestValidRequestReturnsNoContent() {
+	suite.apiClient.On("DeleteRunner", mock.AnythingOfType("string")).Return(nil)
+
+	recorder := httptest.NewRecorder()
+	request, err := http.NewRequest(http.MethodDelete, suite.path, nil)
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+
+	suite.router.ServeHTTP(recorder, request)
+
+	suite.Equal(http.StatusNoContent, recorder.Code)
+
+	suite.Run("runner is deleted on nomad", func() {
+		suite.apiClient.AssertCalled(suite.T(), "DeleteRunner", suite.testRunner.Id())
+	})
+
+	suite.Run("runner is deleted from runnerPool", func() {
+		returnedRunner, ok := suite.runnerPool.Get(suite.testRunner.Id())
+		suite.Nil(returnedRunner)
+		suite.False(ok)
+	})
+}
+
+func (suite *DeleteRunnerRouteTestSuite) TestReturnInternalServerErrorWhenApiCallToNomadFailed() {
+	suite.apiClient.On("DeleteRunner", mock.AnythingOfType("string")).Return(errors.New("API call failed"))
+
+	recorder := httptest.NewRecorder()
+	request, err := http.NewRequest(http.MethodDelete, suite.path, nil)
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+
+	suite.router.ServeHTTP(recorder, request)
+
+	suite.Equal(http.StatusInternalServerError, recorder.Code)
+}
+
+func (suite *DeleteRunnerRouteTestSuite) TestDeleteInvalidRunnerIdReturnsNotFound() {
+	var err error
+	runnersUrl, err := suite.router.Get(DeleteRoute).URL(RunnerIdKey, "1nv4l1dID")
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+	suite.path = runnersUrl.String()
+
+	recorder := httptest.NewRecorder()
+	request, err := http.NewRequest(http.MethodDelete, suite.path, nil)
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+
+	suite.router.ServeHTTP(recorder, request)
+
+	suite.Equal(http.StatusNotFound, recorder.Code)
 }

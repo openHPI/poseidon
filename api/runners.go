@@ -7,6 +7,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 const (
 	ExecutePath    = "/execute"
 	WebsocketPath  = "/websocket"
+	DeleteRoute    = "deleteRunner"
 	RunnerIdKey    = "runnerId"
 	ExecutionIdKey = "executionId"
 )
@@ -111,10 +113,27 @@ func findRunnerMiddleware(runnerPool environment.RunnerPool) func(handler http.H
 	}
 }
 
-func registerRunnerRoutes(router *mux.Router, runnerPool environment.RunnerPool) {
+func deleteRunner(apiClient nomad.ExecutorApi, runnerPool environment.RunnerPool) func(writer http.ResponseWriter, request *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		targetRunner, _ := runner.FromContext(request.Context())
+
+		err := apiClient.DeleteRunner(targetRunner.Id())
+		if err != nil {
+			writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)
+			return
+		}
+
+		runnerPool.Delete(targetRunner.Id())
+
+		writer.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func registerRunnerRoutes(router *mux.Router, apiClient nomad.ExecutorApi, runnerPool environment.RunnerPool) {
 	router.HandleFunc("", provideRunner).Methods(http.MethodPost)
 	runnerRouter := router.PathPrefix(fmt.Sprintf("/{%s}", RunnerIdKey)).Subrouter()
 	runnerRouter.Use(findRunnerMiddleware(runnerPool))
 	runnerRouter.HandleFunc(ExecutePath, executeCommand(runnerRouter)).Methods(http.MethodPost).Name(ExecutePath)
 	runnerRouter.HandleFunc(WebsocketPath, connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
+	runnerRouter.HandleFunc("", deleteRunner(apiClient, runnerPool)).Methods(http.MethodDelete).Name(DeleteRoute)
 }

@@ -2,7 +2,6 @@ package environment
 
 import (
 	"errors"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment/pool"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
@@ -28,7 +27,7 @@ type NomadExecutionEnvironment struct {
 	id               int
 	jobId            string
 	availableRunners chan runner.Runner
-	allRunners       pool.RunnerPool
+	allRunners       RunnerPool
 	nomadApiClient   nomad.ExecutorApi
 }
 
@@ -36,7 +35,7 @@ var executionEnvironment ExecutionEnvironment
 
 // DebugInit initializes one execution environment so that its runners can be provided.
 // ToDo: This should be replaced by a create Execution Environment route
-func DebugInit(runnersPool pool.RunnerPool, nomadApi nomad.ExecutorApi) {
+func DebugInit(runnersPool RunnerPool, nomadApi nomad.ExecutorApi) {
 	executionEnvironment = &NomadExecutionEnvironment{
 		id:               0,
 		jobId:            "python",
@@ -75,7 +74,12 @@ func (environment *NomadExecutionEnvironment) Refresh() {
 		for _, r := range environment.unusedRunners(runners) {
 			// ToDo: Listen on Nomad event stream
 			log.Printf("Adding allocation %+v", r)
-			environment.allRunners.AddRunner(r)
+			if err := environment.allRunners.Add(r); err != nil {
+				log.
+					WithError(err).
+					WithField("runner", r).
+					Fatal("Invalid storage implementation used for object of type")
+			}
 			environment.availableRunners <- r
 		}
 		jobScale, err := environment.nomadApiClient.GetJobScale(environment.jobId)
@@ -98,7 +102,7 @@ func (environment *NomadExecutionEnvironment) Refresh() {
 func (environment *NomadExecutionEnvironment) unusedRunners(fetchedRunnerIds []string) (newRunners []runner.Runner) {
 	newRunners = make([]runner.Runner, 0)
 	for _, runnerId := range fetchedRunnerIds {
-		_, ok := environment.allRunners.GetRunner(runnerId)
+		_, ok := environment.allRunners.Get(runnerId)
 		if !ok {
 			newRunners = append(newRunners, runner.NewExerciseRunner(runnerId))
 		}

@@ -4,14 +4,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment/pool"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/mocks"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"testing"
 	"time"
 )
 
-const runnerId = "s0m3-r4nd0m-1d"
 const anotherRunnerId = "4n0th3r-1d"
 const jobId = "4n0th3r-1d"
 
@@ -28,9 +26,9 @@ type GetNextRunnerTestSuite struct {
 func (suite *GetNextRunnerTestSuite) SetupTest() {
 	suite.nomadExecutionEnvironment = &NomadExecutionEnvironment{
 		availableRunners: make(chan runner.Runner, 50),
-		allRunners:       pool.NewLocalRunnerPool(),
+		allRunners:       NewLocalRunnerPool(),
 	}
-	suite.exerciseRunner = runner.NewExerciseRunner(runnerId)
+	suite.exerciseRunner = CreateTestRunner()
 }
 
 func (suite *GetNextRunnerTestSuite) TestGetNextRunnerReturnsRunnerIfAvailable() {
@@ -64,7 +62,7 @@ func (suite *GetNextRunnerTestSuite) TestGetNextRunnerThrowsAnErrorIfNoRunnersAv
 }
 
 func TestRefreshFetchRunners(t *testing.T) {
-	apiMock, environment := newRefreshMock([]string{runnerId}, pool.NewLocalRunnerPool())
+	apiMock, environment := newRefreshMock([]string{RunnerId}, NewLocalRunnerPool())
 	// ToDo: Terminate Refresh when test finished (also in other tests)
 	go environment.Refresh()
 	_, _ = environment.NextRunner()
@@ -72,14 +70,14 @@ func TestRefreshFetchRunners(t *testing.T) {
 }
 
 func TestRefreshFetchesRunnersIntoChannel(t *testing.T) {
-	_, environment := newRefreshMock([]string{runnerId}, pool.NewLocalRunnerPool())
+	_, environment := newRefreshMock([]string{RunnerId}, NewLocalRunnerPool())
 	go environment.Refresh()
 	availableRunner, _ := environment.NextRunner()
-	assert.Equal(t, availableRunner.Id(), runnerId)
+	assert.Equal(t, availableRunner.Id(), RunnerId)
 }
 
 func TestRefreshScalesJob(t *testing.T) {
-	apiMock, environment := newRefreshMock([]string{runnerId}, pool.NewLocalRunnerPool())
+	apiMock, environment := newRefreshMock([]string{RunnerId}, NewLocalRunnerPool())
 	go environment.Refresh()
 	_, _ = environment.NextRunner()
 	time.Sleep(100 * time.Millisecond) // ToDo: Be safe this test is not flaky
@@ -87,16 +85,16 @@ func TestRefreshScalesJob(t *testing.T) {
 }
 
 func TestRefreshAddsRunnerToPool(t *testing.T) {
-	runnersInUse := pool.NewLocalRunnerPool()
-	_, environment := newRefreshMock([]string{runnerId}, runnersInUse)
+	runnersInUse := NewLocalRunnerPool()
+	_, environment := newRefreshMock([]string{RunnerId}, runnersInUse)
 	go environment.Refresh()
 	availableRunner, _ := environment.NextRunner()
-	poolRunner, ok := runnersInUse.GetRunner(availableRunner.Id())
-	assert.True(t, ok, "The requested runner is added to the pool")
-	assert.Equal(t, availableRunner, poolRunner, "The requested runner equals the runner added to the pool")
+	poolRunner, ok := runnersInUse.Get(availableRunner.Id())
+	assert.True(t, ok)
+	assert.Equal(t, availableRunner, poolRunner)
 }
 
-func newRefreshMock(returnedRunnerIds []string, allRunners pool.RunnerPool) (apiClient *mocks.ExecutorApi, environment *NomadExecutionEnvironment) {
+func newRefreshMock(returnedRunnerIds []string, allRunners RunnerPool) (apiClient *mocks.ExecutorApi, environment *NomadExecutionEnvironment) {
 	apiClient = &mocks.ExecutorApi{}
 	apiClient.On("LoadRunners", jobId).Return(returnedRunnerIds, nil)
 	apiClient.On("GetJobScale", jobId).Return(len(returnedRunnerIds), nil)

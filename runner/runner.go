@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/store"
 	"sync"
 )
 
@@ -28,14 +29,13 @@ const (
 )
 
 type Runner interface {
+	store.Entity
+
 	// SetStatus sets the status of the runner.
 	SetStatus(Status)
 
 	// Status gets the status of the runner.
 	Status() Status
-
-	// Id returns the id of the runner.
-	Id() string
 
 	// Execution looks up an ExecutionId for the runner and returns the associated RunnerRequest.
 	// If this request does not exit, ok is false, else true.

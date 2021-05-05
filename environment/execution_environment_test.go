@@ -66,7 +66,7 @@ func TestRefreshFetchRunners(t *testing.T) {
 	// ToDo: Terminate Refresh when test finished (also in other tests)
 	go environment.Refresh()
 	_, _ = environment.NextRunner()
-	apiMock.AssertCalled(t, "LoadRunners", jobId)
+	apiMock.AssertCalled(t, "LoadAvailableRunners", jobId)
 }
 
 func TestRefreshFetchesRunnersIntoChannel(t *testing.T) {
@@ -96,7 +96,7 @@ func TestRefreshAddsRunnerToPool(t *testing.T) {
 
 func newRefreshMock(returnedRunnerIds []string, allRunners RunnerPool) (apiClient *mocks.ExecutorApi, environment *NomadExecutionEnvironment) {
 	apiClient = &mocks.ExecutorApi{}
-	apiClient.On("LoadRunners", jobId).Return(returnedRunnerIds, nil)
+	apiClient.On("LoadAvailableRunners", jobId).Return(returnedRunnerIds, nil)
 	apiClient.On("GetJobScale", jobId).Return(len(returnedRunnerIds), nil)
 	apiClient.On("SetJobScaling", jobId, mock.AnythingOfType("int"), "Runner Requested").Return(nil)
 	environment = &NomadExecutionEnvironment{

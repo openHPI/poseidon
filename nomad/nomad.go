@@ -7,11 +7,18 @@ import (
 
 // ExecutorApi provides access to an container orchestration solution
 type ExecutorApi interface {
+	// LoadJobList loads the list of jobs from the Nomad api.
 	LoadJobList() (list []*nomadApi.JobListStub, err error)
+	// GetJobScale returns the scale of the passed job.
 	GetJobScale(jobId string) (jobScale int, err error)
+	// SetJobScaling sets the scaling count of the passed job to Nomad.
 	SetJobScaling(jobId string, count int, reason string) (err error)
-	LoadRunners(jobId string) (runnerIds []string, err error)
+
+	// DeleteRunner deletes the runner with the given Id.
 	DeleteRunner(runnerId string) (err error)
+
+	// LoadAvailableRunners loads all allocations of the specified job which are running and not about to get stopped.
+	LoadAvailableRunners(jobId string) (runnerIds []string, err error)
 }
 
 // ApiClient provides access to the Nomad functionality
@@ -36,13 +43,11 @@ func (apiClient *ApiClient) init(nomadURL *url.URL) (err error) {
 	return err
 }
 
-// LoadJobList loads the list of jobs from the Nomad api.
 func (apiClient *ApiClient) LoadJobList() (list []*nomadApi.JobListStub, err error) {
 	list, _, err = apiClient.client.Jobs().List(nil)
 	return
 }
 
-// GetJobScale returns the scale of the passed job.
 func (apiClient *ApiClient) GetJobScale(jobId string) (jobScale int, err error) {
 	status, _, err := apiClient.client.Jobs().ScaleStatus(jobId, nil)
 	if err != nil {
@@ -53,20 +58,21 @@ func (apiClient *ApiClient) GetJobScale(jobId string) (jobScale int, err error) 
 	return
 }
 
-// SetJobScaling sets the scaling count of the passed job to Nomad.
 func (apiClient *ApiClient) SetJobScaling(jobId string, count int, reason string) (err error) {
 	_, _, err = apiClient.client.Jobs().Scale(jobId, jobId, &count, reason, false, nil, nil)
 	return
 }
 
-// LoadRunners loads the allocations of the specified job.
-func (apiClient *ApiClient) LoadRunners(jobId string) (runnerIds []string, err error) {
+func (apiClient *ApiClient) LoadAvailableRunners(jobId string) (runnerIds []string, err error) {
 	list, _, err := apiClient.client.Jobs().Allocations(jobId, true, nil)
 	if err != nil {
 		return nil, err
 	}
 	for _, stub := range list {
-		runnerIds = append(runnerIds, stub.ID)
+		// only add allocations which are running and not about to be stopped
+		if stub.ClientStatus == nomadApi.AllocClientStatusRunning && stub.DesiredStatus == nomadApi.AllocDesiredStatusRun {
+			runnerIds = append(runnerIds, stub.ID)
+		}
 	}
 	return
 }

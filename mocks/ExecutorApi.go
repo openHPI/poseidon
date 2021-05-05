@@ -71,7 +71,7 @@ func (_m *ExecutorApi) LoadJobList() ([]*api.JobListStub, error) {
 }
 
 // LoadRunners provides a mock function with given fields: jobId
-func (_m *ExecutorApi) LoadRunners(jobId string) ([]string, error) {
+func (_m *ExecutorApi) LoadAvailableRunners(jobId string) ([]string, error) {
 	ret := _m.Called(jobId)
 
 	var r0 []string

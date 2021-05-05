@@ -66,7 +66,7 @@ func (environment *NomadExecutionEnvironment) NextRunner() (r runner.Runner, err
 // Refresh Big ToDo: Improve this function!! State out that it also rescales the job; Provide context to be terminable...
 func (environment *NomadExecutionEnvironment) Refresh() {
 	for {
-		runners, err := environment.nomadApiClient.LoadRunners(environment.jobId)
+		runners, err := environment.nomadApiClient.LoadAvailableRunners(environment.jobId)
 		if err != nil {
 			log.WithError(err).Printf("Failed fetching runners")
 			break

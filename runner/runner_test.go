@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"testing"
 )
 
@@ -30,6 +31,21 @@ func TestMarshalRunner(t *testing.T) {
 	marshal, err := json.Marshal(runner)
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"runnerId\":\"42\",\"status\":\"ready\"}", string(marshal))
+}
+
+func TestExecutionRequestIsStored(t *testing.T) {
+	runner := NewExerciseRunner("42")
+	executionRequest := dto.ExecutionRequest{
+		Command:     "command",
+		TimeLimit:   10,
+		Environment: nil,
+	}
+	id, err := runner.AddExecution(executionRequest)
+	storedExecutionRunner, ok := runner.Execution(id)
+
+	assert.NoError(t, err, "AddExecution should not produce an error")
+	assert.True(t, ok, "Getting an execution should not return ok false")
+	assert.Equal(t, executionRequest, storedExecutionRunner)
 }
 
 func TestNewContextReturnsNewContextWithRunner(t *testing.T) {

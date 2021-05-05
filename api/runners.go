@@ -1,9 +1,7 @@
 package api
 
 import (
-	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
@@ -11,19 +9,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment/pool"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
-	"sync"
 )
-
-var (
-	executions     = make(map[string]map[string]dto.ExecutionRequest)
-	executionsLock = sync.Mutex{}
-)
-
-func allocateExecutionMap(runner runner.Runner) {
-	executionsLock.Lock()
-	executions[runner.Id()] = make(map[string]dto.ExecutionRequest)
-	executionsLock.Unlock()
-}
 
 // provideRunner tries to respond with the id of a runner
 // This runner is then reserved for future use
@@ -42,7 +28,6 @@ func provideRunner(writer http.ResponseWriter, request *http.Request) {
 		writeInternalServerError(writer, err, dto.ErrorNomadOverload)
 		return
 	}
-	allocateExecutionMap(runner)
 	sendJson(writer, &dto.RunnerResponse{Id: runner.Id()}, http.StatusOK)
 }
 
@@ -55,32 +40,22 @@ func executeCommand(router *mux.Router) func(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-        var scheme string
-	    if config.Config.Server.TLS {
-	    	scheme = "wss"
-	    } else {
-	    	scheme = "ws"
-	    }
-	    r, ok := runner.FromContext(request.Context())
-	    if !ok {
-	    	log.Fatal("Expected runner in context! Something must be broken ...")
-	    }
+		var scheme string
+		if config.Config.Server.TLS {
+			scheme = "wss"
+		} else {
+			scheme = "ws"
+		}
+		r, ok := runner.FromContext(request.Context())
+		if !ok {
+			log.Fatal("Expected runner in context! Something must be broken ...")
+		}
 
-		id, err := uuid.NewRandom()
+		id, err := r.AddExecution(*executionRequest)
 		if err != nil {
-			log.Printf("Error creating new execution id: %v", err)
 			writeInternalServerError(writer, err, dto.ErrorUnknown)
 			return
 		}
-
-		executionsLock.Lock()
-		runnerExecutions, ok := executions[r.Id()]
-		if !ok {
-			writeNotFound(writer, errors.New("runner has not been provided"))
-			return
-		}
-		runnerExecutions[id.String()] = *executionRequest
-		executionsLock.Unlock()
 
 		path, err := router.Get("runner-websocket").URL("runnerId", r.Id())
 		if err != nil {

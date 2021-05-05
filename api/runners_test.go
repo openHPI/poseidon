@@ -75,7 +75,6 @@ func TestExecuteRoute(t *testing.T) {
 
 	testRunner := runner.NewExerciseRunner("testRunner")
 	runnerPool.AddRunner(testRunner)
-	allocateExecutionMap(testRunner)
 
 	path, err := router.Get("runner-execute").URL("runnerId", testRunner.Id())
 	if err != nil {
@@ -120,8 +119,10 @@ func TestExecuteRoute(t *testing.T) {
 				t.Fatal(err)
 			}
 			executionId := url.Query().Get("executionId")
+			storedExecutionRequest, ok := testRunner.Execution(runner.ExecutionId(executionId))
 
-			assert.Equal(t, executionRequest, executions[testRunner.Id()][executionId])
+			assert.True(t, ok, "No execution request with this id")
+			assert.Equal(t, executionRequest, storedExecutionRequest)
 		})
 	})
 

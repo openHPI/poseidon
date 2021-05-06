@@ -6,6 +6,7 @@ stages:
   - lint
   - test
   - docker
+  - e2e
   - deploy
   - cleanup
 
@@ -48,7 +49,7 @@ test:
   stage: test
   needs: []
   script:
-    - go test $(go list ./... | grep -v /e2e | grep -v /poseidon$) -v -coverprofile coverage.cov
+    - go test $(go list ./... | grep -v /e2e_tests) -v -coverprofile coverage.cov
     - go tool cover -func=coverage.cov
     - go tool cover -html=coverage.cov -o coverage_unit.html
   artifacts:
@@ -56,24 +57,6 @@ test:
       - coverage_unit.html
     expire_in: 1 week
     expose_as: coverageReport
-
-e2e_test:
-  image: drp.codemoon.xopic.de/nomad-ci:latest
-  stage: test
-  services:
-    - name: docker:dind
-      alias: docker
-  script:
-    # Avoid docker pull limit
-    - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
-    - docker pull $DOCKER_REGISTRY/openhpi/co_execenv_python:3.8
-    - docker tag $DOCKER_REGISTRY/openhpi/co_execenv_python:3.8 openhpi/co_execenv_python:3.8
-    # Setup own nomad cluster
-    - export NOMAD_ADDR=http://localhost:4646
-    - nomad agent -dev -log-level=WARN &
-    - sleep 15
-    # Start tests
-    - go test ./ ./e2e -v
 
 dockerimage:
   stage: docker
@@ -110,6 +93,37 @@ nomadimage:
     - docker build --cache-from $NOMAD_CI_BASE_IMAGE --cache-from $NOMAD_CI_IMAGE_NAME_GENERAL -t $NOMAD_CI_IMAGE_NAME_ENV -t $NOMAD_CI_IMAGE_NAME_GENERAL .
     - docker push $NOMAD_CI_IMAGE_NAME_ENV
     - docker push $NOMAD_CI_IMAGE_NAME_GENERAL
+
+
+test_e2e:
+  image: $NOMAD_CI_IMAGE_NAME_ENV
+  stage: e2e
+  needs:
+    - compile
+    - job: nomadimage
+  services:
+    - name: docker:dind
+      alias: docker
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+  script:
+    # Avoid docker pull limit
+    - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
+    - docker pull $DOCKER_REGISTRY/openhpi/co_execenv_python:3.8
+    - docker tag $DOCKER_REGISTRY/openhpi/co_execenv_python:3.8 openhpi/co_execenv_python:3.8
+    # Setup own Nomad cluster and wait for startup
+    - export NOMAD_ADDR=http://localhost:4646
+    - nomad agent -dev -log-level=WARN &
+    - sleep 5
+    # Setup Nomad job and wait for it
+    - nomad run ci/python.nomad
+    - sleep 5
+    # Start Poseidon and wait for it
+    - ./poseidon &
+    - sleep 20
+    # Start tests
+    - go test ./e2e_tests -v
+
 
 .start_deployment: &start_deployment
   image: $NOMAD_CI_IMAGE_NAME_ENV

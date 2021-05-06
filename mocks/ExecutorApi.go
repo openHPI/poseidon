@@ -12,8 +12,8 @@ type ExecutorApi struct {
 	mock.Mock
 }
 
-// CreateDebugJob provides a mock function with given fields:
-func (_m *ExecutorApi) CreateDebugJob() {
+// CreateJob provides a mock function with given fields:
+func (_m *ExecutorApi) CreateJob() {
 	_m.Called()
 }
 

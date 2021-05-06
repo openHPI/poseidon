@@ -20,7 +20,7 @@ type RunnerResponse struct {
 
 // WebsocketResponse is the expected response when creating an execution for a runner.
 type WebsocketResponse struct {
-	WebsocketUrl string
+	WebsocketUrl string `json:"websocketUrl"`
 }
 
 // ClientError is the response interface if the request is not valid.

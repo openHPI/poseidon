@@ -2,10 +2,13 @@ package nomad
 
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"net/url"
 )
 
-// ExecutorApi provides access to a container orchestration solution.
+var log = logging.GetLogger("nomad")
+
+// ExecutorApi provides access to an container orchestration solution
 type ExecutorApi interface {
 	apiQuerier
 
@@ -26,8 +29,18 @@ func NewExecutorApi(nomadURL *url.URL) (ExecutorApi, error) {
 	return client, err
 }
 
-func (c *ApiClient) LoadAvailableRunners(jobId string) (runnerIds []string, err error) {
-	list, err := c.loadRunners(jobId)
+// init prepares an apiClient to be able to communicate to a provided Nomad API.
+func (apiClient *ApiClient) init(nomadURL *url.URL) (err error) {
+	apiClient.client, err = nomadApi.NewClient(&nomadApi.Config{
+		Address:   nomadURL.String(),
+		TLSConfig: &nomadApi.TLSConfig{},
+	})
+	return err
+}
+
+// LoadRunners loads the allocations of the specified job.
+func (apiClient *ApiClient) LoadRunners(jobId string) (runnerIds []string, err error) {
+	list, _, err := apiClient.client.Jobs().Allocations(jobId, true, nil)
 	if err != nil {
 		return nil, err
 	}

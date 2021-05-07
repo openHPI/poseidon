@@ -74,12 +74,7 @@ func (environment *NomadExecutionEnvironment) Refresh() {
 		for _, r := range environment.unusedRunners(runners) {
 			// ToDo: Listen on Nomad event stream
 			log.Printf("Adding allocation %+v", r)
-			if err := environment.allRunners.Add(r); err != nil {
-				log.
-					WithError(err).
-					WithField("runner", r).
-					Fatal("Invalid storage implementation used for object of type")
-			}
+			environment.allRunners.Add(r)
 			environment.availableRunners <- r
 		}
 		jobScale, err := environment.nomadApiClient.GetJobScale(environment.jobId)

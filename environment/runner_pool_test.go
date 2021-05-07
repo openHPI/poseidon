@@ -1,6 +1,8 @@
 package environment
 
 import (
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"testing"
@@ -27,19 +29,31 @@ func (suite *RunnerPoolTestSuite) SetupTest() {
 	suite.runner = CreateTestRunner()
 }
 
-func (suite *RunnerPoolTestSuite) TestAddInvalidEntityTypeReturnsError() {
+func (suite *RunnerPoolTestSuite) TestAddInvalidEntityTypeThrowsFatal() {
+	var hook *test.Hook
+	logger, hook := test.NewNullLogger()
+	// don't terminate program on fatal log entry
+	logger.ExitFunc = func(int) {}
+	log = logger.WithField("pkg", "environment")
+
 	dummyEntity := DummyEntity{}
-	err := suite.runnerPool.Add(dummyEntity)
-	suite.Error(err)
+	suite.runnerPool.Add(dummyEntity)
+	suite.Equal(logrus.FatalLevel, hook.LastEntry().Level)
+	suite.Equal(dummyEntity, hook.LastEntry().Data["entity"])
 }
 
-func (suite *RunnerPoolTestSuite) TestAddValidEntityReturnsNoError() {
-	err := suite.runnerPool.Add(suite.runner)
-	suite.NoError(err)
+func (suite *RunnerPoolTestSuite) TestAddValidEntityThrowsFatal() {
+	var hook *test.Hook
+	logger, hook := test.NewNullLogger()
+	log = logger.WithField("pkg", "environment")
+
+	suite.runnerPool.Add(suite.runner)
+	// currently, the Add method does not log anything else. adjust if necessary
+	suite.Nil(hook.LastEntry())
 }
 
 func (suite *RunnerPoolTestSuite) TestAddedRunnerCanBeRetrieved() {
-	_ = suite.runnerPool.Add(suite.runner)
+	suite.runnerPool.Add(suite.runner)
 	retrievedRunner, ok := suite.runnerPool.Get(suite.runner.Id())
 	suite.True(ok, "A saved runner should be retrievable")
 	suite.Equal(suite.runner, retrievedRunner)
@@ -50,15 +64,15 @@ func (suite *RunnerPoolTestSuite) TestRunnerWithSameIdOverwritesOldOne() {
 	// assure runner is actually different
 	suite.NotEqual(suite.runner, otherRunnerWithSameId)
 
-	_ = suite.runnerPool.Add(suite.runner)
-	_ = suite.runnerPool.Add(otherRunnerWithSameId)
+	suite.runnerPool.Add(suite.runner)
+	suite.runnerPool.Add(otherRunnerWithSameId)
 	retrievedRunner, _ := suite.runnerPool.Get(suite.runner.Id())
 	suite.NotEqual(suite.runner, retrievedRunner)
 	suite.Equal(otherRunnerWithSameId, retrievedRunner)
 }
 
 func (suite *RunnerPoolTestSuite) TestDeletedRunnersAreNotAccessible() {
-	_ = suite.runnerPool.Add(suite.runner)
+	suite.runnerPool.Add(suite.runner)
 	suite.runnerPool.Delete(suite.runner.Id())
 	retrievedRunner, ok := suite.runnerPool.Get(suite.runner.Id())
 	suite.Nil(retrievedRunner)

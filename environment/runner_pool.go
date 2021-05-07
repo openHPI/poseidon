@@ -1,7 +1,6 @@
 package environment
 
 import (
-	"errors"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/store"
 	"sync"
@@ -27,15 +26,17 @@ func NewLocalRunnerPool() *localRunnerPool {
 	}
 }
 
-func (pool *localRunnerPool) Add(r store.Entity) (err error) {
+func (pool *localRunnerPool) Add(r store.Entity) {
 	pool.Lock()
 	defer pool.Unlock()
 	runnerEntity, ok := r.(runner.Runner)
 	if !ok {
-		return errors.New("Entity of type runner.Runner was expected, but wasn't given.")
+		log.
+			WithField("pool", pool).
+			WithField("entity", r).
+			Fatal("Entity of type runner.Runner was expected, but wasn't given.")
 	}
 	pool.runners[r.Id()] = runnerEntity
-	return nil
 }
 
 func (pool *localRunnerPool) Get(id string) (r store.Entity, ok bool) {

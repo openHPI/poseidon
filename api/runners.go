@@ -32,12 +32,12 @@ func provideRunner(writer http.ResponseWriter, request *http.Request) {
 		writeNotFound(writer, err)
 		return
 	}
-	runner, err := env.NextRunner()
+	nextRunner, err := env.NextRunner()
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorNomadOverload)
 		return
 	}
-	sendJson(writer, &dto.RunnerResponse{Id: runner.Id()}, http.StatusOK)
+	sendJson(writer, &dto.RunnerResponse{Id: nextRunner.Id()}, http.StatusOK)
 }
 
 // executeCommand takes an ExecutionRequest and stores it for a runner.
@@ -78,14 +78,6 @@ func executeCommand(router *mux.Router) func(w http.ResponseWriter, r *http.Requ
 
 		sendJson(writer, &dto.WebsocketResponse{WebsocketUrl: websocketUrl.String()}, http.StatusOK)
 	}
-}
-
-// connectToRunner is a placeholder for now and will become the endpoint for websocket connections.
-func connectToRunner(writer http.ResponseWriter, request *http.Request) {
-	// Todo: Execute the command, upgrade the connection to websocket and handle forwarding
-	executionId := request.URL.Query()[ExecutionIdKey]
-	log.WithField("executionId", executionId).Info("Websocket for execution requested.")
-	writer.WriteHeader(http.StatusNotImplemented)
 }
 
 // The findRunnerMiddleware looks up the runnerId for routes containing it

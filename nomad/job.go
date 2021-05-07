@@ -17,9 +17,9 @@ const (
 	TaskNameFormat      = "%s-task"
 )
 
-func (apiClient *ApiClient) defaultJob() *nomadApi.Job {
+func parseJob(jobHCL string) *nomadApi.Job {
 	config := jobspec2.ParseConfig{
-		Body:    []byte(defaultJobHCL),
+		Body:    []byte(jobHCL),
 		AllowFS: false,
 		Strict:  true,
 	}
@@ -119,14 +119,14 @@ func (apiClient *ApiClient) createJob(
 	networkAccess bool,
 	exposedPorts []uint16) *nomadApi.Job {
 
-	job := apiClient.defaultJob()
+	job := apiClient.defaultJob
 	job.ID = &id
 	job.Name = &id
 
 	var taskGroup = createTaskGroup(&job, fmt.Sprintf(TaskGroupNameFormat, id), prewarmingPoolSize)
 	configureTask(taskGroup, fmt.Sprintf(TaskNameFormat, id), cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 
-	return job
+	return &job
 }
 
 // LoadJobList loads the list of jobs from the Nomad api.

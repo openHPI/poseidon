@@ -19,6 +19,8 @@ type ExecutorApi interface {
 // ApiClient implements the ExecutorApi interface and can be used to perform different operations on the real Executor API and its return values.
 type ApiClient struct {
 	apiQuerier
+	client     *nomadApi.Client
+	defaultJob nomadApi.Job
 }
 
 // NewExecutorApi creates a new api client.
@@ -35,7 +37,11 @@ func (apiClient *ApiClient) init(nomadURL *url.URL) (err error) {
 		Address:   nomadURL.String(),
 		TLSConfig: &nomadApi.TLSConfig{},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	apiClient.defaultJob = *parseJob(defaultJobHCL)
+	return nil
 }
 
 // LoadRunners loads the allocations of the specified job.

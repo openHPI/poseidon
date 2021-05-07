@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec2"
 	"strconv"
 )
 
@@ -17,7 +18,12 @@ const (
 )
 
 func (apiClient *ApiClient) defaultJob() *nomadApi.Job {
-	job, err := apiClient.client.Jobs().ParseHCL(defaultJobHCL, true)
+	config := jobspec2.ParseConfig{
+		Body:    []byte(defaultJobHCL),
+		AllowFS: false,
+		Strict:  true,
+	}
+	job, err := jobspec2.ParseWithConfig(&config)
 	if err != nil {
 		log.WithError(err).Fatal("Error parsing default Nomad job")
 		return nil

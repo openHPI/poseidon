@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
@@ -56,12 +55,7 @@ func executeCommand(router *mux.Router) func(w http.ResponseWriter, r *http.Requ
 		} else {
 			scheme = "ws"
 		}
-		r, ok := runner.FromContext(request.Context())
-		if !ok {
-			log.Error("Runner not set in request context.")
-			writeInternalServerError(writer, errors.New("findRunnerMiddleware failure"), dto.ErrorUnknown)
-			return
-		}
+		r, _ := runner.FromContext(request.Context())
 
 		path, err := router.Get(WebsocketPath).URL(RunnerIdKey, r.Id())
 		if err != nil {

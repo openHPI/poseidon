@@ -88,8 +88,36 @@ $ openssl req -x509 -nodes -newkey rsa:2048 -keyout server.rsa.key -out server.r
 
 ## Tests
 
-As testing framework we use the [testify](https://github.com/stretchr/testify) toolkit.  
-For mocks we use [mockery](https://github.com/vektra/mockery).
-With Mockery, you can create mocks by running `mockery -r --name=<<interface_name>>` on a specific interface.
-If the interface changes, you can rerun this command.  
+As testing framework we use the [testify](https://github.com/stretchr/testify) toolkit. 
+
 For e2e tests we provide a separate package. E2e tests require the connection to a Nomad cluster.
+
+### Mocks
+
+For mocks we use [mockery](https://github.com/vektra/mockery). To generate a mock, first navigate to the package the interface is defined in.
+You can then create a mock for the interface of your choice by running
+
+```bash
+mockery \
+  --name=<<interface_name>> \
+  --structname=<<interface_name>>Mock \
+  --filename=<<interface_name>>Mock.go \
+  --output=<<relative_path_to_output_folder>> \
+  --outpkg=<<package_name_of_mock>>
+```
+on a specific interface.
+
+For example, for an interface called `ExecutorApi` in the package `nomad`, you might run
+
+```bash
+mockery \
+  --name=ExecutorApi \
+  --output='.' \
+  --structname=ExecutorApiMock \
+  --filename=ExecutorApiMock.go \
+  --outpkg=nomad
+```
+
+Note that the default value for `--output` is `./mocks` and the default for `--outpkg` is `mocks`. This will create the mock in a `mocks` sub-folder. However, in some cases (if the mock implements private interface methods), it needs to be in the same package as the interface it is mocking.
+
+If the interface changes, you can rerun this command.

@@ -4,7 +4,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/mocks"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"testing"
 	"time"
@@ -94,8 +94,8 @@ func TestRefreshAddsRunnerToPool(t *testing.T) {
 	assert.Equal(t, availableRunner, poolRunner)
 }
 
-func newRefreshMock(returnedRunnerIds []string, allRunners RunnerPool) (apiClient *mocks.ExecutorApi, environment *NomadExecutionEnvironment) {
-	apiClient = &mocks.ExecutorApi{}
+func newRefreshMock(returnedRunnerIds []string, allRunners RunnerPool) (apiClient *nomad.ExecutorApiMock, environment *NomadExecutionEnvironment) {
+	apiClient = &nomad.ExecutorApiMock{}
 	apiClient.On("LoadAvailableRunners", jobId).Return(returnedRunnerIds, nil)
 	apiClient.On("GetJobScale", jobId).Return(len(returnedRunnerIds), nil)
 	apiClient.On("SetJobScaling", jobId, mock.AnythingOfType("int"), "Runner Requested").Return(nil)

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/mocks"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"net/http/httptest"
@@ -139,7 +139,7 @@ func TestDeleteRunnerRouteTestSuite(t *testing.T) {
 type DeleteRunnerRouteTestSuite struct {
 	suite.Suite
 	runnerPool environment.RunnerPool
-	apiClient  *mocks.ExecutorApi
+	apiClient  *nomad.ExecutorApiMock
 	router     *mux.Router
 	testRunner runner.Runner
 	path       string
@@ -147,7 +147,7 @@ type DeleteRunnerRouteTestSuite struct {
 
 func (suite *DeleteRunnerRouteTestSuite) SetupTest() {
 	suite.runnerPool = environment.NewLocalRunnerPool()
-	suite.apiClient = &mocks.ExecutorApi{}
+	suite.apiClient = &nomad.ExecutorApiMock{}
 	suite.router = NewRouter(suite.apiClient, suite.runnerPool)
 
 	suite.testRunner = runner.NewExerciseRunner("testRunner")

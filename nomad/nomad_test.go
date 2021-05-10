@@ -3,8 +3,11 @@ package nomad
 import (
 	"errors"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"net/url"
 	"testing"
 )
 
@@ -111,4 +114,35 @@ func (suite *LoadAvailableRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	suite.Len(returnedIds, 2)
 	suite.Contains(returnedIds, suite.availableRunner.ID)
 	suite.Contains(returnedIds, suite.anotherAvailableRunner.ID)
+}
+
+var TestURL = url.URL{
+	Scheme: "http",
+	Host:   "127.0.0.1:4646",
+}
+
+func TestApiClient_init(t *testing.T) {
+	client := &ApiClient{}
+	defaultJob := parseJob(defaultJobHCL)
+	err := client.init(&TestURL)
+	require.Nil(t, err)
+	assert.Equal(t, *defaultJob, client.defaultJob)
+}
+
+func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
+	client := &ApiClient{}
+	err := client.init(&url.URL{
+		Scheme: "http",
+		Host:   "http://127.0.0.1:4646",
+	})
+	assert.NotNil(t, err)
+}
+
+func TestNewExecutorApiCanBeCreatedWithoutError(t *testing.T) {
+	expectedClient := &ApiClient{}
+	err := expectedClient.init(&TestURL)
+	require.Nil(t, err)
+
+	_, err = NewExecutorApi(&TestURL)
+	require.Nil(t, err)
 }

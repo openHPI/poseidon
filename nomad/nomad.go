@@ -44,9 +44,9 @@ func (apiClient *ApiClient) init(nomadURL *url.URL) (err error) {
 	return nil
 }
 
-// LoadRunners loads the allocations of the specified job.
-func (apiClient *ApiClient) LoadRunners(jobId string) (runnerIds []string, err error) {
-	list, _, err := apiClient.client.Jobs().Allocations(jobId, true, nil)
+// LoadAvailableRunners loads the allocations of the specified job.
+func (apiClient *ApiClient) LoadAvailableRunners(jobId string) (runnerIds []string, err error) {
+	list, err := apiClient.loadRunners(jobId)
 	if err != nil {
 		return nil, err
 	}

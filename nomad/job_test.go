@@ -238,7 +238,7 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 
 func TestCreateJobSetsAllGivenArguments(t *testing.T) {
 	testJob, base := createTestJob()
-	apiClient := ApiClient{&nomadApi.Client{}, *base}
+	apiClient := ApiClient{&nomadApiClient{}, &nomadApi.Client{}, *base}
 	job := apiClient.createJob(
 		*testJob.ID,
 		uint(*testJob.TaskGroups[0].Count),

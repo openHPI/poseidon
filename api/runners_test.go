@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment/pool"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"net/http/httptest"
@@ -17,10 +17,10 @@ import (
 )
 
 func TestFindRunnerMiddleware(t *testing.T) {
-	runnerPool := pool.NewLocalRunnerPool()
+	runnerPool := environment.NewLocalRunnerPool()
 	var capturedRunner runner.Runner
 	testRunner := runner.NewExerciseRunner("testRunner")
-	runnerPool.AddRunner(testRunner)
+	runnerPool.Add(testRunner)
 
 	testRunnerIdRoute := func(writer http.ResponseWriter, request *http.Request) {
 		var ok bool
@@ -66,10 +66,10 @@ func TestFindRunnerMiddleware(t *testing.T) {
 }
 
 func TestExecuteRoute(t *testing.T) {
-	runnerPool := pool.NewLocalRunnerPool()
+	runnerPool := environment.NewLocalRunnerPool()
 	router := NewRouter(runnerPool)
 	testRunner := runner.NewExerciseRunner("testRunner")
-	runnerPool.AddRunner(testRunner)
+	runnerPool.Add(testRunner)
 
 	path, err := router.Get(ExecutePath).URL(RunnerIdKey, testRunner.Id())
 	if err != nil {

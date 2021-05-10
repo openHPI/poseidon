@@ -7,7 +7,6 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment/pool"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"net/url"
@@ -95,24 +94,24 @@ func connectToRunner(writer http.ResponseWriter, request *http.Request) {
 
 // The findRunnerMiddleware looks up the runnerId for routes containing it
 // and adds the runner to the context of the request.
-func findRunnerMiddleware(runnerPool pool.RunnerPool) func(handler http.Handler) http.Handler {
+func findRunnerMiddleware(runnerPool environment.RunnerPool) func(handler http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			// Find runner
 			runnerId := mux.Vars(request)[RunnerIdKey]
-			r, ok := runnerPool.GetRunner(runnerId)
+			r, ok := runnerPool.Get(runnerId)
 			if !ok {
 				writer.WriteHeader(http.StatusNotFound)
 				return
 			}
-			ctx := runner.NewContext(request.Context(), r)
+			ctx := runner.NewContext(request.Context(), r.(runner.Runner))
 			requestWithRunner := request.WithContext(ctx)
 			next.ServeHTTP(writer, requestWithRunner)
 		})
 	}
 }
 
-func registerRunnerRoutes(router *mux.Router, runnerPool pool.RunnerPool) {
+func registerRunnerRoutes(router *mux.Router, runnerPool environment.RunnerPool) {
 	router.HandleFunc("", provideRunner).Methods(http.MethodPost)
 	runnerRouter := router.PathPrefix(fmt.Sprintf("/{%s}", RunnerIdKey)).Subrouter()
 	runnerRouter.Use(findRunnerMiddleware(runnerPool))

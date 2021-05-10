@@ -38,7 +38,7 @@ func runServer(server *http.Server) {
 	}
 }
 
-func initServer(runnerPool pool.RunnerPool) *http.Server {
+func initServer(runnerPool environment.RunnerPool) *http.Server {
 	return &http.Server{
 		Addr:         config.Config.PoseidonAPIURL().Host,
 		WriteTimeout: time.Second * 15,
@@ -75,7 +75,7 @@ func main() {
 	}
 
 	// ToDo: Move to create execution environment
-	runnerPool := pool.NewLocalRunnerPool()
+	runnerPool := environment.NewLocalRunnerPool()
 	environment.DebugInit(runnerPool, nomadAPIClient)
 
 	server := initServer(runnerPool)

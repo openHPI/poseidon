@@ -5,13 +5,9 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/store"
 	"sync"
-	"time"
 )
-
-var log = logging.GetLogger("runner")
 
 // Status is the type for the status of a Runner.
 type Status string
@@ -50,10 +46,6 @@ type Runner interface {
 
 	// DeleteExecution deletes the execution of the runner with the specified id.
 	DeleteExecution(ExecutionId)
-
-	// Execute runs one of the runners Executions by it's id
-	// ok will be false if the runner has no execution with the provided id
-	Execute(ExecutionId) (err error, ok bool)
 }
 
 // ExerciseRunner is an abstraction to communicate with Nomad allocations.
@@ -126,19 +118,6 @@ func (r *ExerciseRunner) DeleteExecution(id ExecutionId) {
 	r.Lock()
 	defer r.Unlock()
 	delete(r.executions, id)
-}
-
-func (r *ExerciseRunner) Execute(id ExecutionId) (err error, ok bool) {
-	execution, ok := r.Execution(id)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(execution.TimeLimit)*time.Second)
-	defer cancel()
-	log.WithField("Context", ctx).Printf("ToDo: Running execution")
-	// ToDo: Implement command execution
-	// r.nomadApiClient.ExecuteCommand(r.id, ctx, )
-	return
 }
 
 // NewContext creates a context containing a runner.

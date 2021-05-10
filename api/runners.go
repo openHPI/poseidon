@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
@@ -27,12 +28,12 @@ func provideRunner(writer http.ResponseWriter, request *http.Request) {
 	if err := parseJSONRequestBody(writer, request, runnerRequest); err != nil {
 		return
 	}
-	env, err := environment.GetExecutionEnvironment(runnerRequest.ExecutionEnvironmentId)
+	executionEnvironment, err := environment.GetExecutionEnvironment(runnerRequest.ExecutionEnvironmentId)
 	if err != nil {
 		writeNotFound(writer, err)
 		return
 	}
-	nextRunner, err := env.NextRunner()
+	nextRunner, err := executionEnvironment.NextRunner()
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorNomadOverload)
 		return

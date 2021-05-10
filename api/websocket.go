@@ -15,20 +15,24 @@ var connUpgrade = websocket.Upgrader{
 
 // connectToRunner is a placeholder for now and will become the endpoint for websocket connections.
 func connectToRunner(writer http.ResponseWriter, request *http.Request) {
-	r, ok := runner.FromContext(request.Context())
+	r, _ := runner.FromContext(request.Context())
+	executionId := request.URL.Query().Get(ExecutionIdKey)
+	executionRequest, ok := r.Execution(runner.ExecutionId(executionId))
 	if !ok {
-		log.Error("Runner not set in request context.")
-		writeInternalServerError(writer, errors.New("findRunnerMiddleware failure"), dto.ErrorUnknown)
+		writeNotFound(writer, errors.New("executionId does not exist"))
 		return
 	}
-	executionId := request.URL.Query().Get(ExecutionIdKey)
+	log.
+		WithField("executionId", executionId).
+		WithField("command", executionRequest.Command).
+		Info("Running execution")
 	connClient, err := connUpgrade.Upgrade(writer, request, nil)
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
 	}
 	defer func(connClient *websocket.Conn) {
-		err := connClient.Close()
+		err := connClient.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		if err != nil {
 			writeInternalServerError(writer, err, dto.ErrorUnknown)
 		}

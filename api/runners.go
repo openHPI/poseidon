@@ -89,7 +89,7 @@ func findRunnerMiddleware(runnerPool environment.RunnerPool) func(handler http.H
 			runnerId := mux.Vars(request)[RunnerIdKey]
 			r, ok := runnerPool.Get(runnerId)
 			if !ok {
-				writer.WriteHeader(http.StatusNotFound)
+				writeNotFound(writer, errors.New("no runner with this id"))
 				return
 			}
 			ctx := runner.NewContext(request.Context(), r.(runner.Runner))

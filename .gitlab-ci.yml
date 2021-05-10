@@ -68,6 +68,7 @@ dockerimage:
       alias: docker
   needs:
     - compile
+    - test
   script:
     - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
     # Prevent pull rate limit but still have normal alpine image in Dockerfile
@@ -102,7 +103,7 @@ test_e2e:
   stage: e2e
   needs:
     - compile
-    - job: nomadimage
+    - nomadimage
   services:
     - name: docker:dind
       alias: docker
@@ -133,7 +134,8 @@ test_e2e:
   needs:
     - job: dockerimage
       artifacts: false
-    - job: nomadimage
+    - nomadimage
+    - test_e2e
   script:
     # Only replace set env vars
     - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < ci/api.tpl.nomad > ci/api.nomad

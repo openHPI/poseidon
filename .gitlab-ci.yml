@@ -50,6 +50,8 @@ test:
   needs: []
   script:
     - go test $(go list ./... | grep -v /e2e_tests) -v -coverprofile coverage.cov
+    - # exclude Mock files from coverage report
+      - cat coverage.cov | grep -v Mock.go > coverage.cov || true
     - go tool cover -func=coverage.cov
     - go tool cover -html=coverage.cov -o coverage_unit.html
   artifacts:

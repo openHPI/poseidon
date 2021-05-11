@@ -135,8 +135,8 @@ func (apiClient *ApiClient) LoadJobList() (list []*nomadApi.JobListStub, err err
 	return
 }
 
-// GetJobScale returns the scale of the passed job.
-func (apiClient *ApiClient) GetJobScale(jobId string) (jobScale int, err error) {
+// JobScale returns the scale of the passed job.
+func (apiClient *ApiClient) JobScale(jobId string) (jobScale int, err error) {
 	status, _, err := apiClient.client.Jobs().ScaleStatus(jobId, nil)
 	if err != nil {
 		return
@@ -146,8 +146,8 @@ func (apiClient *ApiClient) GetJobScale(jobId string) (jobScale int, err error) 
 	return
 }
 
-// SetJobScaling sets the scaling count of the passed job to Nomad.
-func (apiClient *ApiClient) SetJobScaling(jobId string, count int, reason string) (err error) {
+// SetJobScale sets the scaling count of the passed job to Nomad.
+func (apiClient *ApiClient) SetJobScale(jobId string, count int, reason string) (err error) {
 	_, _, err = apiClient.client.Jobs().Scale(jobId, fmt.Sprintf(TaskGroupNameFormat, jobId), &count, reason, false, nil, nil)
 	return
 }

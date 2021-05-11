@@ -66,7 +66,7 @@ func (environment *NomadExecutionEnvironment) NextRunner() (r runner.Runner, err
 // Refresh Big ToDo: Improve this function!! State out that it also rescales the job; Provide context to be terminable...
 func (environment *NomadExecutionEnvironment) Refresh() {
 	for {
-		runners, err := environment.nomadApiClient.LoadAvailableRunners(environment.jobId)
+		runners, err := environment.nomadApiClient.LoadRunners(environment.jobId)
 		if err != nil {
 			log.WithError(err).Printf("Failed fetching runners")
 			break
@@ -77,7 +77,7 @@ func (environment *NomadExecutionEnvironment) Refresh() {
 			environment.allRunners.Add(r)
 			environment.availableRunners <- r
 		}
-		jobScale, err := environment.nomadApiClient.GetJobScale(environment.jobId)
+		jobScale, err := environment.nomadApiClient.JobScale(environment.jobId)
 		if err != nil {
 			log.WithError(err).Printf("Failed get allocation count")
 			break
@@ -86,7 +86,7 @@ func (environment *NomadExecutionEnvironment) Refresh() {
 		runnerCount := jobScale + neededRunners
 		time.Sleep(50 * time.Millisecond)
 		log.Printf("Set job scaling %d", runnerCount)
-		err = environment.nomadApiClient.SetJobScaling(environment.jobId, runnerCount, "Runner Requested")
+		err = environment.nomadApiClient.SetJobScale(environment.jobId, runnerCount, "Runner Requested")
 		if err != nil {
 			log.WithError(err).Printf("Failed set allocation scaling")
 			continue

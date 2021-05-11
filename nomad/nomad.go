@@ -12,8 +12,8 @@ var log = logging.GetLogger("nomad")
 type ExecutorApi interface {
 	apiQuerier
 
-	// LoadAvailableRunners loads all allocations of the specified job which are running and not about to get stopped.
-	LoadAvailableRunners(jobId string) (runnerIds []string, err error)
+	// LoadRunners loads all allocations of the specified job which are running and not about to get stopped.
+	LoadRunners(jobId string) (runnerIds []string, err error)
 }
 
 // ApiClient implements the ExecutorApi interface and can be used to perform different operations on the real Executor API and its return values.
@@ -26,7 +26,7 @@ type ApiClient struct {
 // NewExecutorApi creates a new api client.
 // One client is usually sufficient for the complete runtime of the API.
 func NewExecutorApi(nomadURL *url.URL) (ExecutorApi, error) {
-	client := &ApiClient{apiQuerier: &nomadApiClient{}}
+	client := &ApiClient{apiQuerier: &ApiClient{}, client: &nomadApi.Client{}}
 	err := client.init(nomadURL)
 	return client, err
 }
@@ -44,8 +44,9 @@ func (apiClient *ApiClient) init(nomadURL *url.URL) (err error) {
 	return nil
 }
 
-// LoadAvailableRunners loads the allocations of the specified job.
-func (apiClient *ApiClient) LoadAvailableRunners(jobId string) (runnerIds []string, err error) {
+// LoadRunners loads the allocations of the specified job.
+func (apiClient *ApiClient) LoadRunners(jobId string) (runnerIds []string, err error) {
+	//list, _, err := apiClient.client.Jobs().Allocations(jobId, true, nil)
 	list, err := apiClient.loadRunners(jobId)
 	if err != nil {
 		return nil, err

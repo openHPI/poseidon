@@ -11,11 +11,11 @@ import (
 	"testing"
 )
 
-func TestLoadAvailableRunnersTestSuite(t *testing.T) {
-	suite.Run(t, new(LoadAvailableRunnersTestSuite))
+func TestLoadRunnersTestSuite(t *testing.T) {
+	suite.Run(t, new(LoadRunnersTestSuite))
 }
 
-type LoadAvailableRunnersTestSuite struct {
+type LoadRunnersTestSuite struct {
 	suite.Suite
 	jobId                  string
 	mock                   *apiQuerierMock
@@ -26,7 +26,7 @@ type LoadAvailableRunnersTestSuite struct {
 	stoppingRunner         *nomadApi.AllocationListStub
 }
 
-func (suite *LoadAvailableRunnersTestSuite) SetupTest() {
+func (suite *LoadRunnersTestSuite) SetupTest() {
 	suite.jobId = "1d-0f-v3ry-sp3c14l-j0b"
 
 	suite.mock = &apiQuerierMock{}
@@ -57,50 +57,50 @@ func (suite *LoadAvailableRunnersTestSuite) SetupTest() {
 	}
 }
 
-func (suite *LoadAvailableRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
+func (suite *LoadRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
 	errorString := "api errored"
 	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return(nil, errors.New(errorString))
 
-	returnedIds, err := suite.nomadApiClient.LoadAvailableRunners(suite.jobId)
+	returnedIds, err := suite.nomadApiClient.LoadRunners(suite.jobId)
 	suite.Nil(returnedIds)
 	suite.Error(err)
 }
 
-func (suite *LoadAvailableRunnersTestSuite) TestThrowsNoErrorWhenUnderlyingApiCallDoesNot() {
+func (suite *LoadRunnersTestSuite) TestThrowsNoErrorWhenUnderlyingApiCallDoesNot() {
 	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return([]*nomadApi.AllocationListStub{}, nil)
 
-	_, err := suite.nomadApiClient.LoadAvailableRunners(suite.jobId)
+	_, err := suite.nomadApiClient.LoadRunners(suite.jobId)
 	suite.NoError(err)
 }
 
-func (suite *LoadAvailableRunnersTestSuite) TestAvailableRunnerIsReturned() {
+func (suite *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
 	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return([]*nomadApi.AllocationListStub{suite.availableRunner}, nil)
 
-	returnedIds, _ := suite.nomadApiClient.LoadAvailableRunners(suite.jobId)
+	returnedIds, _ := suite.nomadApiClient.LoadRunners(suite.jobId)
 	suite.Len(returnedIds, 1)
 	suite.Equal(suite.availableRunner.ID, returnedIds[0])
 }
 
-func (suite *LoadAvailableRunnersTestSuite) TestStoppedRunnerIsNotReturned() {
+func (suite *LoadRunnersTestSuite) TestStoppedRunnerIsNotReturned() {
 	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return([]*nomadApi.AllocationListStub{suite.stoppedRunner}, nil)
 
-	returnedIds, _ := suite.nomadApiClient.LoadAvailableRunners(suite.jobId)
+	returnedIds, _ := suite.nomadApiClient.LoadRunners(suite.jobId)
 	suite.Empty(returnedIds)
 }
 
-func (suite *LoadAvailableRunnersTestSuite) TestStoppingRunnerIsNotReturned() {
+func (suite *LoadRunnersTestSuite) TestStoppingRunnerIsNotReturned() {
 	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return([]*nomadApi.AllocationListStub{suite.stoppingRunner}, nil)
 
-	returnedIds, _ := suite.nomadApiClient.LoadAvailableRunners(suite.jobId)
+	returnedIds, _ := suite.nomadApiClient.LoadRunners(suite.jobId)
 	suite.Empty(returnedIds)
 }
 
-func (suite *LoadAvailableRunnersTestSuite) TestReturnsAllAvailableRunners() {
+func (suite *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	runnersList := []*nomadApi.AllocationListStub{
 		suite.availableRunner,
 		suite.anotherAvailableRunner,
@@ -110,7 +110,7 @@ func (suite *LoadAvailableRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return(runnersList, nil)
 
-	returnedIds, _ := suite.nomadApiClient.LoadAvailableRunners(suite.jobId)
+	returnedIds, _ := suite.nomadApiClient.LoadRunners(suite.jobId)
 	suite.Len(returnedIds, 2)
 	suite.Contains(returnedIds, suite.availableRunner.ID)
 	suite.Contains(returnedIds, suite.anotherAvailableRunner.ID)

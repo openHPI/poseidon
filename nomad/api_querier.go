@@ -13,11 +13,11 @@ type apiQuerier interface {
 	// LoadJobList loads the list of jobs from the Nomad API.
 	LoadJobList() (list []*nomadApi.JobListStub, err error)
 
-	// GetJobScale returns the scale of the passed job.
-	GetJobScale(jobId string) (jobScale int, err error)
+	// JobScale returns the scale of the passed job.
+	JobScale(jobId string) (jobScale int, err error)
 
 	// SetJobScaling sets the scaling count of the passed job to Nomad.
-	SetJobScaling(jobId string, count int, reason string) (err error)
+	SetJobScale(jobId string, count int, reason string) (err error)
 
 	// DeleteRunner deletes the runner with the given Id.
 	DeleteRunner(runnerId string) (err error)
@@ -44,7 +44,7 @@ func (nc *nomadApiClient) LoadJobList() (list []*nomadApi.JobListStub, err error
 	return
 }
 
-func (nc *nomadApiClient) GetJobScale(jobId string) (jobScale int, err error) {
+func (nc *nomadApiClient) JobScale(jobId string) (jobScale int, err error) {
 	status, _, err := nc.client.Jobs().ScaleStatus(jobId, nil)
 	if err != nil {
 		return
@@ -54,7 +54,7 @@ func (nc *nomadApiClient) GetJobScale(jobId string) (jobScale int, err error) {
 	return
 }
 
-func (nc *nomadApiClient) SetJobScaling(jobId string, count int, reason string) (err error) {
+func (nc *nomadApiClient) SetJobScale(jobId string, count int, reason string) (err error) {
 	_, _, err = nc.client.Jobs().Scale(jobId, jobId, &count, reason, false, nil, nil)
 	return
 }

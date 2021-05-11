@@ -5,9 +5,9 @@ import (
 	"net/url"
 )
 
-// ExecutorApi provides access to an container orchestration solution
+// ExecutorApi provides access to a container orchestration solution.
 type ExecutorApi interface {
-	nomadApiQuerier
+	apiQuerier
 
 	// LoadAvailableRunners loads all allocations of the specified job which are running and not about to get stopped.
 	LoadAvailableRunners(jobId string) (runnerIds []string, err error)
@@ -15,15 +15,13 @@ type ExecutorApi interface {
 
 // ApiClient implements the ExecutorApi interface and can be used to perform different operations on the real Executor API and its return values.
 type ApiClient struct {
-	nomadApiQuerier
+	apiQuerier
 }
 
-// New creates a new api client.
+// NewExecutorApi creates a new api client.
 // One client is usually sufficient for the complete runtime of the API.
-func New(nomadURL *url.URL) (ExecutorApi, error) {
-	client := &ApiClient{
-		nomadApiQuerier: &nomadApiClient{},
-	}
+func NewExecutorApi(nomadURL *url.URL) (ExecutorApi, error) {
+	client := &ApiClient{apiQuerier: &nomadApiClient{}}
 	err := client.init(nomadURL)
 	return client, err
 }

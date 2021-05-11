@@ -15,7 +15,7 @@ func TestLoadAvailableRunnersTestSuite(t *testing.T) {
 type LoadAvailableRunnersTestSuite struct {
 	suite.Suite
 	jobId                  string
-	mock                   *nomadApiQuerierMock
+	mock                   *apiQuerierMock
 	nomadApiClient         ApiClient
 	availableRunner        *nomadApi.AllocationListStub
 	anotherAvailableRunner *nomadApi.AllocationListStub
@@ -26,8 +26,8 @@ type LoadAvailableRunnersTestSuite struct {
 func (suite *LoadAvailableRunnersTestSuite) SetupTest() {
 	suite.jobId = "1d-0f-v3ry-sp3c14l-j0b"
 
-	suite.mock = &nomadApiQuerierMock{}
-	suite.nomadApiClient = ApiClient{nomadApiQuerier: suite.mock}
+	suite.mock = &apiQuerierMock{}
+	suite.nomadApiClient = ApiClient{apiQuerier: suite.mock}
 
 	suite.availableRunner = &nomadApi.AllocationListStub{
 		ID:            "s0m3-r4nd0m-1d",
@@ -64,7 +64,7 @@ func (suite *LoadAvailableRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropag
 	suite.Error(err)
 }
 
-func (suite *LoadAvailableRunnersTestSuite) TestThrowsNoErrorWhenUnderlyingApiCallDoesnt() {
+func (suite *LoadAvailableRunnersTestSuite) TestThrowsNoErrorWhenUnderlyingApiCallDoesNot() {
 	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return([]*nomadApi.AllocationListStub{}, nil)
 

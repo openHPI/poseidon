@@ -5,8 +5,8 @@ import (
 	"net/url"
 )
 
-// nomadApiQuerier provides access to the Nomad functionality.
-type nomadApiQuerier interface {
+// apiQuerier provides access to the Nomad functionality.
+type apiQuerier interface {
 	// init prepares an apiClient to be able to communicate to a provided Nomad API.
 	init(nomadURL *url.URL) (err error)
 

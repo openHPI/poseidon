@@ -131,6 +131,8 @@ test_e2e:
       artifacts: false
     - test_e2e
   script:
+    - export NOMAD_NAMESPACE="$NOMAD_SLUG"
+    - nomad namespace apply $NOMAD_NAMESPACE
     # Only replace set env vars
     - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < ci/api.tpl.nomad > ci/api.nomad
     # Make sure to set NOMAD_ADDR, NOMAD_SKIP_VERIFY and NOMAD_TOKEN env vars in CI settings appropriately
@@ -167,7 +169,10 @@ stop_review:
   variables:
     GIT_STRATEGY: none
   script:
-    - nomad stop $NOMAD_SLUG
+    - export NOMAD_NAMESPACE="$NOMAD_SLUG"
+    # Stop all jobs before deleting the namespace
+    - nomad job status | cut -d" " -f1 | tail -n +2 | xargs -n1 nomad stop
+    - nomad namespace delete $NOMAD_NAMESPACE
   environment:
     name: $CI_COMMIT_REF_SLUG
     action: stop

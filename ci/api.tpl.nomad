@@ -1,5 +1,6 @@
 job "${NOMAD_SLUG}" {
   datacenters = ["dc1"]
+  namespace = "${NOMAD_NAMESPACE}"
 
   group "api" {
     count = 1
@@ -63,6 +64,7 @@ job "${NOMAD_SLUG}" {
       env {
         POSEIDON_SERVER_ADDRESS = "${POSEIDON_LISTEN_ADDRESS}"
         POSEIDON_NOMAD_ADDRESS =  "${NOMAD_SERVER_HOST}"
+        POSEIDON_NOMAD_NAMESPACE = "${NOMAD_NAMESPACE}"
       }
 
       resources {

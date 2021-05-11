@@ -24,15 +24,15 @@ type ApiClient struct {
 
 // NewExecutorApi creates a new api client.
 // One client is usually sufficient for the complete runtime of the API.
-func NewExecutorApi(nomadURL *url.URL) (ExecutorApi, error) {
+func NewExecutorApi(nomadURL *url.URL, nomadNamespace string) (ExecutorApi, error) {
 	client := &ApiClient{apiQuerier: &nomadApiClient{}}
-	err := client.init(nomadURL)
+	err := client.init(nomadURL, nomadNamespace)
 	return client, err
 }
 
 // init prepares an apiClient to be able to communicate to a provided Nomad API.
-func (apiClient *ApiClient) init(nomadURL *url.URL) (err error) {
-	err = apiClient.apiQuerier.init(nomadURL)
+func (apiClient *ApiClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
+	err = apiClient.apiQuerier.init(nomadURL, nomadNamespace)
 	if err != nil {
 		return err
 	}

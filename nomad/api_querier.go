@@ -8,7 +8,7 @@ import (
 // apiQuerier provides access to the Nomad functionality.
 type apiQuerier interface {
 	// init prepares an apiClient to be able to communicate to a provided Nomad API.
-	init(nomadURL *url.URL) (err error)
+	init(nomadURL *url.URL, nomadNamespace string) (err error)
 
 	// LoadJobList loads the list of jobs from the Nomad API.
 	LoadJobList() (list []*nomadApi.JobListStub, err error)
@@ -31,10 +31,11 @@ type nomadApiClient struct {
 	client *nomadApi.Client
 }
 
-func (nc *nomadApiClient) init(nomadURL *url.URL) (err error) {
+func (nc *nomadApiClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
 	nc.client, err = nomadApi.NewClient(&nomadApi.Config{
 		Address:   nomadURL.String(),
 		TLSConfig: &nomadApi.TLSConfig{},
+		Namespace: nomadNamespace,
 	})
 	return err
 }

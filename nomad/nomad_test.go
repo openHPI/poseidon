@@ -116,15 +116,19 @@ func (suite *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	suite.Contains(returnedIds, suite.anotherAvailableRunner.ID)
 }
 
-var TestURL = url.URL{
-	Scheme: "http",
-	Host:   "127.0.0.1:4646",
-}
+var (
+	TestURL = url.URL{
+		Scheme: "http",
+		Host:   "127.0.0.1:4646",
+	}
+)
+
+const TestNamespace = "unit-tests"
 
 func TestApiClient_init(t *testing.T) {
 	client := &ApiClient{apiQuerier: &nomadApiClient{}}
 	defaultJob := parseJob(defaultJobHCL)
-	err := client.init(&TestURL)
+	err := client.init(&TestURL, TestNamespace)
 	require.Nil(t, err)
 	assert.Equal(t, *defaultJob, client.defaultJob)
 }
@@ -134,15 +138,15 @@ func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
 	err := client.init(&url.URL{
 		Scheme: "http",
 		Host:   "http://127.0.0.1:4646",
-	})
+	}, TestNamespace)
 	assert.NotNil(t, err)
 }
 
 func TestNewExecutorApiCanBeCreatedWithoutError(t *testing.T) {
 	expectedClient := &ApiClient{apiQuerier: &nomadApiClient{}}
-	err := expectedClient.init(&TestURL)
+	err := expectedClient.init(&TestURL, TestNamespace)
 	require.Nil(t, err)
 
-	_, err = NewExecutorApi(&TestURL)
+	_, err = NewExecutorApi(&TestURL, TestNamespace)
 	require.Nil(t, err)
 }

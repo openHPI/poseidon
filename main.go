@@ -69,7 +69,7 @@ func main() {
 	logging.InitializeLogging(config.Config.Logger.Level)
 
 	// API initialization
-	nomadAPIClient, err := nomad.NewExecutorApi(config.Config.NomadAPIURL())
+	nomadAPIClient, err := nomad.NewExecutorApi(config.Config.NomadAPIURL(), config.Config.Nomad.Namespace)
 	if err != nil {
 		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
 	}

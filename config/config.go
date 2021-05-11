@@ -26,10 +26,11 @@ var (
 			KeyFile:  "",
 		},
 		Nomad: nomad{
-			Address: "127.0.0.1",
-			Port:    4646,
-			Token:   "",
-			TLS:     false,
+			Address:   "127.0.0.1",
+			Port:      4646,
+			Token:     "",
+			TLS:       false,
+			Namespace: "default",
 		},
 		Logger: logger{
 			Level: "INFO",
@@ -57,10 +58,11 @@ type server struct {
 
 // nomad configures the used Nomad cluster.
 type nomad struct {
-	Address string
-	Port    int
-	Token   string
-	TLS     bool
+	Address   string
+	Port      int
+	Token     string
+	TLS       bool
+	Namespace string
 }
 
 // logger configures the used logger.

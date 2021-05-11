@@ -23,6 +23,8 @@ nomad:
   token: SECRET
   # Specifies whether to use TLS when communicating with the Nomad server
   tls: false
+  # Nomad namespace to use. If unset, 'default' is used
+  namespace: poseidon
 
 # Configuration of the logger
 logger:

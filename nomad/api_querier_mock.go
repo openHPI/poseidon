@@ -86,13 +86,13 @@ func (_m *apiQuerierMock) SetJobScaling(jobId string, count int, reason string) 
 	return r0
 }
 
-// init provides a mock function with given fields: nomadURL
-func (_m *apiQuerierMock) init(nomadURL *url.URL) error {
-	ret := _m.Called(nomadURL)
+// init provides a mock function with given fields: nomadURL, nomadNamespace
+func (_m *apiQuerierMock) init(nomadURL *url.URL, nomadNamespace string) error {
+	ret := _m.Called(nomadURL, nomadNamespace)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*url.URL) error); ok {
-		r0 = rf(nomadURL)
+	if rf, ok := ret.Get(0).(func(*url.URL, string) error); ok {
+		r0 = rf(nomadURL, nomadNamespace)
 	} else {
 		r0 = ret.Error(0)
 	}

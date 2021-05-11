@@ -39,7 +39,7 @@ func DebugInit(runnersPool RunnerPool, nomadApi nomad.ExecutorApi) {
 	executionEnvironment = &NomadExecutionEnvironment{
 		id:               0,
 		jobId:            "python",
-		availableRunners: make(chan runner.Runner, 50),
+		availableRunners: make(chan runner.Runner, 5),
 		nomadApiClient:   nomadApi,
 		allRunners:       runnersPool,
 	}

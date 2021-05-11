@@ -1,15 +1,17 @@
-// ToDo: Delete when creating job on test startup #26.
+// This job is used by our deploy CI stage to create a seed job.
+
 job "python" {
   datacenters = ["dc1"]
   type = "batch"
+  namespace = "${NOMAD_NAMESPACE}"
 
-  group "python-group" {
+  group "python" {
     ephemeral_disk {
       migrate = false
       size    = 10
       sticky  = false
     }
-    count = 1
+    count = 5
     scaling {
       enabled = true
       max = 300
@@ -21,7 +23,7 @@ job "python" {
       weight = 100
     }
 
-    task "python-task" {
+    task "python" {
       driver = "docker"
       kill_timeout = "0s"
       kill_signal = "SIGKILL"

@@ -115,7 +115,7 @@ test_e2e:
     - nomad agent -dev -log-level=WARN &
     - sleep 5
     # Setup Nomad job and wait for it
-    - nomad run ci/python.nomad
+    - nomad run ci/e2e-test.nomad
     - sleep 5
     # Start Poseidon and wait for it
     - ./poseidon &
@@ -130,9 +130,10 @@ test_e2e:
     - job: dockerimage
       artifacts: false
     - test_e2e
-  script:
+  before_script:
     - export NOMAD_NAMESPACE="$NOMAD_SLUG"
     - nomad namespace apply $NOMAD_NAMESPACE
+  script:
     # Only replace set env vars
     - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < ci/api.tpl.nomad > ci/api.nomad
     # Make sure to set NOMAD_ADDR, NOMAD_SKIP_VERIFY and NOMAD_TOKEN env vars in CI settings appropriately
@@ -154,6 +155,13 @@ deploy_review:
     name: $CI_COMMIT_REF_SLUG
     url: http://$CI_ENVIRONMENT_SLUG.$BASE_DOMAIN
     on_stop: stop_review
+  before_script:
+    - export NOMAD_NAMESPACE="$NOMAD_SLUG"
+    - nomad namespace apply $NOMAD_NAMESPACE
+    - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < ci/deploy-review.tpl.nomad > ci/deploy-review.nomad
+    - nomad validate ci/deploy-review.nomad
+    - nomad plan     ci/deploy-review.nomad || [ $? == 1 ]
+    - nomad run      ci/deploy-review.nomad
   only:
     - branches
     - tags

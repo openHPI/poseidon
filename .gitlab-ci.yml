@@ -25,7 +25,7 @@ compile:
   variables:
     CGO_ENABLED: 0
   script:
-    - go build -o poseidon
+    - make build
   artifacts:
     paths:
       - poseidon
@@ -36,7 +36,7 @@ golangci-lint:
   needs: []
   image: golangci/golangci-lint:latest
   script:
-    - golangci-lint run ./... --timeout=3m
+    - make golangci-lint
 
 golint:
   stage: lint
@@ -49,11 +49,7 @@ test:
   stage: test
   needs: []
   script:
-    - go test $(go list ./... | grep -v /e2e_tests) -v -coverprofile coverage.cov
-    # exclude Mock files from coverage report
-    - cat coverage.cov | grep -v _mock.go > coverage_cleaned.cov || true
-    - go tool cover -func=coverage_cleaned.cov
-    - go tool cover -html=coverage_cleaned.cov -o coverage_unit.html
+    - make coverhtml
   artifacts:
     paths:
       - coverage_unit.html
@@ -124,8 +120,7 @@ test_e2e:
     # Start Poseidon and wait for it
     - ./poseidon &
     - sleep 20
-    # Start tests
-    - go test ./e2e_tests -v
+    - make e2e-test
 
 
 .start_deployment: &start_deployment

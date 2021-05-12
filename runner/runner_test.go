@@ -9,32 +9,19 @@ import (
 )
 
 func TestIdIsStored(t *testing.T) {
-	runner := NewExerciseRunner("42")
+	runner := NewRunner("42")
 	assert.Equal(t, "42", runner.Id())
 }
 
-func TestStatusIsStored(t *testing.T) {
-	runner := NewExerciseRunner("42")
-	for _, status := range []Status{StatusReady, StatusRunning, StatusTimeout, StatusFinished} {
-		runner.SetStatus(status)
-		assert.Equal(t, status, runner.Status(), "The status is returned as it is stored")
-	}
-}
-
-func TestDefaultStatus(t *testing.T) {
-	runner := NewExerciseRunner("42")
-	assert.Equal(t, StatusReady, runner.status)
-}
-
 func TestMarshalRunner(t *testing.T) {
-	runner := NewExerciseRunner("42")
+	runner := NewRunner("42")
 	marshal, err := json.Marshal(runner)
 	assert.NoError(t, err)
-	assert.Equal(t, "{\"runnerId\":\"42\",\"status\":\"ready\"}", string(marshal))
+	assert.Equal(t, "{\"runnerId\":\"42\"}", string(marshal))
 }
 
 func TestExecutionRequestIsStored(t *testing.T) {
-	runner := NewExerciseRunner("42")
+	runner := NewRunner("42")
 	executionRequest := dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,
@@ -49,7 +36,7 @@ func TestExecutionRequestIsStored(t *testing.T) {
 }
 
 func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
-	runner := NewExerciseRunner("testRunner")
+	runner := NewRunner("testRunner")
 	ctx := context.Background()
 	newCtx := NewContext(ctx, runner)
 	storedRunner := newCtx.Value(runnerContextKey).(Runner)
@@ -59,7 +46,7 @@ func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
 }
 
 func TestFromContextReturnsRunner(t *testing.T) {
-	runner := NewExerciseRunner("testRunner")
+	runner := NewRunner("testRunner")
 	ctx := NewContext(context.Background(), runner)
 	storedRunner, ok := FromContext(ctx)
 

@@ -3,15 +3,12 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"net/http/httptest"
@@ -20,11 +17,27 @@ import (
 	"testing"
 )
 
-func TestFindRunnerMiddleware(t *testing.T) {
-	runnerPool := environment.NewLocalRunnerPool()
+type MiddlewareTestSuite struct {
+	suite.Suite
+	manager          *runner.ManagerMock
+	router           *mux.Router
+	runnerController *RunnerController
+	testRunner       runner.Runner
+}
+
+func (suite *MiddlewareTestSuite) SetupTest() {
+	suite.manager = &runner.ManagerMock{}
+	suite.router = mux.NewRouter()
+	suite.runnerController = &RunnerController{suite.manager, suite.router}
+	suite.testRunner = runner.NewRunner("runner")
+}
+
+func TestMiddlewareTestSuite(t *testing.T) {
+	suite.Run(t, new(MiddlewareTestSuite))
+}
+
+func (suite *MiddlewareTestSuite) TestFindRunnerMiddleware() {
 	var capturedRunner runner.Runner
-	testRunner := runner.NewExerciseRunner("testRunner")
-	runnerPool.Add(testRunner)
 
 	testRunnerIdRoute := func(writer http.ResponseWriter, request *http.Request) {
 		var ok bool
@@ -35,12 +48,8 @@ func TestFindRunnerMiddleware(t *testing.T) {
 			writer.WriteHeader(http.StatusInternalServerError)
 		}
 	}
-	router := mux.NewRouter()
-	router.Use(findRunnerMiddleware(runnerPool))
-	router.HandleFunc(fmt.Sprintf("/test/{%s}", RunnerIdKey), testRunnerIdRoute).Name("test-runner-id")
-
 	testRunnerRequest := func(t *testing.T, runnerId string) *http.Request {
-		path, err := router.Get("test-runner-id").URL(RunnerIdKey, runnerId)
+		path, err := suite.router.Get("test-runner-id").URL(RunnerIdKey, runnerId)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -51,36 +60,57 @@ func TestFindRunnerMiddleware(t *testing.T) {
 		return request
 	}
 
-	t.Run("sets runner in context if runner exists", func(t *testing.T) {
+	suite.router.Use(suite.runnerController.findRunnerMiddleware)
+	suite.router.HandleFunc(fmt.Sprintf("/test/{%s}", RunnerIdKey), testRunnerIdRoute).Name("test-runner-id")
+
+	suite.manager.On("Get", suite.testRunner.Id()).Return(suite.testRunner, nil)
+	suite.T().Run("sets runner in context if runner exists", func(t *testing.T) {
 		capturedRunner = nil
 
 		recorder := httptest.NewRecorder()
-		router.ServeHTTP(recorder, testRunnerRequest(t, testRunner.Id()))
+		suite.router.ServeHTTP(recorder, testRunnerRequest(t, suite.testRunner.Id()))
 
 		assert.Equal(t, http.StatusOK, recorder.Code)
-		assert.Equal(t, testRunner, capturedRunner)
+		assert.Equal(t, suite.testRunner, capturedRunner)
 	})
 
-	t.Run("returns 404 if runner does not exist", func(t *testing.T) {
+	invalidID := "some-invalid-runner-id"
+	suite.manager.On("Get", invalidID).Return(nil, runner.ErrRunnerNotFound)
+	suite.T().Run("returns 404 if runner does not exist", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		router.ServeHTTP(recorder, testRunnerRequest(t, "some-invalid-runner-id"))
+		suite.router.ServeHTTP(recorder, testRunnerRequest(t, invalidID))
 
 		assert.Equal(t, http.StatusNotFound, recorder.Code)
 	})
 }
 
-func TestExecuteRoute(t *testing.T) {
-	runnerPool := environment.NewLocalRunnerPool()
-	router := NewRouter(nil, runnerPool)
-	testRunner := runner.NewExerciseRunner("testRunner")
-	runnerPool.Add(testRunner)
+func TestRunnerRouteTestSuite(t *testing.T) {
+	suite.Run(t, new(RunnerRouteTestSuite))
+}
 
-	path, err := router.Get(ExecutePath).URL(RunnerIdKey, testRunner.Id())
+type RunnerRouteTestSuite struct {
+	suite.Suite
+	runnerManager      *runner.ManagerMock
+	environmentManager *environment.ManagerMock
+	router             *mux.Router
+	runner             runner.Runner
+}
+
+func (suite *RunnerRouteTestSuite) SetupTest() {
+	suite.runnerManager = &runner.ManagerMock{}
+	suite.environmentManager = &environment.ManagerMock{}
+	suite.router = NewRouter(suite.runnerManager, suite.environmentManager)
+	suite.runner = runner.NewRunner("test_runner")
+	suite.runnerManager.On("Get", suite.runner.Id()).Return(suite.runner, nil)
+}
+
+func (suite *RunnerRouteTestSuite) TestExecuteRoute() {
+	path, err := suite.router.Get(ExecutePath).URL(RunnerIdKey, suite.runner.Id())
 	if err != nil {
-		t.Fatal(err)
+		suite.T().Fatal()
 	}
 
-	t.Run("valid request", func(t *testing.T) {
+	suite.Run("valid request", func() {
 		recorder := httptest.NewRecorder()
 		executionRequest := dto.ExecutionRequest{
 			Command:     "command",
@@ -89,131 +119,70 @@ func TestExecuteRoute(t *testing.T) {
 		}
 		body, err := json.Marshal(executionRequest)
 		if err != nil {
-			t.Fatal(err)
+			suite.T().Fatal(err)
 		}
 		request, err := http.NewRequest(http.MethodPost, path.String(), bytes.NewReader(body))
 		if err != nil {
-			t.Fatal(err)
+			suite.T().Fatal(err)
 		}
 
-		router.ServeHTTP(recorder, request)
+		suite.router.ServeHTTP(recorder, request)
 
 		var websocketResponse dto.WebsocketResponse
 		err = json.NewDecoder(recorder.Result().Body).Decode(&websocketResponse)
 		if err != nil {
-			t.Fatal(err)
+			suite.T().Fatal(err)
 		}
 
-		assert.Equal(t, http.StatusOK, recorder.Code)
+		suite.Equal(http.StatusOK, recorder.Code)
 
-		t.Run("creates an execution request for the runner", func(t *testing.T) {
+		suite.Run("creates an execution request for the runner", func() {
 			url, err := url.Parse(websocketResponse.WebsocketUrl)
 			if err != nil {
-				t.Fatal(err)
+				suite.T().Fatal(err)
 			}
 			executionId := url.Query().Get(ExecutionIdKey)
-			storedExecutionRequest, ok := testRunner.Execution(runner.ExecutionId(executionId))
+			storedExecutionRequest, ok := suite.runner.Execution(runner.ExecutionId(executionId))
 
-			assert.True(t, ok, "No execution request with this id: ", executionId)
-			assert.Equal(t, executionRequest, storedExecutionRequest)
+			suite.True(ok, "No execution request with this id: ", executionId)
+			suite.Equal(executionRequest, storedExecutionRequest)
 		})
 	})
 
-	t.Run("invalid request", func(t *testing.T) {
+	suite.Run("invalid request", func() {
 		recorder := httptest.NewRecorder()
 		body := ""
 		request, err := http.NewRequest(http.MethodPost, path.String(), strings.NewReader(body))
 		if err != nil {
-			t.Fatal(err)
+			suite.T().Fatal(err)
 		}
-		router.ServeHTTP(recorder, request)
+		suite.router.ServeHTTP(recorder, request)
 
-		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+		suite.Equal(http.StatusBadRequest, recorder.Code)
 	})
 }
 
-func TestDeleteRunnerRouteTestSuite(t *testing.T) {
-	suite.Run(t, new(DeleteRunnerRouteTestSuite))
-}
-
-type DeleteRunnerRouteTestSuite struct {
-	suite.Suite
-	runnerPool environment.RunnerPool
-	apiClient  *nomad.ExecutorApiMock
-	router     *mux.Router
-	testRunner runner.Runner
-	path       string
-}
-
-func (suite *DeleteRunnerRouteTestSuite) SetupTest() {
-	suite.runnerPool = environment.NewLocalRunnerPool()
-	suite.apiClient = &nomad.ExecutorApiMock{}
-	suite.router = NewRouter(suite.apiClient, suite.runnerPool)
-
-	suite.testRunner = runner.NewExerciseRunner("testRunner")
-	suite.runnerPool.Add(suite.testRunner)
-
-	var err error
-	runnerUrl, err := suite.router.Get(DeleteRoute).URL(RunnerIdKey, suite.testRunner.Id())
+func (suite *RunnerRouteTestSuite) TestDeleteRoute() {
+	deleteURL, err := suite.router.Get(DeleteRoute).URL(RunnerIdKey, suite.runner.Id())
 	if err != nil {
 		suite.T().Fatal(err)
 	}
-	suite.path = runnerUrl.String()
-}
+	deletePath := deleteURL.String()
+	suite.runnerManager.On("Return", suite.runner).Return(nil)
 
-func (suite *DeleteRunnerRouteTestSuite) TestValidRequestReturnsNoContent() {
-	suite.apiClient.On("DeleteRunner", mock.AnythingOfType("string")).Return(nil)
+	suite.Run("valid request", func() {
+		recorder := httptest.NewRecorder()
+		request, err := http.NewRequest(http.MethodDelete, deletePath, nil)
+		if err != nil {
+			suite.T().Fatal(err)
+		}
 
-	recorder := httptest.NewRecorder()
-	request, err := http.NewRequest(http.MethodDelete, suite.path, nil)
-	if err != nil {
-		suite.T().Fatal(err)
-	}
+		suite.router.ServeHTTP(recorder, request)
 
-	suite.router.ServeHTTP(recorder, request)
+		suite.Equal(http.StatusNoContent, recorder.Code)
 
-	suite.Equal(http.StatusNoContent, recorder.Code)
-
-	suite.Run("runner is deleted on nomad", func() {
-		suite.apiClient.AssertCalled(suite.T(), "DeleteRunner", suite.testRunner.Id())
+		suite.Run("runner was returned to runner manager", func() {
+			suite.runnerManager.AssertCalled(suite.T(), "Return", suite.runner)
+		})
 	})
-
-	suite.Run("runner is deleted from runnerPool", func() {
-		returnedRunner, ok := suite.runnerPool.Get(suite.testRunner.Id())
-		suite.Nil(returnedRunner)
-		suite.False(ok)
-	})
-}
-
-func (suite *DeleteRunnerRouteTestSuite) TestReturnInternalServerErrorWhenApiCallToNomadFailed() {
-	suite.apiClient.On("DeleteRunner", mock.AnythingOfType("string")).Return(errors.New("API call failed"))
-
-	recorder := httptest.NewRecorder()
-	request, err := http.NewRequest(http.MethodDelete, suite.path, nil)
-	if err != nil {
-		suite.T().Fatal(err)
-	}
-
-	suite.router.ServeHTTP(recorder, request)
-
-	suite.Equal(http.StatusInternalServerError, recorder.Code)
-}
-
-func (suite *DeleteRunnerRouteTestSuite) TestDeleteInvalidRunnerIdReturnsNotFound() {
-	var err error
-	runnersUrl, err := suite.router.Get(DeleteRoute).URL(RunnerIdKey, "1nv4l1dID")
-	if err != nil {
-		suite.T().Fatal(err)
-	}
-	suite.path = runnersUrl.String()
-
-	recorder := httptest.NewRecorder()
-	request, err := http.NewRequest(http.MethodDelete, suite.path, nil)
-	if err != nil {
-		suite.T().Fatal(err)
-	}
-
-	suite.router.ServeHTTP(recorder, request)
-
-	suite.Equal(http.StatusNotFound, recorder.Code)
 }

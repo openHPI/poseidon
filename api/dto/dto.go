@@ -18,6 +18,9 @@ type RunnerResponse struct {
 	Id string `json:"runnerId"`
 }
 
+// FileCreation is the expected json structure of the request body for the copy files route.
+type FileCreation struct{}
+
 // WebsocketResponse is the expected response when creating an execution for a runner.
 type WebsocketResponse struct {
 	WebsocketUrl string `json:"websocketUrl"`

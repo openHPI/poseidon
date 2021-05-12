@@ -4,7 +4,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,7 +16,7 @@ func mockHTTPHandler(writer http.ResponseWriter, _ *http.Request) {
 func TestNewRouterV1WithAuthenticationDisabled(t *testing.T) {
 	config.Config.Server.Token = ""
 	router := mux.NewRouter()
-	v1 := newRouterV1(router, nil, environment.NewLocalRunnerPool())
+	configureV1Router(router, nil, nil)
 
 	t.Run("health route is accessible", func(t *testing.T) {
 		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -30,7 +29,7 @@ func TestNewRouterV1WithAuthenticationDisabled(t *testing.T) {
 	})
 
 	t.Run("added route is accessible", func(t *testing.T) {
-		v1.HandleFunc("/test", mockHTTPHandler)
+		router.HandleFunc("/api/v1/test", mockHTTPHandler)
 		request, err := http.NewRequest(http.MethodGet, "/api/v1/test", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -44,7 +43,7 @@ func TestNewRouterV1WithAuthenticationDisabled(t *testing.T) {
 func TestNewRouterV1WithAuthenticationEnabled(t *testing.T) {
 	config.Config.Server.Token = "TestToken"
 	router := mux.NewRouter()
-	v1 := newRouterV1(router, nil, environment.NewLocalRunnerPool())
+	configureV1Router(router, nil, nil)
 
 	t.Run("health route is accessible", func(t *testing.T) {
 		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -56,9 +55,8 @@ func TestNewRouterV1WithAuthenticationEnabled(t *testing.T) {
 		assert.Equal(t, http.StatusNoContent, recorder.Code)
 	})
 
-	t.Run("added route is not accessible", func(t *testing.T) {
-		v1.HandleFunc("/test", mockHTTPHandler)
-		request, err := http.NewRequest(http.MethodGet, "/api/v1/test", nil)
+	t.Run("protected route is not accessible", func(t *testing.T) {
+		request, err := http.NewRequest(http.MethodPost, "/api/v1/runners", nil)
 		if err != nil {
 			t.Fatal(err)
 		}

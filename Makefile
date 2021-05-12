@@ -55,7 +55,6 @@ snaked_name=$(shell sed -e "s/\([A-Z]\)/_\L\1/g" -e "s/^_//" <<< "$(name)")
 mock: deps ## Create/Update a mock. Example: make mock name=apiQuerier pkg=./nomad
 	@mockery \
       --name=$(name) \
-      --output=$(pkg) \
       --structname=$(name)Mock \
       --filename=$(snaked_name)_mock.go \
       --inpackage \

@@ -72,8 +72,8 @@ func (_m *apiQuerierMock) LoadJobList() ([]*api.JobListStub, error) {
 	return r0, r1
 }
 
-// SetJobScaling provides a mock function with given fields: jobId, count, reason
-func (_m *apiQuerierMock) SetJobScaling(jobId string, count int, reason string) error {
+// SetJobScale provides a mock function with given fields: jobId, count, reason
+func (_m *apiQuerierMock) SetJobScale(jobId string, count int, reason string) error {
 	ret := _m.Called(jobId, count, reason)
 
 	var r0 error
@@ -121,18 +121,4 @@ func (_m *apiQuerierMock) loadRunners(jobId string) ([]*api.AllocationListStub, 
 	}
 
 	return r0, r1
-}
-
-// SetJobScale provides a mock function with given fields: jobId, count, reason
-func (_m *apiQuerierMock) SetJobScale(jobId string, count int, reason string) error {
-	ret := _m.Called(jobId, count, reason)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, int, string) error); ok {
-		r0 = rf(jobId, count, reason)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }

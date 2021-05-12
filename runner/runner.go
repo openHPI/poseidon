@@ -9,9 +9,6 @@ import (
 	"sync"
 )
 
-// Status is the type for the status of a Runner.
-type Status string
-
 // ContextKey is the type for keys in a request context.
 type ContextKey string
 
@@ -19,11 +16,6 @@ type ContextKey string
 type ExecutionId string
 
 const (
-	StatusReady    Status = "ready"
-	StatusRunning  Status = "running"
-	StatusTimeout  Status = "timeout"
-	StatusFinished Status = "finished"
-
 	// runnerContextKey is the key used to store runners in context.Context
 	runnerContextKey ContextKey = "runner"
 )
@@ -31,37 +23,33 @@ const (
 type Runner interface {
 	store.Entity
 
-	// SetStatus sets the status of the runner.
-	SetStatus(Status)
-
-	// Status gets the status of the runner.
-	Status() Status
-
-	// Execution looks up an ExecutionId for the runner and returns the associated RunnerRequest.
-	// If this request does not exit, ok is false, else true.
-	Execution(ExecutionId) (request dto.ExecutionRequest, ok bool)
-
 	// AddExecution saves the supplied ExecutionRequest for the runner and returns an ExecutionId to retrieve it again.
 	AddExecution(dto.ExecutionRequest) (ExecutionId, error)
 
+	Execution(ExecutionId) (executionRequest dto.ExecutionRequest, ok bool)
+
 	// DeleteExecution deletes the execution of the runner with the specified id.
 	DeleteExecution(ExecutionId)
+
+	// Execute executes the execution with the given ID.
+	Execute(ExecutionId)
+
+	// Copy copies the specified files into the runner.
+	Copy(dto.FileCreation)
 }
 
-// ExerciseRunner is an abstraction to communicate with Nomad allocations.
-type ExerciseRunner struct {
+// NomadAllocation is an abstraction to communicate with Nomad allocations.
+type NomadAllocation struct {
 	sync.RWMutex
 	id         string
-	status     Status
 	ch         chan bool
 	executions map[ExecutionId]dto.ExecutionRequest
 }
 
-// NewExerciseRunner creates a new exercise runner with the provided id.
-func NewExerciseRunner(id string) *ExerciseRunner {
-	return &ExerciseRunner{
+// NewRunner creates a new runner with the provided id.
+func NewRunner(id string) Runner {
+	return &NomadAllocation{
 		id:         id,
-		status:     StatusReady,
 		ch:         make(chan bool),
 		executions: make(map[ExecutionId]dto.ExecutionRequest),
 	}
@@ -69,40 +57,26 @@ func NewExerciseRunner(id string) *ExerciseRunner {
 
 // MarshalJSON implements json.Marshaler interface.
 // This exports private attributes like the id too.
-func (r *ExerciseRunner) MarshalJSON() ([]byte, error) {
+func (r *NomadAllocation) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Id     string `json:"runnerId"`
-		Status Status `json:"status"`
+		Id string `json:"runnerId"`
 	}{
-		Id:     r.Id(),
-		Status: r.Status(),
+		Id: r.Id(),
 	})
 }
 
-func (r *ExerciseRunner) SetStatus(status Status) {
-	r.Lock()
-	defer r.Unlock()
-	r.status = status
-}
-
-func (r *ExerciseRunner) Status() Status {
-	r.RLock()
-	defer r.RUnlock()
-	return r.status
-}
-
-func (r *ExerciseRunner) Id() string {
+func (r *NomadAllocation) Id() string {
 	return r.id
 }
 
-func (r *ExerciseRunner) Execution(id ExecutionId) (executionRequest dto.ExecutionRequest, ok bool) {
+func (r *NomadAllocation) Execution(id ExecutionId) (executionRequest dto.ExecutionRequest, ok bool) {
 	r.RLock()
 	defer r.RUnlock()
 	executionRequest, ok = r.executions[id]
 	return
 }
 
-func (r *ExerciseRunner) AddExecution(request dto.ExecutionRequest) (ExecutionId, error) {
+func (r *NomadAllocation) AddExecution(request dto.ExecutionRequest) (ExecutionId, error) {
 	r.Lock()
 	defer r.Unlock()
 	idUuid, err := uuid.NewRandom()
@@ -114,7 +88,15 @@ func (r *ExerciseRunner) AddExecution(request dto.ExecutionRequest) (ExecutionId
 	return id, err
 }
 
-func (r *ExerciseRunner) DeleteExecution(id ExecutionId) {
+func (r *NomadAllocation) Execute(id ExecutionId) {
+
+}
+
+func (r *NomadAllocation) Copy(files dto.FileCreation) {
+
+}
+
+func (r *NomadAllocation) DeleteExecution(id ExecutionId) {
 	r.Lock()
 	defer r.Unlock()
 	delete(r.executions, id)

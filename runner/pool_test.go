@@ -1,10 +1,9 @@
-package environment
+package runner
 
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/suite"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"testing"
 )
 
@@ -21,7 +20,7 @@ func TestRunnerPoolTestSuite(t *testing.T) {
 type RunnerPoolTestSuite struct {
 	suite.Suite
 	runnerPool *localRunnerPool
-	runner     runner.Runner
+	runner     Runner
 }
 
 func (suite *RunnerPoolTestSuite) SetupTest() {
@@ -60,7 +59,7 @@ func (suite *RunnerPoolTestSuite) TestAddedRunnerCanBeRetrieved() {
 }
 
 func (suite *RunnerPoolTestSuite) TestRunnerWithSameIdOverwritesOldOne() {
-	otherRunnerWithSameId := runner.NewExerciseRunner(suite.runner.Id())
+	otherRunnerWithSameId := NewRunner(suite.runner.Id())
 	// assure runner is actually different
 	suite.NotEqual(suite.runner, otherRunnerWithSameId)
 

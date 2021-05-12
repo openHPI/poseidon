@@ -7,6 +7,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,13 +39,22 @@ func runServer(server *http.Server) {
 	}
 }
 
-func initServer(apiClient nomad.ExecutorApi, runnerPool environment.RunnerPool) *http.Server {
+func initServer() *http.Server {
+	// API initialization
+	nomadAPIClient, err := nomad.NewExecutorApi(config.Config.NomadAPIURL(), config.Config.Nomad.Namespace)
+	if err != nil {
+		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
+	}
+
+	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient)
+	environmentManager := environment.NewNomadEnvironmentManager(runnerManager, nomadAPIClient)
+
 	return &http.Server{
 		Addr:         config.Config.PoseidonAPIURL().Host,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      api.NewRouter(apiClient, runnerPool),
+		Handler:      api.NewRouter(runnerManager, environmentManager),
 	}
 }
 
@@ -68,17 +78,7 @@ func main() {
 	}
 	logging.InitializeLogging(config.Config.Logger.Level)
 
-	// API initialization
-	nomadAPIClient, err := nomad.NewExecutorApi(config.Config.NomadAPIURL(), config.Config.Nomad.Namespace)
-	if err != nil {
-		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
-	}
-
-	// ToDo: Move to create execution environment
-	runnerPool := environment.NewLocalRunnerPool()
-	environment.DebugInit(runnerPool, nomadAPIClient)
-
-	server := initServer(nomadAPIClient, runnerPool)
+	server := initServer()
 	go runServer(server)
 	shutdownOnOSSignal(server)
 }

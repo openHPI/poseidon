@@ -13,6 +13,9 @@ type EntityStore interface {
 
 	// Delete deletes the entity with the passed id from the store.
 	Delete(id string)
+
+	// Len returns the number of currently stored entities in the store.
+	Len() int
 }
 
 type Entity interface {

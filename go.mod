@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/nomad v1.0.4
 	github.com/hashicorp/nomad/api v0.0.0-20210505182403-7d5a9ecde95c

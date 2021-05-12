@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
@@ -15,10 +14,8 @@ import (
 )
 
 type WebsocketTestSuite struct {
-	suite.Suite
-	runner      runner.Runner
+	RunnerRouteTestSuite
 	server      *httptest.Server
-	router      *mux.Router
 	executionId runner.ExecutionId
 }
 
@@ -26,10 +23,12 @@ func TestWebsocketTestSuite(t *testing.T) {
 	suite.Run(t, new(WebsocketTestSuite))
 }
 
-func (suite *WebsocketTestSuite) SetupSuite() {
-	runnerPool := environment.NewLocalRunnerPool()
-	suite.runner = runner.NewExerciseRunner("testRunner")
-	runnerPool.Add(suite.runner)
+func (suite *WebsocketTestSuite) SetupTest() {
+	suite.runnerManager = &runner.ManagerMock{}
+	suite.environmentManager = &environment.ManagerMock{}
+	suite.router = NewRouter(suite.runnerManager, suite.environmentManager)
+	suite.runner = runner.NewRunner("test_runner")
+	suite.runnerManager.On("Get", suite.runner.Id()).Return(suite.runner, nil)
 	var err error
 	suite.executionId, err = suite.runner.AddExecution(dto.ExecutionRequest{
 		Command:     "command",
@@ -38,11 +37,12 @@ func (suite *WebsocketTestSuite) SetupSuite() {
 	})
 	suite.Require().NoError(err)
 
-	router := mux.NewRouter()
-	router.Use(findRunnerMiddleware(runnerPool))
-	router.HandleFunc(fmt.Sprintf("%s/{%s}%s", RouteRunners, RunnerIdKey, WebsocketPath), connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
-	suite.server = httptest.NewServer(router)
-	suite.router = router
+	// router.HandleFunc(fmt.Sprintf("%s/{%s}%s", RouteRunners, RunnerIdKey, WebsocketPath), connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
+	suite.server = httptest.NewServer(suite.router)
+}
+
+func (suite *WebsocketTestSuite) TearDownSuite() {
+	suite.server.Close()
 }
 
 func (suite *WebsocketTestSuite) websocketUrl(scheme, runnerId string, executionId runner.ExecutionId) (*url.URL, error) {
@@ -54,10 +54,6 @@ func (suite *WebsocketTestSuite) websocketUrl(scheme, runnerId string, execution
 	websocketUrl.Path = path.Path
 	websocketUrl.RawQuery = fmt.Sprintf("executionId=%s", executionId)
 	return websocketUrl, nil
-}
-
-func (suite *WebsocketTestSuite) TearDownSuite() {
-	suite.server.Close()
 }
 
 func (suite *WebsocketTestSuite) TestWebsocketConnectionCanBeEstablished() {

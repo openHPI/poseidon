@@ -19,24 +19,20 @@ type ExecutorApi interface {
 // ApiClient implements the ExecutorApi interface and can be used to perform different operations on the real Executor API and its return values.
 type ApiClient struct {
 	apiQuerier
-	client     *nomadApi.Client
 	defaultJob nomadApi.Job
 }
 
 // NewExecutorApi creates a new api client.
 // One client is usually sufficient for the complete runtime of the API.
 func NewExecutorApi(nomadURL *url.URL) (ExecutorApi, error) {
-	client := &ApiClient{apiQuerier: &ApiClient{}, client: &nomadApi.Client{}}
+	client := &ApiClient{apiQuerier: &nomadApiClient{}}
 	err := client.init(nomadURL)
 	return client, err
 }
 
 // init prepares an apiClient to be able to communicate to a provided Nomad API.
 func (apiClient *ApiClient) init(nomadURL *url.URL) (err error) {
-	apiClient.client, err = nomadApi.NewClient(&nomadApi.Config{
-		Address:   nomadURL.String(),
-		TLSConfig: &nomadApi.TLSConfig{},
-	})
+	err = apiClient.apiQuerier.init(nomadURL)
 	if err != nil {
 		return err
 	}

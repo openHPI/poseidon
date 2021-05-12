@@ -68,27 +68,27 @@ func (environment *NomadExecutionEnvironment) Refresh() {
 	for {
 		runners, err := environment.nomadApiClient.LoadRunners(environment.jobId)
 		if err != nil {
-			log.WithError(err).Printf("Failed fetching runners")
+			log.WithError(err).Warn("Failed fetching runners")
 			break
 		}
 		for _, r := range environment.unusedRunners(runners) {
 			// ToDo: Listen on Nomad event stream
-			log.Printf("Adding allocation %+v", r)
+			log.WithField("allocation", r).Debug("Adding allocation")
 			environment.allRunners.Add(r)
 			environment.availableRunners <- r
 		}
 		jobScale, err := environment.nomadApiClient.JobScale(environment.jobId)
 		if err != nil {
-			log.WithError(err).Printf("Failed get allocation count")
+			log.WithError(err).Warn("Failed get allocation count")
 			break
 		}
 		neededRunners := cap(environment.availableRunners) - len(environment.availableRunners) + 1
 		runnerCount := jobScale + neededRunners
 		time.Sleep(50 * time.Millisecond)
-		log.Printf("Set job scaling %d", runnerCount)
+		log.WithField("count", runnerCount).Debug("Set job scaling")
 		err = environment.nomadApiClient.SetJobScale(environment.jobId, runnerCount, "Runner Requested")
 		if err != nil {
-			log.WithError(err).Printf("Failed set allocation scaling")
+			log.WithError(err).Warn("Failed to set allocation scaling")
 			continue
 		}
 	}

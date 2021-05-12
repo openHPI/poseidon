@@ -122,7 +122,7 @@ var TestURL = url.URL{
 }
 
 func TestApiClient_init(t *testing.T) {
-	client := &ApiClient{}
+	client := &ApiClient{apiQuerier: &nomadApiClient{}}
 	defaultJob := parseJob(defaultJobHCL)
 	err := client.init(&TestURL)
 	require.Nil(t, err)
@@ -130,7 +130,7 @@ func TestApiClient_init(t *testing.T) {
 }
 
 func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
-	client := &ApiClient{}
+	client := &ApiClient{apiQuerier: &nomadApiClient{}}
 	err := client.init(&url.URL{
 		Scheme: "http",
 		Host:   "http://127.0.0.1:4646",
@@ -139,7 +139,7 @@ func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
 }
 
 func TestNewExecutorApiCanBeCreatedWithoutError(t *testing.T) {
-	expectedClient := &ApiClient{}
+	expectedClient := &ApiClient{apiQuerier: &nomadApiClient{}}
 	err := expectedClient.init(&TestURL)
 	require.Nil(t, err)
 

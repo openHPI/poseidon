@@ -3,7 +3,7 @@ job "python" {
   datacenters = ["dc1"]
   type = "batch"
 
-  group "python" {
+  group "python-group" {
     ephemeral_disk {
       migrate = false
       size    = 10
@@ -21,7 +21,7 @@ job "python" {
       weight = 100
     }
 
-    task "python" {
+    task "python-task" {
       driver = "docker"
       kill_timeout = "0s"
       kill_signal = "SIGKILL"

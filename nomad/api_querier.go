@@ -16,7 +16,7 @@ type apiQuerier interface {
 	// JobScale returns the scale of the passed job.
 	JobScale(jobId string) (jobScale int, err error)
 
-	// SetJobScaling sets the scaling count of the passed job to Nomad.
+	// SetJobScale sets the scaling count of the passed job to Nomad.
 	SetJobScale(jobId string, count int, reason string) (err error)
 
 	// DeleteRunner deletes the runner with the given Id.
@@ -37,26 +37,6 @@ func (nc *nomadApiClient) init(nomadURL *url.URL) (err error) {
 		TLSConfig: &nomadApi.TLSConfig{},
 	})
 	return err
-}
-
-func (nc *nomadApiClient) LoadJobList() (list []*nomadApi.JobListStub, err error) {
-	list, _, err = nc.client.Jobs().List(nil)
-	return
-}
-
-func (nc *nomadApiClient) JobScale(jobId string) (jobScale int, err error) {
-	status, _, err := nc.client.Jobs().ScaleStatus(jobId, nil)
-	if err != nil {
-		return
-	}
-	// ToDo: Consider counting also the placed and desired allocations
-	jobScale = status.TaskGroups[jobId].Running
-	return
-}
-
-func (nc *nomadApiClient) SetJobScale(jobId string, count int, reason string) (err error) {
-	_, _, err = nc.client.Jobs().Scale(jobId, jobId, &count, reason, false, nil, nil)
-	return
 }
 
 func (nc *nomadApiClient) DeleteRunner(runnerId string) (err error) {

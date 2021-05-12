@@ -7,11 +7,11 @@
 
 If you haven't installed Go on your system yet, follow the [golang installation guide](https://golang.org/doc/install).
 
-The project can be compiled using `go build`. This should create a binary which can then be executed.
+To get your local setup going, run `make bootstrap`. It will install all required dependencies as well as setting up our git hooks. Run `make help` to get an overview of available make targets.
+
+The project can be compiled using `make build`. This should create a binary which can then be executed.
 
 Alternatively, the `go run .` command can be used to automatically compile and run the project.
-
-To run the tests, use `go test ./...`.
 
 ### Docker
 
@@ -28,7 +28,7 @@ Right now we use two different linters in our CI. See their specific instruction
 
 ### Git hooks
 
-The repository contains a git pre-commit hook which runs the go formatting tool gofmt to ensure the code is formatted properly before committing. To enable it, you have to copy the hook file (`git_hooks/pre-commit`) to the `.git/hooks/` directory of the repository.
+The repository contains a git pre-commit hook which runs the go formatting tool gofmt to ensure the code is formatted properly before committing. To enable them, run `make git-hooks`.
 
 ## Configuration
 
@@ -90,7 +90,18 @@ $ openssl req -x509 -nodes -newkey rsa:2048 -keyout server.rsa.key -out server.r
 
 As testing framework we use the [testify](https://github.com/stretchr/testify) toolkit. 
 
+Run `make test` to run the unit tests.
+
+### E2E
+
 For e2e tests we provide a separate package. E2e tests require the connection to a Nomad cluster.
+Run `make e2e-tests` to run the e2e tests. This requires Poseidon to be already running.
+Instead, you can run `make e2e-docker` to run the API in a Docker container, and the e2e tests afterwards.
+You can use the `DOCKER_OPTS` variable to add additional arguments to the Docker run command that runs the API. By default, it is set to `-v $(shell pwd)/configuraton.yaml:/configuration.yaml`, which means, your local configuration file is mapped to the container. If you don't want this, use the following command.
+
+```shell
+$ make e2e-docker DOCKER_OPTS=""
+```
 
 ### Mocks
 
@@ -98,26 +109,15 @@ For mocks we use [mockery](https://github.com/vektra/mockery). To generate a moc
 You can then create a mock for the interface of your choice by running
 
 ```bash
-mockery \
-  --name=<<interface_name>> \
-  --structname=<<interface_name>>Mock \
-  --filename=<<interface_name>>Mock.go \
-  --output=<<relative_path_to_output_folder>> \
-  --outpkg=<<package_name_of_mock>>
+make mock name=INTERFACE_NAME pkg=./PATH/TO/PKG
 ```
+
 on a specific interface.
 
 For example, for an interface called `ExecutorApi` in the package `nomad`, you might run
 
 ```bash
-mockery \
-  --name=ExecutorApi \
-  --output='.' \
-  --structname=ExecutorApiMock \
-  --filename=ExecutorApiMock.go \
-  --outpkg=nomad
+make mock name=ExecutorApi pkg=./nomad
 ```
-
-Note that the default value for `--output` is `./mocks` and the default for `--outpkg` is `mocks`. This will create the mock in a `mocks` sub-folder. However, in some cases (if the mock implements private interface methods), it needs to be in the same package as the interface it is mocking.
 
 If the interface changes, you can rerun this command.

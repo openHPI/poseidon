@@ -1,7 +1,9 @@
 package logging
 
 import (
+	"bufio"
 	"github.com/sirupsen/logrus"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -44,6 +46,10 @@ func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
 func (writer *loggingResponseWriter) WriteHeader(code int) {
 	writer.statusCode = code
 	writer.ResponseWriter.WriteHeader(code)
+}
+
+func (writer *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.(http.Hijacker).Hijack()
 }
 
 // HTTPLoggingMiddleware returns an http.Handler that logs different information about every request

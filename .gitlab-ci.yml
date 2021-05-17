@@ -114,8 +114,8 @@ test_e2e:
     - export NOMAD_ADDR=http://localhost:4646
     - nomad agent -dev -log-level=WARN &
     - sleep 5
-    # Setup Nomad job and wait for it
-    - nomad run ci/e2e-test.nomad
+    - export NOMAD_NAMESPACE="default"
+    - ./ci/nomad-run-env-job.sh ci/demo-job.tpl.nomad ci/demo-job.nomad
     - sleep 5
     # Start Poseidon and wait for it
     - ./poseidon &
@@ -158,10 +158,7 @@ deploy_review:
   before_script:
     - export NOMAD_NAMESPACE="$NOMAD_SLUG"
     - nomad namespace apply $NOMAD_NAMESPACE
-    - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < ci/deploy-review.tpl.nomad > ci/deploy-review.nomad
-    - nomad validate ci/deploy-review.nomad
-    - nomad plan     ci/deploy-review.nomad || [ $? == 1 ]
-    - nomad run      ci/deploy-review.nomad
+    - ./ci/nomad-run-env-job.sh ci/demo-job.tpl.nomad ci/demo-job.nomad
   only:
     - branches
     - tags

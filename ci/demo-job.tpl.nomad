@@ -1,17 +1,17 @@
-// This job is used by our deploy CI stage to create a seed job.
+// This job is used by the e2e tests as a demo job.
 
 job "python" {
   datacenters = ["dc1"]
   type = "batch"
   namespace = "${NOMAD_NAMESPACE}"
 
-  group "python" {
+  group "python-group" {
     ephemeral_disk {
       migrate = false
       size    = 10
       sticky  = false
     }
-    count = 5
+    count = 1
     scaling {
       enabled = true
       max = 300
@@ -23,7 +23,7 @@ job "python" {
       weight = 100
     }
 
-    task "python" {
+    task "python-task" {
       driver = "docker"
       kill_timeout = "0s"
       kill_signal = "SIGKILL"

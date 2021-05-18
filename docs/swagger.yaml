@@ -3,7 +3,7 @@ info:
   title: Poseidon API
   description: |
     This API is used by CodeOcean to run code in runners.
-  version: '0.2.0'
+  version: '0.2.1'
 
 components:
   schemas:
@@ -53,10 +53,8 @@ components:
       additionalProperties: false
 
   responses:
-    NotFound:
-        description: Not found
     BadRequest:
-      description: Invalid request
+      description: Request is invalid. E.g. request body does not follow the json schema required by the given route or url parameters are invalid.
       content:
         application/json:
           schema:
@@ -65,6 +63,10 @@ components:
               message:
                 description: Explanation on why the request is invalid
                 type: string
+    Unauthorized:
+      description: Client could not be authenticated
+    NotFound:
+      description: The entity with the given identifier does not exist.
     InternalServerError:
       description: Request could not be handled
       content:
@@ -144,6 +146,10 @@ paths:
                     example: 123e4567-e89b-12d3-a456-426614174000
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -164,6 +170,8 @@ paths:
       responses:
         "204":
           description: Success
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -221,6 +229,8 @@ paths:
           description: All files were saved
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -283,6 +293,8 @@ paths:
                     example: "ws://ws.example.com/path/to/websocket"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -307,6 +319,8 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/ExecutionEnvironment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /execution-environments/{executionEnvironmentId}:
     parameters:
@@ -330,6 +344,8 @@ paths:
                 $ref: "#/components/schemas/ExecutionEnvironment"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
     put:
@@ -351,8 +367,8 @@ paths:
           description: The execution environment was replaced
         "400":
           $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     delete:
       summary: Delete the execution environment
       description: Remove the specified execution environment from the API.
@@ -363,5 +379,7 @@ paths:
           description: The execution environment was deleted.
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"

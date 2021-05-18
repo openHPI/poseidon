@@ -30,7 +30,7 @@ func (r *RunnerController) ConfigureRoutes(router *mux.Router) {
 	r.runnerRouter = runnersRouter.PathPrefix(fmt.Sprintf("/{%s}", RunnerIdKey)).Subrouter()
 	r.runnerRouter.Use(r.findRunnerMiddleware)
 	r.runnerRouter.HandleFunc(ExecutePath, r.execute).Methods(http.MethodPost).Name(ExecutePath)
-	r.runnerRouter.HandleFunc(WebsocketPath, connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
+	r.runnerRouter.HandleFunc(WebsocketPath, r.connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
 	r.runnerRouter.HandleFunc("", r.delete).Methods(http.MethodDelete).Name(DeleteRoute)
 }
 
@@ -43,7 +43,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	environmentId := runner.EnvironmentId(runnerRequest.ExecutionEnvironmentId)
-	nextRunner, err := r.manager.Use(environmentId)
+	nextRunner, err := r.manager.Claim(environmentId)
 	if err != nil {
 		if err == runner.ErrUnknownExecutionEnvironment {
 			writeNotFound(writer, err)
@@ -101,14 +101,13 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 // and adds the runner to the context of the request.
 func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		// Find runner
 		runnerId := mux.Vars(request)[RunnerIdKey]
-		r, err := r.manager.Get(runnerId)
+		targetRunner, err := r.manager.Get(runnerId)
 		if err != nil {
 			writeNotFound(writer, err)
 			return
 		}
-		ctx := runner.NewContext(request.Context(), r.(runner.Runner))
+		ctx := runner.NewContext(request.Context(), targetRunner.(runner.Runner))
 		requestWithRunner := request.WithContext(ctx)
 		next.ServeHTTP(writer, requestWithRunner)
 	})
@@ -123,9 +122,9 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		if err == runner.ErrUnknownExecutionEnvironment {
 			writeNotFound(writer, err)
+		} else {
+			writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)
 		}
-
-		writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)
 		return
 	}
 

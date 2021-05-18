@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 )
@@ -14,15 +15,10 @@ type Manager interface {
 	// Create creates a new execution environment on the executor.
 	Create(
 		id string,
-		prewarmingPoolSize uint,
-		cpuLimit uint,
-		memoryLimit uint,
-		image string,
-		networkAccess bool,
-		exposedPorts []uint16,
+		request dto.ExecutionEnvironmentRequest,
 	)
 
-	// Delete remove the execution environment with the given id from the executor.
+	// Delete removes the execution environment with the given id from the executor.
 	Delete(id string)
 }
 
@@ -39,12 +35,7 @@ type NomadEnvironmentManager struct {
 
 func (m *NomadEnvironmentManager) Create(
 	id string,
-	prewarmingPoolSize uint,
-	cpuLimit uint,
-	memoryLimit uint,
-	image string,
-	networkAccess bool,
-	exposedPorts []uint16,
+	request dto.ExecutionEnvironmentRequest,
 ) {
 
 }

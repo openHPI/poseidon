@@ -26,6 +26,8 @@ type Runner interface {
 	// AddExecution saves the supplied ExecutionRequest for the runner and returns an ExecutionId to retrieve it again.
 	AddExecution(dto.ExecutionRequest) (ExecutionId, error)
 
+	// Execution looks up an ExecutionId for the runner and returns the associated RunnerRequest.
+	// If this request does not exit, ok is false, else true.
 	Execution(ExecutionId) (executionRequest dto.ExecutionRequest, ok bool)
 
 	// DeleteExecution deletes the execution of the runner with the specified id.

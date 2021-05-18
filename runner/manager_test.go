@@ -9,11 +9,14 @@ import (
 	"time"
 )
 
-const anotherRunnerId = "4n0th3r-runn3r-1d"
-const defaultEnvironmentId = EnvironmentId(0)
-const otherEnvironmentId = EnvironmentId(42)
-const jobId = "4n0th3r-j0b-1d"
-const waitTime = 100 * time.Millisecond
+const (
+	anotherRunnerId            = "4n0th3r-runn3r-1d"
+	defaultEnvironmentId       = EnvironmentId(0)
+	otherEnvironmentId         = EnvironmentId(42)
+	defaultDesiredRunnersCount = 5
+	jobId                      = "4n0th3r-j0b-1d"
+	waitTime                   = 100 * time.Millisecond
+)
 
 func TestGetNextRunnerTestSuite(t *testing.T) {
 	suite.Run(t, new(ManagerTestSuite))
@@ -43,63 +46,71 @@ func (suite *ManagerTestSuite) mockRunnerQueries(returnedRunnerIds []string) {
 }
 
 func (suite *ManagerTestSuite) registerDefaultEnvironment() {
-	suite.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentId, jobId, 5)
+	suite.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentId, jobId, defaultDesiredRunnersCount)
+}
+
+func (suite *ManagerTestSuite) AddIdleRunnerForDefaultEnvironment(r Runner) {
+	jobEntity, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
+	jobEntity.(*NomadJob).idleRunners.Add(r)
 }
 
 func (suite *ManagerTestSuite) waitForRunnerRefresh() {
 	time.Sleep(waitTime)
 }
 
-func (suite *ManagerTestSuite) TestRegisterEnvironmentAddsANewJob() {
-	suite.NotNil(suite.nomadRunnerManager.jobs[defaultEnvironmentId])
+func (suite *ManagerTestSuite) TestRegisterEnvironmentAddsNewJob() {
+	suite.nomadRunnerManager.RegisterEnvironment(otherEnvironmentId, jobId, defaultDesiredRunnersCount)
+	jobEntity, ok := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
+	suite.True(ok)
+	suite.NotNil(jobEntity)
 }
 
-func (suite *ManagerTestSuite) TestUseReturnsNotFoundErrorIfEnvironmentNotFound() {
-	runner, err := suite.nomadRunnerManager.Use(EnvironmentId(42))
+func (suite *ManagerTestSuite) TestClaimReturnsNotFoundErrorIfEnvironmentNotFound() {
+	runner, err := suite.nomadRunnerManager.Claim(EnvironmentId(42))
 	suite.Nil(runner)
 	suite.Equal(ErrUnknownExecutionEnvironment, err)
 }
 
-func (suite *ManagerTestSuite) TestUseReturnsRunnerIfAvailable() {
-	suite.nomadRunnerManager.jobs[defaultEnvironmentId].idleRunners.Add(suite.exerciseRunner)
-	receivedRunner, err := suite.nomadRunnerManager.Use(defaultEnvironmentId)
+func (suite *ManagerTestSuite) TestClaimReturnsRunnerIfAvailable() {
+	suite.AddIdleRunnerForDefaultEnvironment(suite.exerciseRunner)
+	receivedRunner, err := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	suite.NoError(err)
 	suite.Equal(suite.exerciseRunner, receivedRunner)
 }
 
-func (suite *ManagerTestSuite) TestUseReturnsErrorIfNoRunnerAvailable() {
+func (suite *ManagerTestSuite) TestClaimReturnsErrorIfNoRunnerAvailable() {
 	suite.waitForRunnerRefresh()
-	runner, err := suite.nomadRunnerManager.Use(defaultEnvironmentId)
+	runner, err := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	suite.Nil(runner)
 	suite.Equal(ErrNoRunnersAvailable, err)
 }
 
-func (suite *ManagerTestSuite) TestUseReturnsNoRunnerOfDifferentEnvironment() {
-	suite.nomadRunnerManager.jobs[defaultEnvironmentId].idleRunners.Add(suite.exerciseRunner)
-	receivedRunner, err := suite.nomadRunnerManager.Use(otherEnvironmentId)
+func (suite *ManagerTestSuite) TestClaimReturnsNoRunnerOfDifferentEnvironment() {
+	suite.AddIdleRunnerForDefaultEnvironment(suite.exerciseRunner)
+	receivedRunner, err := suite.nomadRunnerManager.Claim(otherEnvironmentId)
 	suite.Nil(receivedRunner)
 	suite.Error(err)
 }
 
-func (suite *ManagerTestSuite) TestUseDoesNotReturnTheSameRunnerTwice() {
-	suite.nomadRunnerManager.jobs[defaultEnvironmentId].idleRunners.Add(suite.exerciseRunner)
-	suite.nomadRunnerManager.jobs[defaultEnvironmentId].idleRunners.Add(NewRunner(anotherRunnerId))
+func (suite *ManagerTestSuite) TestClaimDoesNotReturnTheSameRunnerTwice() {
+	suite.AddIdleRunnerForDefaultEnvironment(suite.exerciseRunner)
+	suite.AddIdleRunnerForDefaultEnvironment(NewRunner(anotherRunnerId))
 
-	firstReceivedRunner, _ := suite.nomadRunnerManager.Use(defaultEnvironmentId)
-	secondReceivedRunner, _ := suite.nomadRunnerManager.Use(defaultEnvironmentId)
+	firstReceivedRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
+	secondReceivedRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	suite.NotEqual(firstReceivedRunner, secondReceivedRunner)
 }
 
-func (suite *ManagerTestSuite) TestUseThrowsAnErrorIfNoRunnersAvailable() {
-	receivedRunner, err := suite.nomadRunnerManager.Use(defaultEnvironmentId)
+func (suite *ManagerTestSuite) TestClaimThrowsAnErrorIfNoRunnersAvailable() {
+	receivedRunner, err := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	suite.Nil(receivedRunner)
 	suite.Error(err)
 }
 
-func (suite *ManagerTestSuite) TestUseAddsRunnerToUsedRunners() {
+func (suite *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 	suite.mockRunnerQueries([]string{RunnerId})
 	suite.waitForRunnerRefresh()
-	receivedRunner, _ := suite.nomadRunnerManager.Use(defaultEnvironmentId)
+	receivedRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	savedRunner, ok := suite.nomadRunnerManager.usedRunners.Get(receivedRunner.Id())
 	suite.True(ok)
 	suite.Equal(savedRunner, receivedRunner)
@@ -134,7 +145,7 @@ func (suite *ManagerTestSuite) TestReturnCallsDeleteRunnerApiMethod() {
 	suite.apiMock.AssertCalled(suite.T(), "DeleteRunner", suite.exerciseRunner.Id())
 }
 
-func (suite *ManagerTestSuite) TestReturnThrowsErrorWhenApiCallFailed() {
+func (suite *ManagerTestSuite) TestReturnReturnsErrorWhenApiCallFailed() {
 	suite.apiMock.On("DeleteRunner", mock.AnythingOfType("string")).Return(errors.New("return failed"))
 	err := suite.nomadRunnerManager.Return(suite.exerciseRunner)
 	suite.Error(err)
@@ -149,23 +160,24 @@ func (suite *ManagerTestSuite) TestRefreshFetchesRunners() {
 func (suite *ManagerTestSuite) TestNewRunnersFoundInRefreshAreAddedToUnusedRunners() {
 	suite.mockRunnerQueries([]string{RunnerId})
 	suite.waitForRunnerRefresh()
-	availableRunner, _ := suite.nomadRunnerManager.Use(defaultEnvironmentId)
+	availableRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	suite.Equal(availableRunner.Id(), RunnerId)
 }
 
 func (suite *ManagerTestSuite) TestRefreshScalesJob() {
 	suite.mockRunnerQueries([]string{RunnerId})
 	suite.waitForRunnerRefresh()
-	// use one runner
-	_, _ = suite.nomadRunnerManager.Use(defaultEnvironmentId)
+	// use one runner to necessitate rescaling
+	_, _ = suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	suite.waitForRunnerRefresh()
-	suite.apiMock.AssertCalled(suite.T(), "SetJobScale", jobId, 6, "Runner Requested")
+	suite.apiMock.AssertCalled(suite.T(), "SetJobScale", jobId, defaultDesiredRunnersCount+1, "Runner Requested")
 }
 
 func (suite *ManagerTestSuite) TestRefreshAddsRunnerToPool() {
 	suite.mockRunnerQueries([]string{RunnerId})
 	suite.waitForRunnerRefresh()
-	poolRunner, ok := suite.nomadRunnerManager.jobs[defaultEnvironmentId].idleRunners.Get(RunnerId)
+	jobEntity, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
+	poolRunner, ok := jobEntity.(*NomadJob).idleRunners.Get(RunnerId)
 	suite.True(ok)
 	suite.Equal(RunnerId, poolRunner.Id())
 }

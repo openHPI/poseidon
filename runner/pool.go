@@ -21,7 +21,7 @@ type localRunnerPool struct {
 	runners map[string]Runner
 }
 
-// NewLocalRunnerPool responds with a Pool implementation
+// NewLocalRunnerPool responds with a Pool implementation.
 // This implementation stores the data thread-safe in the local application memory
 func NewLocalRunnerPool() *localRunnerPool {
 	return &localRunnerPool{

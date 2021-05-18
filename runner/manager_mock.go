@@ -52,7 +52,7 @@ func (_m *ManagerMock) Return(r Runner) error {
 }
 
 // Use provides a mock function with given fields: id
-func (_m *ManagerMock) Use(id EnvironmentId) (Runner, error) {
+func (_m *ManagerMock) Claim(id EnvironmentId) (Runner, error) {
 	ret := _m.Called(id)
 
 	var r0 Runner

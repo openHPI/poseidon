@@ -14,62 +14,72 @@ var (
 	ErrRunnerNotFound              = errors.New("no runner found with this id")
 )
 
+type EnvironmentId int
+func (e EnvironmentId) toString() string {
+	return string(rune(e))
+}
+
+type NomadJobId string
+
 // Manager keeps track of the used and unused runners of all execution environments in order to provide unused runners to new clients and ensure no runner is used twice.
 type Manager interface {
-	// RegisterEnvironment adds a new environment for being managed.
+	// RegisterEnvironment adds a new environment that should be managed.
 	RegisterEnvironment(environmentId EnvironmentId, nomadJobId NomadJobId, desiredIdleRunnersCount int)
 
-	// Use returns a new runner.
-	// It makes sure that runner is not in use yet and returns an error if no runner could be provided.
-	Use(id EnvironmentId) (Runner, error)
+	// Claim returns a new runner.
+	// It makes sure that the runner is not in use yet and returns an error if no runner could be provided.
+	Claim(id EnvironmentId) (Runner, error)
 
 	// Get returns the used runner with the given runnerId.
 	// If no runner with the given runnerId is currently used, it returns an error.
 	Get(runnerId string) (Runner, error)
 
-	// Return hands back the runner.
+	// Return signals that the runner is no longer used by the caller and can be claimed by someone else.
 	// The runner is deleted or cleaned up for reuse depending on the used executor.
 	Return(r Runner) error
+}
+
+type NomadRunnerManager struct {
+	apiClient   nomad.ExecutorApi
+	jobs        JobStore
+	usedRunners Pool
 }
 
 func NewNomadRunnerManager(apiClient nomad.ExecutorApi) *NomadRunnerManager {
 	return &NomadRunnerManager{
 		apiClient,
-		make(map[EnvironmentId]*NomadJob),
+		NewNomadJobStore(),
 		NewLocalRunnerPool(),
 	}
 }
 
-type EnvironmentId int
-type NomadJobId string
-
 type NomadJob struct {
+	environmentId           EnvironmentId
 	jobId                   NomadJobId
 	idleRunners             Pool
 	desiredIdleRunnersCount int
 }
 
-type NomadRunnerManager struct {
-	apiClient   nomad.ExecutorApi
-	jobs        map[EnvironmentId]*NomadJob
-	usedRunners Pool
+func (j *NomadJob) Id() string {
+	return j.environmentId.toString()
 }
 
 func (m *NomadRunnerManager) RegisterEnvironment(environmentId EnvironmentId, nomadJobId NomadJobId, desiredIdleRunnersCount int) {
-	m.jobs[environmentId] = &NomadJob{
+	m.jobs.Add(&NomadJob{
+		environmentId,
 		nomadJobId,
 		NewLocalRunnerPool(),
 		desiredIdleRunnersCount,
-	}
+	})
 	go m.refreshEnvironment(environmentId)
 }
 
-func (m *NomadRunnerManager) Use(environmentId EnvironmentId) (Runner, error) {
-	job, ok := m.jobs[environmentId]
+func (m *NomadRunnerManager) Claim(environmentId EnvironmentId) (Runner, error) {
+	job, ok := m.jobs.Get(environmentId.toString())
 	if !ok {
 		return nil, ErrUnknownExecutionEnvironment
 	}
-	runner, ok := job.idleRunners.Sample()
+	runner, ok := job.(*NomadJob).idleRunners.Sample()
 	if !ok {
 		return nil, ErrNoRunnersAvailable
 	}
@@ -77,7 +87,7 @@ func (m *NomadRunnerManager) Use(environmentId EnvironmentId) (Runner, error) {
 	return runner, nil
 }
 
-func (m *NomadRunnerManager) Get(runnerId string) (r Runner, err error) {
+func (m *NomadRunnerManager) Get(runnerId string) (Runner, error) {
 	runner, ok := m.usedRunners.Get(runnerId)
 	if !ok {
 		return nil, ErrRunnerNotFound
@@ -88,7 +98,7 @@ func (m *NomadRunnerManager) Get(runnerId string) (r Runner, err error) {
 func (m *NomadRunnerManager) Return(r Runner) (err error) {
 	err = m.apiClient.DeleteRunner(r.Id())
 	if err != nil {
-		return err
+		return
 	}
 	m.usedRunners.Delete(r.Id())
 	return
@@ -96,7 +106,12 @@ func (m *NomadRunnerManager) Return(r Runner) (err error) {
 
 // Refresh Big ToDo: Improve this function!! State out that it also rescales the job; Provide context to be terminable...
 func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentId) {
-	job := m.jobs[id]
+	jobEntity, ok := m.jobs.Get(id.toString())
+	if !ok {
+		// this environment does not exist
+		return
+	}
+	job := jobEntity.(*NomadJob)
 	lastJobScaling := -1
 	for {
 		runners, err := m.apiClient.LoadRunners(string(job.jobId))
@@ -132,10 +147,15 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentId) {
 
 func (m *NomadRunnerManager) unusedRunners(environmentId EnvironmentId, fetchedRunnerIds []string) (newRunners []Runner) {
 	newRunners = make([]Runner, 0)
+	jobEntity, ok := m.jobs.Get(environmentId.toString())
+	if !ok {
+		// the environment does not exist, so it won't have any unused runners
+		return
+	}
 	for _, runnerId := range fetchedRunnerIds {
 		_, ok := m.usedRunners.Get(runnerId)
 		if !ok {
-			_, ok = m.jobs[environmentId].idleRunners.Get(runnerId)
+			_, ok = jobEntity.(*NomadJob).idleRunners.Get(runnerId)
 			if !ok {
 				newRunners = append(newRunners, NewRunner(runnerId))
 			}

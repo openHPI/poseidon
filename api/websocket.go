@@ -9,16 +9,16 @@ import (
 )
 
 // connectToRunner is the endpoint for websocket connections.
-func connectToRunner(writer http.ResponseWriter, request *http.Request) {
-	r, _ := runner.FromContext(request.Context())
+func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *http.Request) {
+	targetRunner, _ := runner.FromContext(request.Context())
 	executionId := runner.ExecutionId(request.URL.Query().Get(ExecutionIdKey))
-	_, ok := r.Execution(executionId)
+	_, ok := targetRunner.Execution(executionId)
 	if !ok {
 		writeNotFound(writer, errors.New("executionId does not exist"))
 		return
 	}
 	log.
-		WithField("runnerId", r.Id()).
+		WithField("runnerId", targetRunner.Id()).
 		WithField("executionId", executionId).
 		Info("Running execution")
 	connUpgrader := websocket.Upgrader{}

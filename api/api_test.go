@@ -56,6 +56,7 @@ func TestNewRouterV1WithAuthenticationEnabled(t *testing.T) {
 	})
 
 	t.Run("protected route is not accessible", func(t *testing.T) {
+		// request an available API route that should be guarded by authentication (which one, in particular, does not matter here)
 		request, err := http.NewRequest(http.MethodPost, "/api/v1/runners", nil)
 		if err != nil {
 			t.Fatal(err)

@@ -13,12 +13,24 @@ type ExecutionRequest struct {
 	Environment map[string]string
 }
 
+// ExecutionEnvironmentRequest is the expected json structure of the request body for the create execution environment function.
+// nolint:unused,structcheck
+type ExecutionEnvironmentRequest struct {
+	prewarmingPoolSize uint
+	cpuLimit           uint
+	memoryLimit        uint
+	image              string
+	networkAccess      bool
+	exposedPorts       []uint16
+}
+
 // RunnerResponse is the expected response when providing a runner.
 type RunnerResponse struct {
 	Id string `json:"runnerId"`
 }
 
 // FileCreation is the expected json structure of the request body for the copy files route.
+// TODO: specify content of the struct
 type FileCreation struct{}
 
 // WebsocketResponse is the expected response when creating an execution for a runner.

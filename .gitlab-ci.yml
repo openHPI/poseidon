@@ -38,13 +38,6 @@ golangci-lint:
   script:
     - make golangci-lint
 
-golint:
-  stage: lint
-  needs: []
-  script:
-    - go get -u golang.org/x/lint/golint
-    - golint -set_exit_status
-
 test:
   stage: test
   needs: []

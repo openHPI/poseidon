@@ -7,3 +7,6 @@ configuration.yaml
 # TLS certificate/key
 *.crt
 *.key
+
+# trivy artifacts
+.trivy

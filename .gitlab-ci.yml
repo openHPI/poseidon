@@ -58,7 +58,7 @@ test:
 
 dockerimage:
   stage: docker
-  image: docker:latest
+  image: $DOCKER_REGISTRY/docker-make:latest
   services:
     - name: docker:dind
       alias: docker
@@ -71,9 +71,17 @@ dockerimage:
     - docker pull $DOCKER_REGISTRY/library/alpine:latest
     - docker tag $DOCKER_REGISTRY/library/alpine:latest alpine:latest
     - docker build -t $IMAGE_NAME_ENV .
+    # Run vulnerability scan before pushing the image
+    - make trivy DOCKER_TAG=$IMAGE_NAME_ENV
     - docker push $IMAGE_NAME_ENV
     - docker tag $IMAGE_NAME_ENV $IMAGE_NAME_GENERAL
     - docker push $IMAGE_NAME_GENERAL
+  cache:
+    paths:
+      - .trivy/.trivycache/
+  artifacts:
+    reports:
+      container_scanning: .trivy/gl-container-scanning-report.json
 
 nomadimage:
   stage: docker

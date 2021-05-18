@@ -93,6 +93,22 @@ e2e-docker: docker ## Run e2e tests against the Docker container
 	@timeout 30s bash -c "until curl -s -o /dev/null http://127.0.0.1:7200/; do sleep 0.1; done"
 	@make e2e-test || EXIT=$$?; docker stop $(DOCKER_E2E_CONTAINER_NAME); exit $$EXIT
 
+# See https://aquasecurity.github.io/trivy/v0.18.1/integrations/gitlab-ci/
+TRIVY_VERSION = $(shell wget -qO - "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+.trivy/trivy:
+	@mkdir -p .trivy
+	@wget --no-verbose https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_Linux-64bit.tar.gz -O - | tar -zxvf - -C .trivy
+	@chmod +x .trivy/trivy
+
+.PHONY: trivy
+trivy: .trivy/trivy ## Run trivy vulnerability scanner
+	# Build report
+	@.trivy/trivy --exit-code 0 --cache-dir .trivy/.trivycache/ --no-progress --format template --template "@.trivy/contrib/gitlab.tpl" -o .trivy/gl-container-scanning-report.json $(DOCKER_TAG)
+    # Print report
+	@.trivy/trivy --exit-code 0 --cache-dir .trivy/.trivycache/ --no-progress $(DOCKER_TAG)
+	# Fail on severe vulnerabilities
+	@.trivy/trivy --exit-code 1 --cache-dir .trivy/.trivycache/ --severity CRITICAL --no-progress $(DOCKER_TAG)
+
 .PHONY: help
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
 help: ## Display this help screen

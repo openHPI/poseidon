@@ -1,0 +1,95 @@
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  funlen:
+    lines: 100
+    statements: 50
+  gocognit:
+    min-complexity: 15
+  goconst:
+    min-occurences: 2
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+  gocyclo:
+    min-complexity: 15
+  gomnd:
+    settings:
+      mnd:
+        # don't include "assign"
+        checks: argument,case,condition,operation,return
+  importas:
+    unaliased: false
+  lll:
+    line-length: 120
+  makezero:
+    always: true
+  maligned:
+    suggest-new: true
+  misspell:
+    locale: US
+  nakedret:
+    max-func-lines: 5
+  stylecheck:
+    go: "1.16"
+
+linters:
+  disable-all: true
+  enable:
+    # default
+    - deadcode
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+    # additional linters, see https://golangci-lint.run/usage/linters
+    - bodyclose
+    - dogsled
+    - dupl
+    - durationcheck
+    - exportloopref
+    - funlen
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - goerr113
+    - gofmt
+    - gomnd
+    - goprintffuncname
+    - gosec
+    - ifshort
+    - importas
+    - lll
+    - makezero
+    - misspell
+    - nakedret
+    - noctx
+    - prealloc
+    - stylecheck
+    - thelper
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+    - wrapcheck
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - noctx

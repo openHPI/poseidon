@@ -19,6 +19,7 @@ deps: ## Get the dependencies
 	@go get -v -d ./...
 	@go install github.com/vektra/mockery/v2@latest
 
+
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
 git-hooks: $(git-dir)/hooks/pre-commit ## Install the git-hooks
@@ -100,14 +101,26 @@ TRIVY_VERSION = $(shell wget -qO - "https://api.github.com/repos/aquasecurity/tr
 	@wget --no-verbose https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_Linux-64bit.tar.gz -O - | tar -zxvf - -C .trivy
 	@chmod +x .trivy/trivy
 
+# trivy only comes with a template for container_scanning but we want dependency_scanning here
+.trivy/contrib/gitlab-dep.tpl: .trivy/trivy
+	@sed -e "s/container_scanning/dependency_scanning/" .trivy/contrib/gitlab.tpl > $@
+
+.PHONY: trivy-scan-deps
+trivy-scan-deps: poseidon .trivy/contrib/gitlab-dep.tpl ## Run trivy vulnerability against our dependencies
+	make trivy TRIVY_COMMAND="fs" TRIVY_TARGET="--skip-dirs .trivy --skip-files go.sum ." TRIVY_TEMPLATE="@.trivy/contrib/gitlab-dep.tpl"
+
+.PHONY: trivy-scan-docker
+trivy-scan-docker: ## Run trivy vulnerability scanner against the docker image
+	make trivy TRIVY_COMMAND="i" TRIVY_TARGET="--skip-files home/api/poseidon $(DOCKER_TAG)" TRIVY_TEMPLATE="@.trivy/contrib/gitlab.tpl"
+
 .PHONY: trivy
-trivy: .trivy/trivy ## Run trivy vulnerability scanner
+trivy: .trivy/trivy
 	# Build report
-	@.trivy/trivy --exit-code 0 --cache-dir .trivy/.trivycache/ --no-progress --format template --template "@.trivy/contrib/gitlab.tpl" -o .trivy/gl-container-scanning-report.json $(DOCKER_TAG)
-    # Print report
-	@.trivy/trivy --exit-code 0 --cache-dir .trivy/.trivycache/ --no-progress $(DOCKER_TAG)
+	@.trivy/trivy --cache-dir .trivy/.trivycache/ $(TRIVY_COMMAND) --exit-code 0 --no-progress --format template --template $(TRIVY_TEMPLATE) -o .trivy/gl-scanning-report.json $(TRIVY_TARGET)
+	# Print report
+	@.trivy/trivy --cache-dir .trivy/.trivycache/ $(TRIVY_COMMAND) --exit-code 0 --no-progress $(TRIVY_TARGET)
 	# Fail on severe vulnerabilities
-	@.trivy/trivy --exit-code 1 --cache-dir .trivy/.trivycache/ --severity CRITICAL --no-progress $(DOCKER_TAG)
+	@.trivy/trivy --cache-dir .trivy/.trivycache/ $(TRIVY_COMMAND) --exit-code 1 --severity HIGH,CRITICAL --no-progress $(TRIVY_TARGET)
 
 .PHONY: help
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"

@@ -56,6 +56,19 @@ test:
     expire_in: 1 week
     expose_as: coverageReport
 
+dep-scan:
+  stage: test
+  needs:
+    - compile
+  script:
+    - make trivy-scan-deps
+  artifacts:
+    reports:
+      dependency_scanning: .trivy/gl-scanning-report.json
+  cache:
+    paths:
+      - .trivy/.trivycache/
+
 dockerimage:
   stage: docker
   image: $DOCKER_REGISTRY/docker-make:latest
@@ -64,6 +77,7 @@ dockerimage:
       alias: docker
   needs:
     - compile
+    - dep-scan
     - test
   script:
     - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
@@ -72,7 +86,7 @@ dockerimage:
     - docker tag $DOCKER_REGISTRY/library/alpine:latest alpine:latest
     - docker build -t $IMAGE_NAME_ENV .
     # Run vulnerability scan before pushing the image
-    - make trivy DOCKER_TAG=$IMAGE_NAME_ENV
+    - make trivy-scan-docker DOCKER_TAG=$IMAGE_NAME_ENV
     - docker push $IMAGE_NAME_ENV
     - docker tag $IMAGE_NAME_ENV $IMAGE_NAME_GENERAL
     - docker push $IMAGE_NAME_GENERAL
@@ -81,7 +95,7 @@ dockerimage:
       - .trivy/.trivycache/
   artifacts:
     reports:
-      container_scanning: .trivy/gl-container-scanning-report.json
+      container_scanning: .trivy/gl-scanning-report.json
 
 nomadimage:
   stage: docker
@@ -107,6 +121,7 @@ test_e2e:
   stage: e2e
   needs:
     - compile
+    - dep-scan
     - nomadimage
   services:
     - name: docker:dind

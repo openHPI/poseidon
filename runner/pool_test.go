@@ -7,12 +7,6 @@ import (
 	"testing"
 )
 
-type DummyEntity struct{}
-
-func (DummyEntity) Id() string {
-	return ""
-}
-
 func TestRunnerPoolTestSuite(t *testing.T) {
 	suite.Run(t, new(RunnerPoolTestSuite))
 }
@@ -25,7 +19,7 @@ type RunnerPoolTestSuite struct {
 
 func (suite *RunnerPoolTestSuite) SetupTest() {
 	suite.runnerPool = NewLocalRunnerPool()
-	suite.runner = CreateTestRunner()
+	suite.runner = NewRunner(defaultRunnerId)
 }
 
 func (suite *RunnerPoolTestSuite) TestAddInvalidEntityTypeThrowsFatal() {
@@ -41,7 +35,7 @@ func (suite *RunnerPoolTestSuite) TestAddInvalidEntityTypeThrowsFatal() {
 	suite.Equal(dummyEntity, hook.LastEntry().Data["entity"])
 }
 
-func (suite *RunnerPoolTestSuite) TestAddValidEntityThrowsFatal() {
+func (suite *RunnerPoolTestSuite) TestAddValidEntityDoesNotThrowFatal() {
 	var hook *test.Hook
 	logger, hook := test.NewNullLogger()
 	log = logger.WithField("pkg", "environment")
@@ -76,4 +70,56 @@ func (suite *RunnerPoolTestSuite) TestDeletedRunnersAreNotAccessible() {
 	retrievedRunner, ok := suite.runnerPool.Get(suite.runner.Id())
 	suite.Nil(retrievedRunner)
 	suite.False(ok, "A deleted runner should not be accessible")
+}
+
+func (suite *RunnerPoolTestSuite) TestSampleReturnsRunnerWhenOneIsAvailable() {
+	suite.runnerPool.Add(suite.runner)
+	sampledRunner, ok := suite.runnerPool.Sample()
+	suite.NotNil(sampledRunner)
+	suite.True(ok)
+}
+
+func (suite *RunnerPoolTestSuite) TestSampleReturnsFalseWhenNoneIsAvailable() {
+	sampledRunner, ok := suite.runnerPool.Sample()
+	suite.Nil(sampledRunner)
+	suite.False(ok)
+}
+
+func (suite *RunnerPoolTestSuite) TestSampleRemovesRunnerFromPool() {
+	suite.runnerPool.Add(suite.runner)
+	sampledRunner, _ := suite.runnerPool.Sample()
+	_, ok := suite.runnerPool.Get(sampledRunner.Id())
+	suite.False(ok)
+}
+
+func (suite *RunnerPoolTestSuite) TestLenOfEmptyPoolIsZero() {
+	suite.Equal(0, suite.runnerPool.Len())
+}
+
+func (suite *RunnerPoolTestSuite) TestLenChangesOnStoreContentChange() {
+	suite.Run("len increases when runner is added", func() {
+		suite.runnerPool.Add(suite.runner)
+		suite.Equal(1, suite.runnerPool.Len())
+	})
+
+	suite.Run("len does not increase when runner with same id is added", func() {
+		suite.runnerPool.Add(suite.runner)
+		suite.Equal(1, suite.runnerPool.Len())
+	})
+
+	suite.Run("len increases again when different runner is added", func() {
+		anotherRunner := NewRunner(anotherRunnerId)
+		suite.runnerPool.Add(anotherRunner)
+		suite.Equal(2, suite.runnerPool.Len())
+	})
+
+	suite.Run("len decreases when runner is deleted", func() {
+		suite.runnerPool.Delete(suite.runner.Id())
+		suite.Equal(1, suite.runnerPool.Len())
+	})
+
+	suite.Run("len decreases when runner is sampled", func() {
+		_, _ = suite.runnerPool.Sample()
+		suite.Equal(0, suite.runnerPool.Len())
+	})
 }

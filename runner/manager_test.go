@@ -10,12 +10,7 @@ import (
 )
 
 const (
-	anotherRunnerId            = "4n0th3r-runn3r-1d"
-	defaultEnvironmentId       = EnvironmentId(0)
-	otherEnvironmentId         = EnvironmentId(42)
 	defaultDesiredRunnersCount = 5
-	jobId                      = "4n0th3r-j0b-1d"
-	waitTime                   = 100 * time.Millisecond
 )
 
 func TestGetNextRunnerTestSuite(t *testing.T) {
@@ -32,7 +27,7 @@ type ManagerTestSuite struct {
 func (suite *ManagerTestSuite) SetupTest() {
 	suite.apiMock = &nomad.ExecutorApiMock{}
 	suite.nomadRunnerManager = NewNomadRunnerManager(suite.apiMock)
-	suite.exerciseRunner = CreateTestRunner()
+	suite.exerciseRunner = NewRunner(defaultRunnerId)
 	suite.mockRunnerQueries([]string{})
 	suite.registerDefaultEnvironment()
 }
@@ -40,13 +35,13 @@ func (suite *ManagerTestSuite) SetupTest() {
 func (suite *ManagerTestSuite) mockRunnerQueries(returnedRunnerIds []string) {
 	// reset expected calls to allow new mocked return values
 	suite.apiMock.ExpectedCalls = []*mock.Call{}
-	suite.apiMock.On("LoadRunners", jobId).Return(returnedRunnerIds, nil)
-	suite.apiMock.On("JobScale", jobId).Return(len(returnedRunnerIds), nil)
-	suite.apiMock.On("SetJobScale", jobId, mock.AnythingOfType("int"), "Runner Requested").Return(nil)
+	suite.apiMock.On("LoadRunners", defaultJobId).Return(returnedRunnerIds, nil)
+	suite.apiMock.On("JobScale", defaultJobId).Return(len(returnedRunnerIds), nil)
+	suite.apiMock.On("SetJobScale", defaultJobId, mock.AnythingOfType("int"), "Runner Requested").Return(nil)
 }
 
 func (suite *ManagerTestSuite) registerDefaultEnvironment() {
-	suite.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentId, jobId, defaultDesiredRunnersCount)
+	suite.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentId, defaultJobId, defaultDesiredRunnersCount)
 }
 
 func (suite *ManagerTestSuite) AddIdleRunnerForDefaultEnvironment(r Runner) {
@@ -55,11 +50,11 @@ func (suite *ManagerTestSuite) AddIdleRunnerForDefaultEnvironment(r Runner) {
 }
 
 func (suite *ManagerTestSuite) waitForRunnerRefresh() {
-	time.Sleep(waitTime)
+	time.Sleep(100 * time.Millisecond)
 }
 
 func (suite *ManagerTestSuite) TestRegisterEnvironmentAddsNewJob() {
-	suite.nomadRunnerManager.RegisterEnvironment(otherEnvironmentId, jobId, defaultDesiredRunnersCount)
+	suite.nomadRunnerManager.RegisterEnvironment(anotherEnvironmentId, defaultJobId, defaultDesiredRunnersCount)
 	jobEntity, ok := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
 	suite.True(ok)
 	suite.NotNil(jobEntity)
@@ -87,7 +82,7 @@ func (suite *ManagerTestSuite) TestClaimReturnsErrorIfNoRunnerAvailable() {
 
 func (suite *ManagerTestSuite) TestClaimReturnsNoRunnerOfDifferentEnvironment() {
 	suite.AddIdleRunnerForDefaultEnvironment(suite.exerciseRunner)
-	receivedRunner, err := suite.nomadRunnerManager.Claim(otherEnvironmentId)
+	receivedRunner, err := suite.nomadRunnerManager.Claim(anotherEnvironmentId)
 	suite.Nil(receivedRunner)
 	suite.Error(err)
 }
@@ -108,7 +103,7 @@ func (suite *ManagerTestSuite) TestClaimThrowsAnErrorIfNoRunnersAvailable() {
 }
 
 func (suite *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
-	suite.mockRunnerQueries([]string{RunnerId})
+	suite.mockRunnerQueries([]string{defaultRunnerId})
 	suite.waitForRunnerRefresh()
 	receivedRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	savedRunner, ok := suite.nomadRunnerManager.usedRunners.Get(receivedRunner.Id())
@@ -124,7 +119,7 @@ func (suite *ManagerTestSuite) TestGetReturnsRunnerIfRunnerIsUsed() {
 }
 
 func (suite *ManagerTestSuite) TestGetReturnsErrorIfRunnerNotFound() {
-	savedRunner, err := suite.nomadRunnerManager.Get(RunnerId)
+	savedRunner, err := suite.nomadRunnerManager.Get(defaultRunnerId)
 	suite.Nil(savedRunner)
 	suite.Error(err)
 }
@@ -152,32 +147,33 @@ func (suite *ManagerTestSuite) TestReturnReturnsErrorWhenApiCallFailed() {
 }
 
 func (suite *ManagerTestSuite) TestRefreshFetchesRunners() {
-	suite.mockRunnerQueries([]string{RunnerId})
+	suite.mockRunnerQueries([]string{defaultRunnerId})
 	suite.waitForRunnerRefresh()
-	suite.apiMock.AssertCalled(suite.T(), "LoadRunners", jobId)
+	suite.apiMock.AssertCalled(suite.T(), "LoadRunners", defaultJobId)
 }
 
-func (suite *ManagerTestSuite) TestNewRunnersFoundInRefreshAreAddedToUnusedRunners() {
-	suite.mockRunnerQueries([]string{RunnerId})
+func (suite *ManagerTestSuite) TestNewRunnersFoundInRefreshAreAddedToIdleRunners() {
+	suite.mockRunnerQueries([]string{defaultRunnerId})
 	suite.waitForRunnerRefresh()
-	availableRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
-	suite.Equal(availableRunner.Id(), RunnerId)
+	jobEntity, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
+	_, ok := jobEntity.(*NomadJob).idleRunners.Get(defaultRunnerId)
+	suite.True(ok)
 }
 
 func (suite *ManagerTestSuite) TestRefreshScalesJob() {
-	suite.mockRunnerQueries([]string{RunnerId})
+	suite.mockRunnerQueries([]string{defaultRunnerId})
 	suite.waitForRunnerRefresh()
 	// use one runner to necessitate rescaling
 	_, _ = suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	suite.waitForRunnerRefresh()
-	suite.apiMock.AssertCalled(suite.T(), "SetJobScale", jobId, defaultDesiredRunnersCount+1, "Runner Requested")
+	suite.apiMock.AssertCalled(suite.T(), "SetJobScale", defaultJobId, defaultDesiredRunnersCount+1, "Runner Requested")
 }
 
 func (suite *ManagerTestSuite) TestRefreshAddsRunnerToPool() {
-	suite.mockRunnerQueries([]string{RunnerId})
+	suite.mockRunnerQueries([]string{defaultRunnerId})
 	suite.waitForRunnerRefresh()
 	jobEntity, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
-	poolRunner, ok := jobEntity.(*NomadJob).idleRunners.Get(RunnerId)
+	poolRunner, ok := jobEntity.(*NomadJob).idleRunners.Get(defaultRunnerId)
 	suite.True(ok)
-	suite.Equal(RunnerId, poolRunner.Id())
+	suite.Equal(defaultRunnerId, poolRunner.Id())
 }

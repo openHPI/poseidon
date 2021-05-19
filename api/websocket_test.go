@@ -5,7 +5,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"net/http/httptest"
@@ -13,20 +12,19 @@ import (
 	"testing"
 )
 
+func TestWebsocketTestSuite(t *testing.T) {
+	suite.Run(t, new(WebsocketTestSuite))
+}
+
 type WebsocketTestSuite struct {
 	RunnerRouteTestSuite
 	server      *httptest.Server
 	executionId runner.ExecutionId
 }
 
-func TestWebsocketTestSuite(t *testing.T) {
-	suite.Run(t, new(WebsocketTestSuite))
-}
-
 func (suite *WebsocketTestSuite) SetupTest() {
 	suite.runnerManager = &runner.ManagerMock{}
-	suite.environmentManager = &environment.ManagerMock{}
-	suite.router = NewRouter(suite.runnerManager, suite.environmentManager)
+	suite.router = NewRouter(suite.runnerManager, nil)
 	suite.runner = runner.NewRunner("test_runner")
 	suite.runnerManager.On("Get", suite.runner.Id()).Return(suite.runner, nil)
 	var err error
@@ -37,7 +35,6 @@ func (suite *WebsocketTestSuite) SetupTest() {
 	})
 	suite.Require().NoError(err)
 
-	// router.HandleFunc(fmt.Sprintf("%s/{%s}%s", RouteRunners, RunnerIdKey, WebsocketPath), connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
 	suite.server = httptest.NewServer(suite.router)
 }
 

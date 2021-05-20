@@ -16,6 +16,10 @@ var (
 
 type EnvironmentId int
 
+func (e EnvironmentId) toString() string {
+	return string(rune(e))
+}
+
 type NomadJobId string
 
 // Manager keeps track of the used and unused runners of all execution environments in order to provide unused runners to new clients and ensure no runner is used twice.
@@ -153,7 +157,7 @@ func (m *NomadRunnerManager) unusedRunners(environmentId EnvironmentId, fetchedR
 		if !ok {
 			_, ok = job.idleRunners.Get(runnerId)
 			if !ok {
-				newRunners = append(newRunners, NewRunner(runnerId))
+				newRunners = append(newRunners, NewNomadAllocation(runnerId, m.apiClient))
 			}
 		}
 	}

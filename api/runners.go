@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
@@ -81,20 +82,22 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
 	}
-	id, err := targetRunner.AddExecution(*executionRequest)
+	newUuid, err := uuid.NewRandom()
 	if err != nil {
-		log.WithError(err).Error("Could not store execution.")
+		log.WithError(err).Error("Could not create execution id")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
 	}
-	websocketUrl := url.URL{
+	id := runner.ExecutionId(newUuid.String())
+	targetRunner.Add(id, executionRequest)
+	webSocketUrl := url.URL{
 		Scheme:   scheme,
 		Host:     request.Host,
 		Path:     path.String(),
 		RawQuery: fmt.Sprintf("%s=%s", ExecutionIdKey, id),
 	}
 
-	sendJson(writer, &dto.WebsocketResponse{WebsocketUrl: websocketUrl.String()}, http.StatusOK)
+	sendJson(writer, &dto.ExecutionResponse{WebSocketUrl: webSocketUrl.String()}, http.StatusOK)
 }
 
 // The findRunnerMiddleware looks up the runnerId for routes containing it

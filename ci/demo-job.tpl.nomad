@@ -23,7 +23,7 @@ job "python" {
       weight = 100
     }
 
-    task "python-task" {
+    task "default-task" {
       driver = "docker"
       kill_timeout = "0s"
       kill_signal = "SIGKILL"

@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"io"
 	"net/url"
 )
 
@@ -22,6 +23,10 @@ type apiQuerier interface {
 
 	// DeleteRunner deletes the runner with the given Id.
 	DeleteRunner(runnerId string) (err error)
+
+	// ExecuteCommand runs a command in the passed allocation.
+	ExecuteCommand(allocationID string, ctx context.Context, command []string,
+		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// loadRunners loads all allocations of the specified job.
 	loadRunners(jobId string) (allocationListStub []*nomadApi.AllocationListStub, err error)
@@ -58,6 +63,16 @@ func (nc *nomadApiClient) DeleteRunner(runnerId string) (err error) {
 	}
 	_, err = nc.client.Allocations().Stop(allocation, nil)
 	return err
+}
+
+func (nc *nomadApiClient) ExecuteCommand(allocationID string,
+	ctx context.Context, command []string,
+	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	allocation, _, err := nc.client.Allocations().Info(allocationID, nil)
+	if err != nil {
+		return 1, err
+	}
+	return nc.client.Allocations().Exec(ctx, allocation, TaskName, true, command, stdin, stdout, stderr, nil, nil)
 }
 
 func (nc *nomadApiClient) loadRunners(jobId string) (allocationListStub []*nomadApi.AllocationListStub, err error) {

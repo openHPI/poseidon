@@ -13,6 +13,7 @@ import (
 const (
 	DefaultTaskDriver = "docker"
 	TaskNameFormat    = "%s-task"
+	TaskName          = "python-job-task"
 )
 
 // defaultJobHCL holds our default job in HCL format.

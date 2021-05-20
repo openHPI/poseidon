@@ -3,9 +3,10 @@ package runner
 import (
 	"context"
 	"encoding/json"
-	"github.com/google/uuid"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"sync"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
+	"io"
+	"time"
 )
 
 // ContextKey is the type for keys in a request context.
@@ -23,18 +24,11 @@ type Runner interface {
 	// Id returns the id of the runner.
 	Id() string
 
-	// AddExecution saves the supplied ExecutionRequest for the runner and returns an ExecutionId to retrieve it again.
-	AddExecution(dto.ExecutionRequest) (ExecutionId, error)
+	ExecutionStorage
 
-	// Execution looks up an ExecutionId for the runner and returns the associated RunnerRequest.
-	// If this request does not exit, ok is false, else true.
-	Execution(ExecutionId) (executionRequest dto.ExecutionRequest, ok bool)
-
-	// DeleteExecution deletes the execution of the runner with the specified id.
-	DeleteExecution(ExecutionId)
-
-	// Execute executes the execution with the given ID.
-	Execute(ExecutionId)
+	// Execute runs the given execution request and forwards from and to the given reader and writers.
+	// An ExitInfo is sent to the exit channel on command completion.
+	Execute(request *dto.ExecutionRequest, stdin io.Reader, stdout, stderr io.Writer) (exit <-chan ExitInfo, cancel context.CancelFunc)
 
 	// Copy copies the specified files into the runner.
 	Copy(dto.FileCreation)
@@ -42,19 +36,54 @@ type Runner interface {
 
 // NomadAllocation is an abstraction to communicate with Nomad allocations.
 type NomadAllocation struct {
-	sync.RWMutex
-	id         string
-	ch         chan bool
-	executions map[ExecutionId]dto.ExecutionRequest
+	ExecutionStorage
+	id  string
+	api nomad.ExecutorApi
 }
 
 // NewRunner creates a new runner with the provided id.
 func NewRunner(id string) Runner {
+	return NewNomadAllocation(id, nil)
+}
+
+// NewNomadAllocation creates a new Nomad allocation with the provided id.
+func NewNomadAllocation(id string, apiClient nomad.ExecutorApi) *NomadAllocation {
 	return &NomadAllocation{
-		id:         id,
-		ch:         make(chan bool),
-		executions: make(map[ExecutionId]dto.ExecutionRequest),
+		id:               id,
+		api:              apiClient,
+		ExecutionStorage: NewLocalExecutionStorage(),
 	}
+}
+
+func (r *NomadAllocation) Id() string {
+	return r.id
+}
+
+type ExitInfo struct {
+	Code uint8
+	Err  error
+}
+
+func (r *NomadAllocation) Execute(request *dto.ExecutionRequest, stdin io.Reader, stdout, stderr io.Writer) (<-chan ExitInfo, context.CancelFunc) {
+	command := request.FullCommand()
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if request.TimeLimit == 0 {
+		ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(request.TimeLimit)*time.Second)
+	}
+	exit := make(chan ExitInfo)
+	go func() {
+		exitCode, err := r.api.ExecuteCommand(r.Id(), ctx, command, stdin, stdout, stderr)
+		exit <- ExitInfo{uint8(exitCode), err}
+		close(exit)
+	}()
+	return exit, cancel
+}
+
+func (r *NomadAllocation) Copy(files dto.FileCreation) {
+
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -65,43 +94,6 @@ func (r *NomadAllocation) MarshalJSON() ([]byte, error) {
 	}{
 		Id: r.Id(),
 	})
-}
-
-func (r *NomadAllocation) Id() string {
-	return r.id
-}
-
-func (r *NomadAllocation) Execution(id ExecutionId) (executionRequest dto.ExecutionRequest, ok bool) {
-	r.RLock()
-	defer r.RUnlock()
-	executionRequest, ok = r.executions[id]
-	return
-}
-
-func (r *NomadAllocation) AddExecution(request dto.ExecutionRequest) (ExecutionId, error) {
-	r.Lock()
-	defer r.Unlock()
-	idUuid, err := uuid.NewRandom()
-	if err != nil {
-		return ExecutionId(""), err
-	}
-	id := ExecutionId(idUuid.String())
-	r.executions[id] = request
-	return id, err
-}
-
-func (r *NomadAllocation) Execute(id ExecutionId) {
-
-}
-
-func (r *NomadAllocation) Copy(files dto.FileCreation) {
-
-}
-
-func (r *NomadAllocation) DeleteExecution(id ExecutionId) {
-	r.Lock()
-	defer r.Unlock()
-	delete(r.executions, id)
 }
 
 // NewContext creates a context containing a runner.

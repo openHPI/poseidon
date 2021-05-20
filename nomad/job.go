@@ -7,6 +7,7 @@ import (
 
 const (
 	TaskGroupNameFormat = "%s-group"
+	TaskName            = "default-task"
 )
 
 // LoadJobList loads the list of jobs from the Nomad api.

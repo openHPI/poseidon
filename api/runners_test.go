@@ -28,7 +28,7 @@ type MiddlewareTestSuite struct {
 
 func (suite *MiddlewareTestSuite) SetupTest() {
 	suite.manager = &runner.ManagerMock{}
-	suite.runner = runner.NewRunner("runner")
+	suite.runner = runner.NewNomadAllocation("runner", nil)
 	suite.capturedRunner = nil
 	suite.runnerRequest = func(runnerId string) *http.Request {
 		path, err := suite.router.Get("test-runner-id").URL(RunnerIdKey, runnerId)
@@ -89,12 +89,15 @@ type RunnerRouteTestSuite struct {
 	runnerManager *runner.ManagerMock
 	router        *mux.Router
 	runner        runner.Runner
+	executionId   runner.ExecutionId
 }
 
 func (suite *RunnerRouteTestSuite) SetupTest() {
 	suite.runnerManager = &runner.ManagerMock{}
 	suite.router = NewRouter(suite.runnerManager, nil)
-	suite.runner = runner.NewRunner("test_runner")
+	suite.runner = runner.NewNomadAllocation("some-id", nil)
+	suite.executionId = "execution-id"
+	suite.runner.Add(suite.executionId, &dto.ExecutionRequest{})
 	suite.runnerManager.On("Get", suite.runner.Id()).Return(suite.runner, nil)
 }
 
@@ -122,8 +125,8 @@ func (suite *RunnerRouteTestSuite) TestExecuteRoute() {
 
 		suite.router.ServeHTTP(recorder, request)
 
-		var websocketResponse dto.WebsocketResponse
-		err = json.NewDecoder(recorder.Result().Body).Decode(&websocketResponse)
+		var webSocketResponse dto.ExecutionResponse
+		err = json.NewDecoder(recorder.Result().Body).Decode(&webSocketResponse)
 		if err != nil {
 			suite.T().Fatal(err)
 		}
@@ -131,15 +134,15 @@ func (suite *RunnerRouteTestSuite) TestExecuteRoute() {
 		suite.Equal(http.StatusOK, recorder.Code)
 
 		suite.Run("creates an execution request for the runner", func() {
-			url, err := url.Parse(websocketResponse.WebsocketUrl)
+			webSocketUrl, err := url.Parse(webSocketResponse.WebSocketUrl)
 			if err != nil {
 				suite.T().Fatal(err)
 			}
-			executionId := url.Query().Get(ExecutionIdKey)
-			storedExecutionRequest, ok := suite.runner.Execution(runner.ExecutionId(executionId))
+			executionId := webSocketUrl.Query().Get(ExecutionIdKey)
+			storedExecutionRequest, ok := suite.runner.Pop(runner.ExecutionId(executionId))
 
 			suite.True(ok, "No execution request with this id: ", executionId)
-			suite.Equal(executionRequest, storedExecutionRequest)
+			suite.Equal(&executionRequest, storedExecutionRequest)
 		})
 	})
 

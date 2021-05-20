@@ -1,6 +1,6 @@
 PROJECT_NAME := "poseidon"
 PKG := "gitlab.hpi.de/codeocean/codemoon/$(PROJECT_NAME)"
-UNIT_TESTS = $(shell go list ./... | grep -v /e2e_tests)
+UNIT_TESTS = $(shell go list ./... | grep -v /e2e)
 
 DOCKER_E2E_CONTAINER_NAME := "$(PROJECT_NAME)-e2e-tests"
 DOCKER_TAG := "poseidon:latest"
@@ -81,7 +81,7 @@ coverhtml: coverage ## Generate HTML coverage report
 
 .PHONY: e2e-test
 e2e-test: deps ## Run e2e tests
-	@go test -count=1 ./e2e_tests -v
+	@go test -count=1 ./tests/e2e -v
 
 .PHONY: e2e-docker
 e2e-docker: docker ## Run e2e tests against the Docker container

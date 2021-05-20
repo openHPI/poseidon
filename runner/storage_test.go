@@ -2,6 +2,7 @@ package runner
 
 import (
 	"github.com/stretchr/testify/suite"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"testing"
 )
@@ -19,6 +20,7 @@ type RunnerPoolTestSuite struct {
 func (suite *RunnerPoolTestSuite) SetupTest() {
 	suite.runnerStorage = NewLocalRunnerStorage()
 	suite.runner = NewRunner(tests.DefaultRunnerId)
+	suite.runner.Add(tests.DefaultExecutionId, &dto.ExecutionRequest{Command: "true"})
 }
 
 func (suite *RunnerPoolTestSuite) TestAddedRunnerCanBeRetrieved() {

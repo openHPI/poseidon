@@ -7,6 +7,8 @@ import (
 
 	api "github.com/hashicorp/nomad/api"
 
+	io "io"
+
 	mock "github.com/stretchr/testify/mock"
 
 	url "net/url"
@@ -47,6 +49,27 @@ func (_m *ExecutorApiMock) EvaluationStream(evalID string, ctx context.Context) 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, context.Context) error); ok {
 		r1 = rf(evalID, ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ExecuteCommand provides a mock function with given fields: allocationID, ctx, command, stdin, stdout, stderr
+func (_m *ExecutorApiMock) ExecuteCommand(allocationID string, ctx context.Context, command []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+	ret := _m.Called(allocationID, ctx, command, stdin, stdout, stderr)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(string, context.Context, []string, io.Reader, io.Writer, io.Writer) int); ok {
+		r0 = rf(allocationID, ctx, command, stdin, stdout, stderr)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, context.Context, []string, io.Reader, io.Writer, io.Writer) error); ok {
+		r1 = rf(allocationID, ctx, command, stdin, stdout, stderr)
 	} else {
 		r1 = ret.Error(1)
 	}

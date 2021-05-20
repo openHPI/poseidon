@@ -55,7 +55,7 @@ func createTestJob() (*nomadApi.Job, *nomadApi.Job) {
 	base := nomadApi.NewBatchJob("python-job", "python-job", "region-name", 100)
 	job := nomadApi.NewBatchJob("python-job", "python-job", "region-name", 100)
 	task := createTestTask()
-	task.Name = fmt.Sprintf(TaskNameFormat, *job.ID)
+	task.Name = TaskName
 	image := "python:latest"
 	task.Config = map[string]interface{}{"image": image}
 	task.Config["network_mode"] = "none"

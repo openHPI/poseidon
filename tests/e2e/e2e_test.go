@@ -1,12 +1,12 @@
-package e2e_tests
+package e2e
 
 import (
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
+	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"os"
-	"strings"
 	"testing"
+	"time"
 )
 
 /*
@@ -15,7 +15,20 @@ import (
 * For the e2e tests a nomad cluster must be connected and poseidon must be running.
  */
 
-var log = logging.GetLogger("e2e_tests")
+var log = logging.GetLogger("e2e")
+
+type E2ETestSuite struct {
+	suite.Suite
+}
+
+func (suite *E2ETestSuite) SetupTest() {
+	// Waiting one second before each test allows Nomad to rescale after tests requested runners.
+	<-time.After(time.Second)
+}
+
+func TestE2ETestSuite(t *testing.T) {
+	suite.Run(t, new(E2ETestSuite))
+}
 
 // Overwrite TestMain for custom setup.
 func TestMain(m *testing.M) {
@@ -28,9 +41,4 @@ func TestMain(m *testing.M) {
 	log.Info("Test Run")
 	code := m.Run()
 	os.Exit(code)
-}
-
-func buildURL(parts ...string) (url string) {
-	parts = append([]string{config.Config.PoseidonAPIURL().String(), api.RouteBase}, parts...)
-	return strings.Join(parts, "")
 }

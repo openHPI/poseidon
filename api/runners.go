@@ -107,7 +107,7 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 			writeNotFound(writer, err)
 			return
 		}
-		ctx := runner.NewContext(request.Context(), targetRunner.(runner.Runner))
+		ctx := runner.NewContext(request.Context(), targetRunner)
 		requestWithRunner := request.WithContext(ctx)
 		next.ServeHTTP(writer, requestWithRunner)
 	})

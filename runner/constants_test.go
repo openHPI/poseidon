@@ -1,16 +1,8 @@
 package runner
 
+import "gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
+
 const (
-	defaultRunnerId      = "s0m3-r4nd0m-1d"
-	anotherRunnerId      = "4n0th3r-runn3r-1d"
-	defaultEnvironmentId = EnvironmentId(0)
-	anotherEnvironmentId = EnvironmentId(42)
-	defaultJobId         = "s0m3-j0b-1d"
-	anotherJobId         = "4n0th3r-j0b-1d"
+	defaultEnvironmentId = EnvironmentId(tests.DefaultEnvironmentIdAsInteger)
+	anotherEnvironmentId = EnvironmentId(tests.AnotherEnvironmentIdAsInteger)
 )
-
-type DummyEntity struct{}
-
-func (DummyEntity) Id() string {
-	return ""
-}

@@ -15,9 +15,6 @@ var (
 )
 
 type EnvironmentId int
-func (e EnvironmentId) toString() string {
-	return string(rune(e))
-}
 
 type NomadJobId string
 
@@ -41,45 +38,45 @@ type Manager interface {
 
 type NomadRunnerManager struct {
 	apiClient   nomad.ExecutorApi
-	jobs        JobStore
-	usedRunners Pool
+	jobs        NomadJobStorage
+	usedRunners Storage
 }
 
 func NewNomadRunnerManager(apiClient nomad.ExecutorApi) *NomadRunnerManager {
 	return &NomadRunnerManager{
 		apiClient,
-		NewNomadJobStore(),
-		NewLocalRunnerPool(),
+		NewLocalNomadJobStorage(),
+		NewLocalRunnerStorage(),
 	}
 }
 
 type NomadJob struct {
 	environmentId           EnvironmentId
 	jobId                   NomadJobId
-	idleRunners             Pool
+	idleRunners             Storage
 	desiredIdleRunnersCount int
 }
 
-func (j *NomadJob) Id() string {
-	return j.environmentId.toString()
+func (j *NomadJob) Id() EnvironmentId {
+	return j.environmentId
 }
 
 func (m *NomadRunnerManager) RegisterEnvironment(environmentId EnvironmentId, nomadJobId NomadJobId, desiredIdleRunnersCount int) {
 	m.jobs.Add(&NomadJob{
 		environmentId,
 		nomadJobId,
-		NewLocalRunnerPool(),
+		NewLocalRunnerStorage(),
 		desiredIdleRunnersCount,
 	})
 	go m.refreshEnvironment(environmentId)
 }
 
 func (m *NomadRunnerManager) Claim(environmentId EnvironmentId) (Runner, error) {
-	job, ok := m.jobs.Get(environmentId.toString())
+	job, ok := m.jobs.Get(environmentId)
 	if !ok {
 		return nil, ErrUnknownExecutionEnvironment
 	}
-	runner, ok := job.(*NomadJob).idleRunners.Sample()
+	runner, ok := job.idleRunners.Sample()
 	if !ok {
 		return nil, ErrNoRunnersAvailable
 	}
@@ -92,7 +89,7 @@ func (m *NomadRunnerManager) Get(runnerId string) (Runner, error) {
 	if !ok {
 		return nil, ErrRunnerNotFound
 	}
-	return runner.(Runner), nil
+	return runner, nil
 }
 
 func (m *NomadRunnerManager) Return(r Runner) (err error) {
@@ -106,12 +103,11 @@ func (m *NomadRunnerManager) Return(r Runner) (err error) {
 
 // Refresh Big ToDo: Improve this function!! State out that it also rescales the job; Provide context to be terminable...
 func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentId) {
-	jobEntity, ok := m.jobs.Get(id.toString())
+	job, ok := m.jobs.Get(id)
 	if !ok {
 		// this environment does not exist
 		return
 	}
-	job := jobEntity.(*NomadJob)
 	lastJobScaling := -1
 	for {
 		runners, err := m.apiClient.LoadRunners(string(job.jobId))
@@ -130,7 +126,7 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentId) {
 			log.WithError(err).Printf("Failed get allocation count")
 			break
 		}
-		neededRunners := job.desiredIdleRunnersCount - job.idleRunners.Len() + 1
+		neededRunners := job.desiredIdleRunnersCount - job.idleRunners.Length() + 1
 		runnerCount := jobScale + neededRunners
 		time.Sleep(50 * time.Millisecond)
 		if runnerCount != lastJobScaling {
@@ -147,7 +143,7 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentId) {
 
 func (m *NomadRunnerManager) unusedRunners(environmentId EnvironmentId, fetchedRunnerIds []string) (newRunners []Runner) {
 	newRunners = make([]Runner, 0)
-	jobEntity, ok := m.jobs.Get(environmentId.toString())
+	job, ok := m.jobs.Get(environmentId)
 	if !ok {
 		// the environment does not exist, so it won't have any unused runners
 		return
@@ -155,7 +151,7 @@ func (m *NomadRunnerManager) unusedRunners(environmentId EnvironmentId, fetchedR
 	for _, runnerId := range fetchedRunnerIds {
 		_, ok := m.usedRunners.Get(runnerId)
 		if !ok {
-			_, ok = jobEntity.(*NomadJob).idleRunners.Get(runnerId)
+			_, ok = job.idleRunners.Get(runnerId)
 			if !ok {
 				newRunners = append(newRunners, NewRunner(runnerId))
 			}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/store"
 	"sync"
 )
 
@@ -21,7 +20,8 @@ const (
 )
 
 type Runner interface {
-	store.Entity
+	// Id returns the id of the runner.
+	Id() string
 
 	// AddExecution saves the supplied ExecutionRequest for the runner and returns an ExecutionId to retrieve it again.
 	AddExecution(dto.ExecutionRequest) (ExecutionId, error)

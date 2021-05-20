@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"testing"
 	"time"
 )
@@ -27,7 +28,7 @@ type ManagerTestSuite struct {
 func (suite *ManagerTestSuite) SetupTest() {
 	suite.apiMock = &nomad.ExecutorApiMock{}
 	suite.nomadRunnerManager = NewNomadRunnerManager(suite.apiMock)
-	suite.exerciseRunner = NewRunner(defaultRunnerId)
+	suite.exerciseRunner = NewRunner(tests.DefaultRunnerId)
 	suite.mockRunnerQueries([]string{})
 	suite.registerDefaultEnvironment()
 }
@@ -35,18 +36,18 @@ func (suite *ManagerTestSuite) SetupTest() {
 func (suite *ManagerTestSuite) mockRunnerQueries(returnedRunnerIds []string) {
 	// reset expected calls to allow new mocked return values
 	suite.apiMock.ExpectedCalls = []*mock.Call{}
-	suite.apiMock.On("LoadRunners", defaultJobId).Return(returnedRunnerIds, nil)
-	suite.apiMock.On("JobScale", defaultJobId).Return(len(returnedRunnerIds), nil)
-	suite.apiMock.On("SetJobScale", defaultJobId, mock.AnythingOfType("int"), "Runner Requested").Return(nil)
+	suite.apiMock.On("LoadRunners", tests.DefaultJobId).Return(returnedRunnerIds, nil)
+	suite.apiMock.On("JobScale", tests.DefaultJobId).Return(len(returnedRunnerIds), nil)
+	suite.apiMock.On("SetJobScale", tests.DefaultJobId, mock.AnythingOfType("int"), "Runner Requested").Return(nil)
 }
 
 func (suite *ManagerTestSuite) registerDefaultEnvironment() {
-	suite.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentId, defaultJobId, defaultDesiredRunnersCount)
+	suite.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentId, tests.DefaultJobId, defaultDesiredRunnersCount)
 }
 
 func (suite *ManagerTestSuite) AddIdleRunnerForDefaultEnvironment(r Runner) {
-	jobEntity, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
-	jobEntity.(*NomadJob).idleRunners.Add(r)
+	job, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId)
+	job.idleRunners.Add(r)
 }
 
 func (suite *ManagerTestSuite) waitForRunnerRefresh() {
@@ -54,10 +55,10 @@ func (suite *ManagerTestSuite) waitForRunnerRefresh() {
 }
 
 func (suite *ManagerTestSuite) TestRegisterEnvironmentAddsNewJob() {
-	suite.nomadRunnerManager.RegisterEnvironment(anotherEnvironmentId, defaultJobId, defaultDesiredRunnersCount)
-	jobEntity, ok := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
+	suite.nomadRunnerManager.RegisterEnvironment(anotherEnvironmentId, tests.DefaultJobId, defaultDesiredRunnersCount)
+	job, ok := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId)
 	suite.True(ok)
-	suite.NotNil(jobEntity)
+	suite.NotNil(job)
 }
 
 func (suite *ManagerTestSuite) TestClaimReturnsNotFoundErrorIfEnvironmentNotFound() {
@@ -89,7 +90,7 @@ func (suite *ManagerTestSuite) TestClaimReturnsNoRunnerOfDifferentEnvironment() 
 
 func (suite *ManagerTestSuite) TestClaimDoesNotReturnTheSameRunnerTwice() {
 	suite.AddIdleRunnerForDefaultEnvironment(suite.exerciseRunner)
-	suite.AddIdleRunnerForDefaultEnvironment(NewRunner(anotherRunnerId))
+	suite.AddIdleRunnerForDefaultEnvironment(NewRunner(tests.AnotherRunnerId))
 
 	firstReceivedRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	secondReceivedRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
@@ -103,7 +104,7 @@ func (suite *ManagerTestSuite) TestClaimThrowsAnErrorIfNoRunnersAvailable() {
 }
 
 func (suite *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
-	suite.mockRunnerQueries([]string{defaultRunnerId})
+	suite.mockRunnerQueries([]string{tests.DefaultRunnerId})
 	suite.waitForRunnerRefresh()
 	receivedRunner, _ := suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	savedRunner, ok := suite.nomadRunnerManager.usedRunners.Get(receivedRunner.Id())
@@ -119,7 +120,7 @@ func (suite *ManagerTestSuite) TestGetReturnsRunnerIfRunnerIsUsed() {
 }
 
 func (suite *ManagerTestSuite) TestGetReturnsErrorIfRunnerNotFound() {
-	savedRunner, err := suite.nomadRunnerManager.Get(defaultRunnerId)
+	savedRunner, err := suite.nomadRunnerManager.Get(tests.DefaultRunnerId)
 	suite.Nil(savedRunner)
 	suite.Error(err)
 }
@@ -147,33 +148,33 @@ func (suite *ManagerTestSuite) TestReturnReturnsErrorWhenApiCallFailed() {
 }
 
 func (suite *ManagerTestSuite) TestRefreshFetchesRunners() {
-	suite.mockRunnerQueries([]string{defaultRunnerId})
+	suite.mockRunnerQueries([]string{tests.DefaultRunnerId})
 	suite.waitForRunnerRefresh()
-	suite.apiMock.AssertCalled(suite.T(), "LoadRunners", defaultJobId)
+	suite.apiMock.AssertCalled(suite.T(), "LoadRunners", tests.DefaultJobId)
 }
 
 func (suite *ManagerTestSuite) TestNewRunnersFoundInRefreshAreAddedToIdleRunners() {
-	suite.mockRunnerQueries([]string{defaultRunnerId})
+	suite.mockRunnerQueries([]string{tests.DefaultRunnerId})
 	suite.waitForRunnerRefresh()
-	jobEntity, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
-	_, ok := jobEntity.(*NomadJob).idleRunners.Get(defaultRunnerId)
+	job, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId)
+	_, ok := job.idleRunners.Get(tests.DefaultRunnerId)
 	suite.True(ok)
 }
 
 func (suite *ManagerTestSuite) TestRefreshScalesJob() {
-	suite.mockRunnerQueries([]string{defaultRunnerId})
+	suite.mockRunnerQueries([]string{tests.DefaultRunnerId})
 	suite.waitForRunnerRefresh()
 	// use one runner to necessitate rescaling
 	_, _ = suite.nomadRunnerManager.Claim(defaultEnvironmentId)
 	suite.waitForRunnerRefresh()
-	suite.apiMock.AssertCalled(suite.T(), "SetJobScale", defaultJobId, defaultDesiredRunnersCount+1, "Runner Requested")
+	suite.apiMock.AssertCalled(suite.T(), "SetJobScale", tests.DefaultJobId, defaultDesiredRunnersCount+1, "Runner Requested")
 }
 
 func (suite *ManagerTestSuite) TestRefreshAddsRunnerToPool() {
-	suite.mockRunnerQueries([]string{defaultRunnerId})
+	suite.mockRunnerQueries([]string{tests.DefaultRunnerId})
 	suite.waitForRunnerRefresh()
-	jobEntity, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId.toString())
-	poolRunner, ok := jobEntity.(*NomadJob).idleRunners.Get(defaultRunnerId)
+	job, _ := suite.nomadRunnerManager.jobs.Get(defaultEnvironmentId)
+	poolRunner, ok := job.idleRunners.Get(tests.DefaultRunnerId)
 	suite.True(ok)
-	suite.Equal(defaultRunnerId, poolRunner.Id())
+	suite.Equal(tests.DefaultRunnerId, poolRunner.Id())
 }

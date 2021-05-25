@@ -6,6 +6,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
+	"strconv"
 )
 
 var log = logging.GetLogger("environment")
@@ -16,11 +17,12 @@ type Manager interface {
 	// It should be called during the startup process (e.g. on creation of the Manager).
 	Load()
 
-	// Create creates a new execution environment on the executor.
-	Create(
+	// CreateOrUpdate creates/updates an execution environment on the executor.
+	// Iff the job was created, the returned boolean is true and the returned error is nil.
+	CreateOrUpdate(
 		id string,
 		request dto.ExecutionEnvironmentRequest,
-	)
+	) (bool, error)
 
 	// Delete removes the execution environment with the given id from the executor.
 	Delete(id string)
@@ -38,11 +40,28 @@ type NomadEnvironmentManager struct {
 	defaultJob    nomadApi.Job
 }
 
-func (m *NomadEnvironmentManager) Create(
+func (m *NomadEnvironmentManager) CreateOrUpdate(
 	id string,
 	request dto.ExecutionEnvironmentRequest,
-) {
+) (bool, error) {
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		return false, err
+	}
+	exists := m.runnerManager.EnvironmentExists(runner.EnvironmentId(idInt))
 
+	err = m.registerJob(id,
+		request.PrewarmingPoolSize, request.CPULimit, request.MemoryLimit,
+		request.Image, request.NetworkAccess, request.ExposedPorts)
+
+	if err == nil {
+		if !exists {
+			m.runnerManager.RegisterEnvironment(
+				runner.EnvironmentId(idInt), runner.NomadJobId(id), int(request.PrewarmingPoolSize))
+		}
+		return !exists, nil
+	}
+	return false, err
 }
 
 func (m *NomadEnvironmentManager) Delete(id string) {

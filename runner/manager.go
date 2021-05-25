@@ -27,6 +27,9 @@ type Manager interface {
 	// RegisterEnvironment adds a new environment that should be managed.
 	RegisterEnvironment(environmentId EnvironmentId, nomadJobId NomadJobId, desiredIdleRunnersCount int)
 
+	// EnvironmentExists returns whether the environment with the given id exists.
+	EnvironmentExists(id EnvironmentId) bool
+
 	// Claim returns a new runner.
 	// It makes sure that the runner is not in use yet and returns an error if no runner could be provided.
 	Claim(id EnvironmentId) (Runner, error)
@@ -73,6 +76,11 @@ func (m *NomadRunnerManager) RegisterEnvironment(environmentId EnvironmentId, no
 		desiredIdleRunnersCount,
 	})
 	go m.refreshEnvironment(environmentId)
+}
+
+func (m *NomadRunnerManager) EnvironmentExists(id EnvironmentId) (ok bool) {
+	_, ok = m.jobs.Get(id)
+	return
 }
 
 func (m *NomadRunnerManager) Claim(environmentId EnvironmentId) (Runner, error) {

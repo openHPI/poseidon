@@ -32,6 +32,20 @@ func (_m *ManagerMock) Claim(id EnvironmentId) (Runner, error) {
 	return r0, r1
 }
 
+// EnvironmentExists provides a mock function with given fields: id
+func (_m *ManagerMock) EnvironmentExists(id EnvironmentId) bool {
+	ret := _m.Called(id)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(EnvironmentId) bool); ok {
+		r0 = rf(id)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // Get provides a mock function with given fields: runnerId
 func (_m *ManagerMock) Get(runnerId string) (Runner, error) {
 	ret := _m.Called(runnerId)

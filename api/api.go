@@ -12,9 +12,10 @@ import (
 var log = logging.GetLogger("api")
 
 const (
-	BasePath    = "/api/v1"
-	HealthPath  = "/health"
-	RunnersPath = "/runners"
+	BasePath         = "/api/v1"
+	HealthPath       = "/health"
+	RunnersPath      = "/runners"
+	EnvironmentsPath = "/execution-environments"
 )
 
 // NewRouter returns a *mux.Router which can be
@@ -37,6 +38,12 @@ func configureV1Router(router *mux.Router, runnerManager runner.Manager, environ
 	v1.HandleFunc(HealthPath, Health).Methods(http.MethodGet)
 
 	runnerController := &RunnerController{manager: runnerManager}
+	environmentController := &EnvironmentController{manager: environmentManager}
+
+	configureRoutes := func(router *mux.Router) {
+		runnerController.ConfigureRoutes(router)
+		environmentController.ConfigureRoutes(router)
+	}
 
 	if auth.InitializeAuthentication() {
 		// Create new authenticated subrouter.
@@ -45,6 +52,6 @@ func configureV1Router(router *mux.Router, runnerManager runner.Manager, environ
 		authenticatedV1Router.Use(auth.HTTPAuthenticationMiddleware)
 		runnerController.ConfigureRoutes(authenticatedV1Router)
 	} else {
-		runnerController.ConfigureRoutes(v1)
+		configureRoutes(v1)
 	}
 }

@@ -9,6 +9,7 @@ const (
 	DefaultDirectoryName          = "test/"
 	FileNameWithAbsolutePath      = "/test.txt"
 	DefaultEnvironmentIdAsInteger = 0
+	DefaultEnvironmentIdAsString  = "0"
 	AnotherEnvironmentIdAsInteger = 42
 	DefaultJobId                  = "s0m3-j0b-1d"
 	AnotherJobId                  = "4n0th3r-j0b-1d"
@@ -19,5 +20,5 @@ const (
 )
 
 var (
-	DefaultError = errors.New("an error occured")
+	DefaultError = errors.New("an error occurred")
 )

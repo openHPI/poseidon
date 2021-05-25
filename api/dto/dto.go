@@ -32,14 +32,13 @@ func (er *ExecutionRequest) FullCommand() []string {
 }
 
 // ExecutionEnvironmentRequest is the expected json structure of the request body for the create execution environment function.
-// nolint:unused,structcheck
 type ExecutionEnvironmentRequest struct {
-	prewarmingPoolSize uint
-	cpuLimit           uint
-	memoryLimit        uint
-	image              string
-	networkAccess      bool
-	exposedPorts       []uint16
+	PrewarmingPoolSize uint     `json:"prewarmingPoolSize"`
+	CPULimit           uint     `json:"cpuLimit"`
+	MemoryLimit        uint     `json:"memoryLimit"`
+	Image              string   `json:"image"`
+	NetworkAccess      bool     `json:"networkAccess"`
+	ExposedPorts       []uint16 `json:"exposedPorts"`
 }
 
 // RunnerResponse is the expected response when providing a runner.

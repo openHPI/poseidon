@@ -1,4 +1,4 @@
-package nomad
+package environment
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"testing"
 )
 
@@ -57,7 +59,7 @@ func createTestJob() (*nomadApi.Job, *nomadApi.Job) {
 	task.Config["network_mode"] = "none"
 	task.Resources = createTestResources()
 	taskGroup := createTestTaskGroup()
-	taskGroupName := fmt.Sprintf(TaskGroupNameFormat, *job.ID)
+	taskGroupName := fmt.Sprintf(nomad.TaskGroupNameFormat, *job.ID)
 	taskGroup.Name = &taskGroupName
 	taskGroup.Tasks = []*nomadApi.Task{task}
 	job.TaskGroups = []*nomadApi.TaskGroup{taskGroup}
@@ -238,7 +240,7 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 
 func TestCreateJobSetsAllGivenArguments(t *testing.T) {
 	testJob, base := createTestJob()
-	apiClient := ApiClient{&nomadApiClient{}, *base}
+	apiClient := NomadEnvironmentManager{&runner.NomadRunnerManager{}, &nomad.ApiClient{}, *base}
 	job := apiClient.createJob(
 		*testJob.ID,
 		uint(*testJob.TaskGroups[0].Count),

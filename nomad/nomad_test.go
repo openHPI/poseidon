@@ -127,10 +127,8 @@ const TestNamespace = "unit-tests"
 
 func TestApiClient_init(t *testing.T) {
 	client := &ApiClient{apiQuerier: &nomadApiClient{}}
-	defaultJob := parseJob(defaultJobHCL)
 	err := client.init(&TestURL, TestNamespace)
 	require.Nil(t, err)
-	assert.Equal(t, *defaultJob, client.defaultJob)
 }
 
 func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {

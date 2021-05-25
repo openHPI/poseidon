@@ -2,11 +2,8 @@ package nomad
 
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"net/url"
 )
-
-var log = logging.GetLogger("nomad")
 
 // ExecutorApi provides access to an container orchestration solution
 type ExecutorApi interface {
@@ -19,7 +16,6 @@ type ExecutorApi interface {
 // ApiClient implements the ExecutorApi interface and can be used to perform different operations on the real Executor API and its return values.
 type ApiClient struct {
 	apiQuerier
-	defaultJob nomadApi.Job
 }
 
 // NewExecutorApi creates a new api client.
@@ -36,7 +32,6 @@ func (apiClient *ApiClient) init(nomadURL *url.URL, nomadNamespace string) (err 
 	if err != nil {
 		return err
 	}
-	apiClient.defaultJob = *parseJob(defaultJobHCL)
 	return nil
 }
 

@@ -93,6 +93,10 @@ func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposed
 	}
 	task := taskGroup.Tasks[0]
 
+	if task.Config == nil {
+		task.Config = make(map[string]interface{})
+	}
+
 	if networkAccess {
 		var networkResource *nomadApi.NetworkResource
 		if len(taskGroup.Networks) == 0 {
@@ -111,12 +115,15 @@ func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposed
 			}
 			networkResource.DynamicPorts = append(networkResource.DynamicPorts, port)
 		}
+
+		// Explicitly set mode to override existing settings when updating job from without to with network.
+		// Don't use bridge as it collides with the bridge mode above. This results in Docker using 'bridge'
+		// mode, meaning all allocations will be attached to the `docker0` adapter and could reach other
+		// non-Nomad containers attached to it. This is avoided when using Nomads bridge network mode.
+		task.Config["network_mode"] = ""
 	} else {
 		// Somehow, we can't set the network mode to none in the NetworkResource on task group level.
 		// See https://github.com/hashicorp/nomad/issues/10540
-		if task.Config == nil {
-			task.Config = make(map[string]interface{})
-		}
 		task.Config["network_mode"] = "none"
 	}
 }

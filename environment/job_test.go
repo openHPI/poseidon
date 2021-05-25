@@ -192,7 +192,8 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 			}
 
 			mode, ok := testTask.Config["network_mode"]
-			assert.False(t, ok && mode == "none")
+			assert.True(t, ok)
+			assert.Equal(t, mode, "")
 		}
 	})
 }

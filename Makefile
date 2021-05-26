@@ -21,9 +21,8 @@ deps: ## Get the dependencies
 
 
 .PHONY: git-hooks
-git-dir = $(shell git rev-parse --git-dir)
-git-hooks: $(git-dir)/hooks/pre-commit ## Install the git-hooks
-$(git-dir)/hooks/%: git_hooks/%
+git-hooks: .git/hooks/pre-commit ## Install the git-hooks
+.git/hooks/%: git_hooks/%
 	cp $^ $@
 	chmod 755 $@
 

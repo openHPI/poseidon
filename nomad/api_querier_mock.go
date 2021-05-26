@@ -3,7 +3,10 @@
 package nomad
 
 import (
+	context "context"
+
 	api "github.com/hashicorp/nomad/api"
+
 	mock "github.com/stretchr/testify/mock"
 
 	url "net/url"
@@ -26,6 +29,29 @@ func (_m *apiQuerierMock) DeleteRunner(runnerId string) error {
 	}
 
 	return r0
+}
+
+// EvaluationStream provides a mock function with given fields: evalID, ctx
+func (_m *apiQuerierMock) EvaluationStream(evalID string, ctx context.Context) (<-chan *api.Events, error) {
+	ret := _m.Called(evalID, ctx)
+
+	var r0 <-chan *api.Events
+	if rf, ok := ret.Get(0).(func(string, context.Context) <-chan *api.Events); ok {
+		r0 = rf(evalID, ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(<-chan *api.Events)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, context.Context) error); ok {
+		r1 = rf(evalID, ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // JobScale provides a mock function with given fields: jobId
@@ -65,6 +91,27 @@ func (_m *apiQuerierMock) LoadJobList() ([]*api.JobListStub, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func() error); ok {
 		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// RegisterNomadJob provides a mock function with given fields: job
+func (_m *apiQuerierMock) RegisterNomadJob(job *api.Job) (string, error) {
+	ret := _m.Called(job)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(*api.Job) string); ok {
+		r0 = rf(job)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*api.Job) error); ok {
+		r1 = rf(job)
 	} else {
 		r1 = ret.Error(1)
 	}

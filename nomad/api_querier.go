@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"net/url"
 )
@@ -24,11 +25,20 @@ type apiQuerier interface {
 
 	// loadRunners loads all allocations of the specified job.
 	loadRunners(jobId string) (allocationListStub []*nomadApi.AllocationListStub, err error)
+
+	// RegisterNomadJob registers a job with Nomad.
+	// It returns the evaluation ID that can be used when listening to the Nomad event stream.
+	RegisterNomadJob(job *nomadApi.Job) (string, error)
+
+	// EvaluationStream returns a Nomad event stream filtered to return only events belonging to the
+	// given evaluation ID.
+	EvaluationStream(evalID string, ctx context.Context) (<-chan *nomadApi.Events, error)
 }
 
 // nomadApiClient implements the nomadApiQuerier interface and provides access to a real Nomad API.
 type nomadApiClient struct {
-	client *nomadApi.Client
+	client    *nomadApi.Client
+	namespace string
 }
 
 func (nc *nomadApiClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
@@ -37,6 +47,7 @@ func (nc *nomadApiClient) init(nomadURL *url.URL, nomadNamespace string) (err er
 		TLSConfig: &nomadApi.TLSConfig{},
 		Namespace: nomadNamespace,
 	})
+	nc.namespace = nomadNamespace
 	return err
 }
 
@@ -51,5 +62,31 @@ func (nc *nomadApiClient) DeleteRunner(runnerId string) (err error) {
 
 func (nc *nomadApiClient) loadRunners(jobId string) (allocationListStub []*nomadApi.AllocationListStub, err error) {
 	allocationListStub, _, err = nc.client.Jobs().Allocations(jobId, true, nil)
+	return
+}
+
+func (nc *nomadApiClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
+	job.Namespace = &nc.namespace
+	resp, _, err := nc.client.Jobs().Register(job, nil)
+	if err != nil {
+		return "", err
+	}
+	if resp.Warnings != "" {
+		log.
+			WithField("job", job).
+			WithField("warnings", resp.Warnings).
+			Warn("Received warnings when registering job")
+	}
+	return resp.EvalID, nil
+}
+
+func (nc *nomadApiClient) EvaluationStream(evalID string, ctx context.Context) (stream <-chan *nomadApi.Events, err error) {
+	stream, err = nc.client.EventStream().Stream(
+		ctx,
+		map[nomadApi.Topic][]string{
+			nomadApi.TopicEvaluation: {evalID},
+		},
+		0,
+		nil)
 	return
 }

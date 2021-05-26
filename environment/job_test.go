@@ -1,11 +1,13 @@
 package environment
 
 import (
+	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
@@ -240,8 +242,9 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 
 func TestCreateJobSetsAllGivenArguments(t *testing.T) {
 	testJob, base := createTestJob()
-	apiClient := NomadEnvironmentManager{&runner.NomadRunnerManager{}, &nomad.ApiClient{}, *base}
-	job := apiClient.createJob(
+	manager := NomadEnvironmentManager{&runner.NomadRunnerManager{}, &nomad.ApiClient{}, *base}
+	job := createJob(
+		manager.defaultJob,
 		*testJob.ID,
 		uint(*testJob.TaskGroups[0].Count),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.CPU),
@@ -251,4 +254,56 @@ func TestCreateJobSetsAllGivenArguments(t *testing.T) {
 		nil,
 	)
 	assert.Equal(t, *testJob, *job)
+}
+
+func TestRegisterJobWhenNomadJobRegistrationFails(t *testing.T) {
+	apiMock := nomad.ExecutorApiMock{}
+	expectedErr := errors.New("test error")
+
+	apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return("", expectedErr)
+
+	m := NomadEnvironmentManager{
+		runnerManager: nil,
+		api:           &apiMock,
+		defaultJob:    nomadApi.Job{},
+	}
+
+	err := m.registerJob("id", 1, 2, 3, "image", false, []uint16{})
+	assert.Equal(t, expectedErr, err)
+	apiMock.AssertNotCalled(t, "EvaluationStream")
+}
+
+func TestRegisterJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
+	apiMock := nomad.ExecutorApiMock{}
+	evaluationID := "id"
+
+	apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
+	apiMock.On("MonitorEvaluation", evaluationID, mock.AnythingOfType("*context.emptyCtx")).Return(nil)
+
+	m := NomadEnvironmentManager{
+		runnerManager: nil,
+		api:           &apiMock,
+		defaultJob:    nomadApi.Job{},
+	}
+
+	err := m.registerJob("id", 1, 2, 3, "image", false, []uint16{})
+	assert.NoError(t, err)
+}
+
+func TestRegisterJobReturnsErrorWhenMonitoringEvaluationFails(t *testing.T) {
+	apiMock := nomad.ExecutorApiMock{}
+	evaluationID := "id"
+	expectedErr := errors.New("test error")
+
+	apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
+	apiMock.On("MonitorEvaluation", evaluationID, mock.AnythingOfType("*context.emptyCtx")).Return(expectedErr)
+
+	m := NomadEnvironmentManager{
+		runnerManager: nil,
+		api:           &apiMock,
+		defaultJob:    nomadApi.Job{},
+	}
+
+	err := m.registerJob("id", 1, 2, 3, "image", false, []uint16{})
+	assert.Equal(t, expectedErr, err)
 }

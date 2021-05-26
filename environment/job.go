@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
@@ -14,8 +15,45 @@ const (
 	TaskNameFormat    = "%s-task"
 )
 
+// defaultJobHCL holds our default job in HCL format.
+// The default job is used when creating new job and provides
+// common settings that all the jobs share.
 //go:embed default-job.hcl
 var defaultJobHCL string
+
+// registerJob creates a Nomad job based on the default job configuration and the given parameters.
+// It registers the job with Nomad and waits until the registration completes.
+func (m *NomadEnvironmentManager) registerJob(
+	id string,
+	prewarmingPoolSize, cpuLimit, memoryLimit uint,
+	image string,
+	networkAccess bool,
+	exposedPorts []uint16) error {
+	job := createJob(m.defaultJob, id, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	evalID, err := m.api.RegisterNomadJob(job)
+	if err != nil {
+		return err
+	}
+	return m.api.MonitorEvaluation(evalID, context.Background())
+}
+
+func createJob(
+	defaultJob nomadApi.Job,
+	id string,
+	prewarmingPoolSize, cpuLimit, memoryLimit uint,
+	image string,
+	networkAccess bool,
+	exposedPorts []uint16) *nomadApi.Job {
+
+	job := defaultJob
+	job.ID = &id
+	job.Name = &id
+
+	var taskGroup = createTaskGroup(&job, fmt.Sprintf(nomad.TaskGroupNameFormat, id), prewarmingPoolSize)
+	configureTask(taskGroup, fmt.Sprintf(TaskNameFormat, id), cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+
+	return &job
+}
 
 func parseJob(jobHCL string) *nomadApi.Job {
 	config := jobspec2.ParseConfig{
@@ -25,7 +63,7 @@ func parseJob(jobHCL string) *nomadApi.Job {
 	}
 	job, err := jobspec2.ParseWithConfig(&config)
 	if err != nil {
-		log.WithError(err).Fatal("Error parsing default Nomad job")
+		log.WithError(err).Fatal("Error parsing Nomad job")
 		return nil
 	}
 
@@ -48,7 +86,7 @@ func createTaskGroup(job *nomadApi.Job, name string, prewarmingPoolSize uint) *n
 
 func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposedPorts []uint16) {
 	if len(taskGroup.Tasks) == 0 {
-		// This function is only used internally and must be called after configuring the task.
+		// This function is only used internally and must be called as last step when configuring the task.
 		// This error is not recoverable.
 		log.Fatal("Can't configure network before task has been configured!")
 	}
@@ -62,8 +100,8 @@ func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposed
 		} else {
 			networkResource = taskGroup.Networks[0]
 		}
-		// prefer "bridge" network over "host" to have an isolated network namespace with bridged interface
-		// instead of joining the host network namespace
+		// Prefer "bridge" network over "host" to have an isolated network namespace with bridged interface
+		// instead of joining the host network namespace.
 		networkResource.Mode = "bridge"
 		for _, portNumber := range exposedPorts {
 			port := nomadApi.Port{
@@ -73,8 +111,8 @@ func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposed
 			networkResource.DynamicPorts = append(networkResource.DynamicPorts, port)
 		}
 	} else {
-		// somehow, we can't set the network mode to none in the NetworkResource on task group level
-		// see https://github.com/hashicorp/nomad/issues/10540
+		// Somehow, we can't set the network mode to none in the NetworkResource on task group level.
+		// See https://github.com/hashicorp/nomad/issues/10540
 		if task.Config == nil {
 			task.Config = make(map[string]interface{})
 		}
@@ -97,11 +135,11 @@ func configureTask(
 		task = taskGroup.Tasks[0]
 		task.Name = name
 	}
-	iCpuLimit := int(cpuLimit)
-	iMemoryLimit := int(memoryLimit)
+	integerCpuLimit := int(cpuLimit)
+	integerMemoryLimit := int(memoryLimit)
 	task.Resources = &nomadApi.Resources{
-		CPU:      &iCpuLimit,
-		MemoryMB: &iMemoryLimit,
+		CPU:      &integerCpuLimit,
+		MemoryMB: &integerMemoryLimit,
 	}
 
 	if task.Config == nil {
@@ -110,21 +148,4 @@ func configureTask(
 	task.Config["image"] = image
 
 	configureNetwork(taskGroup, networkAccess, exposedPorts)
-}
-
-func (m *NomadEnvironmentManager) createJob(
-	id string,
-	prewarmingPoolSize, cpuLimit, memoryLimit uint,
-	image string,
-	networkAccess bool,
-	exposedPorts []uint16) *nomadApi.Job {
-
-	job := m.defaultJob
-	job.ID = &id
-	job.Name = &id
-
-	var taskGroup = createTaskGroup(&job, fmt.Sprintf(nomad.TaskGroupNameFormat, id), prewarmingPoolSize)
-	configureTask(taskGroup, fmt.Sprintf(TaskNameFormat, id), cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
-
-	return &job
 }

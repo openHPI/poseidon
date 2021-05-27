@@ -64,6 +64,7 @@ func createTestJob() (*nomadApi.Job, *nomadApi.Job) {
 	taskGroupName := fmt.Sprintf(nomad.TaskGroupNameFormat, *job.ID)
 	taskGroup.Name = &taskGroupName
 	taskGroup.Tasks = []*nomadApi.Task{task}
+	taskGroup.Networks = []*nomadApi.NetworkResource{}
 	job.TaskGroups = []*nomadApi.TaskGroup{taskGroup}
 	return job, base
 }
@@ -209,6 +210,7 @@ func TestConfigureTaskWhenNoTaskExists(t *testing.T) {
 	expectedImage := "python:latest"
 	expectedTask.Config = map[string]interface{}{"image": expectedImage, "network_mode": "none"}
 	expectedTaskGroup.Tasks = []*nomadApi.Task{expectedTask}
+	expectedTaskGroup.Networks = []*nomadApi.NetworkResource{}
 
 	configureTask(taskGroup, expectedTask.Name,
 		uint(*expectedResources.CPU), uint(*expectedResources.MemoryMB),
@@ -232,6 +234,7 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 	expectedTask.Config["image"] = expectedImage
 	expectedTask.Config["network_mode"] = "none"
 	expectedTaskGroup.Tasks = []*nomadApi.Task{&expectedTask}
+	expectedTaskGroup.Networks = []*nomadApi.NetworkResource{}
 
 	configureTask(taskGroup, expectedTask.Name,
 		uint(*expectedResources.CPU), uint(*expectedResources.MemoryMB),

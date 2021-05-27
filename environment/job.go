@@ -125,6 +125,8 @@ func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposed
 		// Somehow, we can't set the network mode to none in the NetworkResource on task group level.
 		// See https://github.com/hashicorp/nomad/issues/10540
 		task.Config["network_mode"] = "none"
+		// Explicitly set Networks to signal Nomad to remove the possibly existing networkResource
+		taskGroup.Networks = []*nomadApi.NetworkResource{}
 	}
 }
 

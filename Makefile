@@ -62,7 +62,7 @@ mock: deps ## Create/Update a mock. Example: make mock name=apiQuerier pkg=./nom
 
 .PHONY: test
 test: deps ## Run unit tests
-	@go test -short $(UNIT_TESTS)
+	@go test -count=1 -short $(UNIT_TESTS)
 
 .PHONY: race
 race: deps ## Run data race detector
@@ -81,7 +81,7 @@ coverhtml: coverage ## Generate HTML coverage report
 
 .PHONY: e2e-test
 e2e-test: ## Run e2e tests
-	@go test ./e2e_tests -v
+	@go test -count=1 ./e2e_tests -v
 
 .PHONY: e2e-docker
 e2e-docker: docker ## Run e2e tests against the Docker container

@@ -11,6 +11,7 @@ const (
 	DefaultEnvironmentIdAsInteger = 0
 	DefaultEnvironmentIdAsString  = "0"
 	AnotherEnvironmentIdAsInteger = 42
+	AnotherEnvironmentIdAsString  = "42"
 	DefaultJobId                  = "s0m3-j0b-1d"
 	AnotherJobId                  = "4n0th3r-j0b-1d"
 	DefaultRunnerId               = "s0m3-r4nd0m-1d"

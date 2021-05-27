@@ -149,3 +149,18 @@ func HttpPatch(url string, contentType string, body io.Reader) (response *http.R
 	client := &http.Client{}
 	return client.Do(req)
 }
+
+func HttpPut(url string, body io.Reader) (response *http.Response, err error) {
+	req, _ := http.NewRequest(http.MethodPut, url, body)
+	client := &http.Client{}
+	return client.Do(req)
+}
+
+func HttpPutJSON(url string, body interface{}) (response *http.Response, err error) {
+	requestString, err := json.Marshal(body)
+	if err != nil {
+		return
+	}
+	reader := strings.NewReader(string(requestString))
+	return HttpPut(url, reader)
+}

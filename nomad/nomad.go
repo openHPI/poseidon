@@ -66,17 +66,12 @@ func (a *ApiClient) LoadRunners(jobId string) (runnerIds []string, err error) {
 }
 
 func (a *ApiClient) MonitorEvaluation(evalID string, ctx context.Context) error {
-	var events *nomadApi.Events
 	stream, err := a.EvaluationStream(evalID, ctx)
 	if err != nil {
 		return err
 	}
-	for {
-		select {
-		case events = <-stream:
-		case <-ctx.Done():
-			return nil
-		}
+	// If ctx is cancelled, the stream will be closed by Nomad and we exit the for loop.
+	for events := range stream {
 		if events.IsHeartbeat() {
 			continue
 		}
@@ -97,6 +92,7 @@ func (a *ApiClient) MonitorEvaluation(evalID string, ctx context.Context) error 
 			}
 		}
 	}
+	return nil
 }
 
 // checkEvaluation checks whether the given evaluation failed.

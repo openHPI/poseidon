@@ -80,7 +80,7 @@ coverhtml: coverage ## Generate HTML coverage report
 	@go tool cover -html=coverage_cleaned.cov -o coverage_unit.html
 
 .PHONY: e2e-test
-e2e-test: ## Run e2e tests
+e2e-test: deps ## Run e2e tests
 	@go test -count=1 ./e2e_tests -v
 
 .PHONY: e2e-docker

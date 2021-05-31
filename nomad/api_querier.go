@@ -42,8 +42,9 @@ type apiQuerier interface {
 
 // nomadApiClient implements the nomadApiQuerier interface and provides access to a real Nomad API.
 type nomadApiClient struct {
-	client    *nomadApi.Client
-	namespace string
+	client       *nomadApi.Client
+	namespace    string
+	queryOptions *nomadApi.QueryOptions
 }
 
 func (nc *nomadApiClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
@@ -53,11 +54,14 @@ func (nc *nomadApiClient) init(nomadURL *url.URL, nomadNamespace string) (err er
 		Namespace: nomadNamespace,
 	})
 	nc.namespace = nomadNamespace
+	nc.queryOptions = &nomadApi.QueryOptions{
+		Namespace: nc.namespace,
+	}
 	return err
 }
 
 func (nc *nomadApiClient) DeleteRunner(runnerId string) (err error) {
-	allocation, _, err := nc.client.Allocations().Info(runnerId, nil)
+	allocation, _, err := nc.client.Allocations().Info(runnerId, nc.queryOptions)
 	if err != nil {
 		return
 	}
@@ -76,7 +80,7 @@ func (nc *nomadApiClient) ExecuteCommand(allocationID string,
 }
 
 func (nc *nomadApiClient) loadRunners(jobId string) (allocationListStub []*nomadApi.AllocationListStub, err error) {
-	allocationListStub, _, err = nc.client.Jobs().Allocations(jobId, true, nil)
+	allocationListStub, _, err = nc.client.Jobs().Allocations(jobId, true, nc.queryOptions)
 	return
 }
 
@@ -102,6 +106,6 @@ func (nc *nomadApiClient) EvaluationStream(evalID string, ctx context.Context) (
 			nomadApi.TopicEvaluation: {evalID},
 		},
 		0,
-		nil)
+		nc.queryOptions)
 	return
 }

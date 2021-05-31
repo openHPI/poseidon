@@ -12,13 +12,13 @@ const (
 
 // LoadJobList loads the list of jobs from the Nomad api.
 func (nc *nomadApiClient) LoadJobList() (list []*nomadApi.JobListStub, err error) {
-	list, _, err = nc.client.Jobs().List(nil)
+	list, _, err = nc.client.Jobs().List(nc.queryOptions)
 	return
 }
 
 // JobScale returns the scale of the passed job.
 func (nc *nomadApiClient) JobScale(jobId string) (jobScale uint, err error) {
-	status, _, err := nc.client.Jobs().ScaleStatus(jobId, nil)
+	status, _, err := nc.client.Jobs().ScaleStatus(jobId, nc.queryOptions)
 	if err != nil {
 		return
 	}

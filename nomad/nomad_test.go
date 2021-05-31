@@ -321,7 +321,8 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			eventsProcessed, err := runEvaluationMonitoring(t, c.streamedEvents)
-			assert.Equal(t, c.expectedError, err)
+			require.NotNil(t, err)
+			assert.Contains(t, err.Error(), c.expectedError.Error())
 			assert.Equal(t, c.expectedEventsProcessed, eventsProcessed)
 		})
 	}

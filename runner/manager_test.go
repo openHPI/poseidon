@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ type ManagerTestSuite struct {
 
 func (s *ManagerTestSuite) SetupTest() {
 	s.apiMock = &nomad.ExecutorApiMock{}
-	s.nomadRunnerManager = NewNomadRunnerManager(s.apiMock)
+	s.nomadRunnerManager = NewNomadRunnerManager(s.apiMock, context.Background())
 	s.exerciseRunner = NewRunner(tests.DefaultRunnerId)
 	s.mockRunnerQueries([]string{})
 	s.registerDefaultEnvironment()
@@ -37,6 +38,7 @@ func (s *ManagerTestSuite) SetupTest() {
 func (s *ManagerTestSuite) mockRunnerQueries(returnedRunnerIds []string) {
 	// reset expected calls to allow new mocked return values
 	s.apiMock.ExpectedCalls = []*mock.Call{}
+	s.apiMock.On("WatchAllocations", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.apiMock.On("LoadRunners", tests.DefaultJobId).Return(returnedRunnerIds, nil)
 	s.apiMock.On("JobScale", tests.DefaultJobId).Return(uint(len(returnedRunnerIds)), nil)
 	s.apiMock.On("SetJobScale", tests.DefaultJobId, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)

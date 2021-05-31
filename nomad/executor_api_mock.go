@@ -19,6 +19,29 @@ type ExecutorApiMock struct {
 	mock.Mock
 }
 
+// AllocationStream provides a mock function with given fields: ctx
+func (_m *ExecutorApiMock) AllocationStream(ctx context.Context) (<-chan *api.Events, error) {
+	ret := _m.Called(ctx)
+
+	var r0 <-chan *api.Events
+	if rf, ok := ret.Get(0).(func(context.Context) <-chan *api.Events); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(<-chan *api.Events)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // DeleteRunner provides a mock function with given fields: runnerId
 func (_m *ExecutorApiMock) DeleteRunner(runnerId string) error {
 	ret := _m.Called(runnerId)
@@ -186,6 +209,20 @@ func (_m *ExecutorApiMock) SetJobScale(jobId string, count uint, reason string) 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, uint, string) error); ok {
 		r0 = rf(jobId, count, reason)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// WatchAllocations provides a mock function with given fields: ctx, onNewAllocation, onDeletedAllocation
+func (_m *ExecutorApiMock) WatchAllocations(ctx context.Context, onNewAllocation allocationProcessor, onDeletedAllocation allocationProcessor) error {
+	ret := _m.Called(ctx, onNewAllocation, onDeletedAllocation)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, allocationProcessor, allocationProcessor) error); ok {
+		r0 = rf(ctx, onNewAllocation, onDeletedAllocation)
 	} else {
 		r0 = ret.Error(0)
 	}

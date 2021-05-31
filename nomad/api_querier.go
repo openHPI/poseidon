@@ -38,6 +38,9 @@ type apiQuerier interface {
 	// EvaluationStream returns a Nomad event stream filtered to return only events belonging to the
 	// given evaluation ID.
 	EvaluationStream(evalID string, ctx context.Context) (<-chan *nomadApi.Events, error)
+
+	// AllocationStream returns a Nomad event stream filtered to return only allocation events.
+	AllocationStream(ctx context.Context) (<-chan *nomadApi.Events, error)
 }
 
 // nomadApiClient implements the nomadApiQuerier interface and provides access to a real Nomad API.
@@ -104,6 +107,17 @@ func (nc *nomadApiClient) EvaluationStream(evalID string, ctx context.Context) (
 		ctx,
 		map[nomadApi.Topic][]string{
 			nomadApi.TopicEvaluation: {evalID},
+		},
+		0,
+		nc.queryOptions)
+	return
+}
+
+func (nc *nomadApiClient) AllocationStream(ctx context.Context) (stream <-chan *nomadApi.Events, err error) {
+	stream, err = nc.client.EventStream().Stream(
+		ctx,
+		map[nomadApi.Topic][]string{
+			nomadApi.TopicAllocation: {},
 		},
 		0,
 		nc.queryOptions)

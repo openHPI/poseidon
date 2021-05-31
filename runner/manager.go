@@ -130,17 +130,20 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentId) {
 			log.WithError(err).Printf("Failed get allocation count")
 			break
 		}
-		neededRunners := job.desiredIdleRunnersCount - job.idleRunners.Length() + 1
-		runnerCount := jobScale + neededRunners
+		additionallyNeededRunners := job.desiredIdleRunnersCount - job.idleRunners.Length() + 1
+		requiredRunnerCount := jobScale
+		if additionallyNeededRunners > 0 {
+			requiredRunnerCount += additionallyNeededRunners
+		}
 		time.Sleep(50 * time.Millisecond)
-		if runnerCount != lastJobScaling {
-			log.Printf("Set job scaling %d", runnerCount)
-			err = m.apiClient.SetJobScale(string(job.jobId), runnerCount, "Runner Requested")
+		if requiredRunnerCount != lastJobScaling {
+			log.Printf("Set job scaling %d", requiredRunnerCount)
+			err = m.apiClient.SetJobScale(string(job.jobId), requiredRunnerCount, "Runner Requested")
 			if err != nil {
 				log.WithError(err).Printf("Failed set allocation scaling")
 				continue
 			}
-			lastJobScaling = runnerCount
+			lastJobScaling = requiredRunnerCount
 		}
 	}
 }

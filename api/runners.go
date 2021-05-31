@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	ExecutePath    = "/execute"
-	WebsocketPath  = "/websocket"
-	DeleteRoute    = "deleteRunner"
-	RunnerIdKey    = "runnerId"
-	ExecutionIdKey = "executionId"
+	ExecutePath          = "/execute"
+	WebsocketPath        = "/websocket"
+	UpdateFileSystemPath = "/files"
+	DeleteRoute          = "deleteRunner"
+	RunnerIdKey          = "runnerId"
+	ExecutionIdKey       = "executionId"
 )
 
 type RunnerController struct {
@@ -26,10 +27,11 @@ type RunnerController struct {
 
 // ConfigureRoutes configures a given router with the runner routes of our API.
 func (r *RunnerController) ConfigureRoutes(router *mux.Router) {
-	runnersRouter := router.PathPrefix(RouteRunners).Subrouter()
+	runnersRouter := router.PathPrefix(RunnersPath).Subrouter()
 	runnersRouter.HandleFunc("", r.provide).Methods(http.MethodPost)
 	r.runnerRouter = runnersRouter.PathPrefix(fmt.Sprintf("/{%s}", RunnerIdKey)).Subrouter()
 	r.runnerRouter.Use(r.findRunnerMiddleware)
+	r.runnerRouter.HandleFunc(UpdateFileSystemPath, r.updateFileSystem).Methods(http.MethodPatch).Name(UpdateFileSystemPath)
 	r.runnerRouter.HandleFunc(ExecutePath, r.execute).Methods(http.MethodPost).Name(ExecutePath)
 	r.runnerRouter.HandleFunc(WebsocketPath, r.connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
 	r.runnerRouter.HandleFunc("", r.delete).Methods(http.MethodDelete).Name(DeleteRoute)
@@ -37,7 +39,7 @@ func (r *RunnerController) ConfigureRoutes(router *mux.Router) {
 
 // provide handles the provide runners API route.
 // It tries to respond with the id of a unused runner.
-// This runner is then reserved for future use
+// This runner is then reserved for future use.
 func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Request) {
 	runnerRequest := new(dto.RunnerRequest)
 	if err := parseJSONRequestBody(writer, request, runnerRequest); err != nil {
@@ -57,6 +59,24 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	}
 
 	sendJson(writer, &dto.RunnerResponse{Id: nextRunner.Id()}, http.StatusOK)
+}
+
+// updateFileSystem handles the files API route.
+// It takes an dto.UpdateFileSystemRequest and sends it to the runner for processing.
+func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request *http.Request) {
+	fileCopyRequest := new(dto.UpdateFileSystemRequest)
+	if err := parseJSONRequestBody(writer, request, fileCopyRequest); err != nil {
+		return
+	}
+
+	targetRunner, _ := runner.FromContext(request.Context())
+	if err := targetRunner.UpdateFileSystem(fileCopyRequest); err != nil {
+		log.WithError(err).Error("Could not perform the requested updateFileSystem.")
+		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		return
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
 }
 
 // execute handles the execute API route.

@@ -21,7 +21,7 @@ type E2ETestSuite struct {
 	suite.Suite
 }
 
-func (suite *E2ETestSuite) SetupTest() {
+func (s *E2ETestSuite) SetupTest() {
 	// Waiting one second before each test allows Nomad to rescale after tests requested runners.
 	<-time.After(time.Second)
 }

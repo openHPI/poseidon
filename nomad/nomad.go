@@ -11,7 +11,10 @@ import (
 	"strings"
 )
 
-var log = logging.GetLogger("nomad")
+var (
+	log                              = logging.GetLogger("nomad")
+	ErrorExecutorCommunicationFailed = errors.New("communication with executor failed")
+)
 
 // ExecutorApi provides access to an container orchestration solution
 type ExecutorApi interface {

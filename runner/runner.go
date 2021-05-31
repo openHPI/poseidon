@@ -1,11 +1,17 @@
 package runner
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -20,18 +26,30 @@ const (
 	runnerContextKey ContextKey = "runner"
 )
 
+var (
+	ErrorFileCopyFailed = errors.New("file copy failed")
+	FileCopyBasePath    = config.Config.Runner.WorkspacePath
+)
+
 type Runner interface {
 	// Id returns the id of the runner.
 	Id() string
 
 	ExecutionStorage
 
-	// Execute runs the given execution request and forwards from and to the given reader and writers.
+	// ExecuteInteractively runs the given execution request and forwards from and to the given reader and writers.
 	// An ExitInfo is sent to the exit channel on command completion.
-	Execute(request *dto.ExecutionRequest, stdin io.Reader, stdout, stderr io.Writer) (exit <-chan ExitInfo, cancel context.CancelFunc)
+	// Output from the runner is forwarded immediately.
+	ExecuteInteractively(
+		request *dto.ExecutionRequest,
+		stdin io.Reader,
+		stdout,
+		stderr io.Writer,
+	) (exit <-chan ExitInfo, cancel context.CancelFunc)
 
-	// Copy copies the specified files into the runner.
-	Copy(dto.FileCreation)
+	// UpdateFileSystem processes a dto.UpdateFileSystemRequest by first deleting each given dto.FilePath recursively
+	// and then copying each given dto.File to the runner.
+	UpdateFileSystem(request *dto.UpdateFileSystemRequest) error
 }
 
 // NomadAllocation is an abstraction to communicate with Nomad allocations.
@@ -64,7 +82,11 @@ type ExitInfo struct {
 	Err  error
 }
 
-func (r *NomadAllocation) Execute(request *dto.ExecutionRequest, stdin io.Reader, stdout, stderr io.Writer) (<-chan ExitInfo, context.CancelFunc) {
+func (r *NomadAllocation) ExecuteInteractively(
+	request *dto.ExecutionRequest,
+	stdin io.Reader,
+	stdout, stderr io.Writer,
+) (<-chan ExitInfo, context.CancelFunc) {
 	command := request.FullCommand()
 	var ctx context.Context
 	var cancel context.CancelFunc
@@ -75,15 +97,94 @@ func (r *NomadAllocation) Execute(request *dto.ExecutionRequest, stdin io.Reader
 	}
 	exit := make(chan ExitInfo)
 	go func() {
-		exitCode, err := r.api.ExecuteCommand(r.Id(), ctx, command, stdin, stdout, stderr)
+		exitCode, err := r.api.ExecuteCommand(r.Id(), ctx, command, true, stdin, stdout, stderr)
 		exit <- ExitInfo{uint8(exitCode), err}
 		close(exit)
 	}()
 	return exit, cancel
 }
 
-func (r *NomadAllocation) Copy(files dto.FileCreation) {
+func (r *NomadAllocation) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) error {
+	var tarBuffer bytes.Buffer
+	if err := createTarArchiveForFiles(copyRequest.Copy, &tarBuffer); err != nil {
+		return err
+	}
 
+	fileDeletionCommand := fileDeletionCommand(copyRequest.Delete)
+	copyCommand := "tar --extract --absolute-names --verbose --directory=/ --file=/dev/stdin;"
+	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
+	stdOut := bytes.Buffer{}
+	stdErr := bytes.Buffer{}
+	exitCode, err := r.api.ExecuteCommand(r.Id(), context.Background(), updateFileCommand, false,
+		&tarBuffer, &stdOut, &stdErr)
+
+	if err != nil {
+		return fmt.Errorf(
+			"%w: nomad error during file copy: %v",
+			nomad.ErrorExecutorCommunicationFailed,
+			err)
+	}
+	if exitCode != 0 {
+		return fmt.Errorf(
+			"%w: stderr output '%s' and stdout output '%s'",
+			ErrorFileCopyFailed,
+			stdErr.String(),
+			stdOut.String())
+	}
+	return nil
+}
+
+func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer) error {
+	tarWriter := tar.NewWriter(w)
+	for _, file := range filesToCopy {
+		if err := tarWriter.WriteHeader(tarHeader(file)); err != nil {
+			log.
+				WithError(err).
+				WithField("file", file).
+				Error("Error writing tar file header")
+			return err
+		}
+		if _, err := tarWriter.Write(file.ByteContent()); err != nil {
+			log.
+				WithError(err).
+				WithField("file", file).
+				Error("Error writing tar file content")
+			return err
+		}
+	}
+	return tarWriter.Close()
+}
+
+func fileDeletionCommand(filesToDelete []dto.FilePath) string {
+	if len(filesToDelete) == 0 {
+		return ""
+	}
+	command := "rm --recursive --force "
+	for _, filePath := range filesToDelete {
+		// To avoid command injection, filenames need to be quoted.
+		// See https://unix.stackexchange.com/questions/347332/what-characters-need-to-be-escaped-in-files-without-quotes for details.
+		singleQuoteEscapedFileName := strings.ReplaceAll(filePath.ToAbsolute(FileCopyBasePath), "'", "'\\''")
+		command += fmt.Sprintf("'%s' ", singleQuoteEscapedFileName)
+	}
+	command += ";"
+	return command
+}
+
+func tarHeader(file dto.File) *tar.Header {
+	if file.IsDirectory() {
+		return &tar.Header{
+			Typeflag: tar.TypeDir,
+			Name:     file.AbsolutePath(FileCopyBasePath),
+			Mode:     0755,
+		}
+	} else {
+		return &tar.Header{
+			Typeflag: tar.TypeReg,
+			Name:     file.AbsolutePath(FileCopyBasePath),
+			Mode:     0744,
+			Size:     int64(len(file.Content)),
+		}
+	}
 }
 
 // MarshalJSON implements json.Marshaler interface.

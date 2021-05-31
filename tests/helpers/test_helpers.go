@@ -12,8 +12,8 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"os/exec"
 	"path/filepath"
@@ -23,8 +23,14 @@ import (
 
 // BuildURL joins multiple route paths.
 func BuildURL(parts ...string) (url string) {
-	parts = append([]string{config.Config.PoseidonAPIURL().String()}, parts...)
-	return strings.Join(parts, "")
+	url = config.Config.PoseidonAPIURL().String()
+	for _, part := range parts {
+		if !strings.HasPrefix(part, "/") {
+			url += "/"
+		}
+		url += part
+	}
+	return
 }
 
 // WebSocketOutputMessages extracts all stdout, stderr and error messages from the passed messages.
@@ -105,20 +111,15 @@ func StartTLSServer(t *testing.T, router *mux.Router) (server *httptest.Server, 
 	return
 }
 
-func NewNomadAllocationWithMockedApiClient(runnerId string) (r runner.Runner, mock *nomad.ExecutorApiMock) {
-	mock = &nomad.ExecutorApiMock{}
-	r = runner.NewNomadAllocation(runnerId, mock)
-	return
-}
-
 // MockApiExecute mocks the ExecuteCommand method of an ExecutorApi to call the given method run when the command
 // corresponding to the given ExecutionRequest is called.
 func MockApiExecute(api *nomad.ExecutorApiMock, request *dto.ExecutionRequest,
-	run func(runnerId string, ctx context.Context, command []string, stdin io.Reader, stdout, stderr io.Writer) (int, error)) {
+	run func(runnerId string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout, stderr io.Writer) (int, error)) {
 	call := api.On("ExecuteCommand",
 		mock.AnythingOfType("string"),
 		mock.Anything,
 		request.FullCommand(),
+		mock.AnythingOfType("bool"),
 		mock.Anything,
 		mock.Anything,
 		mock.Anything)
@@ -126,9 +127,25 @@ func MockApiExecute(api *nomad.ExecutorApiMock, request *dto.ExecutionRequest,
 		exit, err := run(args.Get(0).(string),
 			args.Get(1).(context.Context),
 			args.Get(2).([]string),
-			args.Get(3).(io.Reader),
-			args.Get(4).(io.Writer),
-			args.Get(5).(io.Writer))
+			args.Get(3).(bool),
+			args.Get(4).(io.Reader),
+			args.Get(5).(io.Writer),
+			args.Get(6).(io.Writer))
 		call.ReturnArguments = mock.Arguments{exit, err}
 	})
+}
+
+// HttpDelete sends a Delete Http Request with body to the passed url.
+func HttpDelete(url string, body io.Reader) (response *http.Response, err error) {
+	req, _ := http.NewRequest(http.MethodDelete, url, body)
+	client := &http.Client{}
+	return client.Do(req)
+}
+
+// HttpPatch sends a Patch Http Request with body to the passed url.
+func HttpPatch(url string, contentType string, body io.Reader) (response *http.Response, err error) {
+	req, _ := http.NewRequest(http.MethodPatch, url, body)
+	req.Header.Set("Content-Type", contentType)
+	client := &http.Client{}
+	return client.Do(req)
 }

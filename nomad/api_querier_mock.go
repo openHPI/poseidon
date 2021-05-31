@@ -56,20 +56,20 @@ func (_m *apiQuerierMock) EvaluationStream(evalID string, ctx context.Context) (
 	return r0, r1
 }
 
-// ExecuteCommand provides a mock function with given fields: allocationID, ctx, command, stdin, stdout, stderr
-func (_m *apiQuerierMock) ExecuteCommand(allocationID string, ctx context.Context, command []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
-	ret := _m.Called(allocationID, ctx, command, stdin, stdout, stderr)
+// ExecuteCommand provides a mock function with given fields: allocationID, ctx, command, tty, stdin, stdout, stderr
+func (_m *apiQuerierMock) ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+	ret := _m.Called(allocationID, ctx, command, tty, stdin, stdout, stderr)
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func(string, context.Context, []string, io.Reader, io.Writer, io.Writer) int); ok {
-		r0 = rf(allocationID, ctx, command, stdin, stdout, stderr)
+	if rf, ok := ret.Get(0).(func(string, context.Context, []string, bool, io.Reader, io.Writer, io.Writer) int); ok {
+		r0 = rf(allocationID, ctx, command, tty, stdin, stdout, stderr)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, context.Context, []string, io.Reader, io.Writer, io.Writer) error); ok {
-		r1 = rf(allocationID, ctx, command, stdin, stdout, stderr)
+	if rf, ok := ret.Get(1).(func(string, context.Context, []string, bool, io.Reader, io.Writer, io.Writer) error); ok {
+		r1 = rf(allocationID, ctx, command, tty, stdin, stdout, stderr)
 	} else {
 		r1 = ret.Error(1)
 	}

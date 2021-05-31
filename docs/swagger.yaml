@@ -3,7 +3,7 @@ info:
   title: Poseidon API
   description: |
     This API is used by CodeOcean to run code in runners.
-  version: '0.2.1'
+  version: '0.2.2'
 
 components:
   schemas:
@@ -180,7 +180,7 @@ paths:
   /runners/{runnerId}/files:
     patch:
       summary: Manipulate runner file system
-      description: Copy the enclosed files to the file system of the specified runner. Existing files get overwritten and results of previous file copy operations on the same runner are present when executing multiple requests.
+      description: Delete the files with the given paths from the file system of the specified runner. Afterwards, copy the enclosed files to the runner. Existing files get overwritten and results of previous file copy operations on the same runner are present when executing multiple requests.
       tags:
         - runner
       parameters:
@@ -199,30 +199,30 @@ paths:
             schema:
               type: object
               properties:
-                files:
-                  description: Array of files that should be placed in the runner. The files are processed in the order in which they are given
+                delete:
+                  description: Array of filepaths that should be deleted. Each of the given files or directories should be deleted recursively.
+                  type: array
+                  items:
+                    description: Location of the file or directory that should be deleted. Can be absolute (starting with /) or relative to the workspace directory.
+                    type: string
+                    example: /workspace
+                copy:
+                  description: Array of files that should be placed in the runner.
                   type: array
                   items:
                     type: object
                     properties:
-                      filepath:
-                        description: Location where the file should be placed. Can be absolute (starting with /) or relative to the workspace directory. Missing parent directories get created. If this ends with a /, the path is interpreted as a directory and content is ignored
+                      path:
+                        description: Location where the file should be placed. Can be absolute (starting with /) or relative to the workspace directory. Missing parent directories are created. If this ends with a /, the path is interpreted as a directory and content is ignored
                         type: string
                         example: /etc/passwd
                       content:
-                        description: The content of the file. Binary data is represented as escape sequences. Any c99 s-char-sequence surrounded by quotes is valid (e.g. "\x01\x02") and converted to its byte representation. If this is not given and delete is false, the file is created with no content
+                        description: The content of the file. MUST be base64 encoded. If this is not given, the file is created with no content.
                         type: string
-                        example: root:x:0:0::/root:/bin/bash
-                      delete:
-                        description: Specify that the path should be deleted. If this is true, content is ignored and the file or directory is deleted (recursively) instead
-                        type: boolean
-                        default: false
-                        example: false
+                        example: cm9vdDp4OjA6MDo6L3Jvb3Q6L2Jpbi9iYXNo # root:x:0:0::/root:/bin/bash
                     required:
-                      - filepath
+                      - path
                     additionalProperties: false
-              required:
-                - files
               additionalProperties: false
       responses:
         "204":

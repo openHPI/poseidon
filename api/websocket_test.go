@@ -16,7 +16,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/e2e/helpers"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -40,7 +40,7 @@ type WebSocketTestSuite struct {
 
 func (suite *WebSocketTestSuite) SetupTest() {
 	runnerId := "runner-id"
-	suite.runner, suite.apiMock = helpers.NewNomadAllocationWithMockedApiClient(runnerId)
+	suite.runner, suite.apiMock = newNomadAllocationWithMockedApiClient(runnerId)
 
 	// default execution
 	suite.executionId = "execution-id"
@@ -97,7 +97,7 @@ func (suite *WebSocketTestSuite) TestWebsocketConnection() {
 	suite.Run("Executes the request in the runner", func() {
 		<-time.After(100 * time.Millisecond)
 		suite.apiMock.AssertCalled(suite.T(), "ExecuteCommand",
-			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	suite.Run("Can send input", func() {
@@ -137,7 +137,7 @@ func (suite *WebSocketTestSuite) TestCancelWebSocketConnection() {
 
 	select {
 	case <-canceled:
-		suite.Fail("Execute canceled unexpected")
+		suite.Fail("ExecuteInteractively canceled unexpected")
 	default:
 	}
 
@@ -147,7 +147,7 @@ func (suite *WebSocketTestSuite) TestCancelWebSocketConnection() {
 	select {
 	case <-canceled:
 	case <-time.After(time.Second):
-		suite.Fail("Execute not canceled")
+		suite.Fail("ExecuteInteractively not canceled")
 	}
 }
 
@@ -169,7 +169,7 @@ func (suite *WebSocketTestSuite) TestWebSocketConnectionTimeout() {
 
 	select {
 	case <-canceled:
-		suite.Fail("Execute canceled unexpected")
+		suite.Fail("ExecuteInteractively canceled unexpected")
 	case <-time.After(time.Duration(limitExecution.TimeLimit-1) * time.Second):
 		<-time.After(time.Second)
 	}
@@ -177,7 +177,7 @@ func (suite *WebSocketTestSuite) TestWebSocketConnectionTimeout() {
 	select {
 	case <-canceled:
 	case <-time.After(time.Second):
-		suite.Fail("Execute not canceled")
+		suite.Fail("ExecuteInteractively not canceled")
 	}
 
 	message, err = helpers.ReceiveNextWebSocketMessage(connection)
@@ -245,7 +245,7 @@ func (suite *WebSocketTestSuite) TestWebsocketNonZeroExit() {
 
 func TestWebsocketTLS(t *testing.T) {
 	runnerId := "runner-id"
-	r, apiMock := helpers.NewNomadAllocationWithMockedApiClient(runnerId)
+	r, apiMock := newNomadAllocationWithMockedApiClient(runnerId)
 
 	executionId := runner.ExecutionId("execution-id")
 	r.Add(executionId, &executionRequestLs)
@@ -307,6 +307,12 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 
 // --- Test suite specific test helpers ---
 
+func newNomadAllocationWithMockedApiClient(runnerId string) (r runner.Runner, mock *nomad.ExecutorApiMock) {
+	mock = &nomad.ExecutorApiMock{}
+	r = runner.NewNomadAllocation(runnerId, mock)
+	return
+}
+
 func webSocketUrl(scheme string, server *httptest.Server, router *mux.Router, runnerId string, executionId runner.ExecutionId) (*url.URL, error) {
 	websocketUrl, err := url.Parse(server.URL)
 	if err != nil {
@@ -331,7 +337,7 @@ var executionRequestLs = dto.ExecutionRequest{Command: "ls"}
 // mockApiExecuteLs mocks the ExecuteCommand of an ExecutorApi to act as if 'ls existing-file non-existing-file' was executed.
 func mockApiExecuteLs(api *nomad.ExecutorApiMock) {
 	helpers.MockApiExecute(api, &executionRequestLs,
-		func(_ string, _ context.Context, _ []string, _ io.Reader, stdout, stderr io.Writer) (int, error) {
+		func(_ string, _ context.Context, _ []string, _ bool, _ io.Reader, stdout, stderr io.Writer) (int, error) {
 			_, _ = stdout.Write([]byte("existing-file\n"))
 			_, _ = stderr.Write([]byte("ls: cannot access 'non-existing-file': No such file or directory\n"))
 			return 0, nil
@@ -343,7 +349,7 @@ var executionRequestHead = dto.ExecutionRequest{Command: "head -n 1"}
 // mockApiExecuteHead mocks the ExecuteCommand of an ExecutorApi to act as if 'head -n 1' was executed.
 func mockApiExecuteHead(api *nomad.ExecutorApiMock) {
 	helpers.MockApiExecute(api, &executionRequestHead,
-		func(_ string, _ context.Context, _ []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+		func(_ string, _ context.Context, _ []string, _ bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
 			scanner := bufio.NewScanner(stdin)
 			for !scanner.Scan() {
 				scanner = bufio.NewScanner(stdin)
@@ -359,7 +365,7 @@ var executionRequestSleep = dto.ExecutionRequest{Command: "sleep infinity"}
 func mockApiExecuteSleep(api *nomad.ExecutorApiMock) <-chan bool {
 	canceled := make(chan bool, 1)
 	helpers.MockApiExecute(api, &executionRequestSleep,
-		func(_ string, ctx context.Context, _ []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+		func(_ string, ctx context.Context, _ []string, _ bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
 			<-ctx.Done()
 			close(canceled)
 			return 0, ctx.Err()
@@ -372,7 +378,7 @@ var executionRequestError = dto.ExecutionRequest{Command: "error"}
 // mockApiExecuteError mocks the ExecuteCommand method of an ExecutorApi to return an error.
 func mockApiExecuteError(api *nomad.ExecutorApiMock) {
 	helpers.MockApiExecute(api, &executionRequestError,
-		func(_ string, _ context.Context, _ []string, _ io.Reader, _, _ io.Writer) (int, error) {
+		func(_ string, _ context.Context, _ []string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
 			return 0, errors.New("intended error")
 		})
 }
@@ -382,7 +388,7 @@ var executionRequestExitNonZero = dto.ExecutionRequest{Command: "exit 42"}
 // mockApiExecuteExitNonZero mocks the ExecuteCommand method of an ExecutorApi to exit with exit status 42.
 func mockApiExecuteExitNonZero(api *nomad.ExecutorApiMock) {
 	helpers.MockApiExecute(api, &executionRequestExitNonZero,
-		func(_ string, _ context.Context, _ []string, _ io.Reader, _, _ io.Writer) (int, error) {
+		func(_ string, _ context.Context, _ []string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
 			return 42, nil
 		})
 }

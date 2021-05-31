@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
+	"strings"
 )
 
 // RunnerRequest is the expected json structure of the request body for the ProvideRunner function.
@@ -45,13 +47,52 @@ type RunnerResponse struct {
 	Id string `json:"runnerId"`
 }
 
-// FileCreation is the expected json structure of the request body for the copy files route.
-// TODO: specify content of the struct
-type FileCreation struct{}
-
 // ExecutionResponse is the expected response when creating an execution for a runner.
 type ExecutionResponse struct {
 	WebSocketUrl string `json:"websocketUrl"`
+}
+
+// UpdateFileSystemRequest is the expected json structure of the request body for the update file system route.
+type UpdateFileSystemRequest struct {
+	Delete []FilePath `json:"delete"`
+	Copy   []File     `json:"copy"`
+}
+
+// FilePath specifies the path of a file and is part of the UpdateFileSystemRequest.
+type FilePath string
+
+// File is a DTO for transmitting file contents. It is part of the UpdateFileSystemRequest.
+type File struct {
+	Path    FilePath `json:"path"`
+	Content []byte   `json:"content"`
+}
+
+// ToAbsolute returns the absolute path of the FilePath with respect to the given basePath. If the FilePath already is absolute, basePath will be ignored.
+func (f FilePath) ToAbsolute(basePath string) string {
+	filePathString := string(f)
+	if path.IsAbs(filePathString) {
+		return path.Clean(filePathString)
+	}
+	return path.Clean(path.Join(basePath, filePathString))
+}
+
+// AbsolutePath returns the absolute path of the file. See FilePath.ToAbsolute for details.
+func (f File) AbsolutePath(basePath string) string {
+	return f.Path.ToAbsolute(basePath)
+}
+
+// IsDirectory returns true iff the path of the File ends with a /.
+func (f File) IsDirectory() bool {
+	return strings.HasSuffix(string(f.Path), "/")
+}
+
+// ByteContent returns the content of the File. If the File is a directory, the content will be empty.
+func (f File) ByteContent() []byte {
+	if f.IsDirectory() {
+		return []byte("")
+	} else {
+		return f.Content
+	}
 }
 
 // WebSocketMessageType is the type for the messages from Poseidon to the client.

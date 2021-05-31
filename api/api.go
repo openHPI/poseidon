@@ -12,9 +12,9 @@ import (
 var log = logging.GetLogger("api")
 
 const (
-	RouteBase    = "/api/v1"
-	RouteHealth  = "/health"
-	RouteRunners = "/runners"
+	BasePath    = "/api/v1"
+	HealthPath  = "/health"
+	RunnersPath = "/runners"
 )
 
 // NewRouter returns a *mux.Router which can be
@@ -33,8 +33,8 @@ func NewRouter(runnerManager runner.Manager, environmentManager environment.Mana
 
 // configureV1Router configures a given router with the routes of version 1 of the Poseidon API.
 func configureV1Router(router *mux.Router, runnerManager runner.Manager, environmentManager environment.Manager) {
-	v1 := router.PathPrefix(RouteBase).Subrouter()
-	v1.HandleFunc(RouteHealth, Health).Methods(http.MethodGet)
+	v1 := router.PathPrefix(BasePath).Subrouter()
+	v1.HandleFunc(HealthPath, Health).Methods(http.MethodGet)
 
 	runnerController := &RunnerController{manager: runnerManager}
 

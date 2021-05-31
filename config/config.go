@@ -32,6 +32,9 @@ var (
 			TLS:       false,
 			Namespace: "default",
 		},
+		Runner: runner{
+			WorkspacePath: "/home/python",
+		},
 		Logger: logger{
 			Level: "INFO",
 		},
@@ -65,6 +68,11 @@ type nomad struct {
 	Namespace string
 }
 
+// runner configures the runners on the executor
+type runner struct {
+	WorkspacePath string
+}
+
 // logger configures the used logger.
 type logger struct {
 	Level string
@@ -74,6 +82,7 @@ type logger struct {
 type configuration struct {
 	Server server
 	Nomad  nomad
+	Runner runner
 	Logger logger
 }
 

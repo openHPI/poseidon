@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -157,6 +158,73 @@ func (suite *RunnerRouteTestSuite) TestExecuteRoute() {
 
 		suite.Equal(http.StatusBadRequest, recorder.Code)
 	})
+}
+
+func TestUpdateFileSystemRouteTestSuite(t *testing.T) {
+	suite.Run(t, new(UpdateFileSystemRouteTestSuite))
+}
+
+type UpdateFileSystemRouteTestSuite struct {
+	RunnerRouteTestSuite
+	path       string
+	recorder   *httptest.ResponseRecorder
+	runnerMock *runner.RunnerMock
+}
+
+func (s *UpdateFileSystemRouteTestSuite) SetupTest() {
+	s.RunnerRouteTestSuite.SetupTest()
+	routeUrl, err := s.router.Get(UpdateFileSystemPath).URL(RunnerIdKey, tests.DefaultMockId)
+	if err != nil {
+		s.T().Fatal(err)
+	}
+	s.path = routeUrl.String()
+	s.runnerMock = &runner.RunnerMock{}
+	s.runnerManager.On("Get", tests.DefaultMockId).Return(s.runnerMock, nil)
+	s.recorder = httptest.NewRecorder()
+}
+
+func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsNoContentOnValidRequest() {
+	s.runnerMock.On("UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest")).Return(nil)
+
+	copyRequest := dto.UpdateFileSystemRequest{}
+	body, _ := json.Marshal(copyRequest)
+	request, _ := http.NewRequest(http.MethodPatch, s.path, bytes.NewReader(body))
+
+	s.router.ServeHTTP(s.recorder, request)
+	s.Equal(http.StatusNoContent, s.recorder.Code)
+	s.runnerMock.AssertCalled(s.T(), "UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest"))
+}
+
+func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsBadRequestOnInvalidRequestBody() {
+	request, _ := http.NewRequest(http.MethodPatch, s.path, strings.NewReader(""))
+
+	s.router.ServeHTTP(s.recorder, request)
+	s.Equal(http.StatusBadRequest, s.recorder.Code)
+}
+
+func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemToNonExistingRunnerReturnsNotFound() {
+	invalidID := "some-invalid-runner-id"
+	s.runnerManager.On("Get", invalidID).Return(nil, runner.ErrRunnerNotFound)
+	path, _ := s.router.Get(UpdateFileSystemPath).URL(RunnerIdKey, invalidID)
+	copyRequest := dto.UpdateFileSystemRequest{}
+	body, _ := json.Marshal(copyRequest)
+	request, _ := http.NewRequest(http.MethodPatch, path.String(), bytes.NewReader(body))
+
+	s.router.ServeHTTP(s.recorder, request)
+	s.Equal(http.StatusNotFound, s.recorder.Code)
+}
+
+func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsInternalServerErrorWhenCopyFailed() {
+	s.runnerMock.
+		On("UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest")).
+		Return(runner.ErrorFileCopyFailed)
+
+	copyRequest := dto.UpdateFileSystemRequest{}
+	body, _ := json.Marshal(copyRequest)
+	request, _ := http.NewRequest(http.MethodPatch, s.path, bytes.NewReader(body))
+
+	s.router.ServeHTTP(s.recorder, request)
+	s.Equal(http.StatusInternalServerError, s.recorder.Code)
 }
 
 func TestDeleteRunnerRouteTestSuite(t *testing.T) {

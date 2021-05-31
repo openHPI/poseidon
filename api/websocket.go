@@ -168,7 +168,6 @@ func newWebSocketProxy(connection webSocketConnection) (*webSocketProxy, error) 
 // and handles WebSocket exit messages.
 func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecution context.CancelFunc) {
 	defer wp.close()
-
 	cancelInputLoop := wp.Stdin.readInputLoop()
 	var exitInfo runner.ExitInfo
 	select {
@@ -258,7 +257,7 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 	}
 
 	log.WithField("runnerId", targetRunner.Id()).WithField("executionId", executionId).Info("Running execution")
-	exit, cancel := targetRunner.Execute(executionRequest, proxy.Stdin, proxy.Stdout, proxy.Stderr)
+	exit, cancel := targetRunner.ExecuteInteractively(executionRequest, proxy.Stdin, proxy.Stdout, proxy.Stderr)
 
 	proxy.waitForExit(exit, cancel)
 }

@@ -246,7 +246,7 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 
 func TestCreateJobSetsAllGivenArguments(t *testing.T) {
 	testJob, base := createTestJob()
-	manager := NomadEnvironmentManager{&runner.NomadRunnerManager{}, &nomad.ApiClient{}, *base}
+	manager := NomadEnvironmentManager{&runner.NomadRunnerManager{}, &nomad.APIClient{}, *base}
 	job := createJob(
 		manager.defaultJob,
 		*testJob.ID,

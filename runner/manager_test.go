@@ -95,8 +95,10 @@ func (s *ManagerTestSuite) TestClaimDoesNotReturnTheSameRunnerTwice() {
 	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
 	s.AddIdleRunnerForDefaultEnvironment(NewRunner(tests.AnotherRunnerId))
 
-	firstReceivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentId)
-	secondReceivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentId)
+	firstReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentId)
+	require.NoError(s.T(), err)
+	secondReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentId)
+	require.NoError(s.T(), err)
 	s.NotEqual(firstReceivedRunner, secondReceivedRunner)
 }
 
@@ -109,7 +111,8 @@ func (s *ManagerTestSuite) TestClaimThrowsAnErrorIfNoRunnersAvailable() {
 func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 	s.mockRunnerQueries([]string{tests.DefaultRunnerId})
 	s.waitForRunnerRefresh()
-	receivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentId)
+	receivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentId)
+	require.NoError(s.T(), err)
 	savedRunner, ok := s.nomadRunnerManager.usedRunners.Get(receivedRunner.Id())
 	s.True(ok)
 	s.Equal(savedRunner, receivedRunner)

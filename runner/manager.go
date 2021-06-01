@@ -25,7 +25,7 @@ type NomadJobId string
 // Manager keeps track of the used and unused runners of all execution environments in order to provide unused runners to new clients and ensure no runner is used twice.
 type Manager interface {
 	// RegisterEnvironment adds a new environment that should be managed.
-	RegisterEnvironment(environmentId EnvironmentId, nomadJobId NomadJobId, desiredIdleRunnersCount int)
+	RegisterEnvironment(environmentId EnvironmentId, nomadJobId NomadJobId, desiredIdleRunnersCount uint)
 
 	// EnvironmentExists returns whether the environment with the given id exists.
 	EnvironmentExists(id EnvironmentId) bool
@@ -61,14 +61,14 @@ type NomadJob struct {
 	environmentId           EnvironmentId
 	jobId                   NomadJobId
 	idleRunners             Storage
-	desiredIdleRunnersCount int
+	desiredIdleRunnersCount uint
 }
 
 func (j *NomadJob) Id() EnvironmentId {
 	return j.environmentId
 }
 
-func (m *NomadRunnerManager) RegisterEnvironment(environmentId EnvironmentId, nomadJobId NomadJobId, desiredIdleRunnersCount int) {
+func (m *NomadRunnerManager) RegisterEnvironment(environmentId EnvironmentId, nomadJobId NomadJobId, desiredIdleRunnersCount uint) {
 	m.jobs.Add(&NomadJob{
 		environmentId,
 		nomadJobId,
@@ -120,7 +120,7 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentId) {
 		// this environment does not exist
 		return
 	}
-	lastJobScaling := -1
+	var lastJobScaling uint = 0
 	for {
 		runners, err := m.apiClient.LoadRunners(string(job.jobId))
 		if err != nil {
@@ -138,7 +138,7 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentId) {
 			log.WithError(err).Printf("Failed get allocation count")
 			break
 		}
-		additionallyNeededRunners := job.desiredIdleRunnersCount - job.idleRunners.Length() + 1
+		additionallyNeededRunners := job.desiredIdleRunnersCount - uint(job.idleRunners.Length()) + 1
 		requiredRunnerCount := jobScale
 		if additionallyNeededRunners > 0 {
 			requiredRunnerCount += additionallyNeededRunners

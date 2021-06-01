@@ -17,18 +17,19 @@ func (nc *nomadApiClient) LoadJobList() (list []*nomadApi.JobListStub, err error
 }
 
 // JobScale returns the scale of the passed job.
-func (nc *nomadApiClient) JobScale(jobId string) (jobScale int, err error) {
+func (nc *nomadApiClient) JobScale(jobId string) (jobScale uint, err error) {
 	status, _, err := nc.client.Jobs().ScaleStatus(jobId, nil)
 	if err != nil {
 		return
 	}
 	// ToDo: Consider counting also the placed and desired allocations
-	jobScale = status.TaskGroups[fmt.Sprintf(TaskGroupNameFormat, jobId)].Running
+	jobScale = uint(status.TaskGroups[fmt.Sprintf(TaskGroupNameFormat, jobId)].Running)
 	return
 }
 
 // SetJobScale sets the scaling count of the passed job to Nomad.
-func (nc *nomadApiClient) SetJobScale(jobId string, count int, reason string) (err error) {
-	_, _, err = nc.client.Jobs().Scale(jobId, fmt.Sprintf(TaskGroupNameFormat, jobId), &count, reason, false, nil, nil)
+func (nc *nomadApiClient) SetJobScale(jobId string, count uint, reason string) (err error) {
+	intCount := int(count)
+	_, _, err = nc.client.Jobs().Scale(jobId, fmt.Sprintf(TaskGroupNameFormat, jobId), &intCount, reason, false, nil, nil)
 	return
 }

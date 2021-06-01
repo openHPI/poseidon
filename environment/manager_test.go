@@ -53,7 +53,7 @@ func (s *CreateOrUpdateTestSuite) mockEnvironmentExists(exists bool) {
 
 func (s *CreateOrUpdateTestSuite) mockRegisterEnvironment() *mock.Call {
 	return s.runnerManagerMock.On("RegisterEnvironment",
-		mock.AnythingOfType("EnvironmentId"), mock.AnythingOfType("NomadJobId"), mock.AnythingOfType("int")).
+		mock.AnythingOfType("EnvironmentId"), mock.AnythingOfType("NomadJobId"), mock.AnythingOfType("uint")).
 		Return()
 }
 

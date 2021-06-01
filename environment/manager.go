@@ -57,7 +57,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	if err == nil {
 		if !exists {
 			m.runnerManager.RegisterEnvironment(
-				runner.EnvironmentId(idInt), runner.NomadJobId(id), int(request.PrewarmingPoolSize))
+				runner.EnvironmentId(idInt), runner.NomadJobId(id), request.PrewarmingPoolSize)
 		}
 		return !exists, nil
 	}

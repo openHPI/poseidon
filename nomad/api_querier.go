@@ -16,10 +16,10 @@ type apiQuerier interface {
 	LoadJobList() (list []*nomadApi.JobListStub, err error)
 
 	// JobScale returns the scale of the passed job.
-	JobScale(jobId string) (jobScale int, err error)
+	JobScale(jobId string) (jobScale uint, err error)
 
 	// SetJobScale sets the scaling count of the passed job to Nomad.
-	SetJobScale(jobId string, count int, reason string) (err error)
+	SetJobScale(jobId string, count uint, reason string) (err error)
 
 	// DeleteRunner deletes the runner with the given Id.
 	DeleteRunner(runnerId string) (err error)

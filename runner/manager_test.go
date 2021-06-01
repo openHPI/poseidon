@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultDesiredRunnersCount = 5
+	defaultDesiredRunnersCount uint = 5
 )
 
 func TestGetNextRunnerTestSuite(t *testing.T) {
@@ -38,8 +38,8 @@ func (s *ManagerTestSuite) mockRunnerQueries(returnedRunnerIds []string) {
 	// reset expected calls to allow new mocked return values
 	s.apiMock.ExpectedCalls = []*mock.Call{}
 	s.apiMock.On("LoadRunners", tests.DefaultJobId).Return(returnedRunnerIds, nil)
-	s.apiMock.On("JobScale", tests.DefaultJobId).Return(len(returnedRunnerIds), nil)
-	s.apiMock.On("SetJobScale", tests.DefaultJobId, mock.AnythingOfType("int"), "Runner Requested").Return(nil)
+	s.apiMock.On("JobScale", tests.DefaultJobId).Return(uint(len(returnedRunnerIds)), nil)
+	s.apiMock.On("SetJobScale", tests.DefaultJobId, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)
 }
 
 func (s *ManagerTestSuite) registerDefaultEnvironment() {

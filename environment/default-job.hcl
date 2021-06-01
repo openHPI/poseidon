@@ -13,6 +13,7 @@ job "default-poseidon-job" {
     count = 1
     scaling {
       enabled = true
+      min = 0
       max = 300
     }
     spread {

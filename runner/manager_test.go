@@ -168,7 +168,7 @@ func (s *ManagerTestSuite) TestRefreshScalesJob() {
 	// use one runner to necessitate rescaling
 	_, _ = s.nomadRunnerManager.Claim(defaultEnvironmentId)
 	s.waitForRunnerRefresh()
-	s.apiMock.AssertCalled(s.T(), "SetJobScale", tests.DefaultJobId, defaultDesiredRunnersCount+1, "Runner Requested")
+	s.apiMock.AssertCalled(s.T(), "SetJobScale", tests.DefaultJobId, defaultDesiredRunnersCount, "Runner Requested")
 }
 
 func (s *ManagerTestSuite) TestRefreshAddsRunnerToPool() {

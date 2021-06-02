@@ -18,7 +18,7 @@ var (
 	errPlacingAllocations = errors.New("failed to place all allocations")
 )
 
-type allocationProcessor func(*nomadApi.Allocation)
+type AllocationProcessor func(*nomadApi.Allocation)
 
 // ExecutorApi provides access to an container orchestration solution
 type ExecutorApi interface {
@@ -35,7 +35,7 @@ type ExecutorApi interface {
 
 	// WatchAllocations listens on the Nomad event stream for allocation events.
 	// Depending on the incoming event, any of the given function is executed.
-	WatchAllocations(ctx context.Context, onNewAllocation, onDeletedAllocation allocationProcessor) error
+	WatchAllocations(ctx context.Context, onNewAllocation, onDeletedAllocation AllocationProcessor) error
 }
 
 // APIClient implements the ExecutorApi interface and can be used to perform different operations on the real Executor API and its return values.
@@ -62,7 +62,6 @@ func (a *APIClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
 
 // LoadRunners loads the allocations of the specified job.
 func (a *APIClient) LoadRunners(jobID string) (runnerIds []string, err error) {
-	// list, _, err := apiClient.client.Jobs().Allocations(jobID, true, nil)
 	list, err := a.loadRunners(jobID)
 	if err != nil {
 		return nil, err
@@ -79,23 +78,23 @@ func (a *APIClient) LoadRunners(jobID string) (runnerIds []string, err error) {
 func (a *APIClient) MonitorEvaluation(evalID string, ctx context.Context) error {
 	stream, err := a.EvaluationStream(evalID, ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed retrieving evaluation stream: %w", err)
 	}
 	// If ctx is canceled, the stream will be closed by Nomad and we exit the for loop.
 	return receiveAndHandleNomadAPIEvents(stream, handleEvaluationEvent)
 }
 
 func (a *APIClient) WatchAllocations(ctx context.Context,
-	onNewAllocation, onDeletedAllocation allocationProcessor) error {
+	onNewAllocation, onDeletedAllocation AllocationProcessor) error {
 	startTime := time.Now().UnixNano()
 	stream, err := a.AllocationStream(ctx)
 	if err != nil {
 		return fmt.Errorf("failed retrieving allocation stream: %w", err)
 	}
-	waitingToRun := make(map[string]bool)
+	pendingAllocations := make(map[string]bool)
 
 	handler := func(event *nomadApi.Event) (bool, error) {
-		return false, handleAllocationEvent(startTime, waitingToRun, event, onNewAllocation, onDeletedAllocation)
+		return false, handleAllocationEvent(startTime, pendingAllocations, event, onNewAllocation, onDeletedAllocation)
 	}
 
 	err = receiveAndHandleNomadAPIEvents(stream, handler)
@@ -140,17 +139,16 @@ func handleEvaluationEvent(event *nomadApi.Event) (bool, error) {
 	switch eval.Status {
 	case structs.EvalStatusComplete, structs.EvalStatusCancelled, structs.EvalStatusFailed:
 		return true, checkEvaluation(eval)
-	default:
 	}
 	return false, nil
 }
 
 // handleAllocationEvent is a nomadAPIEventHandler that processes allocation events.
 // If a new allocation is received, onNewAllocation is called. If an allocation is deleted, onDeletedAllocation
-// is called. The waitingToRun map is used to store allocations that are pending but not started yet. Using the map
-// the state is persisted between multiple calls of this function.
-func handleAllocationEvent(startTime int64, waitingToRun map[string]bool, event *nomadApi.Event,
-	onNewAllocation, onDeletedAllocation allocationProcessor) error {
+// is called. The pendingAllocations map is used to store allocations that are pending but not started yet. Using the
+// map the state is persisted between multiple calls of this function.
+func handleAllocationEvent(startTime int64, pendingAllocations map[string]bool, event *nomadApi.Event,
+	onNewAllocation, onDeletedAllocation AllocationProcessor) error {
 	alloc, err := event.Allocation()
 	if err != nil {
 		return fmt.Errorf("failed retrieving allocation from event: %w", err)
@@ -182,7 +180,7 @@ func handleAllocationEvent(startTime int64, waitingToRun map[string]bool, event 
 
 	if alloc.ClientStatus == structs.AllocClientStatusPending && alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		// allocation is started, wait until it runs and add to our list afterwards
-		waitingToRun[alloc.ID] = true
+		pendingAllocations[alloc.ID] = true
 	}
 	return nil
 }

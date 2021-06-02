@@ -3,6 +3,9 @@ package runner
 import (
 	"context"
 	"errors"
+	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -40,7 +43,7 @@ func (s *ManagerTestSuite) mockRunnerQueries(returnedRunnerIds []string) {
 	s.apiMock.ExpectedCalls = []*mock.Call{}
 	s.apiMock.On("WatchAllocations", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.apiMock.On("LoadRunners", tests.DefaultJobId).Return(returnedRunnerIds, nil)
-	s.apiMock.On("JobScale", tests.DefaultJobId).Return(uint(len(returnedRunnerIds)), nil)
+	s.apiMock.On("JobScale", tests.DefaultJobId).Return(len(returnedRunnerIds), nil)
 	s.apiMock.On("SetJobScale", tests.DefaultJobId, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)
 }
 
@@ -181,6 +184,80 @@ func (s *ManagerTestSuite) TestRefreshAddsRunnerToPool() {
 	s.waitForRunnerRefresh()
 	job, _ := s.nomadRunnerManager.jobs.Get(defaultEnvironmentId)
 	poolRunner, ok := job.idleRunners.Get(tests.DefaultRunnerId)
+	s.True(ok)
+	s.Equal(tests.DefaultRunnerId, poolRunner.Id())
+}
+
+func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
+	var hook *test.Hook
+	logger, hook := test.NewNullLogger()
+	log = logger.WithField("pkg", "runner")
+	s.modifyMockedCall("WatchAllocations", func(call *mock.Call) {
+		call.Return(tests.DefaultError)
+	})
+
+	s.nomadRunnerManager.updateRunners(context.Background())
+
+	require.Equal(s.T(), 1, len(hook.Entries))
+	s.Equal(logrus.ErrorLevel, hook.LastEntry().Level)
+	s.Equal(hook.LastEntry().Data[logrus.ErrorKey], tests.DefaultError)
+}
+
+func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
+	allocation := &nomadApi.Allocation{ID: tests.AllocationID}
+	defaultJob, ok := s.nomadRunnerManager.jobs.Get(defaultEnvironmentId)
+	require.True(s.T(), ok)
+	allocation.JobID = string(defaultJob.jobId)
+
+	_, ok = defaultJob.idleRunners.Get(allocation.ID)
+	require.False(s.T(), ok)
+
+	s.modifyMockedCall("WatchAllocations", func(call *mock.Call) {
+		call.Run(func(args mock.Arguments) {
+			onCreate, ok := args.Get(1).(nomad.AllocationProcessor)
+			require.True(s.T(), ok)
+			onCreate(allocation)
+		})
+	})
+
+	s.nomadRunnerManager.updateRunners(context.Background())
+
+	_, ok = defaultJob.idleRunners.Get(allocation.ID)
+	s.True(ok)
+}
+
+func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
+	allocation := &nomadApi.Allocation{ID: tests.AllocationID}
+	defaultJob, ok := s.nomadRunnerManager.jobs.Get(defaultEnvironmentId)
+	require.True(s.T(), ok)
+	allocation.JobID = string(defaultJob.jobId)
+
+	testRunner := NewRunner(allocation.ID)
+	defaultJob.idleRunners.Add(testRunner)
+	s.nomadRunnerManager.usedRunners.Add(testRunner)
+
+	s.modifyMockedCall("WatchAllocations", func(call *mock.Call) {
+		call.Run(func(args mock.Arguments) {
+			onDelete, ok := args.Get(2).(nomad.AllocationProcessor)
+			require.True(s.T(), ok)
+			onDelete(allocation)
+		})
+	})
+
+	s.nomadRunnerManager.updateRunners(context.Background())
+
+	_, ok = defaultJob.idleRunners.Get(allocation.ID)
+	s.False(ok)
+	_, ok = s.nomadRunnerManager.usedRunners.Get(allocation.ID)
+	s.False(ok)
+}
+
+func (s *ManagerTestSuite) modifyMockedCall(method string, modifier func(call *mock.Call)) {
+	for _, c := range s.apiMock.ExpectedCalls {
+		if c.Method == method {
+			modifier(c)
+		}
+	}
 	s.True(ok)
 	s.Equal(tests.DefaultRunnerId, poolRunner.Id())
 }

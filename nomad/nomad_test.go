@@ -17,8 +17,6 @@ import (
 	"time"
 )
 
-var errEvent = errors.New("my events error")
-
 func TestLoadRunnersTestSuite(t *testing.T) {
 	suite.Run(t, new(LoadRunnersTestSuite))
 }
@@ -34,97 +32,94 @@ type LoadRunnersTestSuite struct {
 	stoppingRunner         *nomadApi.AllocationListStub
 }
 
-func (suite *LoadRunnersTestSuite) SetupTest() {
-	suite.jobId = "1d-0f-v3ry-sp3c14l-j0b"
+func (s *LoadRunnersTestSuite) SetupTest() {
+	s.jobId = "1d-0f-v3ry-sp3c14l-j0b"
 
-	suite.mock = &apiQuerierMock{}
-	suite.nomadApiClient = APIClient{apiQuerier: suite.mock}
+	s.mock = &apiQuerierMock{}
+	s.nomadApiClient = APIClient{apiQuerier: s.mock}
 
-	suite.availableRunner = &nomadApi.AllocationListStub{
+	s.availableRunner = &nomadApi.AllocationListStub{
 		ID:            "s0m3-r4nd0m-1d",
 		ClientStatus:  nomadApi.AllocClientStatusRunning,
 		DesiredStatus: nomadApi.AllocDesiredStatusRun,
 	}
 
-	suite.anotherAvailableRunner = &nomadApi.AllocationListStub{
+	s.anotherAvailableRunner = &nomadApi.AllocationListStub{
 		ID:            "s0m3-s1m1l4r-1d",
 		ClientStatus:  nomadApi.AllocClientStatusRunning,
 		DesiredStatus: nomadApi.AllocDesiredStatusRun,
 	}
 
-	suite.stoppedRunner = &nomadApi.AllocationListStub{
+	s.stoppedRunner = &nomadApi.AllocationListStub{
 		ID:            "4n0th3r-1d",
 		ClientStatus:  nomadApi.AllocClientStatusComplete,
 		DesiredStatus: nomadApi.AllocDesiredStatusRun,
 	}
 
-	suite.stoppingRunner = &nomadApi.AllocationListStub{
+	s.stoppingRunner = &nomadApi.AllocationListStub{
 		ID:            "th1rd-1d",
 		ClientStatus:  nomadApi.AllocClientStatusRunning,
 		DesiredStatus: nomadApi.AllocDesiredStatusStop,
 	}
 }
 
-func (suite *LoadRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
+func (s *LoadRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
 	errorString := "api errored"
-	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
+	s.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return(nil, errors.New(errorString))
 
-	returnedIds, err := suite.nomadApiClient.LoadRunners(suite.jobId)
-	suite.Nil(returnedIds)
-	suite.Error(err)
+	returnedIds, err := s.nomadApiClient.LoadRunners(s.jobId)
+	s.Nil(returnedIds)
+	s.Error(err)
 }
 
-func (suite *LoadRunnersTestSuite) TestThrowsNoErrorWhenUnderlyingApiCallDoesNot() {
-	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
+func (s *LoadRunnersTestSuite) TestThrowsNoErrorWhenUnderlyingApiCallDoesNot() {
+	s.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return([]*nomadApi.AllocationListStub{}, nil)
 
-	_, err := suite.nomadApiClient.LoadRunners(suite.jobId)
-	suite.NoError(err)
+	_, err := s.nomadApiClient.LoadRunners(s.jobId)
+	s.NoError(err)
 }
 
-func (suite *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
-	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
-		Return([]*nomadApi.AllocationListStub{suite.availableRunner}, nil)
+func (s *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
+	s.mock.On("loadRunners", mock.AnythingOfType("string")).
+		Return([]*nomadApi.AllocationListStub{s.availableRunner}, nil)
 
-	returnedIds, err := suite.nomadApiClient.LoadRunners(suite.jobId)
-	require.NoError(suite.T(), err)
-	suite.Len(returnedIds, 1)
-	suite.Equal(suite.availableRunner.ID, returnedIds[0])
+	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
+	s.Len(returnedIds, 1)
+	s.Equal(s.availableRunner.ID, returnedIds[0])
 }
 
-func (suite *LoadRunnersTestSuite) TestStoppedRunnerIsNotReturned() {
-	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
-		Return([]*nomadApi.AllocationListStub{suite.stoppedRunner}, nil)
+func (s *LoadRunnersTestSuite) TestStoppedRunnerIsNotReturned() {
+	s.mock.On("loadRunners", mock.AnythingOfType("string")).
+		Return([]*nomadApi.AllocationListStub{s.stoppedRunner}, nil)
 
-	returnedIds, err := suite.nomadApiClient.LoadRunners(suite.jobId)
-	require.NoError(suite.T(), err)
-	suite.Empty(returnedIds)
+	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
+	s.Empty(returnedIds)
 }
 
-func (suite *LoadRunnersTestSuite) TestStoppingRunnerIsNotReturned() {
-	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
-		Return([]*nomadApi.AllocationListStub{suite.stoppingRunner}, nil)
+func (s *LoadRunnersTestSuite) TestStoppingRunnerIsNotReturned() {
+	s.mock.On("loadRunners", mock.AnythingOfType("string")).
+		Return([]*nomadApi.AllocationListStub{s.stoppingRunner}, nil)
 
-	returnedIds, err := suite.nomadApiClient.LoadRunners(suite.jobId)
-	require.NoError(suite.T(), err)
-	suite.Empty(returnedIds)
+	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
+	s.Empty(returnedIds)
 }
 
-func (suite *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
+func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	runnersList := []*nomadApi.AllocationListStub{
-		suite.availableRunner,
-		suite.anotherAvailableRunner,
-		suite.stoppedRunner,
-		suite.stoppingRunner,
+		s.availableRunner,
+		s.anotherAvailableRunner,
+		s.stoppedRunner,
+		s.stoppingRunner,
 	}
-	suite.mock.On("loadRunners", mock.AnythingOfType("string")).
+	s.mock.On("loadRunners", mock.AnythingOfType("string")).
 		Return(runnersList, nil)
 
-	returnedIds, _ := suite.nomadApiClient.LoadRunners(suite.jobId)
-	suite.Len(returnedIds, 2)
-	suite.Contains(returnedIds, suite.availableRunner.ID)
-	suite.Contains(returnedIds, suite.anotherAvailableRunner.ID)
+	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
+	s.Len(returnedIds, 2)
+	s.Contains(returnedIds, s.availableRunner.ID)
+	s.Contains(returnedIds, s.anotherAvailableRunner.ID)
 }
 
 var (
@@ -303,7 +298,7 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 	multipleEventsWithPending := nomadApi.Events{Events: []nomadApi.Event{
 		eventForEvaluation(t, pendingEval), eventForEvaluation(t, eval),
 	}}
-	eventsWithErr := nomadApi.Events{Err: errEvent, Events: []nomadApi.Event{{}}}
+	eventsWithErr := nomadApi.Events{Err: tests.DefaultError, Events: []nomadApi.Event{{}}}
 
 	var cases = []struct {
 		streamedEvents          []*nomadApi.Events
@@ -321,7 +316,7 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 			"it skips pending evaluation and fail"},
 		{[]*nomadApi.Events{&multipleEventsWithPending}, 1, evalErr,
 			"it handles multiple events per received event and fails"},
-		{[]*nomadApi.Events{&eventsWithErr}, 1, errEvent,
+		{[]*nomadApi.Events{&eventsWithErr}, 1, tests.DefaultError,
 			"it fails with event error when event has error"},
 	}
 
@@ -344,7 +339,7 @@ func TestApiClient_MonitorEvaluationFailsWhenFailingToDecodeEvaluation(t *testin
 	_, err := event.Evaluation()
 	require.NotNil(t, err)
 	eventsProcessed, err := runEvaluationMonitoring([]*nomadApi.Events{{Events: []nomadApi.Event{event}}})
-	assert.Equal(t, err, err)
+	assert.Error(t, err)
 	assert.Equal(t, 1, eventsProcessed)
 }
 
@@ -438,7 +433,7 @@ func TestApiClient_WatchAllocationsIgnoresUnhandledEvents(t *testing.T) {
 
 func TestApiClient_WatchAllocationsHandlesEvents(t *testing.T) {
 	newPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	newPendingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, newPendingAllocation)}}
+	pendingAllocationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, newPendingAllocation)}}
 
 	newStartedAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
 	startAllocationEvents := nomadApi.Events{Events: []nomadApi.Event{
@@ -459,7 +454,7 @@ func TestApiClient_WatchAllocationsHandlesEvents(t *testing.T) {
 		expectedDeletedAllocations []*nomadApi.Allocation
 		name                       string
 	}{
-		{[]*nomadApi.Events{&newPendingEvents},
+		{[]*nomadApi.Events{&pendingAllocationEvents},
 			[]*nomadApi.Allocation(nil), []*nomadApi.Allocation(nil),
 			"it does not add allocation when client status is pending"},
 		{[]*nomadApi.Events{&startAllocationEvents},
@@ -493,23 +488,22 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 	newPendingEvent := eventForAllocation(t, newPendingAllocation)
 
 	pendingMap := make(map[string]bool)
-	var doNothing allocationProcessor = func(allocation *nomadApi.Allocation) {}
+	var noop AllocationProcessor = func(allocation *nomadApi.Allocation) {}
 
-	err := handleAllocationEvent(time.Now().UnixNano(), pendingMap, &newPendingEvent, doNothing, doNothing)
+	err := handleAllocationEvent(time.Now().UnixNano(), pendingMap, &newPendingEvent, noop, noop)
 	require.NoError(t, err)
 
 	assert.True(t, pendingMap[newPendingAllocation.ID])
 }
 
 func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved(t *testing.T) {
-	testErr := errors.New("test error")
 	apiMock := &apiQuerierMock{}
-	apiMock.On("AllocationStream", mock.Anything).Return(nil, testErr)
+	apiMock.On("AllocationStream", mock.Anything).Return(nil, tests.DefaultError)
 	apiClient := &APIClient{apiMock}
 
 	noop := func(a *nomadApi.Allocation) {}
 	err := apiClient.WatchAllocations(context.Background(), noop, noop)
-	assert.ErrorIs(t, err, testErr)
+	assert.ErrorIs(t, err, tests.DefaultError)
 }
 
 func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWithoutReceivingFurtherEvents(t *testing.T) {
@@ -556,7 +550,7 @@ func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
 // to the MonitorEvaluation method. It starts the MonitorEvaluation function as a goroutine
 // and sequentially transfers the events from the given array to a channel simulating the stream.
 func runAllocationWatching(t *testing.T, events []*nomadApi.Events,
-	onNewAllocation, onDeletedAllocation allocationProcessor, ctx context.Context) (eventsProcessed int, err error) {
+	onNewAllocation, onDeletedAllocation AllocationProcessor, ctx context.Context) (eventsProcessed int, err error) {
 	t.Helper()
 	stream := make(chan *nomadApi.Events)
 	go func() {
@@ -572,7 +566,7 @@ func runAllocationWatching(t *testing.T, events []*nomadApi.Events,
 // version of the given stream to simulate an event stream gotten from the real
 // Nomad API.
 func asynchronouslyWatchAllocations(stream chan *nomadApi.Events,
-	onNewAllocation, onDeletedAllocation allocationProcessor) chan error {
+	onNewAllocation, onDeletedAllocation AllocationProcessor) chan error {
 	ctx := context.Background()
 	// We can only get a read-only channel once we return it from a function.
 	readOnlyStream := func() <-chan *nomadApi.Events { return stream }()

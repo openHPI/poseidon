@@ -217,11 +217,11 @@ func (_m *ExecutorApiMock) SetJobScale(jobId string, count uint, reason string) 
 }
 
 // WatchAllocations provides a mock function with given fields: ctx, onNewAllocation, onDeletedAllocation
-func (_m *ExecutorApiMock) WatchAllocations(ctx context.Context, onNewAllocation allocationProcessor, onDeletedAllocation allocationProcessor) error {
+func (_m *ExecutorApiMock) WatchAllocations(ctx context.Context, onNewAllocation AllocationProcessor, onDeletedAllocation AllocationProcessor) error {
 	ret := _m.Called(ctx, onNewAllocation, onDeletedAllocation)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, allocationProcessor, allocationProcessor) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, AllocationProcessor, AllocationProcessor) error); ok {
 		r0 = rf(ctx, onNewAllocation, onDeletedAllocation)
 	} else {
 		r0 = ret.Error(0)

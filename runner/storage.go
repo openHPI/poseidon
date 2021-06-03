@@ -70,5 +70,7 @@ func (s *localRunnerStorage) Sample() (Runner, bool) {
 }
 
 func (s *localRunnerStorage) Length() int {
+	s.RLock()
+	defer s.RUnlock()
 	return len(s.runners)
 }

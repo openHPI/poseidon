@@ -66,7 +66,7 @@ test: deps ## Run unit tests
 
 .PHONY: race
 race: deps ## Run data race detector
-	@go test -race -short $(UNIT_TESTS)
+	@go test -race -count=1 -short $(UNIT_TESTS)
 
 .PHONY: coverage
 coverage: deps ## Generate code coverage report

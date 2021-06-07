@@ -54,16 +54,11 @@ type Runner interface {
 type NomadAllocation struct {
 	ExecutionStorage
 	id  string
-	api nomad.ExecutorApi
-}
-
-// NewRunner creates a new runner with the provided id.
-func NewRunner(id string) Runner {
-	return NewNomadAllocation(id, nil)
+	api nomad.ExecutorAPI
 }
 
 // NewNomadAllocation creates a new Nomad allocation with the provided id.
-func NewNomadAllocation(id string, apiClient nomad.ExecutorApi) *NomadAllocation {
+func NewNomadAllocation(id string, apiClient nomad.ExecutorAPI) *NomadAllocation {
 	return &NomadAllocation{
 		id:               id,
 		api:              apiClient,
@@ -189,9 +184,9 @@ func tarHeader(file dto.File) *tar.Header {
 // This exports private attributes like the id too.
 func (r *NomadAllocation) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Id string `json:"runnerId"`
+		ID string `json:"runnerId"`
 	}{
-		Id: r.Id(),
+		ID: r.Id(),
 	})
 }
 

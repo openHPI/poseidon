@@ -173,13 +173,13 @@ type UpdateFileSystemRouteTestSuite struct {
 
 func (s *UpdateFileSystemRouteTestSuite) SetupTest() {
 	s.RunnerRouteTestSuite.SetupTest()
-	routeUrl, err := s.router.Get(UpdateFileSystemPath).URL(RunnerIdKey, tests.DefaultMockId)
+	routeUrl, err := s.router.Get(UpdateFileSystemPath).URL(RunnerIdKey, tests.DefaultMockID)
 	if err != nil {
 		s.T().Fatal(err)
 	}
 	s.path = routeUrl.String()
 	s.runnerMock = &runner.RunnerMock{}
-	s.runnerManager.On("Get", tests.DefaultMockId).Return(s.runnerMock, nil)
+	s.runnerManager.On("Get", tests.DefaultMockID).Return(s.runnerMock, nil)
 	s.recorder = httptest.NewRecorder()
 }
 

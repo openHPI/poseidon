@@ -48,17 +48,17 @@ func (s *CreateOrUpdateTestSuite) SetupTest() {
 }
 
 func (s *CreateOrUpdateTestSuite) mockEnvironmentExists(exists bool) {
-	s.runnerManagerMock.On("EnvironmentExists", mock.AnythingOfType("EnvironmentId")).Return(exists)
+	s.runnerManagerMock.On("EnvironmentExists", mock.AnythingOfType("EnvironmentID")).Return(exists)
 }
 
 func (s *CreateOrUpdateTestSuite) mockRegisterEnvironment() *mock.Call {
 	return s.runnerManagerMock.On("RegisterEnvironment",
-		mock.AnythingOfType("EnvironmentId"), mock.AnythingOfType("NomadJobId"), mock.AnythingOfType("uint")).
+		mock.AnythingOfType("EnvironmentID"), mock.AnythingOfType("NomadJobID"), mock.AnythingOfType("uint")).
 		Return()
 }
 
 func (s *CreateOrUpdateTestSuite) createJobForRequest() *nomadApi.Job {
-	return createJob(s.manager.defaultJob, tests.DefaultEnvironmentIdAsString,
+	return createJob(s.manager.defaultJob, tests.DefaultEnvironmentIDAsString,
 		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
 		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
 }
@@ -78,7 +78,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsRegistersCorrectJob()
 	s.mockEnvironmentExists(true)
 	expectedJob := s.createJobForRequest()
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIdAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.NoError(err)
 	s.False(created)
 	s.apiMock.AssertCalled(s.T(), "RegisterNomadJob", expectedJob)
@@ -87,16 +87,16 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsRegistersCorrectJob()
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsOccurredErrorIsPassed() {
 	s.mockEnvironmentExists(true)
 
-	s.registerNomadJobMockCall.Return("", tests.DefaultError)
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIdAsString, s.request)
+	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.False(created)
-	s.Equal(tests.DefaultError, err)
+	s.Equal(tests.ErrDefault, err)
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsReturnsFalse() {
 	s.mockEnvironmentExists(true)
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIdAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.NoError(err)
 	s.False(created)
 }
@@ -107,7 +107,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrec
 
 	expectedJob := s.createJobForRequest()
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIdAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.NoError(err)
 	s.True(created)
 	s.apiMock.AssertCalled(s.T(), "RegisterNomadJob", expectedJob)
@@ -117,20 +117,22 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrec
 	s.mockEnvironmentExists(false)
 	s.mockRegisterEnvironment()
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIdAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.True(created)
 	s.NoError(err)
 	s.runnerManagerMock.AssertCalled(s.T(), "RegisterEnvironment",
-		runner.EnvironmentId(tests.DefaultEnvironmentIdAsInteger), runner.NomadJobId(tests.DefaultEnvironmentIdAsString), s.request.PrewarmingPoolSize)
+		runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger),
+		runner.NomadJobID(tests.DefaultEnvironmentIDAsString),
+		s.request.PrewarmingPoolSize)
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistOccurredErrorIsPassedAndNoEnvironmentRegistered() {
 	s.mockEnvironmentExists(false)
 	s.mockRegisterEnvironment()
 
-	s.registerNomadJobMockCall.Return("", tests.DefaultError)
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIdAsString, s.request)
+	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.False(created)
-	s.Equal(tests.DefaultError, err)
+	s.Equal(tests.ErrDefault, err)
 	s.runnerManagerMock.AssertNotCalled(s.T(), "RegisterEnvironment")
 }

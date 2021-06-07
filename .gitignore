@@ -3,6 +3,7 @@ poseidon
 
 # Configuration file
 configuration.yaml
+tests/e2e/configuration.yaml
 
 # TLS certificate/key
 *.crt

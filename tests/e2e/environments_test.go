@@ -18,7 +18,7 @@ const (
 )
 
 func TestCreateOrUpdateEnvironment(t *testing.T) {
-	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIdAsString)
+	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
 
 	t.Run("returns bad request with empty body", func(t *testing.T) {
 		resp, err := helpers.HttpPut(path, strings.NewReader(""))
@@ -68,7 +68,7 @@ func TestCreateOrUpdateEnvironment(t *testing.T) {
 	})
 
 	_, _, err := nomadClient.Jobs().DeregisterOpts(
-		tests.AnotherEnvironmentIdAsString, &nomadApi.DeregisterOptions{Purge: true}, nil)
+		tests.AnotherEnvironmentIDAsString, &nomadApi.DeregisterOptions{Purge: true}, nil)
 	if err != nil {
 		t.Fatalf("Error when removing test job %v", err)
 	}
@@ -87,7 +87,7 @@ func assertPutReturnsStatusAndZeroContent(t *testing.T, path string,
 
 func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 	t.Helper()
-	job := findNomadJob(t, tests.AnotherEnvironmentIdAsString)
+	job := findNomadJob(t, tests.AnotherEnvironmentIDAsString)
 
 	assertEqualValueStringPointer(t, nomadNamespace, job.Namespace)
 	assertEqualValueStringPointer(t, "batch", job.Type)

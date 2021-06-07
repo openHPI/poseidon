@@ -16,62 +16,62 @@ type JobStoreTestSuite struct {
 	job        *NomadJob
 }
 
-func (suite *JobStoreTestSuite) SetupTest() {
-	suite.jobStorage = NewLocalNomadJobStorage()
-	suite.job = &NomadJob{environmentId: defaultEnvironmentId, jobId: tests.DefaultJobId}
+func (s *JobStoreTestSuite) SetupTest() {
+	s.jobStorage = NewLocalNomadJobStorage()
+	s.job = &NomadJob{environmentID: defaultEnvironmentID, jobID: tests.DefaultJobID}
 }
 
-func (suite *JobStoreTestSuite) TestAddedJobCanBeRetrieved() {
-	suite.jobStorage.Add(suite.job)
-	retrievedJob, ok := suite.jobStorage.Get(suite.job.Id())
-	suite.True(ok, "A saved runner should be retrievable")
-	suite.Equal(suite.job, retrievedJob)
+func (s *JobStoreTestSuite) TestAddedJobCanBeRetrieved() {
+	s.jobStorage.Add(s.job)
+	retrievedJob, ok := s.jobStorage.Get(s.job.ID())
+	s.True(ok, "A saved runner should be retrievable")
+	s.Equal(s.job, retrievedJob)
 }
 
-func (suite *JobStoreTestSuite) TestJobWithSameIdOverwritesOldOne() {
-	otherJobWithSameId := &NomadJob{environmentId: defaultEnvironmentId}
+func (s *JobStoreTestSuite) TestJobWithSameIdOverwritesOldOne() {
+	otherJobWithSameID := &NomadJob{environmentID: defaultEnvironmentID}
 	// assure runner is actually different
-	otherJobWithSameId.jobId = tests.AnotherJobId
-	suite.NotEqual(suite.job, otherJobWithSameId)
+	otherJobWithSameID.jobID = tests.AnotherJobID
+	s.NotEqual(s.job, otherJobWithSameID)
 
-	suite.jobStorage.Add(suite.job)
-	suite.jobStorage.Add(otherJobWithSameId)
-	retrievedJob, _ := suite.jobStorage.Get(suite.job.Id())
-	suite.NotEqual(suite.job, retrievedJob)
-	suite.Equal(otherJobWithSameId, retrievedJob)
+	s.jobStorage.Add(s.job)
+	s.jobStorage.Add(otherJobWithSameID)
+	retrievedJob, _ := s.jobStorage.Get(s.job.ID())
+	s.NotEqual(s.job, retrievedJob)
+	s.Equal(otherJobWithSameID, retrievedJob)
 }
 
-func (suite *JobStoreTestSuite) TestDeletedJobIsNotAccessible() {
-	suite.jobStorage.Add(suite.job)
-	suite.jobStorage.Delete(suite.job.Id())
-	retrievedRunner, ok := suite.jobStorage.Get(suite.job.Id())
-	suite.Nil(retrievedRunner)
-	suite.False(ok, "A deleted runner should not be accessible")
+func (s *JobStoreTestSuite) TestDeletedJobIsNotAccessible() {
+	s.jobStorage.Add(s.job)
+	s.jobStorage.Delete(s.job.ID())
+	retrievedRunner, ok := s.jobStorage.Get(s.job.ID())
+	s.Nil(retrievedRunner)
+	s.False(ok, "A deleted runner should not be accessible")
 }
 
-func (suite *JobStoreTestSuite) TestLenOfEmptyPoolIsZero() {
-	suite.Equal(0, suite.jobStorage.Length())
+func (s *JobStoreTestSuite) TestLenOfEmptyPoolIsZero() {
+	s.Equal(0, s.jobStorage.Length())
 }
 
-func (suite *JobStoreTestSuite) TestLenChangesOnStoreContentChange() {
-	suite.Run("len increases when job is added", func() {
-		suite.jobStorage.Add(suite.job)
-		suite.Equal(1, suite.jobStorage.Length())
+func (s *JobStoreTestSuite) TestLenChangesOnStoreContentChange() {
+	s.Run("len increases when job is added", func() {
+		s.jobStorage.Add(s.job)
+		s.Equal(1, s.jobStorage.Length())
 	})
 
-	suite.Run("len does not increase when job with same id is added", func() {
-		suite.jobStorage.Add(suite.job)
-		suite.Equal(1, suite.jobStorage.Length())
+	s.Run("len does not increase when job with same id is added", func() {
+		s.jobStorage.Add(s.job)
+		s.Equal(1, s.jobStorage.Length())
 	})
 
-	suite.Run("len increases again when different job is added", func() {
-		anotherJob := &NomadJob{environmentId: anotherEnvironmentId}
-		suite.jobStorage.Add(anotherJob)
-		suite.Equal(2, suite.jobStorage.Length())
+	s.Run("len increases again when different job is added", func() {
+		anotherJob := &NomadJob{environmentID: anotherEnvironmentID}
+		s.jobStorage.Add(anotherJob)
+		s.Equal(2, s.jobStorage.Length())
 	})
 
-	suite.Run("len decreases when job is deleted", func() {
-		suite.jobStorage.Delete(suite.job.Id())
-		suite.Equal(1, suite.jobStorage.Length())
+	s.Run("len decreases when job is deleted", func() {
+		s.jobStorage.Delete(s.job.ID())
+		s.Equal(1, s.jobStorage.Length())
 	})
 }

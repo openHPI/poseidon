@@ -42,7 +42,7 @@ func TestCreateOrUpdateEnvironmentTestSuite(t *testing.T) {
 
 func (s *CreateOrUpdateEnvironmentTestSuite) SetupTest() {
 	s.EnvironmentControllerTestSuite.SetupTest()
-	s.id = tests.DefaultEnvironmentIdAsString
+	s.id = tests.DefaultEnvironmentIDAsString
 	testURL, err := s.router.Get(createOrUpdateRouteName).URL(executionEnvironmentIDKey, s.id)
 	if err != nil {
 		s.T().Fatal(err)
@@ -71,7 +71,7 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsBadRequestWhenBadBody() 
 }
 
 func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsInternalServerErrorWhenManagerReturnsError() {
-	testError := tests.DefaultError
+	testError := tests.ErrDefault
 	s.manager.
 		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).
 		Return(false, testError)

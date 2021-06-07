@@ -19,8 +19,8 @@ type RunnerPoolTestSuite struct {
 
 func (suite *RunnerPoolTestSuite) SetupTest() {
 	suite.runnerStorage = NewLocalRunnerStorage()
-	suite.runner = NewRunner(tests.DefaultRunnerId)
-	suite.runner.Add(tests.DefaultExecutionId, &dto.ExecutionRequest{Command: "true"})
+	suite.runner = NewRunner(tests.DefaultRunnerID)
+	suite.runner.Add(tests.DefaultExecutionID, &dto.ExecutionRequest{Command: "true"})
 }
 
 func (suite *RunnerPoolTestSuite) TestAddedRunnerCanBeRetrieved() {
@@ -86,7 +86,7 @@ func (suite *RunnerPoolTestSuite) TestLenChangesOnStoreContentChange() {
 	})
 
 	suite.Run("len increases again when different runner is added", func() {
-		anotherRunner := NewRunner(tests.AnotherRunnerId)
+		anotherRunner := NewRunner(tests.AnotherRunnerID)
 		suite.runnerStorage.Add(anotherRunner)
 		suite.Equal(2, suite.runnerStorage.Length())
 	})

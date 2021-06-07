@@ -14,50 +14,47 @@ import (
 var (
 	log                              = logging.GetLogger("nomad")
 	ErrorExecutorCommunicationFailed = errors.New("communication with executor failed")
-	errEvaluation         = errors.New("evaluation could not complete")
-	errPlacingAllocations = errors.New("failed to place all allocations")
+	errEvaluation                    = errors.New("evaluation could not complete")
+	errPlacingAllocations            = errors.New("failed to place all allocations")
 )
 
 type AllocationProcessor func(*nomadApi.Allocation)
 
-// ExecutorApi provides access to an container orchestration solution
-type ExecutorApi interface {
+// ExecutorAPI provides access to an container orchestration solution.
+type ExecutorAPI interface {
 	apiQuerier
 
 	// LoadRunners loads all allocations of the specified job which are running and not about to get stopped.
 	LoadRunners(jobID string) (runnerIds []string, err error)
 
 	// MonitorEvaluation monitors the given evaluation ID.
-	// It waits until the evaluation reaches one of the states complete, cancelled or failed.
+	// It waits until the evaluation reaches one of the states complete, canceled or failed.
 	// If the evaluation was not successful, an error containing the failures is returned.
 	// See also https://github.com/hashicorp/nomad/blob/7d5a9ecde95c18da94c9b6ace2565afbfdd6a40d/command/monitor.go#L175
-	MonitorEvaluation(evalID string, ctx context.Context) error
+	MonitorEvaluation(evaluationID string, ctx context.Context) error
 
 	// WatchAllocations listens on the Nomad event stream for allocation events.
 	// Depending on the incoming event, any of the given function is executed.
 	WatchAllocations(ctx context.Context, onNewAllocation, onDeletedAllocation AllocationProcessor) error
 }
 
-// APIClient implements the ExecutorApi interface and can be used to perform different operations on the real Executor API and its return values.
+// APIClient implements the ExecutorAPI interface and can be used to perform different operations on the real
+// Executor API and its return values.
 type APIClient struct {
 	apiQuerier
 }
 
 // NewExecutorAPI creates a new api client.
 // One client is usually sufficient for the complete runtime of the API.
-func NewExecutorAPI(nomadURL *url.URL, nomadNamespace string) (ExecutorApi, error) {
-	client := &APIClient{apiQuerier: &nomadApiClient{}}
+func NewExecutorAPI(nomadURL *url.URL, nomadNamespace string) (ExecutorAPI, error) {
+	client := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := client.init(nomadURL, nomadNamespace)
 	return client, err
 }
 
 // init prepares an apiClient to be able to communicate to a provided Nomad API.
-func (a *APIClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
-	err = a.apiQuerier.init(nomadURL, nomadNamespace)
-	if err != nil {
-		return err
-	}
-	return nil
+func (a *APIClient) init(nomadURL *url.URL, nomadNamespace string) error {
+	return a.apiQuerier.init(nomadURL, nomadNamespace)
 }
 
 // LoadRunners loads the allocations of the specified job.
@@ -72,11 +69,11 @@ func (a *APIClient) LoadRunners(jobID string) (runnerIds []string, err error) {
 			runnerIds = append(runnerIds, stub.ID)
 		}
 	}
-	return
+	return runnerIds, nil
 }
 
-func (a *APIClient) MonitorEvaluation(evalID string, ctx context.Context) error {
-	stream, err := a.EvaluationStream(evalID, ctx)
+func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) error {
+	stream, err := a.EvaluationStream(evaluationID, ctx)
 	if err != nil {
 		return fmt.Errorf("failed retrieving evaluation stream: %w", err)
 	}
@@ -120,8 +117,8 @@ func receiveAndHandleNomadAPIEvents(stream <-chan *nomadApi.Events, handler noma
 		}
 		for _, event := range events.Events {
 			// Don't take the address of the loop variable as the underlying value might change
-			localEvent := event
-			done, err := handler(&localEvent)
+			eventCopy := event
+			done, err := handler(&eventCopy)
 			if err != nil || done {
 				return err
 			}
@@ -130,11 +127,12 @@ func receiveAndHandleNomadAPIEvents(stream <-chan *nomadApi.Events, handler noma
 	return nil
 }
 
-// handleEvaluationEvent is a nomadAPIEventHandler that returns the status of an evaluation in the event.
+// handleEvaluationEvent is a nomadAPIEventHandler that returns whether the evaluation described by the event
+// was successful.
 func handleEvaluationEvent(event *nomadApi.Event) (bool, error) {
 	eval, err := event.Evaluation()
 	if err != nil {
-		return true, fmt.Errorf("failed monitoring evaluation: %w", err)
+		return true, fmt.Errorf("failed to monitor evaluation: %w", err)
 	}
 	switch eval.Status {
 	case structs.EvalStatusComplete, structs.EvalStatusCancelled, structs.EvalStatusFailed:
@@ -149,11 +147,13 @@ func handleEvaluationEvent(event *nomadApi.Event) (bool, error) {
 // map the state is persisted between multiple calls of this function.
 func handleAllocationEvent(startTime int64, pendingAllocations map[string]bool, event *nomadApi.Event,
 	onNewAllocation, onDeletedAllocation AllocationProcessor) error {
+	if event.Type != structs.TypeAllocationUpdated {
+		return nil
+	}
 	alloc, err := event.Allocation()
 	if err != nil {
-		return fmt.Errorf("failed retrieving allocation from event: %w", err)
-	}
-	if alloc == nil || event.Type != structs.TypeAllocationUpdated {
+		return fmt.Errorf("failed to retrieve allocation from event: %w", err)
+	} else if alloc == nil {
 		return nil
 	}
 
@@ -169,7 +169,7 @@ func handleAllocationEvent(startTime int64, pendingAllocations map[string]bool, 
 		case structs.AllocDesiredStatusStop:
 			onDeletedAllocation(alloc)
 		case structs.AllocDesiredStatusRun:
-			// first event that marks the transition between pending and running
+			// is first event that marks the transition between pending and running?
 			_, ok := pendingAllocations[alloc.ID]
 			if ok {
 				onNewAllocation(alloc)
@@ -194,8 +194,8 @@ func checkEvaluation(eval *nomadApi.Evaluation) (err error) {
 		}
 	} else {
 		err = fmt.Errorf("evaluation %q finished with status %q but %w", eval.ID, eval.Status, errPlacingAllocations)
-		for tg, metrics := range eval.FailedTGAllocs {
-			err = fmt.Errorf("%w\n%s: %#v", err, tg, metrics)
+		for taskGroup, metrics := range eval.FailedTGAllocs {
+			err = fmt.Errorf("%w\n%s: %#v", err, taskGroup, metrics)
 		}
 		if eval.BlockedEval != "" {
 			err = fmt.Errorf("%w\nEvaluation %q waiting for additional capacity to place remainder", err, eval.BlockedEval)

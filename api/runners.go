@@ -45,7 +45,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	if err := parseJSONRequestBody(writer, request, runnerRequest); err != nil {
 		return
 	}
-	environmentId := runner.EnvironmentId(runnerRequest.ExecutionEnvironmentId)
+	environmentId := runner.EnvironmentID(runnerRequest.ExecutionEnvironmentId)
 	nextRunner, err := r.manager.Claim(environmentId)
 	if err != nil {
 		if err == runner.ErrUnknownExecutionEnvironment {

@@ -12,10 +12,11 @@ type NomadJobStorage interface {
 
 	// Get returns a job from the storage.
 	// Iff the job does not exist in the store, ok will be false.
-	Get(id EnvironmentId) (job *NomadJob, ok bool)
+	Get(id EnvironmentID) (job *NomadJob, ok bool)
 
-	// Delete deletes the job with the passed id from the storage. It does nothing if no job with the id is present in the storage.
-	Delete(id EnvironmentId)
+	// Delete deletes the job with the passed id from the storage. It does nothing if no job with the id is present in
+	// the storage.
+	Delete(id EnvironmentID)
 
 	// Length returns the number of currently stored jobs in the storage.
 	Length() int
@@ -24,31 +25,31 @@ type NomadJobStorage interface {
 // localNomadJobStorage stores NomadJob objects in the local application memory.
 type localNomadJobStorage struct {
 	sync.RWMutex
-	jobs map[EnvironmentId]*NomadJob
+	jobs map[EnvironmentID]*NomadJob
 }
 
 // NewLocalNomadJobStorage responds with an empty localNomadJobStorage.
 // This implementation stores the data thread-safe in the local application memory.
 func NewLocalNomadJobStorage() *localNomadJobStorage {
 	return &localNomadJobStorage{
-		jobs: make(map[EnvironmentId]*NomadJob),
+		jobs: make(map[EnvironmentID]*NomadJob),
 	}
 }
 
 func (s *localNomadJobStorage) Add(job *NomadJob) {
 	s.Lock()
 	defer s.Unlock()
-	s.jobs[job.Id()] = job
+	s.jobs[job.ID()] = job
 }
 
-func (s *localNomadJobStorage) Get(id EnvironmentId) (job *NomadJob, ok bool) {
+func (s *localNomadJobStorage) Get(id EnvironmentID) (job *NomadJob, ok bool) {
 	s.RLock()
 	defer s.RUnlock()
 	job, ok = s.jobs[id]
 	return
 }
 
-func (s *localNomadJobStorage) Delete(id EnvironmentId) {
+func (s *localNomadJobStorage) Delete(id EnvironmentID) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.jobs, id)

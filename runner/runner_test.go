@@ -75,18 +75,18 @@ func TestFromContextReturnsIsNotOkWhenContextHasNoRunner(t *testing.T) {
 func TestExecuteCallsAPI(t *testing.T) {
 	apiMock := &nomad.ExecutorApiMock{}
 	apiMock.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).Return(0, nil)
-	runner := NewNomadAllocation(tests.DefaultRunnerId, apiMock)
+	runner := NewNomadAllocation(tests.DefaultRunnerID, apiMock)
 
 	request := &dto.ExecutionRequest{Command: "echo 'Hello World!'"}
 	runner.ExecuteInteractively(request, nil, nil, nil)
 
 	<-time.After(50 * time.Millisecond)
-	apiMock.AssertCalled(t, "ExecuteCommand", tests.DefaultRunnerId, mock.Anything, request.FullCommand(), true, mock.Anything, mock.Anything, mock.Anything)
+	apiMock.AssertCalled(t, "ExecuteCommand", tests.DefaultRunnerID, mock.Anything, request.FullCommand(), true, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestExecuteReturnsAfterTimeout(t *testing.T) {
 	apiMock := newApiMockWithTimeLimitHandling()
-	runner := NewNomadAllocation(tests.DefaultRunnerId, apiMock)
+	runner := NewNomadAllocation(tests.DefaultRunnerID, apiMock)
 
 	timeLimit := 1
 	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
@@ -133,8 +133,8 @@ type UpdateFileSystemTestSuite struct {
 
 func (s *UpdateFileSystemTestSuite) SetupTest() {
 	s.apiMock = &nomad.ExecutorApiMock{}
-	s.runner = NewNomadAllocation(tests.DefaultRunnerId, s.apiMock)
-	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerId, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+	s.runner = NewNomadAllocation(tests.DefaultRunnerID, s.apiMock)
+	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			s.command = args.Get(2).([]string)
 			s.stdin = args.Get(4).(*bytes.Buffer)
@@ -160,7 +160,7 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfE
 }
 
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfApiCallDid() {
-	s.mockedExecuteCommandCall.Return(0, tests.DefaultError)
+	s.mockedExecuteCommandCall.Return(0, tests.ErrDefault)
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.ErrorIs(err, nomad.ErrorExecutorCommunicationFailed)
@@ -250,4 +250,9 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 		files = append(files, TarFile{Name: hdr.Name, Content: string(bf), TypeFlag: hdr.Typeflag})
 	}
 	return files
+}
+
+// NewRunner creates a new runner with the provided id.
+func NewRunner(id string) Runner {
+	return NewNomadAllocation(id, nil)
 }

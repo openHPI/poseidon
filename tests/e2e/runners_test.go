@@ -66,7 +66,7 @@ func (s *E2ETestSuite) TestDeleteRunnerRoute() {
 	})
 
 	s.Run("Deleting non-existing runner returns NotFound", func() {
-		resp, err := helpers.HttpDelete(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingId), nil)
+		resp, err := helpers.HttpDelete(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingID), nil)
 		s.NoError(err)
 		s.Equal(http.StatusNotFound, resp.StatusCode)
 	})
@@ -178,7 +178,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 	})
 
 	s.Run("Copying to non-existing runner returns NotFound", func() {
-		resp, err := helpers.HttpPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingId, api.UpdateFileSystemPath), "application/json", bytes.NewReader(copyFilesRequestByteString))
+		resp, err := helpers.HttpPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingID, api.UpdateFileSystemPath), "application/json", bytes.NewReader(copyFilesRequestByteString))
 		s.NoError(err)
 		s.Equal(http.StatusNotFound, resp.StatusCode)
 	})

@@ -132,13 +132,13 @@ var (
 const TestNamespace = "unit-tests"
 
 func TestApiClient_init(t *testing.T) {
-	client := &APIClient{apiQuerier: &nomadApiClient{}}
+	client := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := client.init(&TestURL, TestNamespace)
 	require.Nil(t, err)
 }
 
 func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
-	client := &APIClient{apiQuerier: &nomadApiClient{}}
+	client := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := client.init(&url.URL{
 		Scheme: "http",
 		Host:   "http://127.0.0.1:4646",
@@ -147,7 +147,7 @@ func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
 }
 
 func TestNewExecutorApiCanBeCreatedWithoutError(t *testing.T) {
-	expectedClient := &APIClient{apiQuerier: &nomadApiClient{}}
+	expectedClient := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := expectedClient.init(&TestURL, TestNamespace)
 	require.Nil(t, err)
 
@@ -222,19 +222,27 @@ func eventForEvaluation(t *testing.T, eval nomadApi.Evaluation) nomadApi.Event {
 
 // simulateNomadEventStream streams the given events sequentially to the stream channel.
 // It returns how many events have been processed until an error occurred.
-func simulateNomadEventStream(stream chan *nomadApi.Events, errChan chan error, events []*nomadApi.Events) (int, error) {
+func simulateNomadEventStream(
+	stream chan *nomadApi.Events,
+	errChan chan error,
+	events []*nomadApi.Events,
+) (int, error) {
 	eventsProcessed := 0
 	var e *nomadApi.Events
 	for _, e = range events {
 		select {
 		case err := <-errChan:
-			close(stream)
 			return eventsProcessed, err
 		case stream <- e:
 			eventsProcessed++
 		}
 	}
-	err := <-errChan
+	// Wait for last event being processed
+	var err error
+	select {
+	case <-time.After(10 * time.Millisecond):
+	case err = <-errChan:
+	}
 	return eventsProcessed, err
 }
 
@@ -298,7 +306,7 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 	multipleEventsWithPending := nomadApi.Events{Events: []nomadApi.Event{
 		eventForEvaluation(t, pendingEval), eventForEvaluation(t, eval),
 	}}
-	eventsWithErr := nomadApi.Events{Err: tests.DefaultError, Events: []nomadApi.Event{{}}}
+	eventsWithErr := nomadApi.Events{Err: tests.ErrDefault, Events: []nomadApi.Event{{}}}
 
 	var cases = []struct {
 		streamedEvents          []*nomadApi.Events
@@ -316,7 +324,7 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 			"it skips pending evaluation and fail"},
 		{[]*nomadApi.Events{&multipleEventsWithPending}, 1, evalErr,
 			"it handles multiple events per received event and fails"},
-		{[]*nomadApi.Events{&eventsWithErr}, 1, tests.DefaultError,
+		{[]*nomadApi.Events{&eventsWithErr}, 1, tests.ErrDefault,
 			"it fails with event error when event has error"},
 	}
 
@@ -498,17 +506,19 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 
 func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved(t *testing.T) {
 	apiMock := &apiQuerierMock{}
-	apiMock.On("AllocationStream", mock.Anything).Return(nil, tests.DefaultError)
+	apiMock.On("AllocationStream", mock.Anything).Return(nil, tests.ErrDefault)
 	apiClient := &APIClient{apiMock}
 
 	noop := func(a *nomadApi.Allocation) {}
 	err := apiClient.WatchAllocations(context.Background(), noop, noop)
-	assert.ErrorIs(t, err, tests.DefaultError)
+	assert.ErrorIs(t, err, tests.ErrDefault)
 }
 
-func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWithoutReceivingFurtherEvents(t *testing.T) {
+func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWithoutReceivingFurtherEvents(
+	t *testing.T) {
 	noop := func(a *nomadApi.Allocation) {}
 	event := nomadApi.Event{
+		Type:  structs.TypeAllocationUpdated,
 		Topic: nomadApi.TopicAllocation,
 		// This should fail decoding, as Allocation.ID is expected to be a string, not int
 		Payload: map[string]interface{}{"Allocation": map[string]interface{}{"ID": 1}},
@@ -517,7 +527,7 @@ func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWi
 	require.Error(t, err)
 
 	events := []*nomadApi.Events{{Events: []nomadApi.Event{event}}, {}}
-	eventsProcessed, err := runAllocationWatching(t, events, noop, noop, context.Background())
+	eventsProcessed, err := runAllocationWatching(t, events, noop, noop)
 	assert.Error(t, err)
 	assert.Equal(t, 1, eventsProcessed)
 }
@@ -535,10 +545,7 @@ func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
 		deletedAllocations = append(deletedAllocations, alloc)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-	defer cancel()
-
-	eventsProcessed, err := runAllocationWatching(t, events, onNewAllocation, onDeletedAllocation, ctx)
+	eventsProcessed, err := runAllocationWatching(t, events, onNewAllocation, onDeletedAllocation)
 	assert.NoError(t, err)
 	assert.Equal(t, len(events), eventsProcessed)
 
@@ -550,13 +557,9 @@ func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
 // to the MonitorEvaluation method. It starts the MonitorEvaluation function as a goroutine
 // and sequentially transfers the events from the given array to a channel simulating the stream.
 func runAllocationWatching(t *testing.T, events []*nomadApi.Events,
-	onNewAllocation, onDeletedAllocation AllocationProcessor, ctx context.Context) (eventsProcessed int, err error) {
+	onNewAllocation, onDeletedAllocation AllocationProcessor) (eventsProcessed int, err error) {
 	t.Helper()
 	stream := make(chan *nomadApi.Events)
-	go func() {
-		<-ctx.Done()
-		close(stream)
-	}()
 	errChan := asynchronouslyWatchAllocations(stream, onNewAllocation, onDeletedAllocation)
 	return simulateNomadEventStream(stream, errChan, events)
 }
@@ -591,7 +594,7 @@ func eventForAllocation(t *testing.T, alloc *nomadApi.Allocation) nomadApi.Event
 
 	err := mapstructure.Decode(eventPayload{Allocation: alloc}, &payload)
 	if err != nil {
-		t.Fatalf("Couldn't encode allocation %v", err)
+		t.Fatalf("Couldn't decode allocation %v into payload map", err)
 		return nomadApi.Event{}
 	}
 	event := nomadApi.Event{
@@ -604,7 +607,7 @@ func eventForAllocation(t *testing.T, alloc *nomadApi.Allocation) nomadApi.Event
 
 func createAllocation(modifyTime int64, clientStatus, desiredStatus string) *nomadApi.Allocation {
 	return &nomadApi.Allocation{
-		ID:            tests.AllocationID,
+		ID:            tests.DefaultRunnerID,
 		ModifyTime:    modifyTime,
 		ClientStatus:  clientStatus,
 		DesiredStatus: desiredStatus,

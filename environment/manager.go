@@ -28,7 +28,7 @@ type Manager interface {
 	Delete(id string)
 }
 
-func NewNomadEnvironmentManager(runnerManager runner.Manager, apiClient nomad.ExecutorApi) *NomadEnvironmentManager {
+func NewNomadEnvironmentManager(runnerManager runner.Manager, apiClient nomad.ExecutorAPI) *NomadEnvironmentManager {
 	environmentManager := &NomadEnvironmentManager{runnerManager, apiClient, *parseJob(defaultJobHCL)}
 	environmentManager.Load()
 	return environmentManager
@@ -36,7 +36,7 @@ func NewNomadEnvironmentManager(runnerManager runner.Manager, apiClient nomad.Ex
 
 type NomadEnvironmentManager struct {
 	runnerManager runner.Manager
-	api           nomad.ExecutorApi
+	api           nomad.ExecutorAPI
 	defaultJob    nomadApi.Job
 }
 
@@ -48,7 +48,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	if err != nil {
 		return false, err
 	}
-	exists := m.runnerManager.EnvironmentExists(runner.EnvironmentId(idInt))
+	exists := m.runnerManager.EnvironmentExists(runner.EnvironmentID(idInt))
 
 	err = m.registerJob(id,
 		request.PrewarmingPoolSize, request.CPULimit, request.MemoryLimit,
@@ -57,7 +57,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	if err == nil {
 		if !exists {
 			m.runnerManager.RegisterEnvironment(
-				runner.EnvironmentId(idInt), runner.NomadJobId(id), request.PrewarmingPoolSize)
+				runner.EnvironmentID(idInt), runner.NomadJobID(id), request.PrewarmingPoolSize)
 		}
 		return !exists, nil
 	}
@@ -70,5 +70,5 @@ func (m *NomadEnvironmentManager) Delete(id string) {
 
 func (m *NomadEnvironmentManager) Load() {
 	// ToDo: remove create default execution environment for debugging purposes
-	m.runnerManager.RegisterEnvironment(runner.EnvironmentId(0), "python", 5)
+	m.runnerManager.RegisterEnvironment(runner.EnvironmentID(0), "python", 5)
 }

@@ -43,14 +43,14 @@ type apiQuerier interface {
 	AllocationStream(ctx context.Context) (<-chan *nomadApi.Events, error)
 }
 
-// nomadApiClient implements the nomadApiQuerier interface and provides access to a real Nomad API.
-type nomadApiClient struct {
+// nomadAPIClient implements the nomadApiQuerier interface and provides access to a real Nomad API.
+type nomadAPIClient struct {
 	client       *nomadApi.Client
 	namespace    string
 	queryOptions *nomadApi.QueryOptions
 }
 
-func (nc *nomadApiClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
+func (nc *nomadAPIClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
 	nc.client, err = nomadApi.NewClient(&nomadApi.Config{
 		Address:   nomadURL.String(),
 		TLSConfig: &nomadApi.TLSConfig{},
@@ -63,8 +63,8 @@ func (nc *nomadApiClient) init(nomadURL *url.URL, nomadNamespace string) (err er
 	return err
 }
 
-func (nc *nomadApiClient) DeleteRunner(runnerId string) (err error) {
-	allocation, _, err := nc.client.Allocations().Info(runnerId, nc.queryOptions)
+func (nc *nomadAPIClient) DeleteRunner(runnerID string) (err error) {
+	allocation, _, err := nc.client.Allocations().Info(runnerID, nc.queryOptions)
 	if err != nil {
 		return
 	}
@@ -72,7 +72,7 @@ func (nc *nomadApiClient) DeleteRunner(runnerId string) (err error) {
 	return err
 }
 
-func (nc *nomadApiClient) ExecuteCommand(allocationID string,
+func (nc *nomadAPIClient) ExecuteCommand(allocationID string,
 	ctx context.Context, command []string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	allocation, _, err := nc.client.Allocations().Info(allocationID, nil)
@@ -82,12 +82,12 @@ func (nc *nomadApiClient) ExecuteCommand(allocationID string,
 	return nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
 }
 
-func (nc *nomadApiClient) loadRunners(jobId string) (allocationListStub []*nomadApi.AllocationListStub, err error) {
-	allocationListStub, _, err = nc.client.Jobs().Allocations(jobId, true, nc.queryOptions)
+func (nc *nomadAPIClient) loadRunners(jobID string) (allocationListStub []*nomadApi.AllocationListStub, err error) {
+	allocationListStub, _, err = nc.client.Jobs().Allocations(jobID, true, nc.queryOptions)
 	return
 }
 
-func (nc *nomadApiClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
+func (nc *nomadAPIClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
 	job.Namespace = &nc.namespace
 	resp, _, err := nc.client.Jobs().Register(job, nil)
 	if err != nil {
@@ -102,7 +102,7 @@ func (nc *nomadApiClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
 	return resp.EvalID, nil
 }
 
-func (nc *nomadApiClient) EvaluationStream(evalID string, ctx context.Context) (stream <-chan *nomadApi.Events, err error) {
+func (nc *nomadAPIClient) EvaluationStream(evalID string, ctx context.Context) (stream <-chan *nomadApi.Events, err error) {
 	stream, err = nc.client.EventStream().Stream(
 		ctx,
 		map[nomadApi.Topic][]string{
@@ -113,7 +113,7 @@ func (nc *nomadApiClient) EvaluationStream(evalID string, ctx context.Context) (
 	return
 }
 
-func (nc *nomadApiClient) AllocationStream(ctx context.Context) (stream <-chan *nomadApi.Events, err error) {
+func (nc *nomadAPIClient) AllocationStream(ctx context.Context) (stream <-chan *nomadApi.Events, err error) {
 	stream, err = nc.client.EventStream().Stream(
 		ctx,
 		map[nomadApi.Topic][]string{

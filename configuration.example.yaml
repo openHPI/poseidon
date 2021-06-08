@@ -26,11 +26,6 @@ nomad:
   # Nomad namespace to use. If unset, 'default' is used
   namespace: poseidon
 
-# Configuration of the runners
-runner:
-  # Directory where all files with relative paths will be copied into. Must be writable by the default user in the container.
-  workspacepath: /home/python
-
 # Configuration of the logger
 logger:
   # Log level that is used after reading the config (INFO until then)

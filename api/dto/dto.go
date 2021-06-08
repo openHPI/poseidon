@@ -66,18 +66,14 @@ type File struct {
 	Content []byte   `json:"content"`
 }
 
-// ToAbsolute returns the absolute path of the FilePath with respect to the given basePath. If the FilePath already is absolute, basePath will be ignored.
-func (f FilePath) ToAbsolute(basePath string) string {
-	filePathString := string(f)
-	if path.IsAbs(filePathString) {
-		return path.Clean(filePathString)
-	}
-	return path.Clean(path.Join(basePath, filePathString))
+// Cleaned returns the cleaned path of the FilePath.
+func (f FilePath) Cleaned() string {
+	return path.Clean(string(f))
 }
 
-// AbsolutePath returns the absolute path of the file. See FilePath.ToAbsolute for details.
-func (f File) AbsolutePath(basePath string) string {
-	return f.Path.ToAbsolute(basePath)
+// CleanedPath returns the cleaned path of the file.
+func (f File) CleanedPath() string {
+	return f.Path.Cleaned()
 }
 
 // IsDirectory returns true iff the path of the File ends with a /.

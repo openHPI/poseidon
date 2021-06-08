@@ -7,7 +7,6 @@ import (
 	"github.com/gorilla/websocket"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"io"
@@ -74,13 +73,13 @@ func (s *E2ETestSuite) TestDeleteRunnerRoute() {
 }
 
 func (s *E2ETestSuite) TestCopyFilesRoute() {
-	runnerId, err := ProvideRunner(&dto.RunnerRequest{})
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{})
 	s.NoError(err)
 	copyFilesRequestByteString, _ := json.Marshal(&dto.UpdateFileSystemRequest{
 		Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}},
 	})
 	sendCopyRequest := func(reader io.Reader) (*http.Response, error) {
-		return helpers.HttpPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerId, api.UpdateFileSystemPath), "application/json", reader)
+		return helpers.HttpPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath), "application/json", reader)
 	}
 
 	s.Run("File copy with valid payload succeeds", func() {
@@ -89,7 +88,33 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		s.Equal(http.StatusNoContent, resp.StatusCode)
 
 		s.Run("File content can be printed on runner", func() {
-			s.Equal(tests.DefaultFileContent, s.ContentOfFileOnRunner(runnerId, tests.DefaultFileName))
+			s.Equal(tests.DefaultFileContent, s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName))
+		})
+	})
+
+	s.Run("Files are put in correct location", func() {
+		relativeFilePath := "relative/file/path.txt"
+		relativeFileContent := "Relative file content"
+		absoluteFilePath := "/tmp/absolute/file/path.txt"
+		absoluteFileContent := "Absolute file content"
+		testFilePathsCopyRequestString, _ := json.Marshal(&dto.UpdateFileSystemRequest{
+			Copy: []dto.File{
+				{Path: dto.FilePath(relativeFilePath), Content: []byte(relativeFileContent)},
+				{Path: dto.FilePath(absoluteFilePath), Content: []byte(absoluteFileContent)},
+			},
+		})
+
+		resp, err := sendCopyRequest(bytes.NewReader(testFilePathsCopyRequestString))
+		s.NoError(err)
+		s.Equal(http.StatusNoContent, resp.StatusCode)
+
+		s.Run("File content of file with relative path can be printed on runner", func() {
+			// the print command is executed in the context of the default working directory of the container
+			s.Equal(relativeFileContent, s.PrintContentOfFileOnRunner(runnerID, relativeFilePath))
+		})
+
+		s.Run("File content of file with absolute path can be printed on runner", func() {
+			s.Equal(absoluteFileContent, s.PrintContentOfFileOnRunner(runnerID, absoluteFilePath))
 		})
 	})
 
@@ -103,7 +128,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		s.Equal(http.StatusNoContent, resp.StatusCode)
 
 		s.Run("File content can no longer be printed", func() {
-			s.Contains(s.ContentOfFileOnRunner(runnerId, tests.DefaultFileName), "No such file or directory")
+			s.Contains(s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName), "No such file or directory")
 		})
 	})
 
@@ -116,9 +141,10 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		resp, err := sendCopyRequest(bytes.NewReader(copyFilesRequestByteString))
 		s.NoError(err)
 		s.Equal(http.StatusNoContent, resp.StatusCode)
+		_ = resp.Body.Close()
 
 		s.Run("File content can be printed on runner", func() {
-			s.Equal(tests.DefaultFileContent, s.ContentOfFileOnRunner(runnerId, tests.DefaultFileName))
+			s.Equal(tests.DefaultFileContent, s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName))
 		})
 	})
 
@@ -138,14 +164,15 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		err = json.NewDecoder(resp.Body).Decode(internalServerError)
 		s.NoError(err)
 		s.Contains(internalServerError.Message, "Cannot open: Permission denied")
+		_ = resp.Body.Close()
 
 		s.Run("File content can be printed on runner", func() {
-			s.Equal(string(newFileContent), s.ContentOfFileOnRunner(runnerId, tests.DefaultFileName))
+			s.Equal(string(newFileContent), s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName))
 		})
 	})
 
 	s.Run("File copy with invalid payload returns bad request", func() {
-		resp, err := helpers.HttpPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerId, api.UpdateFileSystemPath), "text/html", strings.NewReader(""))
+		resp, err := helpers.HttpPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath), "text/html", strings.NewReader(""))
 		s.NoError(err)
 		s.Equal(http.StatusBadRequest, resp.StatusCode)
 	})
@@ -157,8 +184,8 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 	})
 }
 
-func (s *E2ETestSuite) ContentOfFileOnRunner(runnerId string, filename string) string {
-	webSocketURL, _ := ProvideWebSocketURL(&s.Suite, runnerId, &dto.ExecutionRequest{Command: fmt.Sprintf("cat %s/%s", runner.FileCopyBasePath, filename)})
+func (s *E2ETestSuite) PrintContentOfFileOnRunner(runnerId string, filename string) string {
+	webSocketURL, _ := ProvideWebSocketURL(&s.Suite, runnerId, &dto.ExecutionRequest{Command: fmt.Sprintf("cat %s", filename)})
 	connection, _ := ConnectToWebSocket(webSocketURL)
 
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)

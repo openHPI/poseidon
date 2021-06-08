@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"io"
 	"strings"
@@ -28,7 +27,6 @@ const (
 
 var (
 	ErrorFileCopyFailed = errors.New("file copy failed")
-	FileCopyBasePath    = config.Config.Runner.WorkspacePath
 )
 
 type Runner interface {
@@ -111,7 +109,7 @@ func (r *NomadAllocation) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequ
 	}
 
 	fileDeletionCommand := fileDeletionCommand(copyRequest.Delete)
-	copyCommand := "tar --extract --absolute-names --verbose --directory=/ --file=/dev/stdin;"
+	copyCommand := "tar --extract --absolute-names --verbose --file=/dev/stdin;"
 	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
 	stdOut := bytes.Buffer{}
 	stdErr := bytes.Buffer{}
@@ -155,15 +153,15 @@ func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer) error {
 	return tarWriter.Close()
 }
 
-func fileDeletionCommand(filesToDelete []dto.FilePath) string {
-	if len(filesToDelete) == 0 {
+func fileDeletionCommand(pathsToDelete []dto.FilePath) string {
+	if len(pathsToDelete) == 0 {
 		return ""
 	}
 	command := "rm --recursive --force "
-	for _, filePath := range filesToDelete {
+	for _, filePath := range pathsToDelete {
 		// To avoid command injection, filenames need to be quoted.
 		// See https://unix.stackexchange.com/questions/347332/what-characters-need-to-be-escaped-in-files-without-quotes for details.
-		singleQuoteEscapedFileName := strings.ReplaceAll(filePath.ToAbsolute(FileCopyBasePath), "'", "'\\''")
+		singleQuoteEscapedFileName := strings.ReplaceAll(filePath.Cleaned(), "'", "'\\''")
 		command += fmt.Sprintf("'%s' ", singleQuoteEscapedFileName)
 	}
 	command += ";"
@@ -174,13 +172,13 @@ func tarHeader(file dto.File) *tar.Header {
 	if file.IsDirectory() {
 		return &tar.Header{
 			Typeflag: tar.TypeDir,
-			Name:     file.AbsolutePath(FileCopyBasePath),
+			Name:     file.CleanedPath(),
 			Mode:     0755,
 		}
 	} else {
 		return &tar.Header{
 			Typeflag: tar.TypeReg,
-			Name:     file.AbsolutePath(FileCopyBasePath),
+			Name:     file.CleanedPath(),
 			Mode:     0744,
 			Size:     int64(len(file.Content)),
 		}

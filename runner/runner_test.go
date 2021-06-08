@@ -181,16 +181,15 @@ func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 	s.Equal(tests.DefaultFileContent, tarFile.Content)
 }
 
-func (s *UpdateFileSystemTestSuite) TestFilesWithRelativePathArePutInDefaultLocation() {
+func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFilePath() {
 	s.mockedExecuteCommandCall.Return(0, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
 	_ = s.runner.UpdateFileSystem(copyRequest)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
 	s.Len(tarFiles, 1)
-	tarFile := tarFiles[0]
-	s.True(strings.HasSuffix(tarFile.Name, tests.DefaultFileName))
-	s.True(strings.HasPrefix(tarFile.Name, FileCopyBasePath))
+	// tar is extracted in the active workdir of the container, file will be put relative to that
+	s.Equal(tests.DefaultFileName, tarFiles[0].Name)
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLocation() {

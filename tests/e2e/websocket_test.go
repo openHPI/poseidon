@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"net/http"
 	"strings"
@@ -14,7 +15,9 @@ import (
 )
 
 func (s *E2ETestSuite) TestExecuteCommandRoute() {
-	runnerId, err := ProvideRunner(&dto.RunnerRequest{})
+	runnerId, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+	})
 	s.Require().NoError(err)
 
 	webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerId, &dto.ExecutionRequest{Command: "true"})
@@ -145,7 +148,9 @@ func (s *E2ETestSuite) TestEchoEnvironment() {
 // ProvideWebSocketConnection establishes a client WebSocket connection to run the passed ExecutionRequest.
 // It requires a running Poseidon instance.
 func ProvideWebSocketConnection(suite *suite.Suite, request *dto.ExecutionRequest) (connection *websocket.Conn, err error) {
-	runnerId, err := ProvideRunner(&dto.RunnerRequest{})
+	runnerId, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+	})
 	if err != nil {
 		return
 	}
@@ -161,8 +166,8 @@ func ProvideWebSocketConnection(suite *suite.Suite, request *dto.ExecutionReques
 // It requires a running Poseidon instance.
 func ProvideWebSocketURL(suite *suite.Suite, runnerId string, request *dto.ExecutionRequest) (string, error) {
 	url := helpers.BuildURL(api.BasePath, api.RunnersPath, runnerId, api.ExecutePath)
-	executionRequestBytes, _ := json.Marshal(request)
-	reader := strings.NewReader(string(executionRequestBytes))
+	executionRequestByteString, _ := json.Marshal(request)
+	reader := strings.NewReader(string(executionRequestByteString))
 	resp, err := http.Post(url, "application/json", reader)
 	suite.Require().NoError(err)
 	suite.Require().Equal(http.StatusOK, resp.StatusCode)

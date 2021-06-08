@@ -18,6 +18,7 @@ const (
 	DeleteRoute          = "deleteRunner"
 	RunnerIdKey          = "runnerId"
 	ExecutionIdKey       = "executionId"
+	ProvideRoute         = "provideRunner"
 )
 
 type RunnerController struct {
@@ -28,7 +29,7 @@ type RunnerController struct {
 // ConfigureRoutes configures a given router with the runner routes of our API.
 func (r *RunnerController) ConfigureRoutes(router *mux.Router) {
 	runnersRouter := router.PathPrefix(RunnersPath).Subrouter()
-	runnersRouter.HandleFunc("", r.provide).Methods(http.MethodPost)
+	runnersRouter.HandleFunc("", r.provide).Methods(http.MethodPost).Name(ProvideRoute)
 	r.runnerRouter = runnersRouter.PathPrefix(fmt.Sprintf("/{%s}", RunnerIdKey)).Subrouter()
 	r.runnerRouter.Use(r.findRunnerMiddleware)
 	r.runnerRouter.HandleFunc(UpdateFileSystemPath, r.updateFileSystem).Methods(http.MethodPatch).Name(UpdateFileSystemPath)

@@ -169,7 +169,7 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentID) {
 		// this environment does not exist
 		return
 	}
-	var lastJobScaling uint = 0
+	var lastJobScaling = 0
 	for {
 		runners, err := m.apiClient.LoadRunners(string(job.jobID))
 		if err != nil {
@@ -187,15 +187,15 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentID) {
 			log.WithError(err).Printf("Failed get allocation count")
 			break
 		}
-		additionallyNeededRunners := job.desiredIdleRunnersCount - uint(job.idleRunners.Length())
-		requiredRunnerCount := jobScale
+		additionallyNeededRunners := int(job.desiredIdleRunnersCount) - job.idleRunners.Length()
+		requiredRunnerCount := int(jobScale)
 		if additionallyNeededRunners > 0 {
 			requiredRunnerCount += additionallyNeededRunners
 		}
 		time.Sleep(50 * time.Millisecond)
 		if requiredRunnerCount != lastJobScaling {
 			log.Printf("Set job scaling %d", requiredRunnerCount)
-			err = m.apiClient.SetJobScale(string(job.jobID), requiredRunnerCount, "Runner Requested")
+			err = m.apiClient.SetJobScale(string(job.jobID), uint(requiredRunnerCount), "Runner Requested")
 			if err != nil {
 				log.WithError(err).Printf("Failed set allocation scaling")
 				continue

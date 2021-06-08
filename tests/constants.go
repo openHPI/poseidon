@@ -3,7 +3,8 @@ package tests
 import "errors"
 
 const (
-	NonExistingID                 = "n0n-3x1st1ng-1d"
+	NonExistingIntegerID          = 9999
+	NonExistingStringID           = "n0n-3x1st1ng-1d"
 	DefaultFileName               = "test.txt"
 	DefaultFileContent            = "Hello, Codemoon!"
 	DefaultDirectoryName          = "test/"

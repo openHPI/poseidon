@@ -3,6 +3,7 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -157,10 +158,10 @@ func HttpPut(url string, body io.Reader) (response *http.Response, err error) {
 }
 
 func HttpPutJSON(url string, body interface{}) (response *http.Response, err error) {
-	requestString, err := json.Marshal(body)
+	requestByteString, err := json.Marshal(body)
 	if err != nil {
 		return
 	}
-	reader := strings.NewReader(string(requestString))
+	reader := bytes.NewReader(requestByteString)
 	return HttpPut(url, reader)
 }

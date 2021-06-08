@@ -15,25 +15,45 @@ import (
 )
 
 func (s *E2ETestSuite) TestProvideRunnerRoute() {
-	runnerRequestString, _ := json.Marshal(dto.RunnerRequest{})
-	reader := strings.NewReader(string(runnerRequestString))
-	resp, err := http.Post(helpers.BuildURL(api.BasePath, api.RunnersPath), "application/json", reader)
-	s.NoError(err)
-	s.Equal(http.StatusOK, resp.StatusCode, "The response code should be ok")
+	runnerRequestByteString, _ := json.Marshal(dto.RunnerRequest{
+		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+	})
+	reader := bytes.NewReader(runnerRequestByteString)
 
-	runnerResponse := new(dto.RunnerResponse)
-	err = json.NewDecoder(resp.Body).Decode(runnerResponse)
-	s.NoError(err)
+	s.Run("valid request returns a runner", func() {
+		resp, err := http.Post(helpers.BuildURL(api.BasePath, api.RunnersPath), "application/json", reader)
+		s.Require().NoError(err)
+		s.Equal(http.StatusOK, resp.StatusCode)
 
-	s.True(runnerResponse.Id != "", "The response contains a runner id")
+		runnerResponse := new(dto.RunnerResponse)
+		err = json.NewDecoder(resp.Body).Decode(runnerResponse)
+		s.Require().NoError(err)
+		s.NotEmpty(runnerResponse.Id)
+	})
+
+	s.Run("invalid request returns bad request", func() {
+		resp, err := http.Post(helpers.BuildURL(api.BasePath, api.RunnersPath), "application/json", strings.NewReader(""))
+		s.Require().NoError(err)
+		s.Equal(http.StatusBadRequest, resp.StatusCode)
+	})
+
+	s.Run("requesting runner of unknown execution environment returns not found", func() {
+		runnerRequestByteString, _ := json.Marshal(dto.RunnerRequest{
+			ExecutionEnvironmentId: tests.NonExistingIntegerID,
+		})
+		reader := bytes.NewReader(runnerRequestByteString)
+		resp, err := http.Post(helpers.BuildURL(api.BasePath, api.RunnersPath), "application/json", reader)
+		s.Require().NoError(err)
+		s.Equal(http.StatusNotFound, resp.StatusCode)
+	})
 }
 
 // ProvideRunner creates a runner with the given RunnerRequest via an external request.
 // It needs a running Poseidon instance to work.
 func ProvideRunner(request *dto.RunnerRequest) (string, error) {
 	url := helpers.BuildURL(api.BasePath, api.RunnersPath)
-	runnerRequestString, _ := json.Marshal(request)
-	reader := strings.NewReader(string(runnerRequestString))
+	runnerRequestByteString, _ := json.Marshal(request)
+	reader := strings.NewReader(string(runnerRequestByteString))
 	resp, err := http.Post(url, "application/json", reader)
 	if err != nil {
 		return "", err
@@ -50,7 +70,9 @@ func ProvideRunner(request *dto.RunnerRequest) (string, error) {
 }
 
 func (s *E2ETestSuite) TestDeleteRunnerRoute() {
-	runnerId, err := ProvideRunner(&dto.RunnerRequest{})
+	runnerId, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+	})
 	s.NoError(err)
 
 	s.Run("Deleting the runner returns NoContent", func() {
@@ -66,14 +88,16 @@ func (s *E2ETestSuite) TestDeleteRunnerRoute() {
 	})
 
 	s.Run("Deleting non-existing runner returns NotFound", func() {
-		resp, err := helpers.HttpDelete(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingID), nil)
+		resp, err := helpers.HttpDelete(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingStringID), nil)
 		s.NoError(err)
 		s.Equal(http.StatusNotFound, resp.StatusCode)
 	})
 }
 
 func (s *E2ETestSuite) TestCopyFilesRoute() {
-	runnerID, err := ProvideRunner(&dto.RunnerRequest{})
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+	})
 	s.NoError(err)
 	copyFilesRequestByteString, _ := json.Marshal(&dto.UpdateFileSystemRequest{
 		Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}},
@@ -178,7 +202,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 	})
 
 	s.Run("Copying to non-existing runner returns NotFound", func() {
-		resp, err := helpers.HttpPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingID, api.UpdateFileSystemPath), "application/json", bytes.NewReader(copyFilesRequestByteString))
+		resp, err := helpers.HttpPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingStringID, api.UpdateFileSystemPath), "application/json", bytes.NewReader(copyFilesRequestByteString))
 		s.NoError(err)
 		s.Equal(http.StatusNotFound, resp.StatusCode)
 	})

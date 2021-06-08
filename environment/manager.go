@@ -48,8 +48,6 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	if err != nil {
 		return false, err
 	}
-	exists := m.runnerManager.EnvironmentExists(runner.EnvironmentID(idInt))
-
 	err = m.registerDefaultJob(id,
 		request.PrewarmingPoolSize, request.CPULimit, request.MemoryLimit,
 		request.Image, request.NetworkAccess, request.ExposedPorts)
@@ -58,15 +56,11 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 		return false, err
 	}
 
-	// TODO: If already exists, make sure to update all existing runners as well
-	if !exists {
-		err = m.runnerManager.RegisterEnvironment(
-			runner.EnvironmentID(idInt), request.PrewarmingPoolSize)
-		if err != nil {
-			return false, err
-		}
+	created, err := m.runnerManager.CreateOrUpdateEnvironment(runner.EnvironmentID(idInt), request.PrewarmingPoolSize)
+	if err != nil {
+		return created, err
 	}
-	return !exists, nil
+	return created, nil
 }
 
 func (m *NomadEnvironmentManager) Delete(id string) {
@@ -75,7 +69,7 @@ func (m *NomadEnvironmentManager) Delete(id string) {
 
 func (m *NomadEnvironmentManager) Load() {
 	// ToDo: remove create default execution environment for debugging purposes
-	err := m.runnerManager.RegisterEnvironment(runner.EnvironmentID(0), 5)
+	_, err := m.runnerManager.CreateOrUpdateEnvironment(runner.EnvironmentID(0), 5)
 	if err != nil {
 		return
 	}

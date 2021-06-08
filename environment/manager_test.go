@@ -28,7 +28,7 @@ func TestCreateOrUpdateTestSuite(t *testing.T) {
 
 func (s *CreateOrUpdateTestSuite) SetupTest() {
 	s.runnerManagerMock = runner.ManagerMock{}
-	s.runnerManagerMock.On("RegisterEnvironment", mock.Anything, mock.Anything).Return(nil)
+	s.runnerManagerMock.On("registerEnvironment", mock.Anything, mock.Anything).Return(nil)
 
 	s.apiMock = nomad.ExecutorAPIMock{}
 	s.request = dto.ExecutionEnvironmentRequest{
@@ -53,10 +53,10 @@ func (s *CreateOrUpdateTestSuite) mockEnvironmentExists(exists bool) {
 	s.runnerManagerMock.On("EnvironmentExists", mock.AnythingOfType("EnvironmentID")).Return(exists)
 }
 
-func (s *CreateOrUpdateTestSuite) mockRegisterEnvironment() *mock.Call {
-	return s.runnerManagerMock.On("RegisterEnvironment",
+func (s *CreateOrUpdateTestSuite) mockCreateOrUpdateEnvironment(exists bool) *mock.Call {
+	return s.runnerManagerMock.On("CreateOrUpdateEnvironment",
 		mock.AnythingOfType("EnvironmentID"), mock.AnythingOfType("uint")).
-		Return()
+		Return(!exists, nil)
 }
 
 func (s *CreateOrUpdateTestSuite) createJobForRequest() *nomadApi.Job {
@@ -77,7 +77,7 @@ func (s *CreateOrUpdateTestSuite) TestFailsOnTooLargeID() {
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsRegistersCorrectJob() {
-	s.mockEnvironmentExists(true)
+	s.mockCreateOrUpdateEnvironment(true)
 	expectedJob := s.createJobForRequest()
 
 	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
@@ -87,7 +87,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsRegistersCorrectJob()
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsOccurredErrorIsPassed() {
-	s.mockEnvironmentExists(true)
+	s.mockCreateOrUpdateEnvironment(true)
 
 	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
 	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
@@ -96,7 +96,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsOccurredErrorIsPassed
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsReturnsFalse() {
-	s.mockEnvironmentExists(true)
+	s.mockCreateOrUpdateEnvironment(true)
 
 	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.NoError(err)
@@ -104,8 +104,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsReturnsFalse() {
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrectJob() {
-	s.mockEnvironmentExists(false)
-	s.mockRegisterEnvironment()
+	s.mockCreateOrUpdateEnvironment(false)
 
 	expectedJob := s.createJobForRequest()
 
@@ -116,24 +115,20 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrec
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrectEnvironment() {
-	s.mockEnvironmentExists(false)
-	s.mockRegisterEnvironment()
+	s.mockCreateOrUpdateEnvironment(false)
 
 	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.True(created)
 	s.NoError(err)
-	s.runnerManagerMock.AssertCalled(s.T(), "RegisterEnvironment",
-		runner.EnvironmentID(tests.DefaultEnvironmentIdAsInteger),
-		s.request.PrewarmingPoolSize)
+	s.runnerManagerMock.AssertCalled(s.T(), "CreateOrUpdateEnvironment",
+		runner.EnvironmentID(tests.DefaultEnvironmentIdAsInteger), s.request.PrewarmingPoolSize)
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistOccurredErrorIsPassedAndNoEnvironmentRegistered() {
-	s.mockEnvironmentExists(false)
-	s.mockRegisterEnvironment()
+	s.mockCreateOrUpdateEnvironment(false)
 
 	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
 	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.False(created)
-	s.Equal(tests.ErrDefault, err)
-	s.runnerManagerMock.AssertNotCalled(s.T(), "RegisterEnvironment")
+	s.Equal(tests.DefaultError, err)
 }

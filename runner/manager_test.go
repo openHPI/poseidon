@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
@@ -59,7 +58,7 @@ func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []strin
 }
 
 func (s *ManagerTestSuite) registerDefaultEnvironment() {
-	err := s.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentId, 0)
+	err := s.nomadRunnerManager.registerEnvironment(defaultEnvironmentId, 0)
 	s.Require().NoError(err)
 }
 
@@ -73,7 +72,7 @@ func (s *ManagerTestSuite) waitForRunnerRefresh() {
 }
 
 func (s *ManagerTestSuite) TestRegisterEnvironmentAddsNewJob() {
-	err := s.nomadRunnerManager.RegisterEnvironment(anotherEnvironmentId, defaultDesiredRunnersCount)
+	err := s.nomadRunnerManager.registerEnvironment(anotherEnvironmentId, defaultDesiredRunnersCount)
 	s.Require().NoError(err)
 	job, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentId)
 	s.True(ok)
@@ -250,20 +249,4 @@ func modifyMockedCall(apiMock *nomad.ExecutorAPIMock, method string, modifier fu
 			modifier(c)
 		}
 	}
-}
-
-func (s *ManagerTestSuite) TestWhenEnvironmentDoesNotExistEnvironmentExistsReturnsFalse() {
-	id := anotherEnvironmentId
-	_, ok := s.nomadRunnerManager.environments.Get(id)
-	require.False(s.T(), ok)
-
-	s.False(s.nomadRunnerManager.EnvironmentExists(id))
-}
-
-func (s *ManagerTestSuite) TestWhenEnvironmentExistsEnvironmentExistsReturnsTrue() {
-	id := anotherEnvironmentId
-	s.nomadRunnerManager.environments.Add(&NomadEnvironment{environmentId: id})
-
-	exists := s.nomadRunnerManager.EnvironmentExists(id)
-	s.True(exists)
 }

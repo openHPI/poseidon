@@ -9,6 +9,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -32,11 +33,9 @@ type NomadJobID string
 // Manager keeps track of the used and unused runners of all execution environments in order to provide unused
 // runners to new clients and ensure no runner is used twice.
 type Manager interface {
-	// RegisterEnvironment adds a new environment that should be managed.
-	RegisterEnvironment(id EnvironmentID, desiredIdleRunnersCount uint) error
-
-	// EnvironmentExists returns whether the environment with the given id exists.
-	EnvironmentExists(id EnvironmentID) bool
+	// CreateOrUpdateEnvironment creates the given environment if it does not exist. Otherwise, it updates
+	// the existing environment and all runners.
+	CreateOrUpdateEnvironment(environmentID EnvironmentID, desiredIdleRunnersCount uint) (bool, error)
 
 	// Claim returns a new runner.
 	// It makes sure that the runner is not in use yet and returns an error if no runner could be provided.
@@ -81,7 +80,15 @@ func (j *NomadEnvironment) ID() EnvironmentID {
 	return j.environmentID
 }
 
-func (m *NomadRunnerManager) RegisterEnvironment(environmentID EnvironmentID, desiredIdleRunnersCount uint) error {
+func (m *NomadRunnerManager) CreateOrUpdateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint) (bool, error) {
+	_, ok := m.environments.Get(id)
+	if !ok {
+		return true, m.registerEnvironment(id, desiredIdleRunnersCount)
+	}
+	return false, m.updateEnvironment(id, desiredIdleRunnersCount)
+}
+
+func (m *NomadRunnerManager) registerEnvironment(environmentID EnvironmentID, desiredIdleRunnersCount uint) error {
 	templateJob, err := m.apiClient.LoadTemplateJob(environmentID.toString())
 	if err != nil {
 		return fmt.Errorf("couldn't register environment: %w", err)
@@ -100,9 +107,40 @@ func (m *NomadRunnerManager) RegisterEnvironment(environmentID EnvironmentID, de
 	return nil
 }
 
-func (m *NomadRunnerManager) EnvironmentExists(id EnvironmentID) (ok bool) {
-	_, ok = m.environments.Get(id)
-	return
+func (m *NomadRunnerManager) updateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint) error {
+	environment, ok := m.environments.Get(id)
+	if !ok {
+		return ErrUnknownExecutionEnvironment
+	}
+	environment.desiredIdleRunnersCount = desiredIdleRunnersCount
+
+	templateJob, err := m.apiClient.LoadTemplateJob(id.toString())
+	if err != nil {
+		return fmt.Errorf("update environment couldn't load template job: %w", err)
+	}
+	environment.templateJob = templateJob
+
+	runners, err := m.apiClient.LoadRunners(id.toString())
+	if err != nil {
+		return fmt.Errorf("update environment couldn't load runners: %w", err)
+	}
+	var occurredErrors []string
+	for _, id := range runners {
+		// avoid taking the address of the loop variable
+		runnerID := id
+		updatedRunnerJob := *environment.templateJob
+		updatedRunnerJob.ID = &runnerID
+		updatedRunnerJob.Name = &runnerID
+		_, err := m.apiClient.RegisterNomadJob(&updatedRunnerJob)
+		if err != nil {
+			occurredErrors = append(occurredErrors, err.Error())
+		}
+	}
+	if len(occurredErrors) > 0 {
+		errorResult := strings.Join(occurredErrors, "\n")
+		return fmt.Errorf("%d errors occurred when updating environment: %s", len(occurredErrors), errorResult)
+	}
+	return nil
 }
 
 func (m *NomadRunnerManager) Claim(environmentID EnvironmentID) (Runner, error) {

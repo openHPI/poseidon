@@ -19,15 +19,16 @@ const (
 //go:embed default-job.hcl
 var defaultJobHCL string
 
-// registerJob creates a Nomad job based on the default job configuration and the given parameters.
+// registerDefaultJob creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
-func (m *NomadEnvironmentManager) registerJob(
+func (m *NomadEnvironmentManager) registerDefaultJob(
 	id string,
 	prewarmingPoolSize, cpuLimit, memoryLimit uint,
 	image string,
 	networkAccess bool,
 	exposedPorts []uint16) error {
-	job := createJob(m.defaultJob, id, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	// TODO: store prewarming pool size in job meta information
+	job := createJob(m.defaultJob, nomad.DefaultJobID(id), prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 	evalID, err := m.api.RegisterNomadJob(job)
 	if err != nil {
 		return err
@@ -76,7 +77,7 @@ func createTaskGroup(job *nomadApi.Job, name string, prewarmingPoolSize uint) *n
 	} else {
 		taskGroup = job.TaskGroups[0]
 		taskGroup.Name = &name
-		count := int(prewarmingPoolSize)
+		count := 1
 		taskGroup.Count = &count
 	}
 	return taskGroup

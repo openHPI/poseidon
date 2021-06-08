@@ -96,7 +96,6 @@ func TestCreateTaskGroupOverwritesOptionsWhenJobHasTaskGroup(t *testing.T) {
 	// create a new copy to avoid changing the original one as it is a pointer
 	expectedTaskGroup := *existingTaskGroup
 	expectedTaskGroup.Name = &newName
-	expectedTaskGroup.Count = &newCount
 
 	assert.Equal(t, expectedTaskGroup, *taskGroup)
 	assert.Equal(t, newTaskGroupList, job.TaskGroups, "it should not modify the jobs task group list")
@@ -272,7 +271,7 @@ func TestRegisterJobWhenNomadJobRegistrationFails(t *testing.T) {
 		defaultJob:    nomadApi.Job{},
 	}
 
-	err := m.registerJob("id", 1, 2, 3, "image", false, []uint16{})
+	err := m.registerDefaultJob("id", 1, 2, 3, "image", false, []uint16{})
 	assert.Equal(t, expectedErr, err)
 	apiMock.AssertNotCalled(t, "EvaluationStream")
 }
@@ -290,7 +289,7 @@ func TestRegisterJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
 		defaultJob:    nomadApi.Job{},
 	}
 
-	err := m.registerJob("id", 1, 2, 3, "image", false, []uint16{})
+	err := m.registerDefaultJob("id", 1, 2, 3, "image", false, []uint16{})
 	assert.NoError(t, err)
 }
 
@@ -308,6 +307,6 @@ func TestRegisterJobReturnsErrorWhenMonitoringEvaluationFails(t *testing.T) {
 		defaultJob:    nomadApi.Job{},
 	}
 
-	err := m.registerJob("id", 1, 2, 3, "image", false, []uint16{})
+	err := m.registerDefaultJob("id", 1, 2, 3, "image", false, []uint16{})
 	assert.Equal(t, expectedErr, err)
 }

@@ -50,23 +50,29 @@ type Runner interface {
 	UpdateFileSystem(request *dto.UpdateFileSystemRequest) error
 }
 
-// NomadAllocation is an abstraction to communicate with Nomad allocations.
-type NomadAllocation struct {
+// NomadJob is an abstraction to communicate with Nomad jobs.
+type NomadJob struct {
 	ExecutionStorage
-	id  string
-	api nomad.ExecutorAPI
+	id      string
+	allocID string
+	api     nomad.ExecutorAPI
 }
 
-// NewNomadAllocation creates a new Nomad allocation with the provided id.
-func NewNomadAllocation(id string, apiClient nomad.ExecutorAPI) *NomadAllocation {
-	return &NomadAllocation{
+// NewRunner creates a new runner with the provided id.
+func NewRunner(id string) Runner {
+	return NewNomadJob(id, nil)
+}
+
+// NewNomadJob creates a new NomadJob with the provided id.
+func NewNomadJob(id string, apiClient nomad.ExecutorAPI) *NomadJob {
+	return &NomadJob{
 		id:               id,
 		api:              apiClient,
 		ExecutionStorage: NewLocalExecutionStorage(),
 	}
 }
 
-func (r *NomadAllocation) Id() string {
+func (r *NomadJob) Id() string {
 	return r.id
 }
 
@@ -75,7 +81,7 @@ type ExitInfo struct {
 	Err  error
 }
 
-func (r *NomadAllocation) ExecuteInteractively(
+func (r *NomadJob) ExecuteInteractively(
 	request *dto.ExecutionRequest,
 	stdin io.Reader,
 	stdout, stderr io.Writer,
@@ -90,14 +96,14 @@ func (r *NomadAllocation) ExecuteInteractively(
 	}
 	exit := make(chan ExitInfo)
 	go func() {
-		exitCode, err := r.api.ExecuteCommand(r.Id(), ctx, command, true, stdin, stdout, stderr)
+		exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, stdin, stdout, stderr)
 		exit <- ExitInfo{uint8(exitCode), err}
 		close(exit)
 	}()
 	return exit, cancel
 }
 
-func (r *NomadAllocation) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) error {
+func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) error {
 	var tarBuffer bytes.Buffer
 	if err := createTarArchiveForFiles(copyRequest.Copy, &tarBuffer); err != nil {
 		return err
@@ -108,7 +114,7 @@ func (r *NomadAllocation) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequ
 	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
 	stdOut := bytes.Buffer{}
 	stdErr := bytes.Buffer{}
-	exitCode, err := r.api.ExecuteCommand(r.Id(), context.Background(), updateFileCommand, false,
+	exitCode, err := r.api.ExecuteCommand(r.id, context.Background(), updateFileCommand, false,
 		&tarBuffer, &stdOut, &stdErr)
 
 	if err != nil {
@@ -182,7 +188,7 @@ func tarHeader(file dto.File) *tar.Header {
 
 // MarshalJSON implements json.Marshaler interface.
 // This exports private attributes like the id too.
-func (r *NomadAllocation) MarshalJSON() ([]byte, error) {
+func (r *NomadJob) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		ID string `json:"runnerId"`
 	}{

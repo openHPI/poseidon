@@ -79,20 +79,20 @@ func (_m *apiQuerierMock) EvaluationStream(evalID string, ctx context.Context) (
 	return r0, r1
 }
 
-// Execute provides a mock function with given fields: allocationID, ctx, command, tty, stdin, stdout, stderr
-func (_m *apiQuerierMock) Execute(allocationID string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
-	ret := _m.Called(allocationID, ctx, command, tty, stdin, stdout, stderr)
+// Execute provides a mock function with given fields: jobID, ctx, command, tty, stdin, stdout, stderr
+func (_m *apiQuerierMock) Execute(jobID string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+	ret := _m.Called(jobID, ctx, command, tty, stdin, stdout, stderr)
 
 	var r0 int
 	if rf, ok := ret.Get(0).(func(string, context.Context, []string, bool, io.Reader, io.Writer, io.Writer) int); ok {
-		r0 = rf(allocationID, ctx, command, tty, stdin, stdout, stderr)
+		r0 = rf(jobID, ctx, command, tty, stdin, stdout, stderr)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, context.Context, []string, bool, io.Reader, io.Writer, io.Writer) error); ok {
-		r1 = rf(allocationID, ctx, command, tty, stdin, stdout, stderr)
+		r1 = rf(jobID, ctx, command, tty, stdin, stdout, stderr)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -193,22 +193,45 @@ func (_m *apiQuerierMock) init(nomadURL *url.URL, nomadNamespace string) error {
 	return r0
 }
 
-// loadRunners provides a mock function with given fields: jobId
-func (_m *apiQuerierMock) loadRunners(jobId string) ([]*api.AllocationListStub, error) {
-	ret := _m.Called(jobId)
+// jobInfo provides a mock function with given fields: jobID
+func (_m *apiQuerierMock) jobInfo(jobID string) (*api.Job, error) {
+	ret := _m.Called(jobID)
 
-	var r0 []*api.AllocationListStub
-	if rf, ok := ret.Get(0).(func(string) []*api.AllocationListStub); ok {
-		r0 = rf(jobId)
+	var r0 *api.Job
+	if rf, ok := ret.Get(0).(func(string) *api.Job); ok {
+		r0 = rf(jobID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*api.AllocationListStub)
+			r0 = ret.Get(0).(*api.Job)
 		}
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(jobId)
+		r1 = rf(jobID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// listJobs provides a mock function with given fields: prefix
+func (_m *apiQuerierMock) listJobs(prefix string) ([]*api.JobListStub, error) {
+	ret := _m.Called(prefix)
+
+	var r0 []*api.JobListStub
+	if rf, ok := ret.Get(0).(func(string) []*api.JobListStub); ok {
+		r0 = rf(prefix)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*api.JobListStub)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(prefix)
 	} else {
 		r1 = ret.Error(1)
 	}

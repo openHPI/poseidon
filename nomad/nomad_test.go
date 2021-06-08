@@ -31,10 +31,10 @@ type LoadRunnersTestSuite struct {
 	jobId                  string
 	mock                   *apiQuerierMock
 	nomadApiClient         APIClient
-	availableRunner        *nomadApi.AllocationListStub
-	anotherAvailableRunner *nomadApi.AllocationListStub
-	stoppedRunner          *nomadApi.AllocationListStub
-	stoppingRunner         *nomadApi.AllocationListStub
+	availableRunner        *nomadApi.JobListStub
+	anotherAvailableRunner *nomadApi.JobListStub
+	pendingRunner          *nomadApi.JobListStub
+	deadRunner             *nomadApi.JobListStub
 }
 
 func (s *LoadRunnersTestSuite) SetupTest() {
@@ -43,82 +43,73 @@ func (s *LoadRunnersTestSuite) SetupTest() {
 	s.mock = &apiQuerierMock{}
 	s.nomadApiClient = APIClient{apiQuerier: s.mock}
 
-	s.availableRunner = &nomadApi.AllocationListStub{
-		ID:            "s0m3-r4nd0m-1d",
-		ClientStatus:  nomadApi.AllocClientStatusRunning,
-		DesiredStatus: nomadApi.AllocDesiredStatusRun,
-	}
+	s.availableRunner = newJobListStub("s0m3-r4nd0m-1d", structs.JobStatusRunning, 1)
+	s.anotherAvailableRunner = newJobListStub("s0m3-s1m1l4r-1d", structs.JobStatusRunning, 1)
+	s.pendingRunner = newJobListStub("4n0th3r-1d", structs.JobStatusPending, 0)
+	s.deadRunner = newJobListStub("my-1d", structs.JobStatusDead, 0)
+}
 
-	s.anotherAvailableRunner = &nomadApi.AllocationListStub{
-		ID:            "s0m3-s1m1l4r-1d",
-		ClientStatus:  nomadApi.AllocClientStatusRunning,
-		DesiredStatus: nomadApi.AllocDesiredStatusRun,
-	}
-
-	s.stoppedRunner = &nomadApi.AllocationListStub{
-		ID:            "4n0th3r-1d",
-		ClientStatus:  nomadApi.AllocClientStatusComplete,
-		DesiredStatus: nomadApi.AllocDesiredStatusRun,
-	}
-
-	s.stoppingRunner = &nomadApi.AllocationListStub{
-		ID:            "th1rd-1d",
-		ClientStatus:  nomadApi.AllocClientStatusRunning,
-		DesiredStatus: nomadApi.AllocDesiredStatusStop,
+func newJobListStub(id, status string, amountRunning int) *nomadApi.JobListStub {
+	return &nomadApi.JobListStub{
+		ID:     id,
+		Status: status,
+		JobSummary: &nomadApi.JobSummary{
+			JobID:   id,
+			Summary: map[string]nomadApi.TaskGroupSummary{TaskGroupName: {Running: amountRunning}},
+		},
 	}
 }
 
 func (s *LoadRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
-	errorString := "api errored"
-	s.mock.On("loadRunners", mock.AnythingOfType("string")).
-		Return(nil, errors.New(errorString))
+	s.mock.On("listJobs", mock.AnythingOfType("string")).
+		Return(nil, tests.DefaultError)
 
-	returnedIds, err := s.nomadApiClient.LoadRunners(s.jobId)
+	returnedIds, err := s.nomadApiClient.LoadRunners(suite.jobId)
 	s.Nil(returnedIds)
-	s.Error(err)
+	s.Equal(tests.DefaultError, err)
 }
 
-func (s *LoadRunnersTestSuite) TestThrowsNoErrorWhenUnderlyingApiCallDoesNot() {
-	s.mock.On("loadRunners", mock.AnythingOfType("string")).
-		Return([]*nomadApi.AllocationListStub{}, nil)
+func (s *LoadRunnersTestSuite) TestReturnsNoErrorWhenUnderlyingApiCallDoesNot() {
+	s.mock.On("listJobs", mock.AnythingOfType("string")).
+		Return([]*nomadApi.JobListStub{}, nil)
 
 	_, err := s.nomadApiClient.LoadRunners(s.jobId)
 	s.NoError(err)
 }
 
 func (s *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
-	s.mock.On("loadRunners", mock.AnythingOfType("string")).
-		Return([]*nomadApi.AllocationListStub{s.availableRunner}, nil)
+	s.mock.On("listJobs", mock.AnythingOfType("string")).
+		Return([]*nomadApi.JobListStub{suite.availableRunner}, nil)
 
 	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
 	s.Len(returnedIds, 1)
 	s.Equal(s.availableRunner.ID, returnedIds[0])
 }
 
-func (s *LoadRunnersTestSuite) TestStoppedRunnerIsNotReturned() {
-	s.mock.On("loadRunners", mock.AnythingOfType("string")).
-		Return([]*nomadApi.AllocationListStub{s.stoppedRunner}, nil)
+func (s *LoadRunnersTestSuite) TestPendingRunnerIsNotReturned() {
+	s.mock.On("listJobs", mock.AnythingOfType("string")).
+		Return([]*nomadApi.JobListStub{s.pendingRunner}, nil)
 
 	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
 	s.Empty(returnedIds)
 }
 
-func (s *LoadRunnersTestSuite) TestStoppingRunnerIsNotReturned() {
-	s.mock.On("loadRunners", mock.AnythingOfType("string")).
-		Return([]*nomadApi.AllocationListStub{s.stoppingRunner}, nil)
+func (s *LoadRunnersTestSuite) TestDeadRunnerIsNotReturned() {
+	s.mock.On("listJobs", mock.AnythingOfType("string")).
+		Return([]*nomadApi.JobListStub{s.deadRunner}, nil)
 
 	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
 	s.Empty(returnedIds)
 }
 
 func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
-	runnersList := []*nomadApi.AllocationListStub{
+	runnersList := []*nomadApi.JobListStub{
 		s.availableRunner,
 		s.anotherAvailableRunner,
-		s.stoppedRunner,
-		s.stoppingRunner,
+		s.pendingRunner,
+		s.deadRunner,
 	}
-	s.mock.On("loadRunners", mock.AnythingOfType("string")).
+	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return(runnersList, nil)
 
 	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)

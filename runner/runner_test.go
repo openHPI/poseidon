@@ -20,19 +20,19 @@ import (
 )
 
 func TestIdIsStored(t *testing.T) {
-	runner := NewNomadAllocation("42", nil)
+	runner := NewNomadJob("42", nil)
 	assert.Equal(t, "42", runner.Id())
 }
 
 func TestMarshalRunner(t *testing.T) {
-	runner := NewNomadAllocation("42", nil)
+	runner := NewNomadJob("42", nil)
 	marshal, err := json.Marshal(runner)
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"runnerId\":\"42\"}", string(marshal))
 }
 
 func TestExecutionRequestIsStored(t *testing.T) {
-	runner := NewNomadAllocation("42", nil)
+	runner := NewNomadJob("42", nil)
 	executionRequest := &dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,
@@ -47,7 +47,7 @@ func TestExecutionRequestIsStored(t *testing.T) {
 }
 
 func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
-	runner := NewNomadAllocation("testRunner", nil)
+	runner := NewNomadJob("testRunner", nil)
 	ctx := context.Background()
 	newCtx := NewContext(ctx, runner)
 	storedRunner := newCtx.Value(runnerContextKey).(Runner)
@@ -57,7 +57,7 @@ func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
 }
 
 func TestFromContextReturnsRunner(t *testing.T) {
-	runner := NewNomadAllocation("testRunner", nil)
+	runner := NewNomadJob("testRunner", nil)
 	ctx := NewContext(context.Background(), runner)
 	storedRunner, ok := FromContext(ctx)
 
@@ -75,7 +75,7 @@ func TestFromContextReturnsIsNotOkWhenContextHasNoRunner(t *testing.T) {
 func TestExecuteCallsAPI(t *testing.T) {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).Return(0, nil)
-	runner := NewNomadAllocation(tests.DefaultRunnerID, apiMock)
+	runner := NewNomadJob(tests.DefaultRunnerID, apiMock)
 
 	request := &dto.ExecutionRequest{Command: "echo 'Hello World!'"}
 	runner.ExecuteInteractively(request, nil, nil, nil)
@@ -86,7 +86,7 @@ func TestExecuteCallsAPI(t *testing.T) {
 
 func TestExecuteReturnsAfterTimeout(t *testing.T) {
 	apiMock := newApiMockWithTimeLimitHandling()
-	runner := NewNomadAllocation(tests.DefaultRunnerID, apiMock)
+	runner := NewNomadJob(tests.DefaultRunnerID, apiMock)
 
 	timeLimit := 1
 	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
@@ -124,7 +124,7 @@ func TestUpdateFileSystemTestSuite(t *testing.T) {
 
 type UpdateFileSystemTestSuite struct {
 	suite.Suite
-	runner                   *NomadAllocation
+	runner                   *NomadJob
 	apiMock                  *nomad.ExecutorAPIMock
 	mockedExecuteCommandCall *mock.Call
 	command                  []string
@@ -133,7 +133,7 @@ type UpdateFileSystemTestSuite struct {
 
 func (s *UpdateFileSystemTestSuite) SetupTest() {
 	s.apiMock = &nomad.ExecutorAPIMock{}
-	s.runner = NewNomadAllocation(tests.DefaultRunnerID, s.apiMock)
+	s.runner = NewNomadJob(tests.DefaultRunnerID, s.apiMock)
 	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			s.command = args.Get(2).([]string)

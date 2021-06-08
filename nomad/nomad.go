@@ -26,8 +26,10 @@ type AllocationProcessor func(*nomadApi.Allocation)
 type ExecutorAPI interface {
 	apiQuerier
 
-	// LoadRunners loads all allocations of the specified job which are running and not about to get stopped.
-	LoadRunners(jobID string) (runnerIds []string, err error)
+	// LoadRunners loads all jobs of the specified environment which are running and not about to get stopped.
+	LoadRunners(environmentID string) (runnerIds []string, err error)
+
+	LoadTemplateJob(environmentID string) (*nomadApi.Job, error)
 
 	// MonitorEvaluation monitors the given evaluation ID.
 	// It waits until the evaluation reaches one of the states complete, canceled or failed.
@@ -65,19 +67,26 @@ func (a *APIClient) init(nomadURL *url.URL, nomadNamespace string) error {
 	return a.apiQuerier.init(nomadURL, nomadNamespace)
 }
 
-// LoadRunners loads the allocations of the specified job.
-func (a *APIClient) LoadRunners(jobID string) (runnerIds []string, err error) {
-	list, err := a.loadRunners(jobID)
+func (a *APIClient) LoadRunners(environmentID string) (runnerIDs []string, err error) {
+	list, err := a.listJobs(environmentID)
 	if err != nil {
 		return nil, err
 	}
-	for _, stub := range list {
-		// only add allocations which are running and not about to be stopped
-		if stub.ClientStatus == nomadApi.AllocClientStatusRunning && stub.DesiredStatus == nomadApi.AllocDesiredStatusRun {
-			runnerIds = append(runnerIds, stub.ID)
+	for _, jobListStub := range list {
+		allocationRunning := jobListStub.JobSummary.Summary[TaskGroupName].Running > 0
+		if jobListStub.Status == structs.JobStatusRunning && allocationRunning {
+			runnerIDs = append(runnerIDs, jobListStub.ID)
 		}
 	}
-	return runnerIds, nil
+	return runnerIDs, nil
+}
+
+func (a *APIClient) LoadTemplateJob(environmentID string) (*nomadApi.Job, error) {
+	job, err := a.jobInfo(DefaultJobID(environmentID))
+	if err != nil {
+		return nil, fmt.Errorf("failed loading template job: %w", err)
+	}
+	return job, nil
 }
 
 func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) error {

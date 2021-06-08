@@ -53,14 +53,18 @@ func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []strin
 	apiMock.On("LoadRunners", tests.DefaultJobID).Return(returnedRunnerIds, nil)
 	apiMock.On("JobScale", tests.DefaultJobID).Return(uint(len(returnedRunnerIds)), nil)
 	apiMock.On("SetJobScale", tests.DefaultJobID, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)
+	apiMock.On("LoadTemplateJob", mock.AnythingOfType("string")).Return(&nomadApi.Job{}, nil)
+	apiMock.On("RegisterNomadJob", mock.Anything).Return("", nil)
+	apiMock.On("MonitorEvaluation", mock.Anything, mock.Anything).Return(nil)
 }
 
 func (s *ManagerTestSuite) registerDefaultEnvironment() {
-	s.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentID, tests.DefaultJobID, defaultDesiredRunnersCount)
+	err := s.nomadRunnerManager.RegisterEnvironment(defaultEnvironmentId, 0)
+	s.Require().NoError(err)
 }
 
 func (s *ManagerTestSuite) AddIdleRunnerForDefaultEnvironment(r Runner) {
-	job, _ := s.nomadRunnerManager.jobs.Get(defaultEnvironmentID)
+	job, _ := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
 	job.idleRunners.Add(r)
 }
 
@@ -69,8 +73,9 @@ func (s *ManagerTestSuite) waitForRunnerRefresh() {
 }
 
 func (s *ManagerTestSuite) TestRegisterEnvironmentAddsNewJob() {
-	s.nomadRunnerManager.RegisterEnvironment(anotherEnvironmentID, tests.DefaultJobID, defaultDesiredRunnersCount)
-	job, ok := s.nomadRunnerManager.jobs.Get(defaultEnvironmentID)
+	err := s.nomadRunnerManager.RegisterEnvironment(anotherEnvironmentId, defaultDesiredRunnersCount)
+	s.Require().NoError(err)
+	job, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentId)
 	s.True(ok)
 	s.NotNil(job)
 }
@@ -120,10 +125,8 @@ func (s *ManagerTestSuite) TestClaimThrowsAnErrorIfNoRunnersAvailable() {
 }
 
 func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
-	mockRunnerQueries(s.apiMock, []string{tests.DefaultRunnerID})
-	s.waitForRunnerRefresh()
-	receivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID)
-	s.Require().NoError(err)
+	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
+	receivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentId)
 	savedRunner, ok := s.nomadRunnerManager.usedRunners.Get(receivedRunner.Id())
 	s.True(ok)
 	s.Equal(savedRunner, receivedRunner)
@@ -162,38 +165,6 @@ func (s *ManagerTestSuite) TestReturnReturnsErrorWhenApiCallFailed() {
 	s.apiMock.On("DeleteRunner", mock.AnythingOfType("string")).Return(errors.New("return failed"))
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Error(err)
-}
-
-func (s *ManagerTestSuite) TestRefreshFetchesRunners() {
-	mockRunnerQueries(s.apiMock, []string{tests.DefaultRunnerID})
-	s.waitForRunnerRefresh()
-	s.apiMock.AssertCalled(s.T(), "LoadRunners", tests.DefaultJobID)
-}
-
-func (s *ManagerTestSuite) TestNewRunnersFoundInRefreshAreAddedToIdleRunners() {
-	mockRunnerQueries(s.apiMock, []string{tests.DefaultRunnerID})
-	s.waitForRunnerRefresh()
-	job, _ := s.nomadRunnerManager.jobs.Get(defaultEnvironmentID)
-	_, ok := job.idleRunners.Get(tests.DefaultRunnerID)
-	s.True(ok)
-}
-
-func (s *ManagerTestSuite) TestRefreshScalesJob() {
-	mockRunnerQueries(s.apiMock, []string{tests.DefaultRunnerID})
-	s.waitForRunnerRefresh()
-	// use one runner to necessitate rescaling
-	_, _ = s.nomadRunnerManager.Claim(defaultEnvironmentID)
-	s.waitForRunnerRefresh()
-	s.apiMock.AssertCalled(s.T(), "SetJobScale", tests.DefaultJobID, defaultDesiredRunnersCount, "Runner Requested")
-}
-
-func (s *ManagerTestSuite) TestRefreshAddsRunnerToPool() {
-	mockRunnerQueries(s.apiMock, []string{tests.DefaultRunnerID})
-	s.waitForRunnerRefresh()
-	job, _ := s.nomadRunnerManager.jobs.Get(defaultEnvironmentID)
-	poolRunner, ok := job.idleRunners.Get(tests.DefaultRunnerID)
-	s.True(ok)
-	s.Equal(tests.DefaultRunnerID, poolRunner.Id())
 }
 
 func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
@@ -282,16 +253,16 @@ func modifyMockedCall(apiMock *nomad.ExecutorAPIMock, method string, modifier fu
 }
 
 func (s *ManagerTestSuite) TestWhenEnvironmentDoesNotExistEnvironmentExistsReturnsFalse() {
-	id := anotherEnvironmentID
-	_, ok := s.nomadRunnerManager.jobs.Get(id)
+	id := anotherEnvironmentId
+	_, ok := s.nomadRunnerManager.environments.Get(id)
 	require.False(s.T(), ok)
 
 	s.False(s.nomadRunnerManager.EnvironmentExists(id))
 }
 
 func (s *ManagerTestSuite) TestWhenEnvironmentExistsEnvironmentExistsReturnsTrue() {
-	id := anotherEnvironmentID
-	s.nomadRunnerManager.jobs.Add(&NomadJob{environmentID: id})
+	id := anotherEnvironmentId
+	s.nomadRunnerManager.environments.Add(&NomadEnvironment{environmentId: id})
 
 	exists := s.nomadRunnerManager.EnvironmentExists(id)
 	s.True(exists)

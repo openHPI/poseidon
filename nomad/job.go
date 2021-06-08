@@ -5,9 +5,19 @@ import (
 )
 
 const (
-	TaskGroupName = "default-group"
-	TaskName      = "default-task"
+	TaskGroupName      = "default-group"
+	TaskName           = "default-task"
+	DefaultJobIDFormat = "%s-default"
 )
+
+func DefaultJobID(id string) string {
+	return fmt.Sprintf(DefaultJobIDFormat, id)
+}
+
+func (nc *nomadAPIClient) jobInfo(jobID string) (job *nomadApi.Job, err error) {
+	job, _, err = nc.client.Jobs().Info(jobID, nil)
+	return
+}
 
 // LoadJobList loads the list of jobs from the Nomad api.
 func (nc *nomadAPIClient) LoadJobList() (list []*nomadApi.JobListStub, err error) {

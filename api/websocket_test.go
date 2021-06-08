@@ -309,7 +309,7 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 
 func newNomadAllocationWithMockedApiClient(runnerId string) (r runner.Runner, mock *nomad.ExecutorAPIMock) {
 	mock = &nomad.ExecutorAPIMock{}
-	r = runner.NewNomadAllocation(runnerId, mock)
+	r = runner.NewNomadJob(runnerId, mock)
 	return
 }
 

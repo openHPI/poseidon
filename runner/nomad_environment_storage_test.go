@@ -1,8 +1,8 @@
 package runner
 
 import (
+	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/stretchr/testify/suite"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"testing"
 )
 
@@ -13,12 +13,12 @@ func TestJobStoreTestSuite(t *testing.T) {
 type JobStoreTestSuite struct {
 	suite.Suite
 	jobStorage *localNomadJobStorage
-	job        *NomadJob
+	job        *NomadEnvironment
 }
 
-func (s *JobStoreTestSuite) SetupTest() {
-	s.jobStorage = NewLocalNomadJobStorage()
-	s.job = &NomadJob{environmentID: defaultEnvironmentID, jobID: tests.DefaultJobID}
+func (suite *JobStoreTestSuite) SetupTest() {
+	suite.jobStorage = NewLocalNomadJobStorage()
+	suite.job = &NomadEnvironment{environmentID: defaultEnvironmentId}
 }
 
 func (s *JobStoreTestSuite) TestAddedJobCanBeRetrieved() {
@@ -28,11 +28,10 @@ func (s *JobStoreTestSuite) TestAddedJobCanBeRetrieved() {
 	s.Equal(s.job, retrievedJob)
 }
 
-func (s *JobStoreTestSuite) TestJobWithSameIdOverwritesOldOne() {
-	otherJobWithSameID := &NomadJob{environmentID: defaultEnvironmentID}
-	// assure runner is actually different
-	otherJobWithSameID.jobID = tests.AnotherJobID
-	s.NotEqual(s.job, otherJobWithSameID)
+func (suite *JobStoreTestSuite) TestJobWithSameIdOverwritesOldOne() {
+	otherJobWithSameID := &NomadEnvironment{environmentID: defaultEnvironmentId}
+	otherJobWithSameID.templateJob = &nomadApi.Job{}
+	suite.NotEqual(suite.job, otherJobWithSameID)
 
 	s.jobStorage.Add(s.job)
 	s.jobStorage.Add(otherJobWithSameID)
@@ -65,7 +64,7 @@ func (s *JobStoreTestSuite) TestLenChangesOnStoreContentChange() {
 	})
 
 	s.Run("len increases again when different job is added", func() {
-		anotherJob := &NomadJob{environmentID: anotherEnvironmentID}
+		anotherJob := &NomadEnvironment{environmentID: anotherEnvironmentID}
 		s.jobStorage.Add(anotherJob)
 		s.Equal(2, s.jobStorage.Length())
 	})

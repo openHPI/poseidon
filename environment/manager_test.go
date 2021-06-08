@@ -28,6 +28,8 @@ func TestCreateOrUpdateTestSuite(t *testing.T) {
 
 func (s *CreateOrUpdateTestSuite) SetupTest() {
 	s.runnerManagerMock = runner.ManagerMock{}
+	s.runnerManagerMock.On("RegisterEnvironment", mock.Anything, mock.Anything).Return(nil)
+
 	s.apiMock = nomad.ExecutorAPIMock{}
 	s.request = dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: 10,
@@ -53,12 +55,12 @@ func (s *CreateOrUpdateTestSuite) mockEnvironmentExists(exists bool) {
 
 func (s *CreateOrUpdateTestSuite) mockRegisterEnvironment() *mock.Call {
 	return s.runnerManagerMock.On("RegisterEnvironment",
-		mock.AnythingOfType("EnvironmentID"), mock.AnythingOfType("NomadJobID"), mock.AnythingOfType("uint")).
+		mock.AnythingOfType("EnvironmentID"), mock.AnythingOfType("uint")).
 		Return()
 }
 
 func (s *CreateOrUpdateTestSuite) createJobForRequest() *nomadApi.Job {
-	return createJob(s.manager.defaultJob, tests.DefaultEnvironmentIDAsString,
+	return createJob(s.manager.defaultJob, nomad.DefaultJobID(tests.DefaultEnvironmentIdAsString),
 		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
 		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
 }
@@ -121,8 +123,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrec
 	s.True(created)
 	s.NoError(err)
 	s.runnerManagerMock.AssertCalled(s.T(), "RegisterEnvironment",
-		runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger),
-		runner.NomadJobID(tests.DefaultEnvironmentIDAsString),
+		runner.EnvironmentID(tests.DefaultEnvironmentIdAsInteger),
 		s.request.PrewarmingPoolSize)
 }
 

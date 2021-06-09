@@ -3,7 +3,6 @@ package environment
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec2"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
@@ -12,8 +11,6 @@ import (
 
 const (
 	DefaultTaskDriver = "docker"
-	TaskNameFormat    = "%s-task"
-	TaskName          = "python-job-task"
 )
 
 // defaultJobHCL holds our default job in HCL format.
@@ -50,8 +47,8 @@ func createJob(
 	job.ID = &id
 	job.Name = &id
 
-	var taskGroup = createTaskGroup(&job, fmt.Sprintf(nomad.TaskGroupNameFormat, id), prewarmingPoolSize)
-	configureTask(taskGroup, fmt.Sprintf(TaskNameFormat, id), cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	var taskGroup = createTaskGroup(&job, nomad.TaskGroupName, prewarmingPoolSize)
+	configureTask(taskGroup, nomad.TaskName, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 
 	return &job
 }

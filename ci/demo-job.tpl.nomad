@@ -5,7 +5,7 @@ job "python" {
   type = "batch"
   namespace = "${NOMAD_NAMESPACE}"
 
-  group "python-group" {
+  group "default-group" {
     ephemeral_disk {
       migrate = false
       size    = 10

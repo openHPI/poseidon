@@ -55,13 +55,13 @@ func createTestJob() (*nomadApi.Job, *nomadApi.Job) {
 	base := nomadApi.NewBatchJob("python-job", "python-job", "region-name", 100)
 	job := nomadApi.NewBatchJob("python-job", "python-job", "region-name", 100)
 	task := createTestTask()
-	task.Name = TaskName
+	task.Name = nomad.TaskName
 	image := "python:latest"
 	task.Config = map[string]interface{}{"image": image}
 	task.Config["network_mode"] = "none"
 	task.Resources = createTestResources()
 	taskGroup := createTestTaskGroup()
-	taskGroupName := fmt.Sprintf(nomad.TaskGroupNameFormat, *job.ID)
+	taskGroupName := nomad.TaskGroupName
 	taskGroup.Name = &taskGroupName
 	taskGroup.Tasks = []*nomadApi.Task{task}
 	taskGroup.Networks = []*nomadApi.NetworkResource{}

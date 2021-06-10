@@ -13,10 +13,6 @@ var log = logging.GetLogger("environment")
 
 // Manager encapsulates API calls to the executor API for creation and deletion of execution environments.
 type Manager interface {
-	// Load fetches all already created execution environments from the executor and registers them at the runner manager.
-	// It should be called during the startup process (e.g. on creation of the Manager).
-	Load()
-
 	// CreateOrUpdate creates/updates an execution environment on the executor.
 	// Iff the job was created, the returned boolean is true and the returned error is nil.
 	CreateOrUpdate(
@@ -30,7 +26,6 @@ type Manager interface {
 
 func NewNomadEnvironmentManager(runnerManager runner.Manager, apiClient nomad.ExecutorAPI) *NomadEnvironmentManager {
 	environmentManager := &NomadEnvironmentManager{runnerManager, apiClient, *parseJob(defaultJobHCL)}
-	environmentManager.Load()
 	return environmentManager
 }
 
@@ -65,12 +60,4 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 
 func (m *NomadEnvironmentManager) Delete(id string) {
 
-}
-
-func (m *NomadEnvironmentManager) Load() {
-	// ToDo: remove create default execution environment for debugging purposes
-	_, err := m.runnerManager.CreateOrUpdateEnvironment(runner.EnvironmentID(0), 5)
-	if err != nil {
-		return
-	}
 }

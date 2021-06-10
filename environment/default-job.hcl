@@ -1,6 +1,6 @@
 // This is the default job configuration that is used when no path to another default configuration is given
 
-job "python" {
+job "0-default" {
   datacenters = ["dc1"]
   type = "batch"
 
@@ -48,6 +48,33 @@ job "python" {
       restart {
         delay = "0s"
       }
+    }
+  }
+
+  group "config" {
+    // We want to store whether a task is in use in order to recover from a downtime.
+    // Without a separate config task, marking a task as used would result in a restart of that task,
+    // as the meta information is passed to the container as environment variables.
+    count = 0
+    task "config" {
+      driver = "exec"
+      config {
+        command = "whoami"
+      }
+      logs {
+        max_files     = 1
+        max_file_size = 1
+      }
+      resources {
+        // minimum values
+        cpu    = 1
+        memory = 10
+      }
+    }
+    meta {
+      environment = "0"
+      used = "false"
+      prewarmingPoolSize = "1"
     }
   }
 }

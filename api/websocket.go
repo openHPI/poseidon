@@ -128,9 +128,7 @@ type webSocketProxy struct {
 
 // upgradeConnection upgrades a connection to a websocket and returns a webSocketProxy for this connection.
 func upgradeConnection(writer http.ResponseWriter, request *http.Request) (webSocketConnection, error) {
-	connUpgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool {
-		return true
-	}}
+	connUpgrader := websocket.Upgrader{}
 	connection, err := connUpgrader.Upgrade(writer, request, nil)
 	if err != nil {
 		log.WithError(err).Warn("Connection upgrade failed")

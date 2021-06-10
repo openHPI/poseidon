@@ -52,6 +52,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		if err == runner.ErrUnknownExecutionEnvironment {
 			writeNotFound(writer, err)
 		} else if err == runner.ErrNoRunnersAvailable {
+			log.WithField("environment", environmentId).Warn("No runners available")
 			writeInternalServerError(writer, err, dto.ErrorNomadOverload)
 		} else {
 			writeInternalServerError(writer, err, dto.ErrorUnknown)

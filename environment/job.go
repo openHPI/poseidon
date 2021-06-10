@@ -9,10 +9,6 @@ import (
 	"strconv"
 )
 
-const (
-	DefaultTaskDriver = "docker"
-)
-
 // defaultJobHCL holds our default job in HCL format.
 // The default job is used when creating new job and provides
 // common settings that all the jobs share.
@@ -22,13 +18,13 @@ var defaultJobHCL string
 // registerDefaultJob creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
 func (m *NomadEnvironmentManager) registerDefaultJob(
-	id string,
+	environmentID string,
 	prewarmingPoolSize, cpuLimit, memoryLimit uint,
 	image string,
 	networkAccess bool,
 	exposedPorts []uint16) error {
-	// TODO: store prewarming pool size in job meta information
-	job := createJob(m.defaultJob, nomad.DefaultJobID(id), prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	job := createDefaultJob(m.defaultJob, environmentID, prewarmingPoolSize,
+		cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 	evalID, err := m.api.RegisterNomadJob(job)
 	if err != nil {
 		return err
@@ -36,20 +32,21 @@ func (m *NomadEnvironmentManager) registerDefaultJob(
 	return m.api.MonitorEvaluation(evalID, context.Background())
 }
 
-func createJob(
+func createDefaultJob(
 	defaultJob nomadApi.Job,
-	id string,
+	environmentID string,
 	prewarmingPoolSize, cpuLimit, memoryLimit uint,
 	image string,
 	networkAccess bool,
 	exposedPorts []uint16) *nomadApi.Job {
-
 	job := defaultJob
-	job.ID = &id
-	job.Name = &id
+	defaultJobID := nomad.DefaultJobID(environmentID)
+	job.ID = &defaultJobID
+	job.Name = &defaultJobID
 
 	var taskGroup = createTaskGroup(&job, nomad.TaskGroupName, prewarmingPoolSize)
 	configureTask(taskGroup, nomad.TaskName, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	storeConfiguration(&job, environmentID, prewarmingPoolSize)
 
 	return &job
 }
@@ -137,16 +134,16 @@ func configureTask(
 	exposedPorts []uint16) {
 	var task *nomadApi.Task
 	if len(taskGroup.Tasks) == 0 {
-		task = nomadApi.NewTask(name, DefaultTaskDriver)
+		task = nomadApi.NewTask(name, nomad.DefaultTaskDriver)
 		taskGroup.Tasks = []*nomadApi.Task{task}
 	} else {
 		task = taskGroup.Tasks[0]
 		task.Name = name
 	}
-	integerCpuLimit := int(cpuLimit)
+	integerCPULimit := int(cpuLimit)
 	integerMemoryLimit := int(memoryLimit)
 	task.Resources = &nomadApi.Resources{
-		CPU:      &integerCpuLimit,
+		CPU:      &integerCPULimit,
 		MemoryMB: &integerMemoryLimit,
 	}
 
@@ -156,4 +153,45 @@ func configureTask(
 	task.Config["image"] = image
 
 	configureNetwork(taskGroup, networkAccess, exposedPorts)
+}
+
+func storeConfiguration(job *nomadApi.Job, id string, prewarmingPoolSize uint) {
+	taskGroup := getConfigTaskGroup(job)
+	checkForDummyTask(taskGroup)
+
+	if taskGroup.Meta == nil {
+		taskGroup.Meta = make(map[string]string)
+	}
+	taskGroup.Meta[nomad.ConfigMetaEnvironmentKey] = id
+	taskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUnusedValue
+	taskGroup.Meta[nomad.ConfigMetaPoolSizeKey] = strconv.Itoa(int(prewarmingPoolSize))
+}
+
+func getConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
+	taskGroup := nomad.FindConfigTaskGroup(job)
+	if taskGroup == nil {
+		taskGroup = nomadApi.NewTaskGroup(nomad.ConfigTaskName, 0)
+	}
+	return taskGroup
+}
+
+// checkForDummyTask ensures that a dummy task is in the task group so that the group is accepted by Nomad.
+func checkForDummyTask(taskGroup *nomadApi.TaskGroup) {
+	var task *nomadApi.Task
+	for _, t := range taskGroup.Tasks {
+		if t.Name == nomad.ConfigTaskName {
+			task = t
+			break
+		}
+	}
+
+	if task == nil {
+		task = nomadApi.NewTask(nomad.ConfigTaskName, nomad.DefaultConfigTaskDriver)
+		taskGroup.Tasks = append(taskGroup.Tasks, task)
+	}
+
+	if task.Config == nil {
+		task.Config = make(map[string]interface{})
+	}
+	task.Config["command"] = nomad.DefaultConfigTaskCommand
 }

@@ -58,11 +58,6 @@ type NomadJob struct {
 	api     nomad.ExecutorAPI
 }
 
-// NewRunner creates a new runner with the provided id.
-func NewRunner(id string) Runner {
-	return NewNomadJob(id, nil)
-}
-
 // NewNomadJob creates a new NomadJob with the provided id.
 func NewNomadJob(id string, apiClient nomad.ExecutorAPI) *NomadJob {
 	return &NomadJob{

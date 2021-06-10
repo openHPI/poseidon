@@ -254,5 +254,5 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 
 // NewRunner creates a new runner with the provided id.
 func NewRunner(id string) Runner {
-	return NewNomadAllocation(id, nil)
+	return NewNomadJob(id, nil)
 }

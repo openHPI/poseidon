@@ -142,6 +142,29 @@ func (_m *ExecutorAPIMock) JobScale(jobId string) (uint, error) {
 	return r0, r1
 }
 
+// LoadAllJobs provides a mock function with given fields:
+func (_m *ExecutorAPIMock) LoadAllJobs() ([]*api.Job, error) {
+	ret := _m.Called()
+
+	var r0 []*api.Job
+	if rf, ok := ret.Get(0).(func() []*api.Job); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*api.Job)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // LoadJobList provides a mock function with given fields:
 func (_m *ExecutorAPIMock) LoadJobList() ([]*api.JobListStub, error) {
 	ret := _m.Called()
@@ -186,6 +209,43 @@ func (_m *ExecutorAPIMock) LoadRunners(jobID string) ([]string, error) {
 	}
 
 	return r0, r1
+}
+
+// LoadTemplateJob provides a mock function with given fields: environmentID
+func (_m *ExecutorAPIMock) LoadTemplateJob(environmentID string) (*api.Job, error) {
+	ret := _m.Called(environmentID)
+
+	var r0 *api.Job
+	if rf, ok := ret.Get(0).(func(string) *api.Job); ok {
+		r0 = rf(environmentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.Job)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(environmentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MarkRunnerAsUsed provides a mock function with given fields: runnerID
+func (_m *ExecutorAPIMock) MarkRunnerAsUsed(runnerID string) error {
+	ret := _m.Called(runnerID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(runnerID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // MonitorEvaluation provides a mock function with given fields: evaluationID, ctx
@@ -289,7 +349,7 @@ func (_m *ExecutorAPIMock) jobInfo(jobID string) (*api.Job, error) {
 }
 
 // listJobs provides a mock function with given fields: prefix
-func (_m *ExecutorApiMock) listJobs(prefix string) ([]*api.JobListStub, error) {
+func (_m *ExecutorAPIMock) listJobs(prefix string) ([]*api.JobListStub, error) {
 	ret := _m.Called(prefix)
 
 	var r0 []*api.JobListStub

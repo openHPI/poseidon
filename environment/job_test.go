@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"testing"
 )
 
@@ -52,8 +53,9 @@ func createTestResources() *nomadApi.Resources {
 }
 
 func createTestJob() (*nomadApi.Job, *nomadApi.Job) {
-	base := nomadApi.NewBatchJob("python-job", "python-job", "region-name", 100)
-	job := nomadApi.NewBatchJob("python-job", "python-job", "region-name", 100)
+	jobID := nomad.DefaultJobID(tests.DefaultEnvironmentIDAsString)
+	base := nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
+	job := nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
 	task := createTestTask()
 	task.Name = nomad.TaskName
 	image := "python:latest"
@@ -204,7 +206,7 @@ func TestConfigureTaskWhenNoTaskExists(t *testing.T) {
 
 	expectedResources := createTestResources()
 	expectedTaskGroup := *taskGroup
-	expectedTask := nomadApi.NewTask("task", DefaultTaskDriver)
+	expectedTask := nomadApi.NewTask("task", nomad.DefaultTaskDriver)
 	expectedTask.Resources = expectedResources
 	expectedImage := "python:latest"
 	expectedTask.Config = map[string]interface{}{"image": expectedImage, "network_mode": "none"}
@@ -246,9 +248,9 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 func TestCreateJobSetsAllGivenArguments(t *testing.T) {
 	testJob, base := createTestJob()
 	manager := NomadEnvironmentManager{&runner.NomadRunnerManager{}, &nomad.APIClient{}, *base}
-	job := createJob(
+	job := createDefaultJob(
 		manager.defaultJob,
-		*testJob.ID,
+		tests.DefaultEnvironmentIDAsString,
 		uint(*testJob.TaskGroups[0].Count),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.CPU),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.MemoryMB),

@@ -10,11 +10,11 @@ type ManagerMock struct {
 }
 
 // Claim provides a mock function with given fields: id
-func (_m *ManagerMock) Claim(id EnvironmentId) (Runner, error) {
+func (_m *ManagerMock) Claim(id EnvironmentID) (Runner, error) {
 	ret := _m.Called(id)
 
 	var r0 Runner
-	if rf, ok := ret.Get(0).(func(EnvironmentId) Runner); ok {
+	if rf, ok := ret.Get(0).(func(EnvironmentID) Runner); ok {
 		r0 = rf(id)
 	} else {
 		if ret.Get(0) != nil {
@@ -23,7 +23,7 @@ func (_m *ManagerMock) Claim(id EnvironmentId) (Runner, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(EnvironmentId) error); ok {
+	if rf, ok := ret.Get(1).(func(EnvironmentID) error); ok {
 		r1 = rf(id)
 	} else {
 		r1 = ret.Error(1)
@@ -32,20 +32,20 @@ func (_m *ManagerMock) Claim(id EnvironmentId) (Runner, error) {
 	return r0, r1
 }
 
-// CreateOrUpdateEnvironment provides a mock function with given fields: environmentId, desiredIdleRunnersCount
-func (_m *ManagerMock) CreateOrUpdateEnvironment(environmentId EnvironmentId, desiredIdleRunnersCount uint) (bool, error) {
-	ret := _m.Called(environmentId, desiredIdleRunnersCount)
+// CreateOrUpdateEnvironment provides a mock function with given fields: id, desiredIdleRunnersCount
+func (_m *ManagerMock) CreateOrUpdateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint) (bool, error) {
+	ret := _m.Called(id, desiredIdleRunnersCount)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(EnvironmentId, uint) bool); ok {
-		r0 = rf(environmentId, desiredIdleRunnersCount)
+	if rf, ok := ret.Get(0).(func(EnvironmentID, uint) bool); ok {
+		r0 = rf(id, desiredIdleRunnersCount)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(EnvironmentId, uint) error); ok {
-		r1 = rf(environmentId, desiredIdleRunnersCount)
+	if rf, ok := ret.Get(1).(func(EnvironmentID, uint) error); ok {
+		r1 = rf(id, desiredIdleRunnersCount)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -53,13 +53,13 @@ func (_m *ManagerMock) CreateOrUpdateEnvironment(environmentId EnvironmentId, de
 	return r0, r1
 }
 
-// Get provides a mock function with given fields: runnerId
-func (_m *ManagerMock) Get(runnerId string) (Runner, error) {
-	ret := _m.Called(runnerId)
+// Get provides a mock function with given fields: runnerID
+func (_m *ManagerMock) Get(runnerID string) (Runner, error) {
+	ret := _m.Called(runnerID)
 
 	var r0 Runner
 	if rf, ok := ret.Get(0).(func(string) Runner); ok {
-		r0 = rf(runnerId)
+		r0 = rf(runnerID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(Runner)
@@ -68,7 +68,7 @@ func (_m *ManagerMock) Get(runnerId string) (Runner, error) {
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(runnerId)
+		r1 = rf(runnerID)
 	} else {
 		r1 = ret.Error(1)
 	}

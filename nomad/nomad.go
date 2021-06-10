@@ -18,6 +18,7 @@ var (
 	ErrorExecutorCommunicationFailed = errors.New("communication with executor failed")
 	errEvaluation                    = errors.New("evaluation could not complete")
 	errPlacingAllocations            = errors.New("failed to place all allocations")
+	errFindingTaskGroup              = errors.New("no task group found")
 )
 
 type AllocationProcessor func(*nomadApi.Allocation)
@@ -25,6 +26,9 @@ type AllocationProcessor func(*nomadApi.Allocation)
 // ExecutorAPI provides access to an container orchestration solution.
 type ExecutorAPI interface {
 	apiQuerier
+
+	// LoadAllJobs loads all existing jobs independent of the environment or if it is a template job.
+	LoadAllJobs() ([]*nomadApi.Job, error)
 
 	// LoadRunners loads all jobs of the specified environment which are running and not about to get stopped.
 	LoadRunners(environmentID string) (runnerIds []string, err error)
@@ -46,6 +50,9 @@ type ExecutorAPI interface {
 	// If tty is true, the command will run with a tty.
 	ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
+
+	// MarkRunnerAsUsed marks the runner with the given ID as used.
+	MarkRunnerAsUsed(runnerID string) error
 }
 
 // APIClient implements the ExecutorAPI interface and can be used to perform different operations on the real
@@ -219,6 +226,40 @@ func checkEvaluation(eval *nomadApi.Evaluation) (err error) {
 		}
 	}
 	return err
+}
+
+func (a *APIClient) MarkRunnerAsUsed(runnerID string) error {
+	job, err := a.jobInfo(runnerID)
+	if err != nil {
+		return fmt.Errorf("couldn't retrieve job info: %w", err)
+	}
+	var taskGroup = FindConfigTaskGroup(job)
+	if taskGroup == nil {
+		return errFindingTaskGroup
+	}
+	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUsedValue
+	_, err = a.RegisterNomadJob(job)
+	if err != nil {
+		return fmt.Errorf("couldn't update runner config: %w", err)
+	}
+	return nil
+}
+
+func (a *APIClient) LoadAllJobs() ([]*nomadApi.Job, error) {
+	jobStubs, err := a.LoadJobList()
+	if err != nil {
+		return []*nomadApi.Job{}, fmt.Errorf("couldn't load jobs: %w", err)
+	}
+
+	jobs := make([]*nomadApi.Job, 0, len(jobStubs))
+	for _, jobStub := range jobStubs {
+		job, err := a.apiQuerier.jobInfo(jobStub.ID)
+		if err != nil {
+			return []*nomadApi.Job{}, fmt.Errorf("couldn't load job info for job %v: %w", jobStub.ID, err)
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, nil
 }
 
 // nullReader is a struct that implements the io.Reader interface and returns nothing when reading

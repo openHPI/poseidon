@@ -62,11 +62,11 @@ func newJobListStub(id, status string, amountRunning int) *nomadApi.JobListStub 
 
 func (s *LoadRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
-		Return(nil, tests.DefaultError)
+		Return(nil, tests.ErrDefault)
 
-	returnedIds, err := s.nomadApiClient.LoadRunners(suite.jobId)
+	returnedIds, err := s.nomadApiClient.LoadRunners(s.jobId)
 	s.Nil(returnedIds)
-	s.Equal(tests.DefaultError, err)
+	s.Equal(tests.ErrDefault, err)
 }
 
 func (s *LoadRunnersTestSuite) TestReturnsNoErrorWhenUnderlyingApiCallDoesNot() {
@@ -79,7 +79,7 @@ func (s *LoadRunnersTestSuite) TestReturnsNoErrorWhenUnderlyingApiCallDoesNot() 
 
 func (s *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
-		Return([]*nomadApi.JobListStub{suite.availableRunner}, nil)
+		Return([]*nomadApi.JobListStub{s.availableRunner}, nil)
 
 	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
 	s.Len(returnedIds, 1)

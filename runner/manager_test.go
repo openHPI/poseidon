@@ -31,13 +31,16 @@ type ManagerTestSuite struct {
 
 func (s *ManagerTestSuite) SetupTest() {
 	s.apiMock = &nomad.ExecutorAPIMock{}
+	mockRunnerQueries(s.apiMock, []string{})
 	// Instantly closed context to manually start the update process in some cases
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	s.nomadRunnerManager = NewNomadRunnerManager(s.apiMock, ctx)
+	var err error
+
+	s.nomadRunnerManager, err = NewNomadRunnerManager(s.apiMock, ctx)
+	s.Require().NoError(err)
 
 	s.exerciseRunner = NewRunner(tests.DefaultRunnerID)
-	mockRunnerQueries(s.apiMock, []string{})
 	s.registerDefaultEnvironment()
 }
 
@@ -49,6 +52,8 @@ func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []strin
 		<-time.After(10 * time.Minute) // 10 minutes is the default test timeout
 		call.ReturnArguments = mock.Arguments{nil}
 	})
+	apiMock.On("LoadAllJobs").Return([]*nomadApi.Job{}, nil)
+	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string")).Return(nil)
 	apiMock.On("LoadRunners", tests.DefaultJobID).Return(returnedRunnerIds, nil)
 	apiMock.On("JobScale", tests.DefaultJobID).Return(uint(len(returnedRunnerIds)), nil)
 	apiMock.On("SetJobScale", tests.DefaultJobID, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)
@@ -58,7 +63,7 @@ func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []strin
 }
 
 func (s *ManagerTestSuite) registerDefaultEnvironment() {
-	err := s.nomadRunnerManager.registerEnvironment(defaultEnvironmentId, 0)
+	err := s.nomadRunnerManager.registerEnvironment(defaultEnvironmentID, 0)
 	s.Require().NoError(err)
 }
 
@@ -72,9 +77,9 @@ func (s *ManagerTestSuite) waitForRunnerRefresh() {
 }
 
 func (s *ManagerTestSuite) TestRegisterEnvironmentAddsNewJob() {
-	err := s.nomadRunnerManager.registerEnvironment(anotherEnvironmentId, defaultDesiredRunnersCount)
+	err := s.nomadRunnerManager.registerEnvironment(anotherEnvironmentID, defaultDesiredRunnersCount)
 	s.Require().NoError(err)
-	job, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentId)
+	job, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
 	s.True(ok)
 	s.NotNil(job)
 }
@@ -125,7 +130,7 @@ func (s *ManagerTestSuite) TestClaimThrowsAnErrorIfNoRunnersAvailable() {
 
 func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
-	receivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentId)
+	receivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentID)
 	savedRunner, ok := s.nomadRunnerManager.usedRunners.Get(receivedRunner.Id())
 	s.True(ok)
 	s.Equal(savedRunner, receivedRunner)
@@ -188,9 +193,9 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 
 func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 	allocation := &nomadApi.Allocation{ID: tests.DefaultRunnerID}
-	defaultJob, ok := s.nomadRunnerManager.jobs.Get(defaultEnvironmentID)
+	defaultJob, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
 	s.Require().True(ok)
-	allocation.JobID = string(defaultJob.jobID)
+	allocation.JobID = defaultJob.environmentID.toString()
 
 	_, ok = defaultJob.idleRunners.Get(allocation.ID)
 	s.Require().False(ok)
@@ -215,9 +220,9 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 
 func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	allocation := &nomadApi.Allocation{ID: tests.DefaultRunnerID}
-	defaultJob, ok := s.nomadRunnerManager.jobs.Get(defaultEnvironmentID)
+	defaultJob, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
 	s.Require().True(ok)
-	allocation.JobID = string(defaultJob.jobID)
+	allocation.JobID = defaultJob.environmentID.toString()
 
 	testRunner := NewRunner(allocation.ID)
 	defaultJob.idleRunners.Add(testRunner)

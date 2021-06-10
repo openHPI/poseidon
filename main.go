@@ -46,7 +46,10 @@ func initServer() *http.Server {
 		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
 	}
 
-	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
+	runnerManager, err := runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
+	if err != nil {
+		log.WithError(err).Fatal("Error creating new Nomad runner manager")
+	}
 	environmentManager := environment.NewNomadEnvironmentManager(runnerManager, nomadAPIClient)
 
 	return &http.Server{

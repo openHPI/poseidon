@@ -8,7 +8,9 @@ import (
 	"net/url"
 )
 
-var ErrNoAllocationsFound = errors.New("no allocation found")
+var (
+	ErrNoAllocationsFound = errors.New("no allocation found")
+)
 
 // apiQuerier provides access to the Nomad functionality.
 type apiQuerier interface {
@@ -51,9 +53,8 @@ type apiQuerier interface {
 
 // nomadAPIClient implements the nomadApiQuerier interface and provides access to a real Nomad API.
 type nomadAPIClient struct {
-	client       *nomadApi.Client
-	namespace    string
-	queryOptions *nomadApi.QueryOptions // ToDo: Remove
+	client    *nomadApi.Client
+	namespace string
 }
 
 func (nc *nomadAPIClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
@@ -63,15 +64,11 @@ func (nc *nomadAPIClient) init(nomadURL *url.URL, nomadNamespace string) (err er
 		Namespace: nomadNamespace,
 	})
 	nc.namespace = nomadNamespace
-	nc.queryOptions = &nomadApi.QueryOptions{
-		Namespace: nc.namespace,
-	}
 	return err
 }
 
 func (nc *nomadAPIClient) DeleteRunner(runnerID string) (err error) {
-	// ToDo: Fix Namespace
-	_, _, err = nc.client.Jobs().Deregister(runnerID, true, nc.queryOptions)
+	_, _, err = nc.client.Jobs().Deregister(runnerID, true, nc.writeOptions())
 	return
 }
 
@@ -89,7 +86,7 @@ func (nc *nomadAPIClient) Execute(jobID string,
 	return nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
 }
 
-func (nc *nomadApiClient) listJobs(prefix string) (jobs []*nomadApi.JobListStub, err error) {
+func (nc *nomadAPIClient) listJobs(prefix string) (jobs []*nomadApi.JobListStub, err error) {
 	q := nomadApi.QueryOptions{
 		Namespace: nc.namespace,
 		Prefix:    prefix,
@@ -120,7 +117,7 @@ func (nc *nomadAPIClient) EvaluationStream(evalID string, ctx context.Context) (
 			nomadApi.TopicEvaluation: {evalID},
 		},
 		0,
-		nc.queryOptions)
+		nc.queryOptions())
 	return
 }
 
@@ -131,6 +128,18 @@ func (nc *nomadAPIClient) AllocationStream(ctx context.Context) (stream <-chan *
 			nomadApi.TopicAllocation: {},
 		},
 		0,
-		nc.queryOptions)
+		nc.queryOptions())
 	return
+}
+
+func (nc *nomadAPIClient) queryOptions() *nomadApi.QueryOptions {
+	return &nomadApi.QueryOptions{
+		Namespace: nc.namespace,
+	}
+}
+
+func (nc *nomadAPIClient) writeOptions() *nomadApi.WriteOptions {
+	return &nomadApi.WriteOptions{
+		Namespace: nc.namespace,
+	}
 }

@@ -60,7 +60,7 @@ func (s *CreateOrUpdateTestSuite) mockCreateOrUpdateEnvironment(exists bool) *mo
 }
 
 func (s *CreateOrUpdateTestSuite) createJobForRequest() *nomadApi.Job {
-	return createJob(s.manager.defaultJob, nomad.DefaultJobID(tests.DefaultEnvironmentIdAsString),
+	return createDefaultJob(s.manager.defaultJob, tests.DefaultEnvironmentIDAsString,
 		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
 		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
 }
@@ -121,7 +121,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrec
 	s.True(created)
 	s.NoError(err)
 	s.runnerManagerMock.AssertCalled(s.T(), "CreateOrUpdateEnvironment",
-		runner.EnvironmentID(tests.DefaultEnvironmentIdAsInteger), s.request.PrewarmingPoolSize)
+		runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request.PrewarmingPoolSize)
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistOccurredErrorIsPassedAndNoEnvironmentRegistered() {
@@ -130,5 +130,5 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistOccurredErrorIs
 	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
 	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
 	s.False(created)
-	s.Equal(tests.DefaultError, err)
+	s.Equal(tests.ErrDefault, err)
 }

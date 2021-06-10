@@ -1,6 +1,6 @@
 // This job is used by the e2e tests as a demo job.
 
-job "python" {
+job "0-default" {
   datacenters = ["dc1"]
   type = "batch"
   namespace = "${NOMAD_NAMESPACE}"

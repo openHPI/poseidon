@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -67,10 +69,22 @@ func TestCreateOrUpdateEnvironment(t *testing.T) {
 		validateJob(t, request)
 	})
 
-	_, _, err := nomadClient.Jobs().DeregisterOpts(
-		tests.AnotherEnvironmentIDAsString, &nomadApi.DeregisterOptions{Purge: true}, nil)
+	cleanupJobsForEnvironment(t, tests.AnotherEnvironmentIDAsString)
+}
+
+func cleanupJobsForEnvironment(t *testing.T, environmentID string) {
+	t.Helper()
+
+	jobListStub, _, err := nomadClient.Jobs().List(&nomadApi.QueryOptions{Prefix: environmentID})
 	if err != nil {
-		t.Fatalf("Error when removing test job %v", err)
+		t.Fatalf("Error when listing test jobs: %v", err)
+	}
+
+	for _, j := range jobListStub {
+		_, _, err := nomadClient.Jobs().DeregisterOpts(j.ID, &nomadApi.DeregisterOptions{Purge: true}, nil)
+		if err != nil {
+			t.Fatalf("Error when removing test job %v", err)
+		}
 	}
 }
 
@@ -81,7 +95,9 @@ func assertPutReturnsStatusAndZeroContent(t *testing.T, path string,
 	require.Nil(t, err)
 	assert.Equal(t, status, resp.StatusCode)
 	assert.Equal(t, int64(0), resp.ContentLength)
-
+	content, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Empty(t, string(content))
 	_ = resp.Body.Close()
 }
 
@@ -91,7 +107,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 
 	assertEqualValueStringPointer(t, nomadNamespace, job.Namespace)
 	assertEqualValueStringPointer(t, "batch", job.Type)
-	require.Equal(t, 1, len(job.TaskGroups))
+	require.Equal(t, 2, len(job.TaskGroups))
 
 	taskGroup := job.TaskGroups[0]
 	require.NotNil(t, taskGroup.Count)
@@ -123,7 +139,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 
 func findNomadJob(t *testing.T, jobID string) *nomadApi.Job {
 	t.Helper()
-	job, _, err := nomadClient.Jobs().Info(jobID, nil)
+	job, _, err := nomadClient.Jobs().Info(nomad.DefaultJobID(jobID), nil)
 	if err != nil {
 		t.Fatalf("Error retrieving Nomad job: %v", err)
 	}

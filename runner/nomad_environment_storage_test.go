@@ -16,9 +16,9 @@ type JobStoreTestSuite struct {
 	job        *NomadEnvironment
 }
 
-func (suite *JobStoreTestSuite) SetupTest() {
-	suite.jobStorage = NewLocalNomadJobStorage()
-	suite.job = &NomadEnvironment{environmentID: defaultEnvironmentId}
+func (s *JobStoreTestSuite) SetupTest() {
+	s.jobStorage = NewLocalNomadJobStorage()
+	s.job = &NomadEnvironment{environmentID: defaultEnvironmentID}
 }
 
 func (s *JobStoreTestSuite) TestAddedJobCanBeRetrieved() {
@@ -28,10 +28,10 @@ func (s *JobStoreTestSuite) TestAddedJobCanBeRetrieved() {
 	s.Equal(s.job, retrievedJob)
 }
 
-func (suite *JobStoreTestSuite) TestJobWithSameIdOverwritesOldOne() {
-	otherJobWithSameID := &NomadEnvironment{environmentID: defaultEnvironmentId}
+func (s *JobStoreTestSuite) TestJobWithSameIdOverwritesOldOne() {
+	otherJobWithSameID := &NomadEnvironment{environmentID: defaultEnvironmentID}
 	otherJobWithSameID.templateJob = &nomadApi.Job{}
-	suite.NotEqual(suite.job, otherJobWithSameID)
+	s.NotEqual(s.job, otherJobWithSameID)
 
 	s.jobStorage.Add(s.job)
 	s.jobStorage.Add(otherJobWithSameID)

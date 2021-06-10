@@ -6,6 +6,9 @@ import (
 
 // NomadEnvironmentStorage is an interface for storing NomadJobs.
 type NomadEnvironmentStorage interface {
+	// List returns all keys of environments stored in this storage.
+	List() []EnvironmentID
+
 	// Add adds a job to the storage.
 	// It overwrites the old job if one with the same id was already stored.
 	Add(job *NomadEnvironment)
@@ -34,6 +37,14 @@ func NewLocalNomadJobStorage() *localNomadJobStorage {
 	return &localNomadJobStorage{
 		jobs: make(map[EnvironmentID]*NomadEnvironment),
 	}
+}
+
+func (s *localNomadJobStorage) List() []EnvironmentID {
+	keys := make([]EnvironmentID, 0, len(s.jobs))
+	for k := range s.jobs {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func (s *localNomadJobStorage) Add(job *NomadEnvironment) {

@@ -65,7 +65,6 @@ func (s *E2ETestSuite) TestOutputToStdout() {
 }
 
 func (s *E2ETestSuite) TestOutputToStderr() {
-	s.T().Skip("known bug causing all output to be written to stdout (even if it should be written to stderr)")
 	connection, err := ProvideWebSocketConnection(&s.Suite, &dto.ExecutionRequest{Command: "cat -invalid"})
 	s.Require().NoError(err)
 
@@ -74,8 +73,9 @@ func (s *E2ETestSuite) TestOutputToStderr() {
 	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
 
 	controlMessages := helpers.WebSocketControlMessages(messages)
+	s.Require().Equal(2, len(controlMessages))
 	s.Require().Equal(&dto.WebSocketMessage{Type: dto.WebSocketMetaStart}, controlMessages[0])
-	s.Require().Equal(&dto.WebSocketMessage{Type: dto.WebSocketExit}, controlMessages[1])
+	s.Require().Equal(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: 1}, controlMessages[1])
 
 	stdout, stderr, errors := helpers.WebSocketOutputMessages(messages)
 	s.NotContains(stdout, "cat: invalid option", "Stdout should not contain the error")

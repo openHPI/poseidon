@@ -24,8 +24,8 @@ type apiQuerier interface {
 	// DeleteRunner deletes the runner with the given Id.
 	DeleteRunner(runnerId string) (err error)
 
-	// ExecuteCommand runs a command in the passed allocation.
-	ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool,
+	// Execute runs a command in the passed allocation.
+	Execute(allocationID string, ctx context.Context, command []string, tty bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// loadRunners loads all allocations of the specified job.
@@ -72,7 +72,7 @@ func (nc *nomadAPIClient) DeleteRunner(runnerID string) (err error) {
 	return err
 }
 
-func (nc *nomadAPIClient) ExecuteCommand(allocationID string,
+func (nc *nomadAPIClient) Execute(allocationID string,
 	ctx context.Context, command []string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	allocation, _, err := nc.client.Allocations().Info(allocationID, nil)

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
+	"io"
 	"net/url"
 	"time"
 )
@@ -36,6 +38,12 @@ type ExecutorAPI interface {
 	// WatchAllocations listens on the Nomad event stream for allocation events.
 	// Depending on the incoming event, any of the given function is executed.
 	WatchAllocations(ctx context.Context, onNewAllocation, onDeletedAllocation AllocationProcessor) error
+
+	// ExecuteCommand executes the given command in the allocation with the given id.
+	// It writes the output of the command to stdout/stderr and reads input from stdin.
+	// If tty is true, the command will run with a tty.
+	ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool,
+		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 }
 
 // APIClient implements the ExecutorAPI interface and can be used to perform different operations on the real
@@ -202,4 +210,64 @@ func checkEvaluation(eval *nomadApi.Evaluation) (err error) {
 		}
 	}
 	return err
+}
+
+// nullReader is a struct that implements the io.Reader interface and returns nothing when reading
+// from it.
+type nullReader struct{}
+
+func (r nullReader) Read(_ []byte) (int, error) {
+	return 0, nil
+}
+
+// ExecuteCommand executes the given command in the given allocation.
+// If tty is true, Nomad would normally write stdout and stderr of the command
+// both on the stdout stream. However, if the InteractiveStderr server config option is true,
+// we make sure that stdout and stderr are split correctly.
+func (a *APIClient) ExecuteCommand(allocationID string,
+	ctx context.Context, command []string, tty bool,
+	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	if tty && config.Config.Server.InteractiveStderr {
+		return a.executeCommandInteractivelyWithStderr(allocationID, ctx, command, stdin, stdout, stderr)
+	}
+	return a.apiQuerier.Execute(allocationID, ctx, command, tty, stdin, stdout, stderr)
+}
+
+func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, ctx context.Context,
+	command []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	// Use current nano time to make the stderr fifo kind of unique.
+	currentNanoTime := time.Now().UnixNano()
+	// We expect the command to be like []string{..., "sh", "-c", "my-command"}.
+	oldCommand := command[len(command)-1]
+	// Take the last command which is the one to be executed and wrap it to redirect stderr.
+	command[len(command)-1] = wrapCommandForStderrFifo(currentNanoTime, oldCommand)
+
+	stderrExitChan := make(chan int)
+	go func() {
+		// Catch stderr in separate execution.
+		exit, err := a.Execute(allocationID, ctx, stderrFifoCommand(currentNanoTime), true, nullReader{}, stderr, io.Discard)
+		if err != nil {
+			log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
+		}
+		stderrExitChan <- exit
+	}()
+
+	exit, err := a.Execute(allocationID, ctx, command, true, stdin, stdout, io.Discard)
+
+	// Wait until the stderr catch command finished to make sure we receive all output.
+	<-stderrExitChan
+	return exit, err
+}
+
+const (
+	stderrFifoCommandFormat    = "mkfifo /tmp/stderr_%d.fifo && cat /tmp/stderr_%d.fifo"
+	stderrWrapperCommandFormat = "until [ -e /tmp/stderr_%d.fifo ]; do sleep 0.01; done; (%s) 2> /tmp/stderr_%d.fifo"
+)
+
+func stderrFifoCommand(id int64) []string {
+	return []string{"sh", "-c", fmt.Sprintf(stderrFifoCommandFormat, id, id)}
+}
+
+func wrapCommandForStderrFifo(id int64, command string) string {
+	return fmt.Sprintf(stderrWrapperCommandFormat, id, command, id)
 }

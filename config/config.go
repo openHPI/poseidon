@@ -18,12 +18,13 @@ import (
 var (
 	Config = &configuration{
 		Server: server{
-			Address:  "127.0.0.1",
-			Port:     7200,
-			Token:    "",
-			TLS:      false,
-			CertFile: "",
-			KeyFile:  "",
+			Address:           "127.0.0.1",
+			Port:              7200,
+			Token:             "",
+			TLS:               false,
+			CertFile:          "",
+			KeyFile:           "",
+			InteractiveStderr: true,
 		},
 		Nomad: nomad{
 			Address:   "127.0.0.1",
@@ -48,12 +49,13 @@ var (
 
 // server configures the Poseidon webserver.
 type server struct {
-	Address  string
-	Port     int
-	Token    string
-	TLS      bool
-	CertFile string
-	KeyFile  string
+	Address           string
+	Port              int
+	Token             string
+	TLS               bool
+	CertFile          string
+	KeyFile           string
+	InteractiveStderr bool
 }
 
 // nomad configures the used Nomad cluster.

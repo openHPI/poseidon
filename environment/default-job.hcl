@@ -1,10 +1,10 @@
 // This is the default job configuration that is used when no path to another default configuration is given
 
-job "default-poseidon-job" {
+job "python" {
   datacenters = ["dc1"]
   type = "batch"
 
-  group "default-poseidon-group" {
+  group "default-group" {
     ephemeral_disk {
       migrate = false
       size    = 10
@@ -23,13 +23,13 @@ job "default-poseidon-job" {
       weight = 100
     }
 
-    task "default-poseidon-task" {
+    task "default-task" {
       driver = "docker"
       kill_timeout = "0s"
       kill_signal = "SIGKILL"
 
       config {
-        image = "python:latest"
+        image = "drp.codemoon.xopic.de/openhpi/co_execenv_python:3.8"
         command = "sleep"
         args = ["infinity"]
         network_mode = "none"

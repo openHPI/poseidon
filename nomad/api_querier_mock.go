@@ -79,8 +79,8 @@ func (_m *apiQuerierMock) EvaluationStream(evalID string, ctx context.Context) (
 	return r0, r1
 }
 
-// ExecuteCommand provides a mock function with given fields: allocationID, ctx, command, tty, stdin, stdout, stderr
-func (_m *apiQuerierMock) ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+// Execute provides a mock function with given fields: allocationID, ctx, command, tty, stdin, stdout, stderr
+func (_m *apiQuerierMock) Execute(allocationID string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
 	ret := _m.Called(allocationID, ctx, command, tty, stdin, stdout, stderr)
 
 	var r0 int

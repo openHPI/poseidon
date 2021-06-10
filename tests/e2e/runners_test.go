@@ -112,7 +112,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		s.Equal(http.StatusNoContent, resp.StatusCode)
 
 		s.Run("File content can be printed on runner", func() {
-			s.Equal(tests.DefaultFileContent, s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName))
+			s.assertFileContent(runnerID, tests.DefaultFileName, tests.DefaultFileContent)
 		})
 	})
 
@@ -134,11 +134,11 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 
 		s.Run("File content of file with relative path can be printed on runner", func() {
 			// the print command is executed in the context of the default working directory of the container
-			s.Equal(relativeFileContent, s.PrintContentOfFileOnRunner(runnerID, relativeFilePath))
+			s.assertFileContent(runnerID, relativeFilePath, relativeFileContent)
 		})
 
 		s.Run("File content of file with absolute path can be printed on runner", func() {
-			s.Equal(absoluteFileContent, s.PrintContentOfFileOnRunner(runnerID, absoluteFilePath))
+			s.assertFileContent(runnerID, absoluteFilePath, absoluteFileContent)
 		})
 	})
 
@@ -152,7 +152,9 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		s.Equal(http.StatusNoContent, resp.StatusCode)
 
 		s.Run("File content can no longer be printed", func() {
-			s.Contains(s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName), "No such file or directory")
+			stdout, stderr := s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName)
+			s.Equal("", stdout)
+			s.Contains(stderr, "No such file or directory")
 		})
 	})
 
@@ -168,7 +170,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		_ = resp.Body.Close()
 
 		s.Run("File content can be printed on runner", func() {
-			s.Equal(tests.DefaultFileContent, s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName))
+			s.assertFileContent(runnerID, tests.DefaultFileName, tests.DefaultFileContent)
 		})
 	})
 
@@ -191,7 +193,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		_ = resp.Body.Close()
 
 		s.Run("File content can be printed on runner", func() {
-			s.Equal(string(newFileContent), s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName))
+			s.assertFileContent(runnerID, tests.DefaultFileName, string(newFileContent))
 		})
 	})
 
@@ -208,7 +210,13 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 	})
 }
 
-func (s *E2ETestSuite) PrintContentOfFileOnRunner(runnerId string, filename string) string {
+func (s *E2ETestSuite) assertFileContent(runnerID, fileName string, expectedContent string) {
+	stdout, stderr := s.PrintContentOfFileOnRunner(runnerID, fileName)
+	s.Equal(expectedContent, stdout)
+	s.Equal("", stderr)
+}
+
+func (s *E2ETestSuite) PrintContentOfFileOnRunner(runnerId string, filename string) (string, string) {
 	webSocketURL, _ := ProvideWebSocketURL(&s.Suite, runnerId, &dto.ExecutionRequest{Command: fmt.Sprintf("cat %s", filename)})
 	connection, _ := ConnectToWebSocket(webSocketURL)
 
@@ -216,6 +224,6 @@ func (s *E2ETestSuite) PrintContentOfFileOnRunner(runnerId string, filename stri
 	s.Require().Error(err)
 	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
 
-	stdout, _, _ := helpers.WebSocketOutputMessages(messages)
-	return stdout
+	stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
+	return stdout, stderr
 }

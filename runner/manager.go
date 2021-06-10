@@ -184,7 +184,7 @@ func (m *NomadRunnerManager) refreshEnvironment(id EnvironmentID) {
 		}
 		jobScale, err := m.apiClient.JobScale(string(job.jobID))
 		if err != nil {
-			log.WithError(err).Printf("Failed get allocation count")
+			log.WithError(err).WithField("job", string(job.jobID)).Printf("Failed get allocation count")
 			break
 		}
 		additionallyNeededRunners := int(job.desiredIdleRunnersCount) - job.idleRunners.Length()

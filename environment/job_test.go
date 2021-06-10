@@ -261,7 +261,7 @@ func TestCreateJobSetsAllGivenArguments(t *testing.T) {
 }
 
 func TestRegisterJobWhenNomadJobRegistrationFails(t *testing.T) {
-	apiMock := nomad.ExecutorApiMock{}
+	apiMock := nomad.ExecutorAPIMock{}
 	expectedErr := errors.New("test error")
 
 	apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return("", expectedErr)
@@ -278,7 +278,7 @@ func TestRegisterJobWhenNomadJobRegistrationFails(t *testing.T) {
 }
 
 func TestRegisterJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
-	apiMock := nomad.ExecutorApiMock{}
+	apiMock := nomad.ExecutorAPIMock{}
 	evaluationID := "id"
 
 	apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
@@ -295,7 +295,7 @@ func TestRegisterJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
 }
 
 func TestRegisterJobReturnsErrorWhenMonitoringEvaluationFails(t *testing.T) {
-	apiMock := nomad.ExecutorApiMock{}
+	apiMock := nomad.ExecutorAPIMock{}
 	evaluationID := "id"
 	expectedErr := errors.New("test error")
 

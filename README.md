@@ -136,8 +136,8 @@ For example, for an interface called `ExecutorApi` in the package `nomad`, you m
 ```bash
 mockery \
 --name=ExecutorApi \
---structname=ExecutorApiMock \
---filename=ExecutorApiMock.go \
+--structname=ExecutorAPIMock \
+--filename=ExecutorAPIMock.go \
 --inpackage
 ```
 

@@ -25,13 +25,13 @@ func TestGetNextRunnerTestSuite(t *testing.T) {
 
 type ManagerTestSuite struct {
 	suite.Suite
-	apiMock            *nomad.ExecutorApiMock
+	apiMock            *nomad.ExecutorAPIMock
 	nomadRunnerManager *NomadRunnerManager
 	exerciseRunner     Runner
 }
 
 func (s *ManagerTestSuite) SetupTest() {
-	s.apiMock = &nomad.ExecutorApiMock{}
+	s.apiMock = &nomad.ExecutorAPIMock{}
 	// Instantly closed context to manually start the update process in some cases
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -42,7 +42,7 @@ func (s *ManagerTestSuite) SetupTest() {
 	s.registerDefaultEnvironment()
 }
 
-func mockRunnerQueries(apiMock *nomad.ExecutorApiMock, returnedRunnerIds []string) {
+func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []string) {
 	// reset expected calls to allow new mocked return values
 	apiMock.ExpectedCalls = []*mock.Call{}
 	call := apiMock.On("WatchAllocations", mock.Anything, mock.Anything, mock.Anything)
@@ -273,7 +273,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	s.False(ok)
 }
 
-func modifyMockedCall(apiMock *nomad.ExecutorApiMock, method string, modifier func(call *mock.Call)) {
+func modifyMockedCall(apiMock *nomad.ExecutorAPIMock, method string, modifier func(call *mock.Call)) {
 	for _, c := range apiMock.ExpectedCalls {
 		if c.Method == method {
 			modifier(c)

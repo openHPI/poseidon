@@ -16,7 +16,7 @@ import (
 type CreateOrUpdateTestSuite struct {
 	suite.Suite
 	runnerManagerMock        runner.ManagerMock
-	apiMock                  nomad.ExecutorApiMock
+	apiMock                  nomad.ExecutorAPIMock
 	registerNomadJobMockCall *mock.Call
 	request                  dto.ExecutionEnvironmentRequest
 	manager                  *NomadEnvironmentManager
@@ -28,7 +28,7 @@ func TestCreateOrUpdateTestSuite(t *testing.T) {
 
 func (s *CreateOrUpdateTestSuite) SetupTest() {
 	s.runnerManagerMock = runner.ManagerMock{}
-	s.apiMock = nomad.ExecutorApiMock{}
+	s.apiMock = nomad.ExecutorAPIMock{}
 	s.request = dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: 10,
 		CPULimit:           20,

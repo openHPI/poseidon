@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,8 +12,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
+	"io"
 	"net/url"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -616,4 +621,140 @@ func createAllocation(modifyTime int64, clientStatus, desiredStatus string) *nom
 
 func createRecentAllocation(clientStatus, desiredStatus string) *nomadApi.Allocation {
 	return createAllocation(time.Now().Add(time.Minute).UnixNano(), clientStatus, desiredStatus)
+}
+
+func TestExecuteCommandTestSuite(t *testing.T) {
+	suite.Run(t, new(ExecuteCommandTestSuite))
+}
+
+type ExecuteCommandTestSuite struct {
+	suite.Suite
+	allocationID     string
+	ctx              context.Context
+	testCommand      string
+	testCommandArray []string
+	expectedStdout   string
+	expectedStderr   string
+	apiMock          *apiQuerierMock
+	nomadAPIClient   APIClient
+}
+
+func (s *ExecuteCommandTestSuite) SetupTest() {
+	s.allocationID = "test-allocation-id"
+	s.ctx = context.Background()
+	s.testCommand = "echo 'do nothing'"
+	s.testCommandArray = []string{"sh", "-c", s.testCommand}
+	s.expectedStdout = "stdout"
+	s.expectedStderr = "stderr"
+	s.apiMock = &apiQuerierMock{}
+	s.nomadAPIClient = APIClient{apiQuerier: s.apiMock}
+}
+
+const withTTY = true
+
+func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
+	config.Config.Server.InteractiveStderr = true
+	commandExitCode := 42
+	stderrExitCode := 1
+
+	var stdout, stderr bytes.Buffer
+	var calledStdoutCommand, calledStderrCommand []string
+
+	// mock regular call
+	s.mockExecute(s.testCommandArray, commandExitCode, nil, func(args mock.Arguments) {
+		var ok bool
+		calledStdoutCommand, ok = args.Get(2).([]string)
+		s.Require().True(ok)
+		writer, ok := args.Get(5).(io.Writer)
+		s.Require().True(ok)
+		_, err := writer.Write([]byte(s.expectedStdout))
+		s.Require().NoError(err)
+	})
+	// mock stderr call
+	s.mockExecute(mock.AnythingOfType("[]string"), stderrExitCode, nil, func(args mock.Arguments) {
+		var ok bool
+		calledStderrCommand, ok = args.Get(2).([]string)
+		s.Require().True(ok)
+		writer, ok := args.Get(5).(io.Writer)
+		s.Require().True(ok)
+		_, err := writer.Write([]byte(s.expectedStderr))
+		s.Require().NoError(err)
+	})
+
+	exitCode, err := s.nomadAPIClient.
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullReader{}, &stdout, &stderr)
+	s.Require().NoError(err)
+
+	s.apiMock.AssertNumberOfCalls(s.T(), "Execute", 2)
+	s.Equal(commandExitCode, exitCode)
+
+	s.Run("should wrap command in stderr wrapper", func() {
+		s.Require().NotNil(calledStdoutCommand)
+		stdoutFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrWrapperCommandFormat), "%d", "\\d*")
+		stdoutFifoRegexp = fmt.Sprintf(stdoutFifoRegexp, s.testCommand)
+		s.Regexp(stdoutFifoRegexp, calledStdoutCommand[len(calledStdoutCommand)-1])
+	})
+
+	s.Run("should call correct stderr command", func() {
+		s.Require().NotNil(calledStderrCommand)
+		stderrFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrFifoCommandFormat), "%d", "\\d*")
+		s.Regexp(stderrFifoRegexp, calledStderrCommand[len(calledStderrCommand)-1])
+	})
+
+	s.Run("should return correct output", func() {
+		s.Equal(s.expectedStdout, stdout.String())
+		s.Equal(s.expectedStderr, stderr.String())
+	})
+}
+
+func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
+	config.Config.Server.InteractiveStderr = true
+	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
+	s.mockExecute(mock.AnythingOfType("[]string"), 1, nil, func(args mock.Arguments) {})
+	_, err := s.nomadAPIClient.
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullReader{}, io.Discard, io.Discard)
+	s.Equal(tests.ErrDefault, err)
+}
+
+func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
+	config.Config.Server.InteractiveStderr = false
+	var stdout, stderr bytes.Buffer
+	commandExitCode := 42
+
+	// mock regular call
+	s.mockExecute(s.testCommandArray, commandExitCode, nil, func(args mock.Arguments) {
+		stdout, ok := args.Get(5).(io.Writer)
+		s.Require().True(ok)
+		_, err := stdout.Write([]byte(s.expectedStdout))
+		s.Require().NoError(err)
+		stderr, ok := args.Get(6).(io.Writer)
+		s.Require().True(ok)
+		_, err = stderr.Write([]byte(s.expectedStderr))
+		s.Require().NoError(err)
+	})
+
+	exitCode, err := s.nomadAPIClient.
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullReader{}, &stdout, &stderr)
+	s.Require().NoError(err)
+
+	s.apiMock.AssertNumberOfCalls(s.T(), "Execute", 1)
+	s.Equal(commandExitCode, exitCode)
+	s.Equal(s.expectedStdout, stdout.String())
+	s.Equal(s.expectedStderr, stderr.String())
+}
+
+func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError() {
+	config.Config.Server.InteractiveStderr = false
+	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
+	_, err := s.nomadAPIClient.
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullReader{}, io.Discard, io.Discard)
+	s.Equal(tests.ErrDefault, err)
+}
+
+func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
+	err error, runFunc func(arguments mock.Arguments)) {
+	s.apiMock.On("Execute", s.allocationID, s.ctx, command, withTTY,
+		mock.Anything, mock.Anything, mock.Anything).
+		Run(runFunc).
+		Return(exitCode, err)
 }

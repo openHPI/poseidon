@@ -73,7 +73,7 @@ func TestFromContextReturnsIsNotOkWhenContextHasNoRunner(t *testing.T) {
 }
 
 func TestExecuteCallsAPI(t *testing.T) {
-	apiMock := &nomad.ExecutorApiMock{}
+	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).Return(0, nil)
 	runner := NewNomadAllocation(tests.DefaultRunnerID, apiMock)
 
@@ -106,8 +106,8 @@ func TestExecuteReturnsAfterTimeout(t *testing.T) {
 	}
 }
 
-func newApiMockWithTimeLimitHandling() (apiMock *nomad.ExecutorApiMock) {
-	apiMock = &nomad.ExecutorApiMock{}
+func newApiMockWithTimeLimitHandling() (apiMock *nomad.ExecutorAPIMock) {
+	apiMock = &nomad.ExecutorAPIMock{}
 	apiMock.
 		On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
@@ -125,14 +125,14 @@ func TestUpdateFileSystemTestSuite(t *testing.T) {
 type UpdateFileSystemTestSuite struct {
 	suite.Suite
 	runner                   *NomadAllocation
-	apiMock                  *nomad.ExecutorApiMock
+	apiMock                  *nomad.ExecutorAPIMock
 	mockedExecuteCommandCall *mock.Call
 	command                  []string
 	stdin                    *bytes.Buffer
 }
 
 func (s *UpdateFileSystemTestSuite) SetupTest() {
-	s.apiMock = &nomad.ExecutorApiMock{}
+	s.apiMock = &nomad.ExecutorAPIMock{}
 	s.runner = NewNomadAllocation(tests.DefaultRunnerID, s.apiMock)
 	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {

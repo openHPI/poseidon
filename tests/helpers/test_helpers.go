@@ -114,7 +114,7 @@ func StartTLSServer(t *testing.T, router *mux.Router) (server *httptest.Server, 
 
 // MockApiExecute mocks the ExecuteCommand method of an ExecutorApi to call the given method run when the command
 // corresponding to the given ExecutionRequest is called.
-func MockApiExecute(api *nomad.ExecutorApiMock, request *dto.ExecutionRequest,
+func MockApiExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
 	run func(runnerId string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout, stderr io.Writer) (int, error)) {
 	call := api.On("ExecuteCommand",
 		mock.AnythingOfType("string"),

@@ -29,7 +29,7 @@ type MiddlewareTestSuite struct {
 
 func (s *MiddlewareTestSuite) SetupTest() {
 	s.manager = &runner.ManagerMock{}
-	s.runner = runner.NewNomadJob("runner", nil)
+	s.runner = runner.NewNomadJob(tests.DefaultRunnerID, nil)
 	s.capturedRunner = nil
 	s.runnerRequest = func(runnerId string) *http.Request {
 		path, err := s.router.Get("test-runner-id").URL(RunnerIdKey, runnerId)

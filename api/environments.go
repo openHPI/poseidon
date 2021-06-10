@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 )
 
@@ -37,8 +38,12 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 		writeBadRequest(writer, fmt.Errorf("could not find %s", executionEnvironmentIDKey))
 		return
 	}
-
-	created, err := e.manager.CreateOrUpdate(id, *req)
+	environmentID, err := runner.NewEnvironmentID(id)
+	if err != nil {
+		writeBadRequest(writer, fmt.Errorf("could not update environment: %w", err))
+		return
+	}
+	created, err := e.manager.CreateOrUpdate(environmentID, *req)
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 	}
@@ -51,6 +56,6 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 }
 
 // delete removes an execution environment from the executor
-func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http.Request) { // nolint:unused
+func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http.Request) { // nolint:unused ToDo
 
 }

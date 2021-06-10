@@ -13,8 +13,10 @@ const (
 	DefaultEnvironmentIDAsString  = "0"
 	AnotherEnvironmentIDAsInteger = 42
 	AnotherEnvironmentIDAsString  = "42"
-	DefaultJobID                  = DefaultEnvironmentIDAsString
-	AnotherJobID                  = AnotherEnvironmentIDAsString
+	DefaultUUID                   = "MY-DEFAULT-RANDOM-UUID"
+	AnotherUUID                   = "another-uuid-43"
+	DefaultJobID                  = DefaultEnvironmentIDAsString + "-" + DefaultUUID
+	AnotherJobID                  = AnotherEnvironmentIDAsString + "-" + AnotherUUID
 	DefaultRunnerID               = DefaultJobID
 	AnotherRunnerID               = AnotherJobID
 	DefaultExecutionID            = "s0m3-3x3cu710n-1d"

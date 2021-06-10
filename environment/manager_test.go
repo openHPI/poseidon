@@ -8,8 +8,6 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
-	"math"
-	"strconv"
 	"testing"
 )
 
@@ -28,7 +26,6 @@ func TestCreateOrUpdateTestSuite(t *testing.T) {
 
 func (s *CreateOrUpdateTestSuite) SetupTest() {
 	s.runnerManagerMock = runner.ManagerMock{}
-	s.runnerManagerMock.On("registerEnvironment", mock.Anything, mock.Anything).Return(nil)
 
 	s.apiMock = nomad.ExecutorAPIMock{}
 	s.request = dto.ExecutionEnvironmentRequest{
@@ -49,38 +46,23 @@ func (s *CreateOrUpdateTestSuite) SetupTest() {
 	}
 }
 
-func (s *CreateOrUpdateTestSuite) mockEnvironmentExists(exists bool) {
-	s.runnerManagerMock.On("EnvironmentExists", mock.AnythingOfType("EnvironmentID")).Return(exists)
-}
-
 func (s *CreateOrUpdateTestSuite) mockCreateOrUpdateEnvironment(exists bool) *mock.Call {
 	return s.runnerManagerMock.On("CreateOrUpdateEnvironment",
-		mock.AnythingOfType("EnvironmentID"), mock.AnythingOfType("uint")).
+		mock.AnythingOfType("EnvironmentID"), mock.AnythingOfType("uint"), mock.AnythingOfType("*api.Job")).
 		Return(!exists, nil)
 }
 
 func (s *CreateOrUpdateTestSuite) createJobForRequest() *nomadApi.Job {
-	return createDefaultJob(s.manager.defaultJob, tests.DefaultEnvironmentIDAsString,
+	return createTemplateJob(s.manager.defaultJob, tests.DefaultEnvironmentIDAsInteger,
 		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
 		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
-}
-
-func (s *CreateOrUpdateTestSuite) TestFailsOnInvalidID() {
-	_, err := s.manager.CreateOrUpdate("invalid-id", s.request)
-	s.Error(err)
-}
-
-func (s *CreateOrUpdateTestSuite) TestFailsOnTooLargeID() {
-	tooLargeIntStr := strconv.Itoa(math.MaxInt64) + "0"
-	_, err := s.manager.CreateOrUpdate(tooLargeIntStr, s.request)
-	s.Error(err)
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsRegistersCorrectJob() {
 	s.mockCreateOrUpdateEnvironment(true)
 	expectedJob := s.createJobForRequest()
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
 	s.NoError(err)
 	s.False(created)
 	s.apiMock.AssertCalled(s.T(), "RegisterNomadJob", expectedJob)
@@ -90,7 +72,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsOccurredErrorIsPassed
 	s.mockCreateOrUpdateEnvironment(true)
 
 	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
 	s.False(created)
 	s.Equal(tests.ErrDefault, err)
 }
@@ -98,7 +80,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsOccurredErrorIsPassed
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsReturnsFalse() {
 	s.mockCreateOrUpdateEnvironment(true)
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
 	s.NoError(err)
 	s.False(created)
 }
@@ -108,7 +90,7 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrec
 
 	expectedJob := s.createJobForRequest()
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
 	s.NoError(err)
 	s.True(created)
 	s.apiMock.AssertCalled(s.T(), "RegisterNomadJob", expectedJob)
@@ -117,18 +99,20 @@ func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrec
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrectEnvironment() {
 	s.mockCreateOrUpdateEnvironment(false)
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
+	expectedJob := s.createJobForRequest()
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
 	s.True(created)
 	s.NoError(err)
 	s.runnerManagerMock.AssertCalled(s.T(), "CreateOrUpdateEnvironment",
-		runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request.PrewarmingPoolSize)
+		runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request.PrewarmingPoolSize, expectedJob)
 }
 
 func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistOccurredErrorIsPassedAndNoEnvironmentRegistered() {
 	s.mockCreateOrUpdateEnvironment(false)
 
 	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsString, s.request)
+	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
 	s.False(created)
 	s.Equal(tests.ErrDefault, err)
+	s.runnerManagerMock.AssertNotCalled(s.T(), "CreateOrUpdateEnvironment")
 }

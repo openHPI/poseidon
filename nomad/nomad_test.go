@@ -38,15 +38,15 @@ type LoadRunnersTestSuite struct {
 }
 
 func (s *LoadRunnersTestSuite) SetupTest() {
-	s.jobId = "1d-0f-v3ry-sp3c14l-j0b"
+	s.jobId = tests.DefaultJobID
 
 	s.mock = &apiQuerierMock{}
 	s.nomadApiClient = APIClient{apiQuerier: s.mock}
 
-	s.availableRunner = newJobListStub("s0m3-r4nd0m-1d", structs.JobStatusRunning, 1)
-	s.anotherAvailableRunner = newJobListStub("s0m3-s1m1l4r-1d", structs.JobStatusRunning, 1)
-	s.pendingRunner = newJobListStub("4n0th3r-1d", structs.JobStatusPending, 0)
-	s.deadRunner = newJobListStub("my-1d", structs.JobStatusDead, 0)
+	s.availableRunner = newJobListStub(tests.DefaultJobID, structs.JobStatusRunning, 1)
+	s.anotherAvailableRunner = newJobListStub(tests.AnotherJobID, structs.JobStatusRunning, 1)
+	s.pendingRunner = newJobListStub(tests.DefaultJobID+"-1", structs.JobStatusPending, 0)
+	s.deadRunner = newJobListStub(tests.AnotherJobID+"-1", structs.JobStatusDead, 0)
 }
 
 func newJobListStub(id, status string, amountRunning int) *nomadApi.JobListStub {

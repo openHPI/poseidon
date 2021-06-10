@@ -6,6 +6,7 @@ import (
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec2"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"strconv"
 )
 
@@ -15,34 +16,34 @@ import (
 //go:embed default-job.hcl
 var defaultJobHCL string
 
-// registerDefaultJob creates a Nomad job based on the default job configuration and the given parameters.
+// registerTemplateJob creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
-func (m *NomadEnvironmentManager) registerDefaultJob(
-	environmentID string,
+func (m *NomadEnvironmentManager) registerTemplateJob(
+	environmentID runner.EnvironmentID,
 	prewarmingPoolSize, cpuLimit, memoryLimit uint,
 	image string,
 	networkAccess bool,
-	exposedPorts []uint16) error {
-	job := createDefaultJob(m.defaultJob, environmentID, prewarmingPoolSize,
+	exposedPorts []uint16) (*nomadApi.Job, error) {
+	job := createTemplateJob(m.defaultJob, environmentID, prewarmingPoolSize,
 		cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 	evalID, err := m.api.RegisterNomadJob(job)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return m.api.MonitorEvaluation(evalID, context.Background())
+	return job, m.api.MonitorEvaluation(evalID, context.Background())
 }
 
-func createDefaultJob(
+func createTemplateJob(
 	defaultJob nomadApi.Job,
-	environmentID string,
+	environmentID runner.EnvironmentID,
 	prewarmingPoolSize, cpuLimit, memoryLimit uint,
 	image string,
 	networkAccess bool,
 	exposedPorts []uint16) *nomadApi.Job {
 	job := defaultJob
-	defaultJobID := nomad.DefaultJobID(environmentID)
-	job.ID = &defaultJobID
-	job.Name = &defaultJobID
+	templateJobID := nomad.TemplateJobID(strconv.Itoa(int(environmentID)))
+	job.ID = &templateJobID
+	job.Name = &templateJobID
 
 	var taskGroup = createTaskGroup(&job, nomad.TaskGroupName, prewarmingPoolSize)
 	configureTask(taskGroup, nomad.TaskName, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
@@ -155,43 +156,43 @@ func configureTask(
 	configureNetwork(taskGroup, networkAccess, exposedPorts)
 }
 
-func storeConfiguration(job *nomadApi.Job, id string, prewarmingPoolSize uint) {
-	taskGroup := getConfigTaskGroup(job)
-	checkForDummyTask(taskGroup)
+func storeConfiguration(job *nomadApi.Job, id runner.EnvironmentID, prewarmingPoolSize uint) {
+	taskGroup := findOrCreateConfigTaskGroup(job)
 
 	if taskGroup.Meta == nil {
 		taskGroup.Meta = make(map[string]string)
 	}
-	taskGroup.Meta[nomad.ConfigMetaEnvironmentKey] = id
+	taskGroup.Meta[nomad.ConfigMetaEnvironmentKey] = strconv.Itoa(int(id))
 	taskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUnusedValue
 	taskGroup.Meta[nomad.ConfigMetaPoolSizeKey] = strconv.Itoa(int(prewarmingPoolSize))
 }
 
-func getConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
+func findOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 	taskGroup := nomad.FindConfigTaskGroup(job)
 	if taskGroup == nil {
-		taskGroup = nomadApi.NewTaskGroup(nomad.ConfigTaskName, 0)
+		taskGroup = nomadApi.NewTaskGroup(nomad.ConfigTaskGroupName, 0)
 	}
+	createDummyTaskIfNotPresent(taskGroup)
 	return taskGroup
 }
 
-// checkForDummyTask ensures that a dummy task is in the task group so that the group is accepted by Nomad.
-func checkForDummyTask(taskGroup *nomadApi.TaskGroup) {
+// createDummyTaskIfNotPresent ensures that a dummy task is in the task group so that the group is accepted by Nomad.
+func createDummyTaskIfNotPresent(taskGroup *nomadApi.TaskGroup) {
 	var task *nomadApi.Task
 	for _, t := range taskGroup.Tasks {
-		if t.Name == nomad.ConfigTaskName {
+		if t.Name == nomad.DummyTaskName {
 			task = t
 			break
 		}
 	}
 
 	if task == nil {
-		task = nomadApi.NewTask(nomad.ConfigTaskName, nomad.DefaultConfigTaskDriver)
+		task = nomadApi.NewTask(nomad.DummyTaskName, nomad.DefaultDummyTaskDriver)
 		taskGroup.Tasks = append(taskGroup.Tasks, task)
 	}
 
 	if task.Config == nil {
 		task.Config = make(map[string]interface{})
 	}
-	task.Config["command"] = nomad.DefaultConfigTaskCommand
+	task.Config["command"] = nomad.DefaultTaskCommand
 }

@@ -16,9 +16,8 @@ import (
 var (
 	log                              = logging.GetLogger("nomad")
 	ErrorExecutorCommunicationFailed = errors.New("communication with executor failed")
-	errEvaluation                    = errors.New("evaluation could not complete")
-	errPlacingAllocations            = errors.New("failed to place all allocations")
-	errFindingTaskGroup              = errors.New("no task group found")
+	ErrorEvaluation                  = errors.New("evaluation could not complete")
+	ErrorPlacingAllocations          = errors.New("failed to place all allocations")
 )
 
 type AllocationProcessor func(*nomadApi.Allocation)
@@ -30,10 +29,12 @@ type ExecutorAPI interface {
 	// LoadAllJobs loads all existing jobs independent of the environment or if it is a template job.
 	LoadAllJobs() ([]*nomadApi.Job, error)
 
-	// LoadRunners loads all jobs of the specified environment which are running and not about to get stopped.
+	// LoadRunners loads all runners of the specified environment which are running and not about to get stopped.
 	LoadRunners(environmentID string) (runnerIds []string, err error)
 
-	LoadTemplateJob(environmentID string) (*nomadApi.Job, error)
+	// LoadEnvironmentTemplate loads the template job of the specified environment.
+	// Based on the template job new runners can be created.
+	LoadEnvironmentTemplate(environmentID string) (*nomadApi.Job, error)
 
 	// MonitorEvaluation monitors the given evaluation ID.
 	// It waits until the evaluation reaches one of the states complete, canceled or failed.
@@ -88,8 +89,8 @@ func (a *APIClient) LoadRunners(environmentID string) (runnerIDs []string, err e
 	return runnerIDs, nil
 }
 
-func (a *APIClient) LoadTemplateJob(environmentID string) (*nomadApi.Job, error) {
-	job, err := a.jobInfo(DefaultJobID(environmentID))
+func (a *APIClient) LoadEnvironmentTemplate(environmentID string) (*nomadApi.Job, error) {
+	job, err := a.job(TemplateJobID(environmentID))
 	if err != nil {
 		return nil, fmt.Errorf("failed loading template job: %w", err)
 	}
@@ -214,10 +215,10 @@ func handleAllocationEvent(startTime int64, pendingAllocations map[string]bool, 
 func checkEvaluation(eval *nomadApi.Evaluation) (err error) {
 	if len(eval.FailedTGAllocs) == 0 {
 		if eval.Status != structs.EvalStatusComplete {
-			err = fmt.Errorf("%w: %q", errEvaluation, eval.Status)
+			err = fmt.Errorf("%w: %q", ErrorEvaluation, eval.Status)
 		}
 	} else {
-		err = fmt.Errorf("evaluation %q finished with status %q but %w", eval.ID, eval.Status, errPlacingAllocations)
+		err = fmt.Errorf("evaluation %q finished with status %q but %w", eval.ID, eval.Status, ErrorPlacingAllocations)
 		for taskGroup, metrics := range eval.FailedTGAllocs {
 			err = fmt.Errorf("%w\n%s: %#v", err, taskGroup, metrics)
 		}
@@ -229,15 +230,14 @@ func checkEvaluation(eval *nomadApi.Evaluation) (err error) {
 }
 
 func (a *APIClient) MarkRunnerAsUsed(runnerID string) error {
-	job, err := a.jobInfo(runnerID)
+	job, err := a.job(runnerID)
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve job info: %w", err)
 	}
-	var taskGroup = FindConfigTaskGroup(job)
-	if taskGroup == nil {
-		return errFindingTaskGroup
+	err = SetMetaConfigValue(job, ConfigMetaUsedKey, ConfigMetaUsedValue)
+	if err != nil {
+		return fmt.Errorf("couldn't update runner in job as used: %w", err)
 	}
-	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUsedValue
 	_, err = a.RegisterNomadJob(job)
 	if err != nil {
 		return fmt.Errorf("couldn't update runner config: %w", err)
@@ -253,7 +253,7 @@ func (a *APIClient) LoadAllJobs() ([]*nomadApi.Job, error) {
 
 	jobs := make([]*nomadApi.Job, 0, len(jobStubs))
 	for _, jobStub := range jobStubs {
-		job, err := a.apiQuerier.jobInfo(jobStub.ID)
+		job, err := a.apiQuerier.job(jobStub.ID)
 		if err != nil {
 			return []*nomadApi.Job{}, fmt.Errorf("couldn't load job info for job %v: %w", jobStub.ID, err)
 		}

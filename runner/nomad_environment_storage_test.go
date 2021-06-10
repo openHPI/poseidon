@@ -6,71 +6,71 @@ import (
 	"testing"
 )
 
-func TestJobStoreTestSuite(t *testing.T) {
-	suite.Run(t, new(JobStoreTestSuite))
+func TestEnvironmentStoreTestSuite(t *testing.T) {
+	suite.Run(t, new(EnvironmentStoreTestSuite))
 }
 
-type JobStoreTestSuite struct {
+type EnvironmentStoreTestSuite struct {
 	suite.Suite
-	jobStorage *localNomadJobStorage
-	job        *NomadEnvironment
+	environmentStorage *localNomadEnvironmentStorage
+	environment        *NomadEnvironment
 }
 
-func (s *JobStoreTestSuite) SetupTest() {
-	s.jobStorage = NewLocalNomadJobStorage()
-	s.job = &NomadEnvironment{environmentID: defaultEnvironmentID}
+func (s *EnvironmentStoreTestSuite) SetupTest() {
+	s.environmentStorage = NewLocalNomadEnvironmentStorage()
+	s.environment = &NomadEnvironment{environmentID: defaultEnvironmentID}
 }
 
-func (s *JobStoreTestSuite) TestAddedJobCanBeRetrieved() {
-	s.jobStorage.Add(s.job)
-	retrievedJob, ok := s.jobStorage.Get(s.job.ID())
+func (s *EnvironmentStoreTestSuite) TestAddedEnvironmentCanBeRetrieved() {
+	s.environmentStorage.Add(s.environment)
+	retrievedEnvironment, ok := s.environmentStorage.Get(s.environment.ID())
 	s.True(ok, "A saved runner should be retrievable")
-	s.Equal(s.job, retrievedJob)
+	s.Equal(s.environment, retrievedEnvironment)
 }
 
-func (s *JobStoreTestSuite) TestJobWithSameIdOverwritesOldOne() {
-	otherJobWithSameID := &NomadEnvironment{environmentID: defaultEnvironmentID}
-	otherJobWithSameID.templateJob = &nomadApi.Job{}
-	s.NotEqual(s.job, otherJobWithSameID)
+func (s *EnvironmentStoreTestSuite) TestEnvironmentWithSameIdOverwritesOldOne() {
+	otherEnvironmentWithSameID := &NomadEnvironment{environmentID: defaultEnvironmentID}
+	otherEnvironmentWithSameID.templateJob = &nomadApi.Job{}
+	s.NotEqual(s.environment, otherEnvironmentWithSameID)
 
-	s.jobStorage.Add(s.job)
-	s.jobStorage.Add(otherJobWithSameID)
-	retrievedJob, _ := s.jobStorage.Get(s.job.ID())
-	s.NotEqual(s.job, retrievedJob)
-	s.Equal(otherJobWithSameID, retrievedJob)
+	s.environmentStorage.Add(s.environment)
+	s.environmentStorage.Add(otherEnvironmentWithSameID)
+	retrievedEnvironment, _ := s.environmentStorage.Get(s.environment.ID())
+	s.NotEqual(s.environment, retrievedEnvironment)
+	s.Equal(otherEnvironmentWithSameID, retrievedEnvironment)
 }
 
-func (s *JobStoreTestSuite) TestDeletedJobIsNotAccessible() {
-	s.jobStorage.Add(s.job)
-	s.jobStorage.Delete(s.job.ID())
-	retrievedRunner, ok := s.jobStorage.Get(s.job.ID())
+func (s *EnvironmentStoreTestSuite) TestDeletedEnvironmentIsNotAccessible() {
+	s.environmentStorage.Add(s.environment)
+	s.environmentStorage.Delete(s.environment.ID())
+	retrievedRunner, ok := s.environmentStorage.Get(s.environment.ID())
 	s.Nil(retrievedRunner)
 	s.False(ok, "A deleted runner should not be accessible")
 }
 
-func (s *JobStoreTestSuite) TestLenOfEmptyPoolIsZero() {
-	s.Equal(0, s.jobStorage.Length())
+func (s *EnvironmentStoreTestSuite) TestLenOfEmptyPoolIsZero() {
+	s.Equal(0, s.environmentStorage.Length())
 }
 
-func (s *JobStoreTestSuite) TestLenChangesOnStoreContentChange() {
-	s.Run("len increases when job is added", func() {
-		s.jobStorage.Add(s.job)
-		s.Equal(1, s.jobStorage.Length())
+func (s *EnvironmentStoreTestSuite) TestLenChangesOnStoreContentChange() {
+	s.Run("len increases when environment is added", func() {
+		s.environmentStorage.Add(s.environment)
+		s.Equal(1, s.environmentStorage.Length())
 	})
 
-	s.Run("len does not increase when job with same id is added", func() {
-		s.jobStorage.Add(s.job)
-		s.Equal(1, s.jobStorage.Length())
+	s.Run("len does not increase when environment with same id is added", func() {
+		s.environmentStorage.Add(s.environment)
+		s.Equal(1, s.environmentStorage.Length())
 	})
 
-	s.Run("len increases again when different job is added", func() {
-		anotherJob := &NomadEnvironment{environmentID: anotherEnvironmentID}
-		s.jobStorage.Add(anotherJob)
-		s.Equal(2, s.jobStorage.Length())
+	s.Run("len increases again when different environment is added", func() {
+		anotherEnvironment := &NomadEnvironment{environmentID: anotherEnvironmentID}
+		s.environmentStorage.Add(anotherEnvironment)
+		s.Equal(2, s.environmentStorage.Length())
 	})
 
-	s.Run("len decreases when job is deleted", func() {
-		s.jobStorage.Delete(s.job.ID())
-		s.Equal(1, s.jobStorage.Length())
+	s.Run("len decreases when environment is deleted", func() {
+		s.environmentStorage.Delete(s.environment.ID())
+		s.Equal(1, s.environmentStorage.Length())
 	})
 }

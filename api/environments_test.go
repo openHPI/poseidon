@@ -8,9 +8,13 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
+	"math"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -32,7 +36,7 @@ func (s *EnvironmentControllerTestSuite) SetupTest() {
 type CreateOrUpdateEnvironmentTestSuite struct {
 	EnvironmentControllerTestSuite
 	path string
-	id   string
+	id   runner.EnvironmentID
 	body []byte
 }
 
@@ -42,8 +46,8 @@ func TestCreateOrUpdateEnvironmentTestSuite(t *testing.T) {
 
 func (s *CreateOrUpdateEnvironmentTestSuite) SetupTest() {
 	s.EnvironmentControllerTestSuite.SetupTest()
-	s.id = tests.DefaultEnvironmentIDAsString
-	testURL, err := s.router.Get(createOrUpdateRouteName).URL(executionEnvironmentIDKey, s.id)
+	s.id = tests.DefaultEnvironmentIDAsInteger
+	testURL, err := s.router.Get(createOrUpdateRouteName).URL(executionEnvironmentIDKey, strconv.Itoa(int(s.id)))
 	if err != nil {
 		s.T().Fatal(err)
 	}
@@ -97,4 +101,17 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsNoContentIfNotNewEnviron
 
 	recorder := s.recordRequest()
 	s.Equal(http.StatusNoContent, recorder.Code)
+}
+
+func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsNotFoundOnNonIntegerID() {
+	s.path = strings.Join([]string{BasePath, EnvironmentsPath, "/", "invalid-id"}, "")
+	recorder := s.recordRequest()
+	s.Equal(http.StatusNotFound, recorder.Code)
+}
+
+func (s *CreateOrUpdateEnvironmentTestSuite) TestFailsOnTooLargeID() {
+	tooLargeIntStr := strconv.Itoa(math.MaxInt64) + "0"
+	s.path = strings.Join([]string{BasePath, EnvironmentsPath, "/", tooLargeIntStr}, "")
+	recorder := s.recordRequest()
+	s.Equal(http.StatusBadRequest, recorder.Code)
 }

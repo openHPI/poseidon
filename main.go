@@ -46,11 +46,11 @@ func initServer() *http.Server {
 		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
 	}
 
-	runnerManager, err := runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
+	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
+	environmentManager, err := environment.NewNomadEnvironmentManager(runnerManager, nomadAPIClient)
 	if err != nil {
-		log.WithError(err).Fatal("Error creating new Nomad runner manager")
+		log.WithError(err).Fatal("Error creating new Nomad environment manager")
 	}
-	environmentManager := environment.NewNomadEnvironmentManager(runnerManager, nomadAPIClient)
 
 	return &http.Server{
 		Addr:         config.Config.PoseidonAPIURL().Host,

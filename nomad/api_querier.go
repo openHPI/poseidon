@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrNoAllocationsFound = errors.New("no allocation found")
+	ErrorNoAllocationFound = errors.New("no allocation found")
 )
 
 // apiQuerier provides access to the Nomad functionality.
@@ -36,8 +36,8 @@ type apiQuerier interface {
 	// listJobs loads all jobs with the specified prefix.
 	listJobs(prefix string) (allocationListStub []*nomadApi.JobListStub, err error)
 
-	// jobInfo returns the job of the given jobID.
-	jobInfo(jobID string) (job *nomadApi.Job, err error)
+	// job returns the job of the given jobID.
+	job(jobID string) (job *nomadApi.Job, err error)
 
 	// RegisterNomadJob registers a job with Nomad.
 	// It returns the evaluation ID that can be used when listening to the Nomad event stream.
@@ -72,12 +72,12 @@ func (nc *nomadAPIClient) DeleteRunner(runnerID string) (err error) {
 	return
 }
 
-func (nc *nomadAPIClient) Execute(jobID string,
+func (nc *nomadAPIClient) Execute(runnerID string,
 	ctx context.Context, command []string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-	allocations, _, err := nc.client.Jobs().Allocations(jobID, false, nil)
+	allocations, _, err := nc.client.Jobs().Allocations(runnerID, false, nil)
 	if len(allocations) == 0 {
-		return 1, ErrNoAllocationsFound
+		return 1, ErrorNoAllocationFound
 	}
 	allocation, _, err := nc.client.Allocations().Info(allocations[0].ID, nil)
 	if err != nil {

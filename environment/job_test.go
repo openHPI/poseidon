@@ -53,7 +53,7 @@ func createTestResources() *nomadApi.Resources {
 }
 
 func createTestJob() (*nomadApi.Job, *nomadApi.Job) {
-	jobID := nomad.DefaultJobID(tests.DefaultEnvironmentIDAsString)
+	jobID := nomad.TemplateJobID(tests.DefaultEnvironmentIDAsString)
 	base := nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
 	job := nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
 	task := createTestTask()
@@ -245,12 +245,14 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 	assert.Equal(t, task, taskGroup.Tasks[0], "it should not create a new task")
 }
 
-func TestCreateJobSetsAllGivenArguments(t *testing.T) {
+func TestCreateTemplateJobSetsAllGivenArguments(t *testing.T) {
 	testJob, base := createTestJob()
 	manager := NomadEnvironmentManager{&runner.NomadRunnerManager{}, &nomad.APIClient{}, *base}
-	job := createDefaultJob(
+	testJobEnvironmentID, err := nomad.EnvironmentIDFromJobID(*testJob.ID)
+	assert.NoError(t, err)
+	job := createTemplateJob(
 		manager.defaultJob,
-		tests.DefaultEnvironmentIDAsString,
+		runner.EnvironmentID(testJobEnvironmentID),
 		uint(*testJob.TaskGroups[0].Count),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.CPU),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.MemoryMB),
@@ -261,7 +263,7 @@ func TestCreateJobSetsAllGivenArguments(t *testing.T) {
 	assert.Equal(t, *testJob, *job)
 }
 
-func TestRegisterJobWhenNomadJobRegistrationFails(t *testing.T) {
+func TestRegisterTemplateJobFailsWhenNomadJobRegistrationFails(t *testing.T) {
 	apiMock := nomad.ExecutorAPIMock{}
 	expectedErr := errors.New("test error")
 
@@ -273,12 +275,12 @@ func TestRegisterJobWhenNomadJobRegistrationFails(t *testing.T) {
 		defaultJob:    nomadApi.Job{},
 	}
 
-	err := m.registerDefaultJob("id", 1, 2, 3, "image", false, []uint16{})
+	_, err := m.registerTemplateJob(tests.DefaultEnvironmentIDAsInteger, 1, 2, 3, "image", false, []uint16{})
 	assert.Equal(t, expectedErr, err)
 	apiMock.AssertNotCalled(t, "EvaluationStream")
 }
 
-func TestRegisterJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
+func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
 	apiMock := nomad.ExecutorAPIMock{}
 	evaluationID := "id"
 
@@ -291,11 +293,11 @@ func TestRegisterJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
 		defaultJob:    nomadApi.Job{},
 	}
 
-	err := m.registerDefaultJob("id", 1, 2, 3, "image", false, []uint16{})
+	_, err := m.registerTemplateJob(tests.DefaultEnvironmentIDAsInteger, 1, 2, 3, "image", false, []uint16{})
 	assert.NoError(t, err)
 }
 
-func TestRegisterJobReturnsErrorWhenMonitoringEvaluationFails(t *testing.T) {
+func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing.T) {
 	apiMock := nomad.ExecutorAPIMock{}
 	evaluationID := "id"
 	expectedErr := errors.New("test error")
@@ -309,6 +311,6 @@ func TestRegisterJobReturnsErrorWhenMonitoringEvaluationFails(t *testing.T) {
 		defaultJob:    nomadApi.Job{},
 	}
 
-	err := m.registerDefaultJob("id", 1, 2, 3, "image", false, []uint16{})
+	_, err := m.registerTemplateJob(tests.DefaultEnvironmentIDAsInteger, 1, 2, 3, "image", false, []uint16{})
 	assert.Equal(t, expectedErr, err)
 }

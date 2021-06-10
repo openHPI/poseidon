@@ -35,10 +35,7 @@ func (s *ManagerTestSuite) SetupTest() {
 	// Instantly closed context to manually start the update process in some cases
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	var err error
-
-	s.nomadRunnerManager, err = NewNomadRunnerManager(s.apiMock, ctx)
-	s.Require().NoError(err)
+	s.nomadRunnerManager = NewNomadRunnerManager(s.apiMock, ctx)
 
 	s.exerciseRunner = NewRunner(tests.DefaultRunnerID)
 	s.registerDefaultEnvironment()
@@ -57,13 +54,13 @@ func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []strin
 	apiMock.On("LoadRunners", tests.DefaultJobID).Return(returnedRunnerIds, nil)
 	apiMock.On("JobScale", tests.DefaultJobID).Return(uint(len(returnedRunnerIds)), nil)
 	apiMock.On("SetJobScale", tests.DefaultJobID, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)
-	apiMock.On("LoadTemplateJob", mock.AnythingOfType("string")).Return(&nomadApi.Job{}, nil)
+	apiMock.On("LoadEnvironmentTemplate", mock.AnythingOfType("string")).Return(&nomadApi.Job{}, nil)
 	apiMock.On("RegisterNomadJob", mock.Anything).Return("", nil)
 	apiMock.On("MonitorEvaluation", mock.Anything, mock.Anything).Return(nil)
 }
 
 func (s *ManagerTestSuite) registerDefaultEnvironment() {
-	err := s.nomadRunnerManager.registerEnvironment(defaultEnvironmentID, 0)
+	err := s.nomadRunnerManager.registerEnvironment(defaultEnvironmentID, 0, &nomadApi.Job{})
 	s.Require().NoError(err)
 }
 
@@ -77,7 +74,7 @@ func (s *ManagerTestSuite) waitForRunnerRefresh() {
 }
 
 func (s *ManagerTestSuite) TestRegisterEnvironmentAddsNewJob() {
-	err := s.nomadRunnerManager.registerEnvironment(anotherEnvironmentID, defaultDesiredRunnersCount)
+	err := s.nomadRunnerManager.registerEnvironment(anotherEnvironmentID, defaultDesiredRunnersCount, &nomadApi.Job{})
 	s.Require().NoError(err)
 	job, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
 	s.True(ok)
@@ -193,11 +190,11 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 
 func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 	allocation := &nomadApi.Allocation{ID: tests.DefaultRunnerID}
-	defaultJob, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
+	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
 	s.Require().True(ok)
-	allocation.JobID = defaultJob.environmentID.toString()
+	allocation.JobID = environment.environmentID.toString()
 
-	_, ok = defaultJob.idleRunners.Get(allocation.ID)
+	_, ok = environment.idleRunners.Get(allocation.ID)
 	s.Require().False(ok)
 
 	modifyMockedCall(s.apiMock, "WatchAllocations", func(call *mock.Call) {
@@ -214,18 +211,17 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 	go s.nomadRunnerManager.updateRunners(ctx)
 	<-time.After(10 * time.Millisecond)
 
-	_, ok = defaultJob.idleRunners.Get(allocation.ID)
+	_, ok = environment.idleRunners.Get(allocation.JobID)
 	s.True(ok)
 }
 
 func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
-	allocation := &nomadApi.Allocation{ID: tests.DefaultRunnerID}
-	defaultJob, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
+	allocation := &nomadApi.Allocation{JobID: tests.DefaultJobID}
+	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
 	s.Require().True(ok)
-	allocation.JobID = defaultJob.environmentID.toString()
 
-	testRunner := NewRunner(allocation.ID)
-	defaultJob.idleRunners.Add(testRunner)
+	testRunner := NewRunner(allocation.JobID)
+	environment.idleRunners.Add(testRunner)
 	s.nomadRunnerManager.usedRunners.Add(testRunner)
 
 	modifyMockedCall(s.apiMock, "WatchAllocations", func(call *mock.Call) {
@@ -242,9 +238,9 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	go s.nomadRunnerManager.updateRunners(ctx)
 	<-time.After(10 * time.Millisecond)
 
-	_, ok = defaultJob.idleRunners.Get(allocation.ID)
+	_, ok = environment.idleRunners.Get(allocation.JobID)
 	s.False(ok)
-	_, ok = s.nomadRunnerManager.usedRunners.Get(allocation.ID)
+	_, ok = s.nomadRunnerManager.usedRunners.Get(allocation.JobID)
 	s.False(ok)
 }
 

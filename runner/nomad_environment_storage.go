@@ -4,70 +4,70 @@ import (
 	"sync"
 )
 
-// NomadEnvironmentStorage is an interface for storing NomadJobs.
+// NomadEnvironmentStorage is an interface for storing Nomad environments.
 type NomadEnvironmentStorage interface {
 	// List returns all keys of environments stored in this storage.
 	List() []EnvironmentID
 
-	// Add adds a job to the storage.
-	// It overwrites the old job if one with the same id was already stored.
-	Add(job *NomadEnvironment)
+	// Add adds an environment to the storage.
+	// It overwrites the old environment if one with the same id was already stored.
+	Add(environment *NomadEnvironment)
 
-	// Get returns a job from the storage.
-	// Iff the job does not exist in the store, ok will be false.
-	Get(id EnvironmentID) (job *NomadEnvironment, ok bool)
+	// Get returns an environment from the storage.
+	// Iff the environment does not exist in the store, ok will be false.
+	Get(id EnvironmentID) (environment *NomadEnvironment, ok bool)
 
-	// Delete deletes the job with the passed id from the storage. It does nothing if no job with the id is present in
-	// the storage.
+	// Delete deletes the environment with the passed id from the storage. It does nothing if no environment with the id
+	// is present in the storage.
 	Delete(id EnvironmentID)
 
 	// Length returns the number of currently stored environments in the storage.
 	Length() int
 }
 
-// localNomadJobStorage stores NomadEnvironment objects in the local application memory.
-type localNomadJobStorage struct {
+// localNomadEnvironmentStorage stores NomadEnvironment objects in the local application memory.
+type localNomadEnvironmentStorage struct {
 	sync.RWMutex
-	jobs map[EnvironmentID]*NomadEnvironment
+	environments map[EnvironmentID]*NomadEnvironment
 }
 
-// NewLocalNomadJobStorage responds with an empty localNomadJobStorage.
+// NewLocalNomadEnvironmentStorage responds with an empty localNomadEnvironmentStorage.
 // This implementation stores the data thread-safe in the local application memory.
-func NewLocalNomadJobStorage() *localNomadJobStorage {
-	return &localNomadJobStorage{
-		jobs: make(map[EnvironmentID]*NomadEnvironment),
+func NewLocalNomadEnvironmentStorage() *localNomadEnvironmentStorage {
+	return &localNomadEnvironmentStorage{
+		environments: make(map[EnvironmentID]*NomadEnvironment),
 	}
 }
 
-func (s *localNomadJobStorage) List() []EnvironmentID {
-	keys := make([]EnvironmentID, 0, len(s.jobs))
-	for k := range s.jobs {
+func (s *localNomadEnvironmentStorage) List() []EnvironmentID {
+	keys := make([]EnvironmentID, 0, len(s.environments))
+	for k := range s.environments {
 		keys = append(keys, k)
 	}
 	return keys
 }
 
-func (s *localNomadJobStorage) Add(job *NomadEnvironment) {
+func (s *localNomadEnvironmentStorage) Add(environment *NomadEnvironment) {
 	s.Lock()
 	defer s.Unlock()
-	s.jobs[job.ID()] = job
+	s.environments[environment.ID()] = environment
 }
 
-func (s *localNomadJobStorage) Get(id EnvironmentID) (job *NomadEnvironment, ok bool) {
+func (s *localNomadEnvironmentStorage) Get(id EnvironmentID) (environment *NomadEnvironment, ok bool) {
 	s.RLock()
 	defer s.RUnlock()
-	job, ok = s.jobs[id]
+	environment, ok = s.environments[id]
 	return
 }
 
-func (s *localNomadJobStorage) Delete(id EnvironmentID) {
+func (s *localNomadEnvironmentStorage) Delete(id EnvironmentID) {
 	s.Lock()
 	defer s.Unlock()
-	delete(s.jobs, id)
+	delete(s.environments, id)
 }
 
-func (s *localNomadJobStorage) Length() int {
+func (s *localNomadEnvironmentStorage) Length() int {
 	s.RLock()
 	defer s.RUnlock()
-	return len(s.jobs)
+	return len(s.environments)
 }

@@ -81,7 +81,7 @@ coverhtml: coverage ## Generate HTML coverage report
 
 .PHONY: e2e-test
 e2e-test: deps ## Run e2e tests
-	@go test -count=1 ./tests/e2e -v
+	@go test -count=1 ./tests/e2e -v -args -dockerImage="drp.codemoon.xopic.de/openhpi/co_execenv_python:3.8"
 
 .PHONY: e2e-docker
 e2e-docker: docker ## Run e2e tests against the Docker container

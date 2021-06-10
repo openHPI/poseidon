@@ -212,7 +212,7 @@ func (_m *ExecutorAPIMock) LoadRunners(jobID string) ([]string, error) {
 }
 
 // LoadTemplateJob provides a mock function with given fields: environmentID
-func (_m *ExecutorAPIMock) LoadTemplateJob(environmentID string) (*api.Job, error) {
+func (_m *ExecutorAPIMock) LoadEnvironmentTemplate(environmentID string) (*api.Job, error) {
 	ret := _m.Called(environmentID)
 
 	var r0 *api.Job
@@ -326,7 +326,7 @@ func (_m *ExecutorAPIMock) init(nomadURL *url.URL, nomadNamespace string) error 
 }
 
 // jobInfo provides a mock function with given fields: jobID
-func (_m *ExecutorAPIMock) jobInfo(jobID string) (*api.Job, error) {
+func (_m *ExecutorAPIMock) job(jobID string) (*api.Job, error) {
 	ret := _m.Called(jobID)
 
 	var r0 *api.Job

@@ -139,7 +139,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 
 func findNomadJob(t *testing.T, jobID string) *nomadApi.Job {
 	t.Helper()
-	job, _, err := nomadClient.Jobs().Info(nomad.DefaultJobID(jobID), nil)
+	job, _, err := nomadClient.Jobs().Info(nomad.TemplateJobID(jobID), nil)
 	if err != nil {
 		t.Fatalf("Error retrieving Nomad job: %v", err)
 	}

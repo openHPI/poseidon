@@ -50,12 +50,11 @@ type Runner interface {
 	UpdateFileSystem(request *dto.UpdateFileSystemRequest) error
 }
 
-// NomadJob is an abstraction to communicate with Nomad jobs.
+// NomadJob is an abstraction to communicate with Nomad environments.
 type NomadJob struct {
 	ExecutionStorage
-	id      string
-	allocID string
-	api     nomad.ExecutorAPI
+	id  string
+	api nomad.ExecutorAPI
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.

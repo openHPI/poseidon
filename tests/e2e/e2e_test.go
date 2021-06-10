@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"flag"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
@@ -22,9 +23,10 @@ import (
  */
 
 var (
-	log            = logging.GetLogger("e2e")
-	nomadClient    *nomadApi.Client
-	nomadNamespace string
+	log             = logging.GetLogger("e2e")
+	testDockerImage = flag.String("dockerImage", "", "Docker image to use in E2E tests")
+	nomadClient     *nomadApi.Client
+	nomadNamespace  string
 )
 
 type E2ETestSuite struct {
@@ -68,20 +70,24 @@ func TestMain(m *testing.M) {
 }
 
 func createDefaultEnvironment() {
+	if *testDockerImage == "" {
+		log.Fatal("You must specify the -dockerImage flag!")
+	}
+
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.DefaultEnvironmentIDAsString)
 
 	request := dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: 10,
 		CPULimit:           100,
 		MemoryLimit:        100,
-		Image:              "drp.codemoon.xopic.de/openhpi/co_execenv_python:3.8",
+		Image:              *testDockerImage,
 		NetworkAccess:      false,
 		ExposedPorts:       nil,
 	}
 
 	resp, err := helpers.HttpPutJSON(path, request)
 	if err != nil || resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
-		log.Fatal("Couldn't create default environment for e2e tests")
+		log.WithError(err).Fatal("Couldn't create default environment for e2e tests")
 	}
 	err = resp.Body.Close()
 	if err != nil {

@@ -690,14 +690,15 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 
 	s.Run("should wrap command in stderr wrapper", func() {
 		s.Require().NotNil(calledStdoutCommand)
-		stdoutFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrWrapperCommandFormat), "%d", "\\d*")
-		stdoutFifoRegexp = fmt.Sprintf(stdoutFifoRegexp, s.testCommand)
+		stderrWrapperCommand := fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoFormat, s.testCommand, stderrFifoFormat)
+		stdoutFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrWrapperCommand), "%d", "\\d*")
 		s.Regexp(stdoutFifoRegexp, calledStdoutCommand[len(calledStdoutCommand)-1])
 	})
 
 	s.Run("should call correct stderr command", func() {
 		s.Require().NotNil(calledStderrCommand)
-		stderrFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrFifoCommandFormat), "%d", "\\d*")
+		stderrFifoCommand := fmt.Sprintf(stderrFifoCommandFormat, stderrFifoFormat, stderrFifoFormat, stderrFifoFormat)
+		stderrFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrFifoCommand), "%d", "\\d*")
 		s.Regexp(stderrFifoRegexp, calledStderrCommand[len(calledStderrCommand)-1])
 	})
 

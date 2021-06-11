@@ -1,12 +1,15 @@
 package e2e
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"net/http"
@@ -143,6 +146,41 @@ func (s *E2ETestSuite) TestEchoEnvironment() {
 	s.Equal(err, &websocket.CloseError{Code: websocket.CloseNormalClosure})
 	stdout, _, _ := helpers.WebSocketOutputMessages(messages)
 	s.Equal("world\r\n", stdout)
+}
+
+func (s *E2ETestSuite) TestStderrFifoIsRemoved() {
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+	})
+	s.Require().NoError(err)
+
+	webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{Command: "ls -a /tmp/"})
+	s.Require().NoError(err)
+	connection, err := ConnectToWebSocket(webSocketURL)
+	s.Require().NoError(err)
+
+	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
+	s.Require().Error(err)
+	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+
+	stdout, _, _ := helpers.WebSocketOutputMessages(messages)
+	s.Contains(stdout, ".fifo", "there should be a .fifo file during the execution")
+
+	s.NotContains(s.ListTempDirectory(runnerID), ".fifo", "/tmp/ should not contain any .fifo files after the execution")
+}
+
+func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {
+	alloc, _, err := nomadClient.Allocations().Info(runnerID, nil)
+	s.Require().NoError(err)
+
+	var stdout, stderr bytes.Buffer
+	exit, err := nomadClient.Allocations().Exec(context.Background(), alloc, nomad.TaskName,
+		false, []string{"ls", "-a", "/tmp/"}, strings.NewReader(""), &stdout, &stderr, nil, nil)
+
+	s.Require().NoError(err)
+	s.Require().Equal(0, exit)
+	s.Require().Empty(stderr)
+	return stdout.String()
 }
 
 // ProvideWebSocketConnection establishes a client WebSocket connection to run the passed ExecutionRequest.

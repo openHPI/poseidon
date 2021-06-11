@@ -224,6 +224,8 @@ func (r nullReader) Read(_ []byte) (int, error) {
 // If tty is true, Nomad would normally write stdout and stderr of the command
 // both on the stdout stream. However, if the InteractiveStderr server config option is true,
 // we make sure that stdout and stderr are split correctly.
+// In order for the stderr splitting to work, the command must have the structure
+// []string{..., "sh", "-c", "my-command"}.
 func (a *APIClient) ExecuteCommand(allocationID string,
 	ctx context.Context, command []string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -233,6 +235,11 @@ func (a *APIClient) ExecuteCommand(allocationID string,
 	return a.apiQuerier.Execute(allocationID, ctx, command, tty, stdin, stdout, stderr)
 }
 
+// executeCommandInteractivelyWithStderr executes the given command interactively and splits stdout
+// and stderr correctly. Normally, using Nomad to execute a command with tty=true (in order to have
+// an interactive connection and possibly a fully working shell), would result in stdout and stderr
+// to be served both over stdout. This function circumvents this by creating a fifo for the stderr
+// of the command and starting a second execution that reads the stderr from that fifo.
 func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, ctx context.Context,
 	command []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	// Use current nano time to make the stderr fifo kind of unique.
@@ -260,14 +267,30 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 }
 
 const (
-	stderrFifoCommandFormat    = "mkfifo /tmp/stderr_%d.fifo && cat /tmp/stderr_%d.fifo"
-	stderrWrapperCommandFormat = "until [ -e /tmp/stderr_%d.fifo ]; do sleep 0.01; done; (%s) 2> /tmp/stderr_%d.fifo"
+	// stderrFifoFormat represents the format we use for our stderr fifos. The %d should be unique for the execution
+	// as otherwise multiple executions are not possible.
+	// Example: /tmp/stderr_1623330777825234133.fifo
+	stderrFifoFormat = "/tmp/stderr_%d.fifo"
+	// stderrFifoCommandFormat, if executed, is supposed to create a fifo, read from it and remove it in the end.
+	// Example: mkfifo my.fifo && (cat my.fifo; rm my.fifo)
+	stderrFifoCommandFormat = "mkfifo %s && (cat %s; rm %s)"
+	// stderrWrapperCommandFormat, if executed, is supposed to wait until a fifo exists (it sleeps 10ms to reduce load
+	// cause by busy waiting on the system). Once the fifo exists, the given command is executed and its stderr
+	// redirected to the fifo.
+	// Example: until [ -e my.fifo ]; do sleep 0.01; done; (echo "my.fifo exists") 2> my.fifo
+	stderrWrapperCommandFormat = "until [ -e %s ]; do sleep 0.01; done; (%s) 2> %s"
 )
 
 func stderrFifoCommand(id int64) []string {
-	return []string{"sh", "-c", fmt.Sprintf(stderrFifoCommandFormat, id, id)}
+	stderrFifoPath := stderrFifo(id)
+	return []string{"sh", "-c", fmt.Sprintf(stderrFifoCommandFormat, stderrFifoPath, stderrFifoPath, stderrFifoPath)}
 }
 
 func wrapCommandForStderrFifo(id int64, command string) string {
-	return fmt.Sprintf(stderrWrapperCommandFormat, id, command, id)
+	stderrFifoPath := stderrFifo(id)
+	return fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoPath, command, stderrFifoPath)
+}
+
+func stderrFifo(id int64) string {
+	return fmt.Sprintf(stderrFifoFormat, id)
 }

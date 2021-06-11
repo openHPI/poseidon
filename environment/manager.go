@@ -1,8 +1,10 @@
 package environment
 
 import (
+	_ "embed"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
@@ -10,6 +12,12 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"strconv"
 )
+
+// defaultJobHCL holds our default job in HCL format.
+// The default job is used when creating new job and provides
+// common settings that all the jobs share.
+//go:embed default-job.hcl
+var defaultJobHCL string
 
 var log = logging.GetLogger("environment")
 
@@ -43,7 +51,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	id runner.EnvironmentID,
 	request dto.ExecutionEnvironmentRequest,
 ) (bool, error) {
-	templateJob, err := m.registerTemplateJob(id,
+	templateJob, err := m.api.RegisterTemplateJob(&m.defaultJob, int(id),
 		request.PrewarmingPoolSize, request.CPULimit, request.MemoryLimit,
 		request.Image, request.NetworkAccess, request.ExposedPorts)
 
@@ -131,4 +139,19 @@ func (m *NomadEnvironmentManager) recoverJobs(jobs []*nomadApi.Job, onJob jobAdd
 			continue
 		}
 	}
+}
+
+func parseJob(jobHCL string) *nomadApi.Job {
+	config := jobspec2.ParseConfig{
+		Body:    []byte(jobHCL),
+		AllowFS: false,
+		Strict:  true,
+	}
+	job, err := jobspec2.ParseWithConfig(&config)
+	if err != nil {
+		log.WithError(err).Fatal("Error parsing Nomad job")
+		return nil
+	}
+
+	return job
 }

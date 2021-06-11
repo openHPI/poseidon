@@ -2,6 +2,9 @@ package environment
 
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
@@ -13,11 +16,11 @@ import (
 
 type CreateOrUpdateTestSuite struct {
 	suite.Suite
-	runnerManagerMock        runner.ManagerMock
-	apiMock                  nomad.ExecutorAPIMock
-	registerNomadJobMockCall *mock.Call
-	request                  dto.ExecutionEnvironmentRequest
-	manager                  *NomadEnvironmentManager
+	runnerManagerMock runner.ManagerMock
+	apiMock           nomad.ExecutorAPIMock
+	request           dto.ExecutionEnvironmentRequest
+	manager           *NomadEnvironmentManager
+	environmentID     runner.EnvironmentID
 }
 
 func TestCreateOrUpdateTestSuite(t *testing.T) {
@@ -37,82 +40,107 @@ func (s *CreateOrUpdateTestSuite) SetupTest() {
 		ExposedPorts:       nil,
 	}
 
-	s.registerNomadJobMockCall = s.apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return("eval-id", nil)
-	s.apiMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.AnythingOfType("*context.emptyCtx")).Return(nil)
-
 	s.manager = &NomadEnvironmentManager{
 		runnerManager: &s.runnerManagerMock,
 		api:           &s.apiMock,
 	}
+
+	s.environmentID = runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger)
 }
 
-func (s *CreateOrUpdateTestSuite) mockCreateOrUpdateEnvironment(exists bool) *mock.Call {
-	return s.runnerManagerMock.On("CreateOrUpdateEnvironment",
+func (s *CreateOrUpdateTestSuite) mockRegisterTemplateJob(job *nomadApi.Job, err error) {
+	s.apiMock.On("RegisterTemplateJob",
+		mock.AnythingOfType("*api.Job"), mock.AnythingOfType("int"),
+		mock.AnythingOfType("uint"), mock.AnythingOfType("uint"), mock.AnythingOfType("uint"),
+		mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("[]uint16")).
+		Return(job, err)
+}
+
+func (s *CreateOrUpdateTestSuite) mockCreateOrUpdateEnvironment(created bool, err error) {
+	s.runnerManagerMock.On("CreateOrUpdateEnvironment",
 		mock.AnythingOfType("EnvironmentID"), mock.AnythingOfType("uint"), mock.AnythingOfType("*api.Job")).
-		Return(!exists, nil)
+		Return(created, err)
 }
 
 func (s *CreateOrUpdateTestSuite) createJobForRequest() *nomadApi.Job {
-	return createTemplateJob(s.manager.defaultJob, tests.DefaultEnvironmentIDAsInteger,
+	return nomad.CreateTemplateJob(&s.manager.defaultJob, tests.DefaultEnvironmentIDAsInteger,
 		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
 		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
 }
 
-func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsRegistersCorrectJob() {
-	s.mockCreateOrUpdateEnvironment(true)
-	expectedJob := s.createJobForRequest()
+func (s *CreateOrUpdateTestSuite) TestRegistersCorrectTemplateJob() {
+	s.mockRegisterTemplateJob(&nomadApi.Job{}, nil)
+	s.mockCreateOrUpdateEnvironment(true, nil)
 
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
+	_, err := s.manager.CreateOrUpdate(s.environmentID, s.request)
 	s.NoError(err)
-	s.False(created)
-	s.apiMock.AssertCalled(s.T(), "RegisterNomadJob", expectedJob)
+
+	s.apiMock.AssertCalled(s.T(), "RegisterTemplateJob",
+		&s.manager.defaultJob, int(s.environmentID),
+		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
+		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
 }
 
-func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsOccurredErrorIsPassed() {
-	s.mockCreateOrUpdateEnvironment(true)
+func (s *CreateOrUpdateTestSuite) TestReturnsErrorWhenRegisterTemplateJobReturnsError() {
+	s.mockRegisterTemplateJob(nil, tests.ErrDefault)
 
-	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
-	s.False(created)
+	created, err := s.manager.CreateOrUpdate(s.environmentID, s.request)
 	s.Equal(tests.ErrDefault, err)
-}
-
-func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentExistsReturnsFalse() {
-	s.mockCreateOrUpdateEnvironment(true)
-
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
-	s.NoError(err)
 	s.False(created)
 }
 
-func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrectJob() {
-	s.mockCreateOrUpdateEnvironment(false)
+func (s *CreateOrUpdateTestSuite) TestCreatesOrUpdatesCorrectEnvironment() {
+	templateJobID := tests.DefaultJobID
+	templateJob := &nomadApi.Job{ID: &templateJobID}
+	s.mockRegisterTemplateJob(templateJob, nil)
+	s.mockCreateOrUpdateEnvironment(true, nil)
 
-	expectedJob := s.createJobForRequest()
-
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
-	s.NoError(err)
-	s.True(created)
-	s.apiMock.AssertCalled(s.T(), "RegisterNomadJob", expectedJob)
-}
-
-func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistRegistersCorrectEnvironment() {
-	s.mockCreateOrUpdateEnvironment(false)
-
-	expectedJob := s.createJobForRequest()
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
-	s.True(created)
+	_, err := s.manager.CreateOrUpdate(s.environmentID, s.request)
 	s.NoError(err)
 	s.runnerManagerMock.AssertCalled(s.T(), "CreateOrUpdateEnvironment",
-		runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request.PrewarmingPoolSize, expectedJob)
+		s.environmentID, s.request.PrewarmingPoolSize, templateJob)
 }
 
-func (s *CreateOrUpdateTestSuite) TestWhenEnvironmentDoesNotExistOccurredErrorIsPassedAndNoEnvironmentRegistered() {
-	s.mockCreateOrUpdateEnvironment(false)
-
-	s.registerNomadJobMockCall.Return("", tests.ErrDefault)
-	created, err := s.manager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, s.request)
-	s.False(created)
+func (s *CreateOrUpdateTestSuite) TestReturnsErrorIfCreatesOrUpdateEnvironmentReturnsError() {
+	s.mockRegisterTemplateJob(&nomadApi.Job{}, nil)
+	s.mockCreateOrUpdateEnvironment(false, tests.ErrDefault)
+	_, err := s.manager.CreateOrUpdate(runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
 	s.Equal(tests.ErrDefault, err)
-	s.runnerManagerMock.AssertNotCalled(s.T(), "CreateOrUpdateEnvironment")
+}
+
+func (s *CreateOrUpdateTestSuite) TestReturnsTrueIfCreatesOrUpdateEnvironmentReturnsTrue() {
+	s.mockRegisterTemplateJob(&nomadApi.Job{}, nil)
+	s.mockCreateOrUpdateEnvironment(true, nil)
+	created, _ := s.manager.CreateOrUpdate(runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
+	s.True(created)
+}
+
+func (s *CreateOrUpdateTestSuite) TestReturnsFalseIfCreatesOrUpdateEnvironmentReturnsFalse() {
+	s.mockRegisterTemplateJob(&nomadApi.Job{}, nil)
+	s.mockCreateOrUpdateEnvironment(false, nil)
+	created, _ := s.manager.CreateOrUpdate(runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
+	s.False(created)
+}
+
+func TestParseJob(t *testing.T) {
+	exited := false
+	logger, hook := test.NewNullLogger()
+	logger.ExitFunc = func(i int) {
+		exited = true
+	}
+
+	log = logger.WithField("pkg", "nomad")
+
+	t.Run("parses the given default job", func(t *testing.T) {
+		job := parseJob(defaultJobHCL)
+		assert.False(t, exited)
+		assert.NotNil(t, job)
+	})
+
+	t.Run("fatals when given wrong job", func(t *testing.T) {
+		job := parseJob("")
+		assert.True(t, exited)
+		assert.Nil(t, job)
+		assert.Equal(t, logrus.FatalLevel, hook.LastEntry().Level)
+	})
 }

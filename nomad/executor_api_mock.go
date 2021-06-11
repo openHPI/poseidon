@@ -165,6 +165,29 @@ func (_m *ExecutorAPIMock) LoadAllJobs() ([]*api.Job, error) {
 	return r0, r1
 }
 
+// LoadEnvironmentTemplate provides a mock function with given fields: environmentID
+func (_m *ExecutorAPIMock) LoadEnvironmentTemplate(environmentID string) (*api.Job, error) {
+	ret := _m.Called(environmentID)
+
+	var r0 *api.Job
+	if rf, ok := ret.Get(0).(func(string) *api.Job); ok {
+		r0 = rf(environmentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.Job)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(environmentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // LoadJobList provides a mock function with given fields:
 func (_m *ExecutorAPIMock) LoadJobList() ([]*api.JobListStub, error) {
 	ret := _m.Called()
@@ -283,6 +306,29 @@ func (_m *ExecutorAPIMock) RegisterNomadJob(job *api.Job) (string, error) {
 	return r0, r1
 }
 
+// RegisterTemplateJob provides a mock function with given fields: defaultJob, environmentID, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts
+func (_m *ExecutorAPIMock) RegisterTemplateJob(defaultJob *api.Job, environmentID int, prewarmingPoolSize uint, cpuLimit uint, memoryLimit uint, image string, networkAccess bool, exposedPorts []uint16) (*api.Job, error) {
+	ret := _m.Called(defaultJob, environmentID, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+
+	var r0 *api.Job
+	if rf, ok := ret.Get(0).(func(*api.Job, int, uint, uint, uint, string, bool, []uint16) *api.Job); ok {
+		r0 = rf(defaultJob, environmentID, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.Job)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*api.Job, int, uint, uint, uint, string, bool, []uint16) error); ok {
+		r1 = rf(defaultJob, environmentID, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // SetJobScale provides a mock function with given fields: jobId, count, reason
 func (_m *ExecutorAPIMock) SetJobScale(jobId string, count uint, reason string) error {
 	ret := _m.Called(jobId, count, reason)
@@ -325,7 +371,7 @@ func (_m *ExecutorAPIMock) init(nomadURL *url.URL, nomadNamespace string) error 
 	return r0
 }
 
-// jobInfo provides a mock function with given fields: jobID
+// job provides a mock function with given fields: jobID
 func (_m *ExecutorAPIMock) job(jobID string) (*api.Job, error) {
 	ret := _m.Called(jobID)
 

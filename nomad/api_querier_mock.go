@@ -193,7 +193,7 @@ func (_m *apiQuerierMock) init(nomadURL *url.URL, nomadNamespace string) error {
 	return r0
 }
 
-// jobInfo provides a mock function with given fields: jobID
+// job provides a mock function with given fields: jobID
 func (_m *apiQuerierMock) job(jobID string) (*api.Job, error) {
 	ret := _m.Called(jobID)
 

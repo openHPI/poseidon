@@ -1,7 +1,6 @@
-package environment
+package nomad
 
 import (
-	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/sirupsen/logrus"
@@ -9,34 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"testing"
 )
-
-func TestParseJob(t *testing.T) {
-	exited := false
-	logger, hook := test.NewNullLogger()
-	logger.ExitFunc = func(i int) {
-		exited = true
-	}
-
-	log = logger.WithField("pkg", "nomad")
-
-	t.Run("parses the given default job", func(t *testing.T) {
-		job := parseJob(defaultJobHCL)
-		assert.False(t, exited)
-		assert.NotNil(t, job)
-	})
-
-	t.Run("fatals when given wrong job", func(t *testing.T) {
-		job := parseJob("")
-		assert.True(t, exited)
-		assert.Nil(t, job)
-		assert.Equal(t, logrus.FatalLevel, hook.LastEntry().Level)
-	})
-}
 
 func createTestTaskGroup() *nomadApi.TaskGroup {
 	return nomadApi.NewTaskGroup("taskGroup", 42)
@@ -52,18 +26,18 @@ func createTestResources() *nomadApi.Resources {
 	return &nomadApi.Resources{CPU: &expectedCPULimit, MemoryMB: &expectedMemoryLimit}
 }
 
-func createTestJob() (*nomadApi.Job, *nomadApi.Job) {
-	jobID := nomad.TemplateJobID(tests.DefaultEnvironmentIDAsString)
-	base := nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
-	job := nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
+func createTestJob() (job, base *nomadApi.Job) {
+	jobID := TemplateJobID(tests.DefaultEnvironmentIDAsString)
+	base = nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
+	job = nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
 	task := createTestTask()
-	task.Name = nomad.TaskName
+	task.Name = TaskName
 	image := "python:latest"
 	task.Config = map[string]interface{}{"image": image}
 	task.Config["network_mode"] = "none"
 	task.Resources = createTestResources()
 	taskGroup := createTestTaskGroup()
-	taskGroupName := nomad.TaskGroupName
+	taskGroupName := TaskGroupName
 	taskGroup.Name = &taskGroupName
 	taskGroup.Tasks = []*nomadApi.Task{task}
 	taskGroup.Networks = []*nomadApi.NetworkResource{}
@@ -206,7 +180,7 @@ func TestConfigureTaskWhenNoTaskExists(t *testing.T) {
 
 	expectedResources := createTestResources()
 	expectedTaskGroup := *taskGroup
-	expectedTask := nomadApi.NewTask("task", nomad.DefaultTaskDriver)
+	expectedTask := nomadApi.NewTask("task", DefaultTaskDriver)
 	expectedTask.Resources = expectedResources
 	expectedImage := "python:latest"
 	expectedTask.Config = map[string]interface{}{"image": expectedImage, "network_mode": "none"}
@@ -247,12 +221,11 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 
 func TestCreateTemplateJobSetsAllGivenArguments(t *testing.T) {
 	testJob, base := createTestJob()
-	manager := NomadEnvironmentManager{&runner.NomadRunnerManager{}, &nomad.APIClient{}, *base}
-	testJobEnvironmentID, err := nomad.EnvironmentIDFromJobID(*testJob.ID)
+	testJobEnvironmentID, err := EnvironmentIDFromJobID(*testJob.ID)
 	assert.NoError(t, err)
-	job := createTemplateJob(
-		manager.defaultJob,
-		runner.EnvironmentID(testJobEnvironmentID),
+	job := CreateTemplateJob(
+		base,
+		testJobEnvironmentID,
 		uint(*testJob.TaskGroups[0].Count),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.CPU),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.MemoryMB),
@@ -264,53 +237,51 @@ func TestCreateTemplateJobSetsAllGivenArguments(t *testing.T) {
 }
 
 func TestRegisterTemplateJobFailsWhenNomadJobRegistrationFails(t *testing.T) {
-	apiMock := nomad.ExecutorAPIMock{}
-	expectedErr := errors.New("test error")
+	apiMock := apiQuerierMock{}
+	expectedErr := tests.ErrDefault
 
 	apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return("", expectedErr)
 
-	m := NomadEnvironmentManager{
-		runnerManager: nil,
-		api:           &apiMock,
-		defaultJob:    nomadApi.Job{},
-	}
+	apiClient := &APIClient{&apiMock}
 
-	_, err := m.registerTemplateJob(tests.DefaultEnvironmentIDAsInteger, 1, 2, 3, "image", false, []uint16{})
-	assert.Equal(t, expectedErr, err)
+	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultEnvironmentIDAsInteger,
+		1, 2, 3, "image", false, []uint16{})
+	assert.ErrorIs(t, err, expectedErr)
 	apiMock.AssertNotCalled(t, "EvaluationStream")
 }
 
 func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
-	apiMock := nomad.ExecutorAPIMock{}
+	apiMock := apiQuerierMock{}
 	evaluationID := "id"
 
+	stream := make(chan *nomadApi.Events)
+	readonlyStream := func() <-chan *nomadApi.Events {
+		return stream
+	}()
+	// Immediately close stream to avoid any reading from it resulting in endless wait
+	close(stream)
+
 	apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
-	apiMock.On("MonitorEvaluation", evaluationID, mock.AnythingOfType("*context.emptyCtx")).Return(nil)
+	apiMock.On("EvaluationStream", evaluationID, mock.AnythingOfType("*context.emptyCtx")).
+		Return(readonlyStream, nil)
 
-	m := NomadEnvironmentManager{
-		runnerManager: nil,
-		api:           &apiMock,
-		defaultJob:    nomadApi.Job{},
-	}
+	apiClient := &APIClient{&apiMock}
 
-	_, err := m.registerTemplateJob(tests.DefaultEnvironmentIDAsInteger, 1, 2, 3, "image", false, []uint16{})
+	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultEnvironmentIDAsInteger,
+		1, 2, 3, "image", false, []uint16{})
 	assert.NoError(t, err)
 }
 
 func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing.T) {
-	apiMock := nomad.ExecutorAPIMock{}
+	apiMock := apiQuerierMock{}
 	evaluationID := "id"
-	expectedErr := errors.New("test error")
 
 	apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
-	apiMock.On("MonitorEvaluation", evaluationID, mock.AnythingOfType("*context.emptyCtx")).Return(expectedErr)
+	apiMock.On("EvaluationStream", evaluationID, mock.AnythingOfType("*context.emptyCtx")).Return(nil, tests.ErrDefault)
 
-	m := NomadEnvironmentManager{
-		runnerManager: nil,
-		api:           &apiMock,
-		defaultJob:    nomadApi.Job{},
-	}
+	apiClient := &APIClient{&apiMock}
 
-	_, err := m.registerTemplateJob(tests.DefaultEnvironmentIDAsInteger, 1, 2, 3, "image", false, []uint16{})
-	assert.Equal(t, expectedErr, err)
+	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultEnvironmentIDAsInteger,
+		1, 2, 3, "image", false, []uint16{})
+	assert.ErrorIs(t, err, tests.ErrDefault)
 }

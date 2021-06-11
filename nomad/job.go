@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
@@ -78,31 +79,171 @@ func SetMetaConfigValue(job *nomadApi.Job, key, value string) error {
 	return nil
 }
 
-// LoadJobList loads the list of jobs from the Nomad api.
-func (nc *nomadAPIClient) LoadJobList() (list []*nomadApi.JobListStub, err error) {
-	list, _, err = nc.client.Jobs().List(nc.queryOptions())
-	return
-}
-
-// JobScale returns the scale of the passed job.
-func (nc *nomadAPIClient) JobScale(jobID string) (jobScale uint, err error) {
-	status, _, err := nc.client.Jobs().ScaleStatus(jobID, nc.queryOptions())
+// RegisterTemplateJob creates a Nomad job based on the default job configuration and the given parameters.
+// It registers the job with Nomad and waits until the registration completes.
+func (a *APIClient) RegisterTemplateJob(
+	defaultJob *nomadApi.Job,
+	environmentID int,
+	prewarmingPoolSize, cpuLimit, memoryLimit uint,
+	image string,
+	networkAccess bool,
+	exposedPorts []uint16) (*nomadApi.Job, error) {
+	job := CreateTemplateJob(defaultJob, environmentID, prewarmingPoolSize,
+		cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	evalID, err := a.apiQuerier.RegisterNomadJob(job)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("couldn't register template job: %w", err)
 	}
-	// ToDo: Consider counting also the placed and desired allocations
-	jobScale = uint(status.TaskGroups[TaskGroupName].Running)
-	return
+	return job, a.MonitorEvaluation(evalID, context.Background())
 }
 
-// SetJobScale sets the scaling count of the passed job to Nomad.
-func (nc *nomadAPIClient) SetJobScale(jobID string, count uint, reason string) (err error) {
-	intCount := int(count)
-	_, _, err = nc.client.Jobs().Scale(jobID, TaskGroupName, &intCount, reason, false, nil, nil)
-	return
+// CreateTemplateJob creates a Nomad job based on the default job configuration and the given parameters.
+// It registers the job with Nomad and waits until the registration completes.
+func CreateTemplateJob(
+	defaultJob *nomadApi.Job,
+	environmentID int,
+	prewarmingPoolSize, cpuLimit, memoryLimit uint,
+	image string,
+	networkAccess bool,
+	exposedPorts []uint16) *nomadApi.Job {
+	job := *defaultJob
+	templateJobID := TemplateJobID(strconv.Itoa(environmentID))
+	job.ID = &templateJobID
+	job.Name = &templateJobID
+
+	var taskGroup = createTaskGroup(&job, TaskGroupName, prewarmingPoolSize)
+	configureTask(taskGroup, TaskName, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	storeConfiguration(&job, environmentID, prewarmingPoolSize)
+
+	return &job
 }
 
-func (nc *nomadAPIClient) job(jobID string) (job *nomadApi.Job, err error) {
-	job, _, err = nc.client.Jobs().Info(jobID, nil)
-	return
+func createTaskGroup(job *nomadApi.Job, name string, prewarmingPoolSize uint) *nomadApi.TaskGroup {
+	var taskGroup *nomadApi.TaskGroup
+	if len(job.TaskGroups) == 0 {
+		taskGroup = nomadApi.NewTaskGroup(name, int(prewarmingPoolSize))
+		job.TaskGroups = []*nomadApi.TaskGroup{taskGroup}
+	} else {
+		taskGroup = job.TaskGroups[0]
+		taskGroup.Name = &name
+		count := 1
+		taskGroup.Count = &count
+	}
+	return taskGroup
+}
+
+func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposedPorts []uint16) {
+	if len(taskGroup.Tasks) == 0 {
+		// This function is only used internally and must be called as last step when configuring the task.
+		// This error is not recoverable.
+		log.Fatal("Can't configure network before task has been configured!")
+	}
+	task := taskGroup.Tasks[0]
+
+	if task.Config == nil {
+		task.Config = make(map[string]interface{})
+	}
+
+	if networkAccess {
+		var networkResource *nomadApi.NetworkResource
+		if len(taskGroup.Networks) == 0 {
+			networkResource = &nomadApi.NetworkResource{}
+			taskGroup.Networks = []*nomadApi.NetworkResource{networkResource}
+		} else {
+			networkResource = taskGroup.Networks[0]
+		}
+		// Prefer "bridge" network over "host" to have an isolated network namespace with bridged interface
+		// instead of joining the host network namespace.
+		networkResource.Mode = "bridge"
+		for _, portNumber := range exposedPorts {
+			port := nomadApi.Port{
+				Label: strconv.FormatUint(uint64(portNumber), 10),
+				To:    int(portNumber),
+			}
+			networkResource.DynamicPorts = append(networkResource.DynamicPorts, port)
+		}
+
+		// Explicitly set mode to override existing settings when updating job from without to with network.
+		// Don't use bridge as it collides with the bridge mode above. This results in Docker using 'bridge'
+		// mode, meaning all allocations will be attached to the `docker0` adapter and could reach other
+		// non-Nomad containers attached to it. This is avoided when using Nomads bridge network mode.
+		task.Config["network_mode"] = ""
+	} else {
+		// Somehow, we can't set the network mode to none in the NetworkResource on task group level.
+		// See https://github.com/hashicorp/nomad/issues/10540
+		task.Config["network_mode"] = "none"
+		// Explicitly set Networks to signal Nomad to remove the possibly existing networkResource
+		taskGroup.Networks = []*nomadApi.NetworkResource{}
+	}
+}
+
+func configureTask(
+	taskGroup *nomadApi.TaskGroup,
+	name string,
+	cpuLimit, memoryLimit uint,
+	image string,
+	networkAccess bool,
+	exposedPorts []uint16) {
+	var task *nomadApi.Task
+	if len(taskGroup.Tasks) == 0 {
+		task = nomadApi.NewTask(name, DefaultTaskDriver)
+		taskGroup.Tasks = []*nomadApi.Task{task}
+	} else {
+		task = taskGroup.Tasks[0]
+		task.Name = name
+	}
+	integerCPULimit := int(cpuLimit)
+	integerMemoryLimit := int(memoryLimit)
+	task.Resources = &nomadApi.Resources{
+		CPU:      &integerCPULimit,
+		MemoryMB: &integerMemoryLimit,
+	}
+
+	if task.Config == nil {
+		task.Config = make(map[string]interface{})
+	}
+	task.Config["image"] = image
+
+	configureNetwork(taskGroup, networkAccess, exposedPorts)
+}
+
+func storeConfiguration(job *nomadApi.Job, id int, prewarmingPoolSize uint) {
+	taskGroup := findOrCreateConfigTaskGroup(job)
+
+	if taskGroup.Meta == nil {
+		taskGroup.Meta = make(map[string]string)
+	}
+	taskGroup.Meta[ConfigMetaEnvironmentKey] = strconv.Itoa(id)
+	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
+	taskGroup.Meta[ConfigMetaPoolSizeKey] = strconv.Itoa(int(prewarmingPoolSize))
+}
+
+func findOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
+	taskGroup := FindConfigTaskGroup(job)
+	if taskGroup == nil {
+		taskGroup = nomadApi.NewTaskGroup(ConfigTaskGroupName, 0)
+	}
+	createDummyTaskIfNotPresent(taskGroup)
+	return taskGroup
+}
+
+// createDummyTaskIfNotPresent ensures that a dummy task is in the task group so that the group is accepted by Nomad.
+func createDummyTaskIfNotPresent(taskGroup *nomadApi.TaskGroup) {
+	var task *nomadApi.Task
+	for _, t := range taskGroup.Tasks {
+		if t.Name == DummyTaskName {
+			task = t
+			break
+		}
+	}
+
+	if task == nil {
+		task = nomadApi.NewTask(DummyTaskName, DefaultDummyTaskDriver)
+		taskGroup.Tasks = append(taskGroup.Tasks, task)
+	}
+
+	if task.Config == nil {
+		task.Config = make(map[string]interface{})
+	}
+	task.Config["command"] = DefaultTaskCommand
 }

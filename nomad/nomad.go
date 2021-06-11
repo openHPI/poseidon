@@ -32,6 +32,12 @@ type ExecutorAPI interface {
 	// LoadRunners loads all runners of the specified environment which are running and not about to get stopped.
 	LoadRunners(environmentID string) (runnerIds []string, err error)
 
+	// RegisterTemplateJob creates a template job based on the default job configuration and the given parameters.
+	// It registers the job and waits until the registration completes.
+	RegisterTemplateJob(defaultJob *nomadApi.Job, environmentID int,
+		prewarmingPoolSize, cpuLimit, memoryLimit uint,
+		image string, networkAccess bool, exposedPorts []uint16) (*nomadApi.Job, error)
+
 	// LoadEnvironmentTemplate loads the template job of the specified environment.
 	// Based on the template job new runners can be created.
 	LoadEnvironmentTemplate(environmentID string) (*nomadApi.Job, error)
@@ -98,7 +104,7 @@ func (a *APIClient) LoadEnvironmentTemplate(environmentID string) (*nomadApi.Job
 }
 
 func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) error {
-	stream, err := a.EvaluationStream(evaluationID, ctx)
+	stream, err := a.apiQuerier.EvaluationStream(evaluationID, ctx)
 	if err != nil {
 		return fmt.Errorf("failed retrieving evaluation stream: %w", err)
 	}

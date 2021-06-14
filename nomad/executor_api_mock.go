@@ -142,52 +142,6 @@ func (_m *ExecutorAPIMock) JobScale(jobId string) (uint, error) {
 	return r0, r1
 }
 
-// LoadAllJobs provides a mock function with given fields:
-func (_m *ExecutorAPIMock) LoadAllJobs() ([]*api.Job, error) {
-	ret := _m.Called()
-
-	var r0 []*api.Job
-	if rf, ok := ret.Get(0).(func() []*api.Job); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*api.Job)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// LoadEnvironmentTemplate provides a mock function with given fields: environmentID
-func (_m *ExecutorAPIMock) LoadEnvironmentTemplate(environmentID string) (*api.Job, error) {
-	ret := _m.Called(environmentID)
-
-	var r0 *api.Job
-	if rf, ok := ret.Get(0).(func(string) *api.Job); ok {
-		r0 = rf(environmentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*api.Job)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(environmentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // LoadJobList provides a mock function with given fields:
 func (_m *ExecutorAPIMock) LoadJobList() ([]*api.JobListStub, error) {
 	ret := _m.Called()
@@ -211,8 +165,31 @@ func (_m *ExecutorAPIMock) LoadJobList() ([]*api.JobListStub, error) {
 	return r0, r1
 }
 
+// LoadRunnerJobs provides a mock function with given fields: environmentID
+func (_m *ExecutorAPIMock) LoadRunnerJobs(environmentID string) ([]*api.Job, error) {
+	ret := _m.Called(environmentID)
+
+	var r0 []*api.Job
+	if rf, ok := ret.Get(0).(func(string) []*api.Job); ok {
+		r0 = rf(environmentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*api.Job)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(environmentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // LoadRunners provides a mock function with given fields: jobID
-func (_m *ExecutorAPIMock) LoadRunners(jobID string) ([]string, error) {
+func (_m *ExecutorAPIMock) LoadRunnerIDs(jobID string) ([]string, error) {
 	ret := _m.Called(jobID)
 
 	var r0 []string
@@ -250,6 +227,29 @@ func (_m *ExecutorAPIMock) LoadEnvironmentTemplate(environmentID string) (*api.J
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(environmentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// LoadTemplateJobs provides a mock function with given fields:
+func (_m *ExecutorAPIMock) LoadEnvironmentJobs() ([]*api.Job, error) {
+	ret := _m.Called()
+
+	var r0 []*api.Job
+	if rf, ok := ret.Get(0).(func() []*api.Job); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*api.Job)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -306,13 +306,27 @@ func (_m *ExecutorAPIMock) RegisterNomadJob(job *api.Job) (string, error) {
 	return r0, r1
 }
 
-// RegisterTemplateJob provides a mock function with given fields: defaultJob, environmentID, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts
-func (_m *ExecutorAPIMock) RegisterTemplateJob(defaultJob *api.Job, environmentID int, prewarmingPoolSize uint, cpuLimit uint, memoryLimit uint, image string, networkAccess bool, exposedPorts []uint16) (*api.Job, error) {
-	ret := _m.Called(defaultJob, environmentID, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+// RegisterRunnerJob provides a mock function with given fields: template
+func (_m *ExecutorAPIMock) RegisterRunnerJob(template *api.Job) error {
+	ret := _m.Called(template)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*api.Job) error); ok {
+		r0 = rf(template)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// RegisterTemplateJob provides a mock function with given fields: defaultJob, id, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts
+func (_m *ExecutorAPIMock) RegisterTemplateJob(defaultJob *api.Job, id string, prewarmingPoolSize uint, cpuLimit uint, memoryLimit uint, image string, networkAccess bool, exposedPorts []uint16) (*api.Job, error) {
+	ret := _m.Called(defaultJob, id, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 
 	var r0 *api.Job
-	if rf, ok := ret.Get(0).(func(*api.Job, int, uint, uint, uint, string, bool, []uint16) *api.Job); ok {
-		r0 = rf(defaultJob, environmentID, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	if rf, ok := ret.Get(0).(func(*api.Job, string, uint, uint, uint, string, bool, []uint16) *api.Job); ok {
+		r0 = rf(defaultJob, id, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*api.Job)
@@ -320,8 +334,8 @@ func (_m *ExecutorAPIMock) RegisterTemplateJob(defaultJob *api.Job, environmentI
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*api.Job, int, uint, uint, uint, string, bool, []uint16) error); ok {
-		r1 = rf(defaultJob, environmentID, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
+	if rf, ok := ret.Get(1).(func(*api.Job, string, uint, uint, uint, string, bool, []uint16) error); ok {
+		r1 = rf(defaultJob, id, prewarmingPoolSize, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 	} else {
 		r1 = ret.Error(1)
 	}

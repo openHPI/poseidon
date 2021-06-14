@@ -50,20 +50,21 @@ func (s *CreateOrUpdateTestSuite) SetupTest() {
 
 func (s *CreateOrUpdateTestSuite) mockRegisterTemplateJob(job *nomadApi.Job, err error) {
 	s.apiMock.On("RegisterTemplateJob",
-		mock.AnythingOfType("*api.Job"), mock.AnythingOfType("int"),
+		mock.AnythingOfType("*api.Job"), mock.AnythingOfType("string"),
 		mock.AnythingOfType("uint"), mock.AnythingOfType("uint"), mock.AnythingOfType("uint"),
 		mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("[]uint16")).
 		Return(job, err)
 }
 
 func (s *CreateOrUpdateTestSuite) mockCreateOrUpdateEnvironment(created bool, err error) {
-	s.runnerManagerMock.On("CreateOrUpdateEnvironment",
-		mock.AnythingOfType("EnvironmentID"), mock.AnythingOfType("uint"), mock.AnythingOfType("*api.Job")).
+	s.runnerManagerMock.On("CreateOrUpdateEnvironment", mock.AnythingOfType("EnvironmentID"),
+		mock.AnythingOfType("uint"), mock.AnythingOfType("*api.Job"), mock.AnythingOfType("bool")).
 		Return(created, err)
 }
 
 func (s *CreateOrUpdateTestSuite) createJobForRequest() *nomadApi.Job {
-	return nomad.CreateTemplateJob(&s.manager.defaultJob, tests.DefaultEnvironmentIDAsInteger,
+	return nomad.CreateTemplateJob(&s.manager.templateEnvironmentJob,
+		runner.TemplateJobID(tests.DefaultEnvironmentIDAsInteger),
 		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
 		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
 }
@@ -76,7 +77,7 @@ func (s *CreateOrUpdateTestSuite) TestRegistersCorrectTemplateJob() {
 	s.NoError(err)
 
 	s.apiMock.AssertCalled(s.T(), "RegisterTemplateJob",
-		&s.manager.defaultJob, int(s.environmentID),
+		&s.manager.templateEnvironmentJob, runner.TemplateJobID(s.environmentID),
 		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
 		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
 }
@@ -98,7 +99,7 @@ func (s *CreateOrUpdateTestSuite) TestCreatesOrUpdatesCorrectEnvironment() {
 	_, err := s.manager.CreateOrUpdate(s.environmentID, s.request)
 	s.NoError(err)
 	s.runnerManagerMock.AssertCalled(s.T(), "CreateOrUpdateEnvironment",
-		s.environmentID, s.request.PrewarmingPoolSize, templateJob)
+		s.environmentID, s.request.PrewarmingPoolSize, templateJob, true)
 }
 
 func (s *CreateOrUpdateTestSuite) TestReturnsErrorIfCreatesOrUpdateEnvironmentReturnsError() {
@@ -132,7 +133,7 @@ func TestParseJob(t *testing.T) {
 	log = logger.WithField("pkg", "nomad")
 
 	t.Run("parses the given default job", func(t *testing.T) {
-		job := parseJob(defaultJobHCL)
+		job := parseJob(templateEnvironmentJobHCL)
 		assert.False(t, exited)
 		assert.NotNil(t, job)
 	})

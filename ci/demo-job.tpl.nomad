@@ -1,6 +1,6 @@
 // This job is used by the e2e tests as a demo job.
 
-job "0-default" {
+job "template-0" {
   datacenters = ["dc1"]
   type = "batch"
   namespace = "${NOMAD_NAMESPACE}"
@@ -49,4 +49,30 @@ job "0-default" {
       }
     }
   }
+  group "config" {
+      // We want to store whether a task is in use in order to recover from a downtime.
+      // Without a separate config task, marking a task as used would result in a restart of that task,
+      // as the meta information is passed to the container as environment variables.
+      count = 0
+      task "config" {
+        driver = "exec"
+        config {
+          command = "whoami"
+        }
+        logs {
+          max_files     = 1
+          max_file_size = 1
+        }
+        resources {
+          // minimum values
+          cpu    = 1
+          memory = 10
+        }
+      }
+      meta {
+        environment = "0"
+        used = "false"
+        prewarmingPoolSize = "1"
+      }
+    }
 }

@@ -1,6 +1,6 @@
 // This is the default job configuration that is used when no path to another default configuration is given
 
-job "0-default" {
+job "template-0" {
   datacenters = ["dc1"]
   type = "batch"
 

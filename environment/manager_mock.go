@@ -39,3 +39,17 @@ func (_m *ManagerMock) CreateOrUpdate(id runner.EnvironmentID, request dto.Execu
 func (_m *ManagerMock) Delete(id string) {
 	_m.Called(id)
 }
+
+// Load provides a mock function with given fields:
+func (_m *ManagerMock) Load() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

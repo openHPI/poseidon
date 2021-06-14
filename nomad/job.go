@@ -6,18 +6,17 @@ import (
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"strconv"
-	"strings"
 )
 
 const (
 	TaskGroupName            = "default-group"
 	TaskName                 = "default-task"
+	TemplateJobPrefix        = "template"
 	ConfigTaskGroupName      = "config"
 	DummyTaskName            = "dummy"
-	defaultRunnerJobID       = "default"
 	DefaultTaskDriver        = "docker"
 	DefaultDummyTaskDriver   = "exec"
-	DefaultTaskCommand       = "true"
+	DefaultDummyTaskCommand  = "true"
 	ConfigMetaEnvironmentKey = "environment"
 	ConfigMetaUsedKey        = "used"
 	ConfigMetaUsedValue      = "true"
@@ -26,38 +25,8 @@ const (
 )
 
 var (
-	ErrorInvalidJobID            = errors.New("invalid job id")
 	ErrorConfigTaskGroupNotFound = errors.New("config task group not found in job")
 )
-
-// RunnerJobID creates the job id. This requires an environment id and a runner id.
-func RunnerJobID(environmentID, runnerID string) string {
-	return fmt.Sprintf("%s-%s", environmentID, runnerID)
-}
-
-// EnvironmentIDFromJobID returns the environment id that is part of the passed job id.
-func EnvironmentIDFromJobID(jobID string) (int, error) {
-	parts := strings.Split(jobID, "-")
-	if len(parts) == 0 {
-		return 0, fmt.Errorf("empty job id: %w", ErrorInvalidJobID)
-	}
-	environmentID, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return 0, fmt.Errorf("invalid environment id par %v: %w", err, ErrorInvalidJobID)
-	}
-	return environmentID, nil
-}
-
-// TemplateJobID creates the environment specific id of the template job.
-func TemplateJobID(id string) string {
-	return RunnerJobID(id, defaultRunnerJobID)
-}
-
-// IsEnvironmentTemplateID checks if the passed job id belongs to a template job.
-func IsEnvironmentTemplateID(jobID string) bool {
-	parts := strings.Split(jobID, "-")
-	return len(parts) == 2 && parts[1] == defaultRunnerJobID
-}
 
 // FindConfigTaskGroup returns the config task group of a job.
 // The config task group should be included in all jobs.
@@ -82,13 +51,13 @@ func SetMetaConfigValue(job *nomadApi.Job, key, value string) error {
 // RegisterTemplateJob creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
 func (a *APIClient) RegisterTemplateJob(
-	defaultJob *nomadApi.Job,
-	environmentID int,
+	basisJob *nomadApi.Job,
+	id string,
 	prewarmingPoolSize, cpuLimit, memoryLimit uint,
 	image string,
 	networkAccess bool,
 	exposedPorts []uint16) (*nomadApi.Job, error) {
-	job := CreateTemplateJob(defaultJob, environmentID, prewarmingPoolSize,
+	job := CreateTemplateJob(basisJob, id, prewarmingPoolSize,
 		cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 	evalID, err := a.apiQuerier.RegisterNomadJob(job)
 	if err != nil {
@@ -100,22 +69,31 @@ func (a *APIClient) RegisterTemplateJob(
 // CreateTemplateJob creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
 func CreateTemplateJob(
-	defaultJob *nomadApi.Job,
-	environmentID int,
+	basisJob *nomadApi.Job,
+	id string,
 	prewarmingPoolSize, cpuLimit, memoryLimit uint,
 	image string,
 	networkAccess bool,
 	exposedPorts []uint16) *nomadApi.Job {
-	job := *defaultJob
-	templateJobID := TemplateJobID(strconv.Itoa(environmentID))
-	job.ID = &templateJobID
-	job.Name = &templateJobID
+	job := *basisJob
+	job.ID = &id
+	job.Name = &id
 
 	var taskGroup = createTaskGroup(&job, TaskGroupName, prewarmingPoolSize)
 	configureTask(taskGroup, TaskName, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
-	storeConfiguration(&job, environmentID, prewarmingPoolSize)
+	storeTemplateConfiguration(&job, prewarmingPoolSize)
 
 	return &job
+}
+
+func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
+	storeRunnerConfiguration(template)
+
+	evalID, err := a.apiQuerier.RegisterNomadJob(template)
+	if err != nil {
+		return fmt.Errorf("couldn't register runner job: %w", err)
+	}
+	return a.MonitorEvaluation(evalID, context.Background())
 }
 
 func createTaskGroup(job *nomadApi.Job, name string, prewarmingPoolSize uint) *nomadApi.TaskGroup {
@@ -207,15 +185,18 @@ func configureTask(
 	configureNetwork(taskGroup, networkAccess, exposedPorts)
 }
 
-func storeConfiguration(job *nomadApi.Job, id int, prewarmingPoolSize uint) {
+func storeTemplateConfiguration(job *nomadApi.Job, prewarmingPoolSize uint) {
 	taskGroup := findOrCreateConfigTaskGroup(job)
 
-	if taskGroup.Meta == nil {
-		taskGroup.Meta = make(map[string]string)
-	}
-	taskGroup.Meta[ConfigMetaEnvironmentKey] = strconv.Itoa(id)
-	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
+	taskGroup.Meta = make(map[string]string)
 	taskGroup.Meta[ConfigMetaPoolSizeKey] = strconv.Itoa(int(prewarmingPoolSize))
+}
+
+func storeRunnerConfiguration(job *nomadApi.Job) {
+	taskGroup := findOrCreateConfigTaskGroup(job)
+
+	taskGroup.Meta = make(map[string]string)
+	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
 }
 
 func findOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
@@ -245,5 +226,5 @@ func createDummyTaskIfNotPresent(taskGroup *nomadApi.TaskGroup) {
 	if task.Config == nil {
 		task.Config = make(map[string]interface{})
 	}
-	task.Config["command"] = DefaultTaskCommand
+	task.Config["command"] = DefaultDummyTaskCommand
 }

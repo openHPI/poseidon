@@ -13,18 +13,23 @@ import (
 	"strconv"
 )
 
-// defaultJobHCL holds our default job in HCL format.
+// templateEnvironmentJobHCL holds our default job in HCL format.
 // The default job is used when creating new job and provides
 // common settings that all the jobs share.
-//go:embed default-job.hcl
-var defaultJobHCL string
+//go:embed template-environment-job.hcl
+var templateEnvironmentJobHCL string
 
 var log = logging.GetLogger("environment")
 
 // Manager encapsulates API calls to the executor API for creation and deletion of execution environments.
 type Manager interface {
+	// Load fetches all already created execution environments from the executor and registers them at the runner manager.
+	// It should be called during the startup process (e.g. on creation of the Manager).
+	Load() error
+
 	// CreateOrUpdate creates/updates an execution environment on the executor.
-	// Iff the job was created, the returned boolean is true and the returned error is nil.
+	// If the job was created, the returned boolean is true, if it was updated, it is false.
+	// If err is not nil, that means the environment was neither created nor updated.
 	CreateOrUpdate(
 		id runner.EnvironmentID,
 		request dto.ExecutionEnvironmentRequest,
@@ -34,24 +39,27 @@ type Manager interface {
 	Delete(id string)
 }
 
-func NewNomadEnvironmentManager(runnerManager runner.Manager, apiClient nomad.ExecutorAPI) (
-	*NomadEnvironmentManager, error) {
-	environmentManager := &NomadEnvironmentManager{runnerManager, apiClient, *parseJob(defaultJobHCL)}
-	err := environmentManager.loadExistingEnvironments()
-	return environmentManager, err
+func NewNomadEnvironmentManager(runnerManager runner.Manager,
+	apiClient nomad.ExecutorAPI) (m *NomadEnvironmentManager) {
+	m = &NomadEnvironmentManager{runnerManager, apiClient, *parseJob(templateEnvironmentJobHCL)}
+	if err := m.Load(); err != nil {
+		log.WithError(err).Error("Error recovering the execution environments")
+	}
+	runnerManager.Load()
+	return
 }
 
 type NomadEnvironmentManager struct {
-	runnerManager runner.Manager
-	api           nomad.ExecutorAPI
-	defaultJob    nomadApi.Job
+	runnerManager          runner.Manager
+	api                    nomad.ExecutorAPI
+	templateEnvironmentJob nomadApi.Job
 }
 
 func (m *NomadEnvironmentManager) CreateOrUpdate(
 	id runner.EnvironmentID,
 	request dto.ExecutionEnvironmentRequest,
 ) (bool, error) {
-	templateJob, err := m.api.RegisterTemplateJob(&m.defaultJob, int(id),
+	templateJob, err := m.api.RegisterTemplateJob(&m.templateEnvironmentJob, runner.TemplateJobID(id),
 		request.PrewarmingPoolSize, request.CPULimit, request.MemoryLimit,
 		request.Image, request.NetworkAccess, request.ExposedPorts)
 
@@ -59,7 +67,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 		return false, err
 	}
 
-	created, err := m.runnerManager.CreateOrUpdateEnvironment(id, request.PrewarmingPoolSize, templateJob)
+	created, err := m.runnerManager.CreateOrUpdateEnvironment(id, request.PrewarmingPoolSize, templateJob, true)
 	if err != nil {
 		return created, err
 	}
@@ -70,52 +78,13 @@ func (m *NomadEnvironmentManager) Delete(id string) {
 
 }
 
-func (m *NomadEnvironmentManager) loadExistingEnvironments() error {
-	jobs, err := m.api.LoadAllJobs()
+func (m *NomadEnvironmentManager) Load() error {
+	templateJobs, err := m.api.LoadEnvironmentJobs()
 	if err != nil {
-		return fmt.Errorf("can't load template jobs: %w", err)
+		return fmt.Errorf("couldn't load template jobs: %w", err)
 	}
 
-	var environmentTemplates, runnerJobs []*nomadApi.Job
-	for _, job := range jobs {
-		if nomad.IsEnvironmentTemplateID(*job.ID) {
-			environmentTemplates = append(environmentTemplates, job)
-		} else {
-			runnerJobs = append(runnerJobs, job)
-		}
-	}
-	m.recoverJobs(environmentTemplates, m.recoverEnvironmentTemplates)
-	m.recoverJobs(runnerJobs, m.recoverRunner)
-
-	err = m.runnerManager.ScaleAllEnvironments()
-	if err != nil {
-		return fmt.Errorf("can not restore environment scaling: %w", err)
-	}
-	return nil
-}
-
-type jobAdder func(id runner.EnvironmentID, job *nomadApi.Job, configTaskGroup *nomadApi.TaskGroup) error
-
-func (m *NomadEnvironmentManager) recoverEnvironmentTemplates(id runner.EnvironmentID, job *nomadApi.Job,
-	configTaskGroup *nomadApi.TaskGroup) error {
-	desiredIdleRunnersCount, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaPoolSizeKey])
-	if err != nil {
-		return fmt.Errorf("Couldn't convert pool size to int: %w", err)
-	}
-
-	m.runnerManager.RecoverEnvironment(id, job, uint(desiredIdleRunnersCount))
-	return nil
-}
-
-func (m *NomadEnvironmentManager) recoverRunner(id runner.EnvironmentID, job *nomadApi.Job,
-	configTaskGroup *nomadApi.TaskGroup) error {
-	isUsed := configTaskGroup.Meta[nomad.ConfigMetaUsedKey] == nomad.ConfigMetaUsedValue
-	m.runnerManager.RecoverRunner(id, job, isUsed)
-	return nil
-}
-
-func (m *NomadEnvironmentManager) recoverJobs(jobs []*nomadApi.Job, onJob jobAdder) {
-	for _, job := range jobs {
+	for _, job := range templateJobs {
 		jobLogger := log.WithField("jobID", *job.ID)
 		if *job.Status != structs.JobStatusRunning {
 			jobLogger.Info("Job not running, skipping ...")
@@ -126,6 +95,11 @@ func (m *NomadEnvironmentManager) recoverJobs(jobs []*nomadApi.Job, onJob jobAdd
 			jobLogger.Info("Couldn't find config task group in job, skipping ...")
 			continue
 		}
+		desiredIdleRunnersCount, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaPoolSizeKey])
+		if err != nil {
+			jobLogger.Infof("Couldn't convert pool size to int: %v, skipping ...", err)
+			continue
+		}
 		environmentID, err := runner.NewEnvironmentID(configTaskGroup.Meta[nomad.ConfigMetaEnvironmentKey])
 		if err != nil {
 			jobLogger.WithField("environmentID", configTaskGroup.Meta[nomad.ConfigMetaEnvironmentKey]).
@@ -133,12 +107,13 @@ func (m *NomadEnvironmentManager) recoverJobs(jobs []*nomadApi.Job, onJob jobAdd
 				Error("Couldn't convert environment id of template job to int")
 			continue
 		}
-		err = onJob(environmentID, job, configTaskGroup)
+		_, err = m.runnerManager.CreateOrUpdateEnvironment(environmentID, uint(desiredIdleRunnersCount), job, false)
 		if err != nil {
 			jobLogger.WithError(err).Info("Could not recover job.")
 			continue
 		}
 	}
+	return nil
 }
 
 func parseJob(jobHCL string) *nomadApi.Job {

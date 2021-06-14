@@ -64,7 +64,7 @@ func (s *LoadRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return(nil, tests.ErrDefault)
 
-	returnedIds, err := s.nomadApiClient.LoadRunners(s.jobId)
+	returnedIds, err := s.nomadApiClient.LoadRunnerIDs(s.jobId)
 	s.Nil(returnedIds)
 	s.Equal(tests.ErrDefault, err)
 }
@@ -73,7 +73,7 @@ func (s *LoadRunnersTestSuite) TestReturnsNoErrorWhenUnderlyingApiCallDoesNot() 
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{}, nil)
 
-	_, err := s.nomadApiClient.LoadRunners(s.jobId)
+	_, err := s.nomadApiClient.LoadRunnerIDs(s.jobId)
 	s.NoError(err)
 }
 
@@ -81,7 +81,7 @@ func (s *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.availableRunner}, nil)
 
-	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
+	returnedIds, _ := s.nomadApiClient.LoadRunnerIDs(s.jobId)
 	s.Len(returnedIds, 1)
 	s.Equal(s.availableRunner.ID, returnedIds[0])
 }
@@ -90,7 +90,7 @@ func (s *LoadRunnersTestSuite) TestPendingRunnerIsNotReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.pendingRunner}, nil)
 
-	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
+	returnedIds, _ := s.nomadApiClient.LoadRunnerIDs(s.jobId)
 	s.Empty(returnedIds)
 }
 
@@ -98,7 +98,7 @@ func (s *LoadRunnersTestSuite) TestDeadRunnerIsNotReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.deadRunner}, nil)
 
-	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
+	returnedIds, _ := s.nomadApiClient.LoadRunnerIDs(s.jobId)
 	s.Empty(returnedIds)
 }
 
@@ -112,7 +112,7 @@ func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return(runnersList, nil)
 
-	returnedIds, _ := s.nomadApiClient.LoadRunners(s.jobId)
+	returnedIds, _ := s.nomadApiClient.LoadRunnerIDs(s.jobId)
 	s.Len(returnedIds, 2)
 	s.Contains(returnedIds, s.availableRunner.ID)
 	s.Contains(returnedIds, s.anotherAvailableRunner.ID)

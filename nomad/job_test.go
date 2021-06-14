@@ -27,7 +27,7 @@ func createTestResources() *nomadApi.Resources {
 }
 
 func createTestJob() (job, base *nomadApi.Job) {
-	jobID := TemplateJobID(tests.DefaultEnvironmentIDAsString)
+	jobID := tests.DefaultJobID
 	base = nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
 	job = nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
 	task := createTestTask()
@@ -221,11 +221,9 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 
 func TestCreateTemplateJobSetsAllGivenArguments(t *testing.T) {
 	testJob, base := createTestJob()
-	testJobEnvironmentID, err := EnvironmentIDFromJobID(*testJob.ID)
-	assert.NoError(t, err)
 	job := CreateTemplateJob(
 		base,
-		testJobEnvironmentID,
+		tests.DefaultJobID,
 		uint(*testJob.TaskGroups[0].Count),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.CPU),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.MemoryMB),
@@ -244,7 +242,7 @@ func TestRegisterTemplateJobFailsWhenNomadJobRegistrationFails(t *testing.T) {
 
 	apiClient := &APIClient{&apiMock}
 
-	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultEnvironmentIDAsInteger,
+	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultJobID,
 		1, 2, 3, "image", false, []uint16{})
 	assert.ErrorIs(t, err, expectedErr)
 	apiMock.AssertNotCalled(t, "EvaluationStream")
@@ -267,7 +265,7 @@ func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.
 
 	apiClient := &APIClient{&apiMock}
 
-	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultEnvironmentIDAsInteger,
+	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultJobID,
 		1, 2, 3, "image", false, []uint16{})
 	assert.NoError(t, err)
 }
@@ -281,7 +279,7 @@ func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing
 
 	apiClient := &APIClient{&apiMock}
 
-	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultEnvironmentIDAsInteger,
+	_, err := apiClient.RegisterTemplateJob(&nomadApi.Job{}, tests.DefaultJobID,
 		1, 2, 3, "image", false, []uint16{})
 	assert.ErrorIs(t, err, tests.ErrDefault)
 }

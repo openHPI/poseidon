@@ -35,20 +35,20 @@ func (_m *ManagerMock) Claim(id EnvironmentID) (Runner, error) {
 	return r0, r1
 }
 
-// CreateOrUpdateEnvironment provides a mock function with given fields: id, desiredIdleRunnersCount, teplateJob
-func (_m *ManagerMock) CreateOrUpdateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint, teplateJob *api.Job) (bool, error) {
-	ret := _m.Called(id, desiredIdleRunnersCount, teplateJob)
+// CreateOrUpdateEnvironment provides a mock function with given fields: id, desiredIdleRunnersCount, teplateJob, scale
+func (_m *ManagerMock) CreateOrUpdateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint, teplateJob *api.Job, scale bool) (bool, error) {
+	ret := _m.Called(id, desiredIdleRunnersCount, teplateJob, scale)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(EnvironmentID, uint, *api.Job) bool); ok {
-		r0 = rf(id, desiredIdleRunnersCount, teplateJob)
+	if rf, ok := ret.Get(0).(func(EnvironmentID, uint, *api.Job, bool) bool); ok {
+		r0 = rf(id, desiredIdleRunnersCount, teplateJob, scale)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(EnvironmentID, uint, *api.Job) error); ok {
-		r1 = rf(id, desiredIdleRunnersCount, teplateJob)
+	if rf, ok := ret.Get(1).(func(EnvironmentID, uint, *api.Job, bool) error); ok {
+		r1 = rf(id, desiredIdleRunnersCount, teplateJob, scale)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -79,14 +79,9 @@ func (_m *ManagerMock) Get(runnerID string) (Runner, error) {
 	return r0, r1
 }
 
-// RecoverEnvironment provides a mock function with given fields: id, templateJob, desiredIdleRunnersCount
-func (_m *ManagerMock) RecoverEnvironment(id EnvironmentID, templateJob *api.Job, desiredIdleRunnersCount uint) {
-	_m.Called(id, templateJob, desiredIdleRunnersCount)
-}
-
-// RecoverRunner provides a mock function with given fields: id, environment, isUsed
-func (_m *ManagerMock) RecoverRunner(id EnvironmentID, job *api.Job, isUsed bool) {
-	_m.Called(id, job, isUsed)
+// Load provides a mock function with given fields:
+func (_m *ManagerMock) Load() {
+	_m.Called()
 }
 
 // Return provides a mock function with given fields: r

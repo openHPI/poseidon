@@ -6,8 +6,8 @@ import (
 
 // NomadEnvironmentStorage is an interface for storing Nomad environments.
 type NomadEnvironmentStorage interface {
-	// List returns all keys of environments stored in this storage.
-	List() []EnvironmentID
+	// List returns all environments stored in this storage.
+	List() []*NomadEnvironment
 
 	// Add adds an environment to the storage.
 	// It overwrites the old environment if one with the same id was already stored.
@@ -39,12 +39,14 @@ func NewLocalNomadEnvironmentStorage() *localNomadEnvironmentStorage {
 	}
 }
 
-func (s *localNomadEnvironmentStorage) List() []EnvironmentID {
-	keys := make([]EnvironmentID, 0, len(s.environments))
-	for k := range s.environments {
-		keys = append(keys, k)
+func (s *localNomadEnvironmentStorage) List() []*NomadEnvironment {
+	s.RLock()
+	defer s.RUnlock()
+	values := make([]*NomadEnvironment, 0, len(s.environments))
+	for _, v := range s.environments {
+		values = append(values, v)
 	}
-	return keys
+	return values
 }
 
 func (s *localNomadEnvironmentStorage) Add(environment *NomadEnvironment) {

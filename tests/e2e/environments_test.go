@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"io"
@@ -46,7 +46,7 @@ func TestCreateOrUpdateEnvironment(t *testing.T) {
 
 	t.Run("updates limits in Nomad correctly", func(t *testing.T) {
 		updateRequest := request
-		updateRequest.CPULimit = 1337
+		updateRequest.CPULimit = 150
 		updateRequest.MemoryLimit = 142
 
 		assertPutReturnsStatusAndZeroContent(t, path, updateRequest, http.StatusNoContent)
@@ -103,7 +103,7 @@ func assertPutReturnsStatusAndZeroContent(t *testing.T, path string,
 
 func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 	t.Helper()
-	job := findNomadJob(t, tests.AnotherEnvironmentIDAsString)
+	job := findTemplateJob(t, tests.AnotherEnvironmentIDAsInteger)
 
 	assertEqualValueStringPointer(t, nomadNamespace, job.Namespace)
 	assertEqualValueStringPointer(t, "batch", job.Type)
@@ -137,9 +137,9 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 	}
 }
 
-func findNomadJob(t *testing.T, jobID string) *nomadApi.Job {
+func findTemplateJob(t *testing.T, id runner.EnvironmentID) *nomadApi.Job {
 	t.Helper()
-	job, _, err := nomadClient.Jobs().Info(nomad.TemplateJobID(jobID), nil)
+	job, _, err := nomadClient.Jobs().Info(runner.TemplateJobID(id), nil)
 	if err != nil {
 		t.Fatalf("Error retrieving Nomad job: %v", err)
 	}

@@ -170,7 +170,10 @@ func (s *E2ETestSuite) TestStderrFifoIsRemoved() {
 }
 
 func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {
-	alloc, _, err := nomadClient.Allocations().Info(runnerID, nil)
+	allocListStub, _, err := nomadClient.Jobs().Allocations(runnerID, true, nil)
+	s.Require().NoError(err)
+	s.Require().Equal(1, len(allocListStub))
+	alloc, _, err := nomadClient.Allocations().Info(allocListStub[0].ID, nil)
 	s.Require().NoError(err)
 
 	var stdout, stderr bytes.Buffer

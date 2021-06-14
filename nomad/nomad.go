@@ -18,6 +18,7 @@ var (
 	ErrorExecutorCommunicationFailed = errors.New("communication with executor failed")
 	ErrorEvaluation                  = errors.New("evaluation could not complete")
 	ErrorPlacingAllocations          = errors.New("failed to place all allocations")
+	ErrorLoadingJob                  = errors.New("failed to load job")
 )
 
 type AllocationProcessor func(*nomadApi.Allocation)
@@ -26,21 +27,25 @@ type AllocationProcessor func(*nomadApi.Allocation)
 type ExecutorAPI interface {
 	apiQuerier
 
-	// LoadAllJobs loads all existing jobs independent of the environment or if it is a template job.
-	LoadAllJobs() ([]*nomadApi.Job, error)
+	// LoadEnvironmentJobs loads all environment jobs.
+	LoadEnvironmentJobs() ([]*nomadApi.Job, error)
 
-	// LoadRunners loads all runners of the specified environment which are running and not about to get stopped.
-	LoadRunners(environmentID string) (runnerIds []string, err error)
+	// LoadRunnerJobs loads all runner jobs specific for the environment.
+	LoadRunnerJobs(environmentID string) ([]*nomadApi.Job, error)
+
+	// LoadRunnerIDs returns the IDs of all runners of the specified environment which are running and not about to
+	// get stopped.
+	LoadRunnerIDs(environmentID string) (runnerIds []string, err error)
 
 	// RegisterTemplateJob creates a template job based on the default job configuration and the given parameters.
 	// It registers the job and waits until the registration completes.
-	RegisterTemplateJob(defaultJob *nomadApi.Job, environmentID int,
+	RegisterTemplateJob(defaultJob *nomadApi.Job, id string,
 		prewarmingPoolSize, cpuLimit, memoryLimit uint,
 		image string, networkAccess bool, exposedPorts []uint16) (*nomadApi.Job, error)
 
-	// LoadEnvironmentTemplate loads the template job of the specified environment.
-	// Based on the template job new runners can be created.
-	LoadEnvironmentTemplate(environmentID string) (*nomadApi.Job, error)
+	// RegisterRunnerJob creates a runner job based on the template job.
+	// It registers the job and waits until the registration completes.
+	RegisterRunnerJob(template *nomadApi.Job) error
 
 	// MonitorEvaluation monitors the given evaluation ID.
 	// It waits until the evaluation reaches one of the states complete, canceled or failed.
@@ -81,7 +86,7 @@ func (a *APIClient) init(nomadURL *url.URL, nomadNamespace string) error {
 	return a.apiQuerier.init(nomadURL, nomadNamespace)
 }
 
-func (a *APIClient) LoadRunners(environmentID string) (runnerIDs []string, err error) {
+func (a *APIClient) LoadRunnerIDs(environmentID string) (runnerIDs []string, err error) {
 	list, err := a.listJobs(environmentID)
 	if err != nil {
 		return nil, err
@@ -95,12 +100,26 @@ func (a *APIClient) LoadRunners(environmentID string) (runnerIDs []string, err e
 	return runnerIDs, nil
 }
 
-func (a *APIClient) LoadEnvironmentTemplate(environmentID string) (*nomadApi.Job, error) {
-	job, err := a.job(TemplateJobID(environmentID))
+func (a *APIClient) LoadRunnerJobs(environmentID string) ([]*nomadApi.Job, error) {
+	runnerIDs, err := a.LoadRunnerIDs(environmentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed loading template job: %w", err)
+		return []*nomadApi.Job{}, fmt.Errorf("couldn't load jobs: %w", err)
 	}
-	return job, nil
+
+	var occurredError error
+	jobs := make([]*nomadApi.Job, 0, len(runnerIDs))
+	for _, id := range runnerIDs {
+		job, err := a.apiQuerier.job(id)
+		if err != nil {
+			if occurredError == nil {
+				occurredError = ErrorLoadingJob
+			}
+			occurredError = fmt.Errorf("%w: couldn't load job info for runner %s - %v", occurredError, id, err)
+			continue
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, occurredError
 }
 
 func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) error {
@@ -251,8 +270,8 @@ func (a *APIClient) MarkRunnerAsUsed(runnerID string) error {
 	return nil
 }
 
-func (a *APIClient) LoadAllJobs() ([]*nomadApi.Job, error) {
-	jobStubs, err := a.LoadJobList()
+func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
+	jobStubs, err := a.listJobs(TemplateJobPrefix)
 	if err != nil {
 		return []*nomadApi.Job{}, fmt.Errorf("couldn't load jobs: %w", err)
 	}

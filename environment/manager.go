@@ -100,11 +100,15 @@ func (m *NomadEnvironmentManager) Load() error {
 			jobLogger.Infof("Couldn't convert pool size to int: %v, skipping ...", err)
 			continue
 		}
-		environmentID, err := runner.NewEnvironmentID(configTaskGroup.Meta[nomad.ConfigMetaEnvironmentKey])
+		environmentIDString, err := runner.EnvironmentIDFromTemplateJobID(*job.ID)
 		if err != nil {
-			jobLogger.WithField("environmentID", configTaskGroup.Meta[nomad.ConfigMetaEnvironmentKey]).
+			jobLogger.WithError(err).Error("Couldn't retrieve environment id from template job")
+		}
+		environmentID, err := runner.NewEnvironmentID(environmentIDString)
+		if err != nil {
+			jobLogger.WithField("environmentID", environmentIDString).
 				WithError(err).
-				Error("Couldn't convert environment id of template job to int")
+				Error("Couldn't retrieve environmentID from string")
 			continue
 		}
 		_, err = m.runnerManager.CreateOrUpdateEnvironment(environmentID, uint(desiredIdleRunnersCount), job, false)
@@ -112,6 +116,7 @@ func (m *NomadEnvironmentManager) Load() error {
 			jobLogger.WithError(err).Info("Could not recover job.")
 			continue
 		}
+		jobLogger.Info("Successfully recovered environment")
 	}
 	return nil
 }

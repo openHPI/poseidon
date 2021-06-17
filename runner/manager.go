@@ -355,3 +355,11 @@ func IsEnvironmentTemplateID(jobID string) bool {
 	parts := strings.Split(jobID, "-")
 	return len(parts) == 2 && parts[0] == nomad.TemplateJobPrefix
 }
+
+func EnvironmentIDFromTemplateJobID(id string) (string, error) {
+	parts := strings.Split(id, "-")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid template job id: %w", ErrorInvalidJobID)
+	}
+	return parts[1], nil
+}

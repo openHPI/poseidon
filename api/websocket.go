@@ -186,11 +186,8 @@ func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecuti
 		return
 	}
 
-	if exitInfo.Err == context.DeadlineExceeded {
-		err := wp.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout})
-		if err != nil {
-			return
-		}
+	if errors.Is(exitInfo.Err, context.DeadlineExceeded) || errors.Is(exitInfo.Err, runner.ErrorRunnerInactivityTimeout) {
+		_ = wp.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout})
 		return
 	} else if exitInfo.Err != nil {
 		errorMessage := "Error executing the request"

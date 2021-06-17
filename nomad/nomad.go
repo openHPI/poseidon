@@ -63,8 +63,8 @@ type ExecutorAPI interface {
 	ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
-	// MarkRunnerAsUsed marks the runner with the given ID as used.
-	MarkRunnerAsUsed(runnerID string) error
+	// MarkRunnerAsUsed marks the runner with the given ID as used. It also stores the timeout duration in the metadata.
+	MarkRunnerAsUsed(runnerID string, duration int) error
 }
 
 // APIClient implements the ExecutorAPI interface and can be used to perform different operations on the real

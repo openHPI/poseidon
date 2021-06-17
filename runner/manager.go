@@ -185,6 +185,8 @@ func (m *NomadRunnerManager) Claim(environmentID EnvironmentID) (Runner, error) 
 		return nil, fmt.Errorf("can't mark runner as used: %w", err)
 	}
 
+	runner.SetupTimeout(time.Duration(duration) * time.Second)
+
 	err = m.scaleEnvironment(environmentID)
 	if err != nil {
 		log.WithError(err).WithField("environmentID", environmentID).Error("Couldn't scale environment")
@@ -202,6 +204,7 @@ func (m *NomadRunnerManager) Get(runnerID string) (Runner, error) {
 }
 
 func (m *NomadRunnerManager) Return(r Runner) (err error) {
+	r.StopTimeout()
 	err = m.apiClient.DeleteRunner(r.Id())
 	if err != nil {
 		return
@@ -234,9 +237,15 @@ func (m *NomadRunnerManager) Load() {
 				continue
 			}
 			isUsed := configTaskGroup.Meta[nomad.ConfigMetaUsedKey] == nomad.ConfigMetaUsedValue
-			newJob := NewNomadJob(*job.ID, m.apiClient)
+			newJob := NewNomadJob(*job.ID, m.apiClient, m)
 			if isUsed {
 				m.usedRunners.Add(newJob)
+				timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])
+				if err != nil {
+					log.WithError(err).Warn("Error loading timeout from meta values")
+				} else {
+					newJob.SetupTimeout(time.Duration(timeout) * time.Second)
+				}
 			} else {
 				environment.idleRunners.Add(newJob)
 			}
@@ -273,7 +282,7 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation) {
 
 	job, ok := m.environments.Get(environmentID)
 	if ok {
-		job.idleRunners.Add(NewNomadJob(alloc.JobID, m.apiClient))
+		job.idleRunners.Add(NewNomadJob(alloc.JobID, m.apiClient, m))
 	}
 }
 

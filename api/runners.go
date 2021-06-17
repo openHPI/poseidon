@@ -9,6 +9,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const (
@@ -49,16 +50,19 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	environmentId := runner.EnvironmentID(runnerRequest.ExecutionEnvironmentId)
 	nextRunner, err := r.manager.Claim(environmentId)
 	if err != nil {
-		if err == runner.ErrUnknownExecutionEnvironment {
+		switch err {
+		case runner.ErrUnknownExecutionEnvironment:
 			writeNotFound(writer, err)
-		} else if err == runner.ErrNoRunnersAvailable {
+		case runner.ErrNoRunnersAvailable:
 			log.WithField("environment", environmentId).Warn("No runners available")
 			writeInternalServerError(writer, err, dto.ErrorNomadOverload)
-		} else {
+		default:
 			writeInternalServerError(writer, err, dto.ErrorUnknown)
 		}
 		return
 	}
+	timeout := time.Duration(runnerRequest.InactivityTimeout) * time.Second
+	nextRunner.SetupTimeout(timeout, nextRunner, r.manager)
 
 	sendJson(writer, &dto.RunnerResponse{Id: nextRunner.Id()}, http.StatusOK)
 }

@@ -80,8 +80,8 @@ func TestExecuteCallsAPI(t *testing.T) {
 	request := &dto.ExecutionRequest{Command: "echo 'Hello World!'"}
 	runner.ExecuteInteractively(request, nil, nil, nil)
 
-	<-time.After(50 * time.Millisecond)
-	apiMock.AssertCalled(t, "ExecuteCommand", tests.DefaultRunnerID, mock.Anything, request.FullCommand(), true, mock.Anything, mock.Anything, mock.Anything)
+	time.Sleep(tests.ShortTimeout)
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", tests.DefaultRunnerID, mock.Anything, request.FullCommand(), true, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestExecuteReturnsAfterTimeout(t *testing.T) {
@@ -250,6 +250,81 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 		files = append(files, TarFile{Name: hdr.Name, Content: string(bf), TypeFlag: hdr.Typeflag})
 	}
 	return files
+}
+
+func TestInactivityTimerTestSuite(t *testing.T) {
+	suite.Run(t, new(InactivityTimerTestSuite))
+}
+
+type InactivityTimerTestSuite struct {
+	suite.Suite
+	runner   Runner
+	manager  *ManagerMock
+	returned chan bool
+}
+
+func (s *InactivityTimerTestSuite) SetupTest() {
+	s.returned = make(chan bool)
+	s.runner = NewRunner(tests.DefaultRunnerID)
+	s.manager = &ManagerMock{}
+	s.manager.On("Return", mock.Anything).Run(func(_ mock.Arguments) {
+		s.returned <- true
+	}).Return(nil)
+
+	s.runner.SetupTimeout(tests.ShortTimeout, s.runner, s.manager)
+}
+
+func (s *InactivityTimerTestSuite) TearDownTest() {
+	s.runner.StopTimeout()
+}
+
+func (s *InactivityTimerTestSuite) TestRunnerIsReturnedAfterTimeout() {
+	s.True(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
+}
+
+func (s *InactivityTimerTestSuite) TestRunnerIsNotReturnedBeforeTimeout() {
+	s.False(tests.ChannelReceivesSomething(s.returned, tests.ShortTimeout/2))
+}
+
+func (s *InactivityTimerTestSuite) TestResetTimeoutExtendsTheDeadline() {
+	time.Sleep(2 * tests.ShortTimeout / 4)
+	s.runner.ResetTimeout()
+	s.False(tests.ChannelReceivesSomething(s.returned, 3*tests.ShortTimeout/4),
+		"Because of the reset, the timeout should not be reached by now.")
+	s.True(tests.ChannelReceivesSomething(s.returned, 5*tests.ShortTimeout/4),
+		"After reset, the timout should be reached by now.")
+}
+
+func (s *InactivityTimerTestSuite) TestStopTimeoutStopsTimeout() {
+	s.runner.StopTimeout()
+	s.False(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
+}
+
+func (s *InactivityTimerTestSuite) TestTimeoutPassedReturnsFalseBeforeDeadline() {
+	s.False(s.runner.TimeoutPassed())
+}
+
+func (s *InactivityTimerTestSuite) TestTimeoutPassedReturnsTrueAfterDeadline() {
+	time.Sleep(2 * tests.ShortTimeout)
+	s.True(s.runner.TimeoutPassed())
+}
+
+func (s *InactivityTimerTestSuite) TestTimerIsNotResetAfterDeadline() {
+	time.Sleep(2 * tests.ShortTimeout)
+	<-s.returned
+	s.runner.ResetTimeout()
+	s.False(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
+}
+
+func (s *InactivityTimerTestSuite) TestSetupTimoutStopsOldTimout() {
+	s.runner.SetupTimeout(3*tests.ShortTimeout, s.runner, s.manager)
+	s.False(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
+	s.True(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
+}
+
+func (s *InactivityTimerTestSuite) TestTimerIsInactiveWhenDurationIsZero() {
+	s.runner.SetupTimeout(0, s.runner, s.manager)
+	s.False(tests.ChannelReceivesSomething(s.returned, tests.ShortTimeout))
 }
 
 // NewRunner creates a new runner with the provided id.

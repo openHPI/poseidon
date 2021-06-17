@@ -292,7 +292,8 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 type nullReader struct{}
 
 func (r nullReader) Read(_ []byte) (int, error) {
-	return 0, nil
+	// An empty select blocks forever.
+	select {}
 }
 
 // ExecuteCommand executes the given command in the given allocation.

@@ -93,7 +93,12 @@ func (cr *codeOceanToRawReader) readInputLoop() context.CancelFunc {
 // Read implements the io.Reader interface.
 // It returns bytes from the buffer.
 func (cr *codeOceanToRawReader) Read(p []byte) (n int, err error) {
-	for n = 0; n < len(p); n++ {
+	if len(p) == 0 {
+		return
+	}
+	// Ensure to not return until at least one byte has been read to avoid busy waiting.
+	p[0] = <-cr.buffer
+	for n = 1; n < len(p); n++ {
 		select {
 		case p[n] = <-cr.buffer:
 		default:

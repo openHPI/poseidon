@@ -20,19 +20,19 @@ import (
 )
 
 func TestIdIsStored(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil)
+	runner := NewNomadJob(tests.DefaultJobID, nil, nil)
 	assert.Equal(t, tests.DefaultJobID, runner.Id())
 }
 
 func TestMarshalRunner(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil)
+	runner := NewNomadJob(tests.DefaultJobID, nil, nil)
 	marshal, err := json.Marshal(runner)
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"runnerId\":\""+tests.DefaultJobID+"\"}", string(marshal))
 }
 
 func TestExecutionRequestIsStored(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil)
+	runner := NewNomadJob(tests.DefaultJobID, nil, nil)
 	executionRequest := &dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,
@@ -47,7 +47,7 @@ func TestExecutionRequestIsStored(t *testing.T) {
 }
 
 func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultRunnerID, nil)
+	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil)
 	ctx := context.Background()
 	newCtx := NewContext(ctx, runner)
 	storedRunner := newCtx.Value(runnerContextKey).(Runner)
@@ -57,7 +57,7 @@ func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
 }
 
 func TestFromContextReturnsRunner(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultRunnerID, nil)
+	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil)
 	ctx := NewContext(context.Background(), runner)
 	storedRunner, ok := FromContext(ctx)
 
@@ -72,50 +72,80 @@ func TestFromContextReturnsIsNotOkWhenContextHasNoRunner(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestExecuteCallsAPI(t *testing.T) {
-	apiMock := &nomad.ExecutorAPIMock{}
-	apiMock.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).Return(0, nil)
-	runner := NewNomadJob(tests.DefaultRunnerID, apiMock)
+func TestExecuteInteractivelyTestSuite(t *testing.T) {
+	suite.Run(t, new(ExecuteInteractivelyTestSuite))
+}
 
+type ExecuteInteractivelyTestSuite struct {
+	suite.Suite
+	runner                   *NomadJob
+	apiMock                  *nomad.ExecutorAPIMock
+	timer                    *InactivityTimerMock
+	mockedExecuteCommandCall *mock.Call
+	mockedTimeoutPassedCall  *mock.Call
+}
+
+func (s *ExecuteInteractivelyTestSuite) SetupTest() {
+	s.apiMock = &nomad.ExecutorAPIMock{}
+	s.mockedExecuteCommandCall = s.apiMock.
+		On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).
+		Return(0, nil)
+	s.timer = &InactivityTimerMock{}
+	s.timer.On("ResetTimeout").Return()
+	s.mockedTimeoutPassedCall = s.timer.On("TimeoutPassed").Return(false)
+	s.runner = &NomadJob{
+		ExecutionStorage: NewLocalExecutionStorage(),
+		InactivityTimer:  s.timer,
+		id:               tests.DefaultRunnerID,
+		api:              s.apiMock,
+	}
+}
+
+func (s *ExecuteInteractivelyTestSuite) TestCallsApi() {
 	request := &dto.ExecutionRequest{Command: "echo 'Hello World!'"}
-	runner.ExecuteInteractively(request, nil, nil, nil)
+	s.runner.ExecuteInteractively(request, nil, nil, nil)
 
 	time.Sleep(tests.ShortTimeout)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", tests.DefaultRunnerID, mock.Anything, request.FullCommand(), true, mock.Anything, mock.Anything, mock.Anything)
 }
 
-func TestExecuteReturnsAfterTimeout(t *testing.T) {
-	apiMock := newApiMockWithTimeLimitHandling()
-	runner := NewNomadJob(tests.DefaultRunnerID, apiMock)
+func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
+	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
+		ctx := args.Get(1).(context.Context)
+		<-ctx.Done()
+	}).
+		Return(0, nil)
 
 	timeLimit := 1
 	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
-	exit, _ := runner.ExecuteInteractively(execution, nil, nil, nil)
+	exit, _ := s.runner.ExecuteInteractively(execution, nil, nil, nil)
 
 	select {
 	case <-exit:
-		assert.FailNow(t, "ExecuteInteractively should not terminate instantly")
-	case <-time.After(50 * time.Millisecond):
+		s.FailNow("ExecuteInteractively should not terminate instantly")
+	case <-time.After(tests.ShortTimeout):
 	}
 
 	select {
 	case <-time.After(time.Duration(timeLimit) * time.Second):
-		assert.FailNow(t, "ExecuteInteractively should return after the time limit")
+		s.FailNow("ExecuteInteractively should return after the time limit")
 	case exitInfo := <-exit:
-		assert.Equal(t, uint8(0), exitInfo.Code)
+		s.Equal(uint8(0), exitInfo.Code)
 	}
 }
 
-func newApiMockWithTimeLimitHandling() (apiMock *nomad.ExecutorAPIMock) {
-	apiMock = &nomad.ExecutorAPIMock{}
-	apiMock.
-		On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			ctx := args.Get(1).(context.Context)
-			<-ctx.Done()
-		}).
-		Return(0, nil)
-	return
+func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
+	execution := &dto.ExecutionRequest{}
+	s.runner.ExecuteInteractively(execution, nil, nil, nil)
+	s.timer.AssertCalled(s.T(), "ResetTimeout")
+}
+
+func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfExecutionTimesOut() {
+	s.mockedTimeoutPassedCall.Return(true)
+	execution := &dto.ExecutionRequest{}
+	exitChannel, _ := s.runner.ExecuteInteractively(execution, nil, nil, nil)
+	exit := <-exitChannel
+	s.Equal(ErrorRunnerInactivityTimeout, exit.Err)
 }
 
 func TestUpdateFileSystemTestSuite(t *testing.T) {
@@ -125,6 +155,7 @@ func TestUpdateFileSystemTestSuite(t *testing.T) {
 type UpdateFileSystemTestSuite struct {
 	suite.Suite
 	runner                   *NomadJob
+	timer                    *InactivityTimerMock
 	apiMock                  *nomad.ExecutorAPIMock
 	mockedExecuteCommandCall *mock.Call
 	command                  []string
@@ -133,18 +164,25 @@ type UpdateFileSystemTestSuite struct {
 
 func (s *UpdateFileSystemTestSuite) SetupTest() {
 	s.apiMock = &nomad.ExecutorAPIMock{}
-	s.runner = NewNomadJob(tests.DefaultRunnerID, s.apiMock)
+	s.timer = &InactivityTimerMock{}
+	s.timer.On("ResetTimeout").Return()
+	s.timer.On("TimeoutPassed").Return(false)
+	s.runner = &NomadJob{
+		ExecutionStorage: NewLocalExecutionStorage(),
+		InactivityTimer:  s.timer,
+		id:               tests.DefaultRunnerID,
+		api:              s.apiMock,
+	}
 	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			s.command = args.Get(2).([]string)
 			s.stdin = args.Get(4).(*bytes.Buffer)
-		})
+		}).Return(0, nil)
 }
 
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtractionWithAbsoluteNamesOnRunner() {
 	// note: this method tests an implementation detail of the method UpdateFileSystemOfRunner method
 	// if the implementation changes, delete this test and write a new one
-	s.mockedExecuteCommandCall.Return(0, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
@@ -167,7 +205,6 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfA
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
-	s.mockedExecuteCommandCall.Return(0, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
@@ -182,7 +219,6 @@ func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 }
 
 func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFilePath() {
-	s.mockedExecuteCommandCall.Return(0, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
 	_ = s.runner.UpdateFileSystem(copyRequest)
 
@@ -193,7 +229,6 @@ func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFil
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLocation() {
-	s.mockedExecuteCommandCall.Return(0, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.FileNameWithAbsolutePath, Content: []byte(tests.DefaultFileContent)}}}
 	_ = s.runner.UpdateFileSystem(copyRequest)
 
@@ -203,7 +238,6 @@ func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLoc
 }
 
 func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
-	s.mockedExecuteCommandCall.Return(0, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultDirectoryName, Content: []byte{}}}}
 	_ = s.runner.UpdateFileSystem(copyRequest)
 
@@ -216,7 +250,6 @@ func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
-	s.mockedExecuteCommandCall.Return(0, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{tests.DefaultFileName}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
@@ -225,12 +258,18 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
-	s.mockedExecuteCommandCall.Return(0, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{"/some/potentially/harmful'filename"}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything)
 	s.Contains(strings.Join(s.command, " "), "'/some/potentially/harmful'\\''filename'")
+}
+
+func (s *UpdateFileSystemTestSuite) TestResetTimerGetsCalled() {
+	copyRequest := &dto.UpdateFileSystemRequest{}
+	err := s.runner.UpdateFileSystem(copyRequest)
+	s.NoError(err)
+	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }
 
 type TarFile struct {
@@ -264,14 +303,15 @@ type InactivityTimerTestSuite struct {
 }
 
 func (s *InactivityTimerTestSuite) SetupTest() {
-	s.returned = make(chan bool)
-	s.runner = NewRunner(tests.DefaultRunnerID)
+	s.returned = make(chan bool, 1)
 	s.manager = &ManagerMock{}
 	s.manager.On("Return", mock.Anything).Run(func(_ mock.Arguments) {
 		s.returned <- true
 	}).Return(nil)
 
-	s.runner.SetupTimeout(tests.ShortTimeout, s.runner, s.manager)
+	s.runner = NewRunner(tests.DefaultRunnerID, s.manager)
+
+	s.runner.SetupTimeout(tests.ShortTimeout)
 }
 
 func (s *InactivityTimerTestSuite) TearDownTest() {
@@ -287,7 +327,7 @@ func (s *InactivityTimerTestSuite) TestRunnerIsNotReturnedBeforeTimeout() {
 }
 
 func (s *InactivityTimerTestSuite) TestResetTimeoutExtendsTheDeadline() {
-	time.Sleep(2 * tests.ShortTimeout / 4)
+	time.Sleep(3 * tests.ShortTimeout / 4)
 	s.runner.ResetTimeout()
 	s.False(tests.ChannelReceivesSomething(s.returned, 3*tests.ShortTimeout/4),
 		"Because of the reset, the timeout should not be reached by now.")
@@ -311,23 +351,24 @@ func (s *InactivityTimerTestSuite) TestTimeoutPassedReturnsTrueAfterDeadline() {
 
 func (s *InactivityTimerTestSuite) TestTimerIsNotResetAfterDeadline() {
 	time.Sleep(2 * tests.ShortTimeout)
-	<-s.returned
+	// We need to empty the returned channel so Return can send to it again.
+	tests.ChannelReceivesSomething(s.returned, 0)
 	s.runner.ResetTimeout()
 	s.False(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
 }
 
-func (s *InactivityTimerTestSuite) TestSetupTimoutStopsOldTimout() {
-	s.runner.SetupTimeout(3*tests.ShortTimeout, s.runner, s.manager)
+func (s *InactivityTimerTestSuite) TestSetupTimeoutStopsOldTimeout() {
+	s.runner.SetupTimeout(3 * tests.ShortTimeout)
 	s.False(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
 	s.True(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
 }
 
 func (s *InactivityTimerTestSuite) TestTimerIsInactiveWhenDurationIsZero() {
-	s.runner.SetupTimeout(0, s.runner, s.manager)
+	s.runner.SetupTimeout(0)
 	s.False(tests.ChannelReceivesSomething(s.returned, tests.ShortTimeout))
 }
 
-// NewRunner creates a new runner with the provided id.
-func NewRunner(id string) Runner {
-	return NewNomadJob(id, nil)
+// NewRunner creates a new runner with the provided id and manager.
+func NewRunner(id string, manager Manager) Runner {
+	return NewNomadJob(id, nil, manager)
 }

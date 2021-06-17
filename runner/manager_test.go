@@ -37,7 +37,7 @@ func (s *ManagerTestSuite) SetupTest() {
 	cancel()
 	s.nomadRunnerManager = NewNomadRunnerManager(s.apiMock, ctx)
 
-	s.exerciseRunner = NewRunner(tests.DefaultRunnerID)
+	s.exerciseRunner = NewRunner(tests.DefaultRunnerID, s.nomadRunnerManager)
 	s.registerDefaultEnvironment()
 }
 
@@ -110,7 +110,7 @@ func (s *ManagerTestSuite) TestClaimReturnsNoRunnerOfDifferentEnvironment() {
 
 func (s *ManagerTestSuite) TestClaimDoesNotReturnTheSameRunnerTwice() {
 	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
-	s.AddIdleRunnerForDefaultEnvironment(NewRunner(tests.AnotherRunnerID))
+	s.AddIdleRunnerForDefaultEnvironment(NewRunner(tests.AnotherRunnerID, s.nomadRunnerManager))
 
 	firstReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID)
 	s.NoError(err)
@@ -220,7 +220,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
 	s.Require().True(ok)
 
-	testRunner := NewRunner(allocation.JobID)
+	testRunner := NewRunner(allocation.JobID, s.nomadRunnerManager)
 	environment.idleRunners.Add(testRunner)
 	s.nomadRunnerManager.usedRunners.Add(testRunner)
 

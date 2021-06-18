@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/util"
 	"io"
 	"net/url"
 	"time"
@@ -287,15 +288,6 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 	return jobs, nil
 }
 
-// nullReader is a struct that implements the io.Reader interface and returns nothing when reading
-// from it.
-type nullReader struct{}
-
-func (r nullReader) Read(_ []byte) (int, error) {
-	// An empty select blocks forever.
-	select {}
-}
-
 // ExecuteCommand executes the given command in the given allocation.
 // If tty is true, Nomad would normally write stdout and stderr of the command
 // both on the stdout stream. However, if the InteractiveStderr server config option is true,
@@ -328,7 +320,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 	stderrExitChan := make(chan int)
 	go func() {
 		// Catch stderr in separate execution.
-		exit, err := a.Execute(allocationID, ctx, stderrFifoCommand(currentNanoTime), true, nullReader{}, stderr, io.Discard)
+		exit, err := a.Execute(allocationID, ctx, stderrFifoCommand(currentNanoTime), true, util.NullReader{}, stderr, io.Discard)
 		if err != nil {
 			log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
 		}

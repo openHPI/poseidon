@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/util"
 	"io"
 	"net/url"
 	"regexp"
@@ -673,7 +674,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 	})
 
 	exitCode, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullReader{}, &stdout, &stderr)
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, util.NullReader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
 	s.apiMock.AssertNumberOfCalls(s.T(), "Execute", 2)
@@ -704,7 +705,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
 	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
 	s.mockExecute(mock.AnythingOfType("[]string"), 1, nil, func(args mock.Arguments) {})
 	_, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullReader{}, io.Discard, io.Discard)
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, util.NullReader{}, io.Discard, io.Discard)
 	s.Equal(tests.ErrDefault, err)
 }
 
@@ -726,7 +727,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 	})
 
 	exitCode, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullReader{}, &stdout, &stderr)
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, util.NullReader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
 	s.apiMock.AssertNumberOfCalls(s.T(), "Execute", 1)
@@ -739,7 +740,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError()
 	config.Config.Server.InteractiveStderr = false
 	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
 	_, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullReader{}, io.Discard, io.Discard)
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, util.NullReader{}, io.Discard, io.Discard)
 	s.Equal(tests.ErrDefault, err)
 }
 
@@ -749,15 +750,4 @@ func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
 		mock.Anything, mock.Anything, mock.Anything).
 		Run(runFunc).
 		Return(exitCode, err)
-}
-
-func TestNullReaderDoesNotReturnImmediately(t *testing.T) {
-	reader := &nullReader{}
-	readerReturned := make(chan bool)
-	go func() {
-		p := make([]byte, 5)
-		_, _ = reader.Read(p)
-		close(readerReturned)
-	}()
-	assert.False(t, tests.ChannelReceivesSomething(readerReturned, tests.ShortTimeout))
 }

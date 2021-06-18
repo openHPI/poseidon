@@ -15,16 +15,13 @@ Alternatively, the `go run .` command can be used to automatically compile and r
 
 ### Docker
 
-The CI builds a Docker image and pushes it to our Docker registry at `drp.codemoon.xopic.de`. In order to pull an image from the registry you have to login with `sudo docker login drp.codemoon.xopic.de`. Execute `sudo docker run -p 3000:3000 drp.codemoon.xopic.de/<image name>` to run the image locally. You can find the image name in the `dockerimage` CI job. You can then interact with the webserver on your local port 3000.
+The CI builds a Docker image and pushes it to our Docker registry at `drp.codemoon.xopic.de`. In order to pull an image from the registry you have to login with `sudo docker login drp.codemoon.xopic.de`. Execute `sudo docker run -p 7200:7200 drp.codemoon.xopic.de/<image name>` to run the image locally. You can find the image name in the `dockerimage` CI job. You can then interact with the webserver on your local port 7200.
 
-You can also build the Docker image locally by executing `docker build -t <image name> .` in the root directory of this project. It assumes that the Go binary is named `poseidon` and available in the project root (see [here](#setup)). You can then start a Docker container with `sudo docker run --rm -p 3000:3000 <image name>`.
+You can also build the Docker image locally by executing `make docker` in the root directory of this project. It builds the binary first and a container with the tag `poseidon:latest` afterwards. You can then start a Docker container with `sudo docker run --rm -p 7200:7200 poseidon:latest`.
 
 ### Linter
 
-Right now we use two different linters in our CI. See their specific instructions for how to use them:
-
-- [Golang CI Lint](https://golangci-lint.run/usage/install/#local-installation)
-- [Golang Lint](https://github.com/golang/lint)
+To lint our source code and ensure a common code style amongst our codebase we use [Golang CI Lint](https://golangci-lint.run/usage/install/#local-installation) as a linter. Use `make lint` to execute it.
 
 ### Git hooks
 
@@ -73,7 +70,7 @@ Once configured, all requests to the API, except the `health` route require the 
 An example `curl` command with the configured token being `SECRET` looks as follows:
 
 ```bash
-$ curl -H "X-Poseidon-Token: SECRET" http://localhost:3000/api/v1/some-protected-route
+$ curl -H "X-Poseidon-Token: SECRET" http://localhost:7200/api/v1/some-protected-route
 ```
 
 ### TLS

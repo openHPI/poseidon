@@ -1,6 +1,9 @@
 package tests
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 const (
 	NonExistingIntegerID          = 9999
@@ -21,6 +24,7 @@ const (
 	AnotherRunnerID               = AnotherJobID
 	DefaultExecutionID            = "s0m3-3x3cu710n-1d"
 	DefaultMockID                 = "m0ck-1d"
+	ShortTimeout                  = 100 * time.Millisecond
 )
 
 var (

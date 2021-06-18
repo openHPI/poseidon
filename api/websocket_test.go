@@ -16,11 +16,13 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -305,7 +307,69 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 	assert.Equal(t, expected, message)
 }
 
+func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead(t *testing.T) {
+	reader := newCodeOceanToRawReader(nil)
+
+	read := make(chan int)
+	go func() {
+		p := make([]byte, 10)
+		n, _ := reader.Read(p)
+		read <- n
+	}()
+
+	t.Run("Does not return immediately when there is no data", func(t *testing.T) {
+		assert.False(t, waitForChannel(read, tests.ShortTimeout))
+	})
+
+	t.Run("Returns when there is data available", func(t *testing.T) {
+		reader.buffer <- byte(42)
+		assert.True(t, waitForChannel(read, tests.ShortTimeout))
+	})
+}
+
+func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *testing.T) {
+	messages := make(chan io.Reader)
+
+	connection := &webSocketConnectionMock{}
+	connection.On("WriteMessage", mock.AnythingOfType("int"), mock.AnythingOfType("[]uint8")).Return(nil)
+	connection.On("CloseHandler").Return(nil)
+	connection.On("SetCloseHandler", mock.Anything).Return()
+	call := connection.On("NextReader")
+	call.Run(func(_ mock.Arguments) {
+		call.Return(websocket.TextMessage, <-messages, nil)
+	})
+
+	reader := newCodeOceanToRawReader(connection)
+	cancel := reader.readInputLoop()
+	defer cancel()
+
+	read := make(chan int)
+	message := make([]byte, 10)
+	go func() {
+		n, _ := reader.Read(message)
+		read <- n
+	}()
+
+	t.Run("Does not return immediately when there is no data", func(t *testing.T) {
+		assert.False(t, waitForChannel(read, tests.ShortTimeout))
+	})
+
+	t.Run("Returns when there is data available", func(t *testing.T) {
+		messages <- strings.NewReader("Hello")
+		assert.True(t, waitForChannel(read, tests.ShortTimeout))
+	})
+}
+
 // --- Test suite specific test helpers ---
+
+func waitForChannel(ch chan int, duration time.Duration) bool {
+	select {
+	case <-ch:
+		return true
+	case <-time.After(duration):
+		return false
+	}
+}
 
 func newNomadAllocationWithMockedApiClient(runnerId string) (r runner.Runner, mock *nomad.ExecutorAPIMock) {
 	mock = &nomad.ExecutorAPIMock{}

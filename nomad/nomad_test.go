@@ -750,3 +750,19 @@ func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
 		Run(runFunc).
 		Return(exitCode, err)
 }
+
+func TestNullReaderDoesNotReturnImmediately(t *testing.T) {
+	reader := &nullReader{}
+	readerReturned := make(chan bool)
+	go func() {
+		p := make([]byte, 5)
+		_, _ = reader.Read(p)
+		close(readerReturned)
+	}()
+
+	select {
+	case <-readerReturned:
+		t.Fatal("Read should not return immediately.")
+	case <-time.After(tests.ShortTimeout):
+	}
+}

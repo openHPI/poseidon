@@ -759,10 +759,5 @@ func TestNullReaderDoesNotReturnImmediately(t *testing.T) {
 		_, _ = reader.Read(p)
 		close(readerReturned)
 	}()
-
-	select {
-	case <-readerReturned:
-		t.Fatal("Read should not return immediately.")
-	case <-time.After(tests.ShortTimeout):
-	}
+	assert.False(t, tests.ChannelReceivesSomething(readerReturned, tests.ShortTimeout))
 }

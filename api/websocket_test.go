@@ -310,20 +310,20 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead(t *testing.T) {
 	reader := newCodeOceanToRawReader(nil)
 
-	read := make(chan int)
+	read := make(chan bool)
 	go func() {
 		p := make([]byte, 10)
-		n, _ := reader.Read(p)
-		read <- n
+		_, _ = reader.Read(p)
+		read <- true
 	}()
 
 	t.Run("Does not return immediately when there is no data", func(t *testing.T) {
-		assert.False(t, waitForChannel(read, tests.ShortTimeout))
+		assert.False(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 
 	t.Run("Returns when there is data available", func(t *testing.T) {
 		reader.buffer <- byte(42)
-		assert.True(t, waitForChannel(read, tests.ShortTimeout))
+		assert.True(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 }
 
@@ -343,33 +343,24 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 	cancel := reader.readInputLoop()
 	defer cancel()
 
-	read := make(chan int)
+	read := make(chan bool)
 	message := make([]byte, 10)
 	go func() {
-		n, _ := reader.Read(message)
-		read <- n
+		_, _ = reader.Read(message)
+		read <- true
 	}()
 
 	t.Run("Does not return immediately when there is no data", func(t *testing.T) {
-		assert.False(t, waitForChannel(read, tests.ShortTimeout))
+		assert.False(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 
 	t.Run("Returns when there is data available", func(t *testing.T) {
 		messages <- strings.NewReader("Hello")
-		assert.True(t, waitForChannel(read, tests.ShortTimeout))
+		assert.True(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 }
 
 // --- Test suite specific test helpers ---
-
-func waitForChannel(ch chan int, duration time.Duration) bool {
-	select {
-	case <-ch:
-		return true
-	case <-time.After(duration):
-		return false
-	}
-}
 
 func newNomadAllocationWithMockedApiClient(runnerId string) (r runner.Runner, mock *nomad.ExecutorAPIMock) {
 	mock = &nomad.ExecutorAPIMock{}

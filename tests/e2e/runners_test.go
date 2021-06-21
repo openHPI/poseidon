@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func (s *E2ETestSuite) TestProvideRunnerRoute() {
@@ -208,6 +209,35 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		s.NoError(err)
 		s.Equal(http.StatusNotFound, resp.StatusCode)
 	})
+}
+
+func (s *E2ETestSuite) TestRunnerGetsDestroyedAfterInactivityTimeout() {
+	inactivityTimeout := 5 // seconds
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+		InactivityTimeout:      inactivityTimeout,
+	})
+	s.Require().NoError(err)
+
+	executionTerminated := make(chan bool)
+	var lastMessage *dto.WebSocketMessage
+	go func() {
+		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{Command: "sleep infinity"})
+		s.Require().NoError(err)
+		connection, err := ConnectToWebSocket(webSocketURL)
+		s.Require().NoError(err)
+
+		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
+		if !s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err) {
+			s.Fail("websocket abnormal closure")
+		}
+		controlMessages := helpers.WebSocketControlMessages(messages)
+		s.Require().NotEmpty(controlMessages)
+		lastMessage = controlMessages[len(controlMessages)-1]
+		executionTerminated <- true
+	}()
+	s.Require().True(tests.ChannelReceivesSomething(executionTerminated, time.Duration(inactivityTimeout+5)*time.Second))
+	s.Equal(dto.WebSocketMetaTimeout, lastMessage.Type)
 }
 
 func (s *E2ETestSuite) assertFileContent(runnerID, fileName string, expectedContent string) {

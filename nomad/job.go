@@ -21,6 +21,7 @@ const (
 	ConfigMetaUsedKey        = "used"
 	ConfigMetaUsedValue      = "true"
 	ConfigMetaUnusedValue    = "false"
+	ConfigMetaTimeoutKey     = "timeout"
 	ConfigMetaPoolSizeKey    = "prewarmingPoolSize"
 )
 

@@ -44,9 +44,9 @@ type Manager interface {
 	CreateOrUpdateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint, templateJob *nomadApi.Job,
 		scale bool) (bool, error)
 
-	// Claim returns a new runner.
+	// Claim returns a new runner. The runner is deleted after duration seconds if duration is not 0.
 	// It makes sure that the runner is not in use yet and returns an error if no runner could be provided.
-	Claim(id EnvironmentID) (Runner, error)
+	Claim(id EnvironmentID, duration int) (Runner, error)
 
 	// Get returns the used runner with the given runnerId.
 	// If no runner with the given runnerId is currently used, it returns an error.
@@ -170,7 +170,7 @@ func (m *NomadRunnerManager) updateRunnerSpecs(environmentID EnvironmentID, temp
 	return occurredError
 }
 
-func (m *NomadRunnerManager) Claim(environmentID EnvironmentID) (Runner, error) {
+func (m *NomadRunnerManager) Claim(environmentID EnvironmentID, duration int) (Runner, error) {
 	job, ok := m.environments.Get(environmentID)
 	if !ok {
 		return nil, ErrUnknownExecutionEnvironment
@@ -180,7 +180,7 @@ func (m *NomadRunnerManager) Claim(environmentID EnvironmentID) (Runner, error) 
 		return nil, ErrNoRunnersAvailable
 	}
 	m.usedRunners.Add(runner)
-	err := m.apiClient.MarkRunnerAsUsed(runner.Id())
+	err := m.apiClient.MarkRunnerAsUsed(runner.Id(), duration)
 	if err != nil {
 		return nil, fmt.Errorf("can't mark runner as used: %w", err)
 	}

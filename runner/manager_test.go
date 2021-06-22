@@ -50,7 +50,7 @@ func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []strin
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 	apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
-	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string")).Return(nil)
+	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
 	apiMock.On("LoadRunnerIDs", tests.DefaultJobID).Return(returnedRunnerIds, nil)
 	apiMock.On("JobScale", tests.DefaultJobID).Return(uint(len(returnedRunnerIds)), nil)
 	apiMock.On("SetJobScale", tests.DefaultJobID, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)
@@ -82,28 +82,28 @@ func (s *ManagerTestSuite) TestRegisterEnvironmentAddsNewJob() {
 }
 
 func (s *ManagerTestSuite) TestClaimReturnsNotFoundErrorIfEnvironmentNotFound() {
-	runner, err := s.nomadRunnerManager.Claim(EnvironmentID(42))
+	runner, err := s.nomadRunnerManager.Claim(EnvironmentID(42), defaultInactivityTimeout)
 	s.Nil(runner)
 	s.Equal(ErrUnknownExecutionEnvironment, err)
 }
 
 func (s *ManagerTestSuite) TestClaimReturnsRunnerIfAvailable() {
 	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
-	receivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID)
+	receivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	s.NoError(err)
 	s.Equal(s.exerciseRunner, receivedRunner)
 }
 
 func (s *ManagerTestSuite) TestClaimReturnsErrorIfNoRunnerAvailable() {
 	s.waitForRunnerRefresh()
-	runner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID)
+	runner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	s.Nil(runner)
 	s.Equal(ErrNoRunnersAvailable, err)
 }
 
 func (s *ManagerTestSuite) TestClaimReturnsNoRunnerOfDifferentEnvironment() {
 	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
-	receivedRunner, err := s.nomadRunnerManager.Claim(anotherEnvironmentID)
+	receivedRunner, err := s.nomadRunnerManager.Claim(anotherEnvironmentID, defaultInactivityTimeout)
 	s.Nil(receivedRunner)
 	s.Error(err)
 }
@@ -112,22 +112,22 @@ func (s *ManagerTestSuite) TestClaimDoesNotReturnTheSameRunnerTwice() {
 	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
 	s.AddIdleRunnerForDefaultEnvironment(NewRunner(tests.AnotherRunnerID, s.nomadRunnerManager))
 
-	firstReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID)
+	firstReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	s.NoError(err)
-	secondReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID)
+	secondReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	s.NoError(err)
 	s.NotEqual(firstReceivedRunner, secondReceivedRunner)
 }
 
 func (s *ManagerTestSuite) TestClaimThrowsAnErrorIfNoRunnersAvailable() {
-	receivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID)
+	receivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	s.Nil(receivedRunner)
 	s.Error(err)
 }
 
 func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
-	receivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentID)
+	receivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	savedRunner, ok := s.nomadRunnerManager.usedRunners.Get(receivedRunner.Id())
 	s.True(ok)
 	s.Equal(savedRunner, receivedRunner)

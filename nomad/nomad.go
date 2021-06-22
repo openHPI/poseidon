@@ -11,6 +11,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/util"
 	"io"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -255,7 +256,7 @@ func checkEvaluation(eval *nomadApi.Evaluation) (err error) {
 	return err
 }
 
-func (a *APIClient) MarkRunnerAsUsed(runnerID string) error {
+func (a *APIClient) MarkRunnerAsUsed(runnerID string, duration int) error {
 	job, err := a.job(runnerID)
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve job info: %w", err)
@@ -263,6 +264,10 @@ func (a *APIClient) MarkRunnerAsUsed(runnerID string) error {
 	err = SetMetaConfigValue(job, ConfigMetaUsedKey, ConfigMetaUsedValue)
 	if err != nil {
 		return fmt.Errorf("couldn't update runner in job as used: %w", err)
+	}
+	err = SetMetaConfigValue(job, ConfigMetaTimeoutKey, strconv.Itoa(duration))
+	if err != nil {
+		return fmt.Errorf("couldn't update runner in job with timeout: %w", err)
 	}
 	_, err = a.RegisterNomadJob(job)
 	if err != nil {

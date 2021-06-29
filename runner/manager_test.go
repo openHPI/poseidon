@@ -133,6 +133,16 @@ func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 	s.Equal(savedRunner, receivedRunner)
 }
 
+func (s *ManagerTestSuite) TestTwoClaimsAddExactlyTwoRunners() {
+	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
+	s.AddIdleRunnerForDefaultEnvironment(NewRunner(tests.AnotherRunnerID, s.nomadRunnerManager))
+	_, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
+	s.Require().NoError(err)
+	_, err = s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
+	s.Require().NoError(err)
+	s.apiMock.AssertNumberOfCalls(s.T(), "RegisterRunnerJob", 2)
+}
+
 func (s *ManagerTestSuite) TestGetReturnsRunnerIfRunnerIsUsed() {
 	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner)
 	savedRunner, err := s.nomadRunnerManager.Get(s.exerciseRunner.Id())

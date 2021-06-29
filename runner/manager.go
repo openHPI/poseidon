@@ -171,11 +171,11 @@ func (m *NomadRunnerManager) updateRunnerSpecs(environmentID EnvironmentID, temp
 }
 
 func (m *NomadRunnerManager) Claim(environmentID EnvironmentID, duration int) (Runner, error) {
-	job, ok := m.environments.Get(environmentID)
+	environment, ok := m.environments.Get(environmentID)
 	if !ok {
 		return nil, ErrUnknownExecutionEnvironment
 	}
-	runner, ok := job.idleRunners.Sample()
+	runner, ok := environment.idleRunners.Sample()
 	if !ok {
 		return nil, ErrNoRunnersAvailable
 	}
@@ -187,9 +187,9 @@ func (m *NomadRunnerManager) Claim(environmentID EnvironmentID, duration int) (R
 
 	runner.SetupTimeout(time.Duration(duration) * time.Second)
 
-	err = m.scaleEnvironment(environmentID)
+	err = m.createRunner(environment)
 	if err != nil {
-		log.WithError(err).WithField("environmentID", environmentID).Error("Couldn't scale environment")
+		log.WithError(err).WithField("environmentID", environmentID).Error("Couldn't create new runner for claimed one")
 	}
 
 	return runner, nil

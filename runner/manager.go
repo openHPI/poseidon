@@ -298,9 +298,16 @@ func (m *NomadRunnerManager) scaleEnvironment(id EnvironmentID) error {
 
 	required := int(environment.desiredIdleRunnersCount) - environment.idleRunners.Length()
 
-	log.WithField("runnersRequired", required).WithField("id", id).Debug("Scaling environment")
+	if required > 0 {
+		return m.createRunners(environment, uint(required))
+	} else {
+		return m.removeRunners(environment, uint(-required))
+	}
+}
 
-	for i := 0; i < required; i++ {
+func (m *NomadRunnerManager) createRunners(environment *NomadEnvironment, count uint) error {
+	log.WithField("runnersRequired", count).WithField("id", environment.ID()).Debug("Creating new runners")
+	for i := 0; i < int(count); i++ {
 		err := m.createRunner(environment)
 		if err != nil {
 			return fmt.Errorf("couldn't create new runner: %w", err)
@@ -321,6 +328,21 @@ func (m *NomadRunnerManager) createRunner(environment *NomadEnvironment) error {
 	template.Name = &newRunnerID
 
 	return m.apiClient.RegisterRunnerJob(&template)
+}
+
+func (m *NomadRunnerManager) removeRunners(environment *NomadEnvironment, count uint) error {
+	log.WithField("runnersToDelete", count).WithField("id", environment.ID()).Debug("Removing idle runners")
+	for i := 0; i < int(count); i++ {
+		r, ok := environment.idleRunners.Sample()
+		if !ok {
+			return fmt.Errorf("could not delete expected idle runner: %w", ErrRunnerNotFound)
+		}
+		err := m.apiClient.DeleteRunner(r.Id())
+		if err != nil {
+			return fmt.Errorf("could not delete expected Nomad idle runner: %w", err)
+		}
+	}
+	return nil
 }
 
 // RunnerJobID returns the nomad job id of the runner with the given environment id and uuid.

@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -252,6 +254,27 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	s.False(ok)
 	_, ok = s.nomadRunnerManager.usedRunners.Get(allocation.JobID)
 	s.False(ok)
+}
+
+func (s *ManagerTestSuite) TestUpdateEnvironmentRemovesIdleRunnersWhenScalingDown() {
+	job := helpers.CreateTestJob()
+	initialRunners := uint(40)
+	updatedRunners := uint(10)
+	err := s.nomadRunnerManager.registerEnvironment(anotherEnvironmentID, initialRunners, job, true)
+	s.Require().NoError(err)
+	s.apiMock.AssertNumberOfCalls(s.T(), "RegisterRunnerJob", int(initialRunners))
+	environment, ok := s.nomadRunnerManager.environments.Get(anotherEnvironmentID)
+	s.Require().True(ok)
+	for i := 0; i < int(initialRunners); i++ {
+		environment.idleRunners.Add(NewRunner("active-runner-"+strconv.Itoa(i), s.nomadRunnerManager))
+	}
+
+	s.apiMock.On("LoadRunnerIDs", anotherEnvironmentID.toString()).Return([]string{}, nil)
+	s.apiMock.On("DeleteRunner", mock.AnythingOfType("string")).Return(nil)
+
+	err = s.nomadRunnerManager.updateEnvironment(tests.AnotherEnvironmentIDAsInteger, updatedRunners, job, true)
+	s.Require().NoError(err)
+	s.apiMock.AssertNumberOfCalls(s.T(), "DeleteRunner", int(initialRunners-updatedRunners))
 }
 
 func modifyMockedCall(apiMock *nomad.ExecutorAPIMock, method string, modifier func(call *mock.Call)) {

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/stretchr/testify/mock"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
@@ -164,4 +165,31 @@ func HttpPutJSON(url string, body interface{}) (response *http.Response, err err
 	}
 	reader := bytes.NewReader(requestByteString)
 	return HttpPut(url, reader)
+}
+
+func CreateTestJob() (job *nomadApi.Job) {
+	job = nomadApi.NewBatchJob("template-0", "template-0", "region-name", 100)
+	configTaskGroup := nomadApi.NewTaskGroup("config", 0)
+	configTaskGroup.Meta = make(map[string]string)
+	configTaskGroup.Meta["environment"] = "0"
+	configTaskGroup.Meta["used"] = "false"
+	configTaskGroup.Meta["prewarmingPoolSize"] = "0"
+	configTask := nomadApi.NewTask("config", "exec")
+	configTask.Config = map[string]interface{}{"command": "whoami"}
+	configTask.Resources = nomadApi.DefaultResources()
+	configTaskGroup.AddTask(configTask)
+
+	defaultTaskGroup := nomadApi.NewTaskGroup("default-group", 1)
+	defaultTask := nomadApi.NewTask("default-task", "docker")
+	defaultTask.Config = map[string]interface{}{
+		"image":        "python:latest",
+		"command":      "sleep",
+		"args":         []string{"infinity"},
+		"network_mode": "none",
+	}
+	defaultTask.Resources = nomadApi.DefaultResources()
+	defaultTaskGroup.AddTask(defaultTask)
+
+	job.TaskGroups = []*nomadApi.TaskGroup{configTaskGroup, defaultTaskGroup}
+	return job
 }

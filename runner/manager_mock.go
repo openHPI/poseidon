@@ -97,17 +97,3 @@ func (_m *ManagerMock) Return(r Runner) error {
 
 	return r0
 }
-
-// ScaleAllEnvironments provides a mock function with given fields:
-func (_m *ManagerMock) ScaleAllEnvironments() error {
-	ret := _m.Called()
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}

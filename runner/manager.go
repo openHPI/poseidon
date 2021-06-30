@@ -56,9 +56,6 @@ type Manager interface {
 	// The runner is deleted or cleaned up for reuse depending on the used executor.
 	Return(r Runner) error
 
-	// ScaleAllEnvironments checks for all environments if enough runners are created.
-	ScaleAllEnvironments() error
-
 	// Load fetches all already created runners from the executor and registers them.
 	// It should be called during the startup process (e.g. on creation of the Manager).
 	Load()
@@ -211,16 +208,6 @@ func (m *NomadRunnerManager) Return(r Runner) (err error) {
 	}
 	m.usedRunners.Delete(r.Id())
 	return
-}
-
-func (m *NomadRunnerManager) ScaleAllEnvironments() error {
-	for _, environment := range m.environments.List() {
-		err := m.scaleEnvironment(environment.ID())
-		if err != nil {
-			return fmt.Errorf("can not scale up: %w", err)
-		}
-	}
-	return nil
 }
 
 func (m *NomadRunnerManager) Load() {

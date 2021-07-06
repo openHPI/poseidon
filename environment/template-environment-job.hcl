@@ -59,7 +59,7 @@ job "template-0" {
     task "config" {
       driver = "exec"
       config {
-        command = "whoami"
+        command = "true"
       }
       logs {
         max_files     = 1
@@ -72,9 +72,8 @@ job "template-0" {
       }
     }
     meta {
-      environment = "0"
       used = "false"
-      prewarmingPoolSize = "1"
+      prewarmingPoolSize = "0"
     }
   }
 }

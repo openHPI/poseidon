@@ -4,16 +4,14 @@ package helpers
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	nomadApi "github.com/hashicorp/nomad/api"
-	"github.com/stretchr/testify/mock"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -113,30 +111,6 @@ func StartTLSServer(t *testing.T, router *mux.Router) (server *httptest.Server, 
 	return
 }
 
-// MockApiExecute mocks the ExecuteCommand method of an ExecutorApi to call the given method run when the command
-// corresponding to the given ExecutionRequest is called.
-func MockApiExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
-	run func(runnerId string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout, stderr io.Writer) (int, error)) {
-	call := api.On("ExecuteCommand",
-		mock.AnythingOfType("string"),
-		mock.Anything,
-		request.FullCommand(),
-		mock.AnythingOfType("bool"),
-		mock.Anything,
-		mock.Anything,
-		mock.Anything)
-	call.Run(func(args mock.Arguments) {
-		exit, err := run(args.Get(0).(string),
-			args.Get(1).(context.Context),
-			args.Get(2).([]string),
-			args.Get(3).(bool),
-			args.Get(4).(io.Reader),
-			args.Get(5).(io.Writer),
-			args.Get(6).(io.Writer))
-		call.ReturnArguments = mock.Arguments{exit, err}
-	})
-}
-
 // HttpDelete sends a Delete Http Request with body to the passed url.
 func HttpDelete(url string, body io.Reader) (response *http.Response, err error) {
 	req, _ := http.NewRequest(http.MethodDelete, url, body)
@@ -167,19 +141,21 @@ func HttpPutJSON(url string, body interface{}) (response *http.Response, err err
 	return HttpPut(url, reader)
 }
 
-func CreateTestJob() (job *nomadApi.Job) {
-	job = nomadApi.NewBatchJob("template-0", "template-0", "region-name", 100)
+func CreateTemplateJob() (job *nomadApi.Job) {
+	job = nomadApi.NewBatchJob(tests.DefaultJobID, tests.DefaultJobID, "region-name", 100)
 	configTaskGroup := nomadApi.NewTaskGroup("config", 0)
 	configTaskGroup.Meta = make(map[string]string)
-	configTaskGroup.Meta["environment"] = "0"
-	configTaskGroup.Meta["used"] = "false"
 	configTaskGroup.Meta["prewarmingPoolSize"] = "0"
 	configTask := nomadApi.NewTask("config", "exec")
-	configTask.Config = map[string]interface{}{"command": "whoami"}
+	configTask.Config = map[string]interface{}{
+		"command": "true",
+		"image":   "python:latest",
+	}
 	configTask.Resources = nomadApi.DefaultResources()
 	configTaskGroup.AddTask(configTask)
 
 	defaultTaskGroup := nomadApi.NewTaskGroup("default-group", 1)
+	defaultTaskGroup.Networks = []*nomadApi.NetworkResource{}
 	defaultTask := nomadApi.NewTask("default-task", "docker")
 	defaultTask.Config = map[string]interface{}{
 		"image":        "python:latest",
@@ -190,6 +166,6 @@ func CreateTestJob() (job *nomadApi.Job) {
 	defaultTask.Resources = nomadApi.DefaultResources()
 	defaultTaskGroup.AddTask(defaultTask)
 
-	job.TaskGroups = []*nomadApi.TaskGroup{configTaskGroup, defaultTaskGroup}
+	job.TaskGroups = []*nomadApi.TaskGroup{defaultTaskGroup, configTaskGroup}
 	return job
 }

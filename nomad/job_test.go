@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
+	"strconv"
 	"testing"
 )
 
@@ -24,25 +26,6 @@ func createTestResources() *nomadApi.Resources {
 	expectedCPULimit := 1337
 	expectedMemoryLimit := 42
 	return &nomadApi.Resources{CPU: &expectedCPULimit, MemoryMB: &expectedMemoryLimit}
-}
-
-func createTestJob() (job, base *nomadApi.Job) {
-	jobID := tests.DefaultJobID
-	base = nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
-	job = nomadApi.NewBatchJob(jobID, jobID, "region-name", 100)
-	task := createTestTask()
-	task.Name = TaskName
-	image := "python:latest"
-	task.Config = map[string]interface{}{"image": image}
-	task.Config["network_mode"] = "none"
-	task.Resources = createTestResources()
-	taskGroup := createTestTaskGroup()
-	taskGroupName := TaskGroupName
-	taskGroup.Name = &taskGroupName
-	taskGroup.Tasks = []*nomadApi.Task{task}
-	taskGroup.Networks = []*nomadApi.NetworkResource{}
-	job.TaskGroups = []*nomadApi.TaskGroup{taskGroup}
-	return job, base
 }
 
 func TestCreateTaskGroupCreatesNewTaskGroupWhenJobHasNoTaskGroup(t *testing.T) {
@@ -180,7 +163,7 @@ func TestConfigureTaskWhenNoTaskExists(t *testing.T) {
 
 	expectedResources := createTestResources()
 	expectedTaskGroup := *taskGroup
-	expectedTask := nomadApi.NewTask("task", DefaultTaskDriver)
+	expectedTask := nomadApi.NewTask("task", TaskDriver)
 	expectedTask.Resources = expectedResources
 	expectedImage := "python:latest"
 	expectedTask.Config = map[string]interface{}{"image": expectedImage, "network_mode": "none"}
@@ -220,11 +203,13 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 }
 
 func TestCreateTemplateJobSetsAllGivenArguments(t *testing.T) {
-	testJob, base := createTestJob()
+	testJob := helpers.CreateTemplateJob()
+	prewarmingPoolSize, err := strconv.Atoi(testJob.TaskGroups[1].Meta[ConfigMetaPoolSizeKey])
+	require.NoError(t, err)
 	job := CreateTemplateJob(
-		base,
+		helpers.CreateTemplateJob(),
 		tests.DefaultJobID,
-		uint(*testJob.TaskGroups[0].Count),
+		uint(prewarmingPoolSize),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.CPU),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.MemoryMB),
 		testJob.TaskGroups[0].Tasks[0].Config["image"].(string),

@@ -9,20 +9,19 @@ import (
 )
 
 const (
-	TaskGroupName            = "default-group"
-	TaskName                 = "default-task"
-	TemplateJobPrefix        = "template"
-	ConfigTaskGroupName      = "config"
-	DummyTaskName            = "dummy"
-	DefaultTaskDriver        = "docker"
-	DefaultDummyTaskDriver   = "exec"
-	DefaultDummyTaskCommand  = "true"
-	ConfigMetaEnvironmentKey = "environment"
-	ConfigMetaUsedKey        = "used"
-	ConfigMetaUsedValue      = "true"
-	ConfigMetaUnusedValue    = "false"
-	ConfigMetaTimeoutKey     = "timeout"
-	ConfigMetaPoolSizeKey    = "prewarmingPoolSize"
+	TemplateJobPrefix     = "template"
+	TaskGroupName         = "default-group"
+	TaskName              = "default-task"
+	TaskDriver            = "docker"
+	ConfigTaskGroupName   = "config"
+	ConfigTaskName        = "config"
+	ConfigTaskDriver      = "exec"
+	ConfigTaskCommand     = "true"
+	ConfigMetaUsedKey     = "used"
+	ConfigMetaUsedValue   = "true"
+	ConfigMetaUnusedValue = "false"
+	ConfigMetaTimeoutKey  = "timeout"
+	ConfigMetaPoolSizeKey = "prewarmingPoolSize"
 )
 
 var (
@@ -165,7 +164,7 @@ func configureTask(
 	exposedPorts []uint16) {
 	var task *nomadApi.Task
 	if len(taskGroup.Tasks) == 0 {
-		task = nomadApi.NewTask(name, DefaultTaskDriver)
+		task = nomadApi.NewTask(name, TaskDriver)
 		taskGroup.Tasks = []*nomadApi.Task{task}
 	} else {
 		task = taskGroup.Tasks[0]
@@ -173,10 +172,11 @@ func configureTask(
 	}
 	integerCPULimit := int(cpuLimit)
 	integerMemoryLimit := int(memoryLimit)
-	task.Resources = &nomadApi.Resources{
-		CPU:      &integerCPULimit,
-		MemoryMB: &integerMemoryLimit,
+	if task.Resources == nil {
+		task.Resources = &nomadApi.Resources{}
 	}
+	task.Resources.CPU = &integerCPULimit
+	task.Resources.MemoryMB = &integerMemoryLimit
 
 	if task.Config == nil {
 		task.Config = make(map[string]interface{})
@@ -204,6 +204,7 @@ func findOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 	taskGroup := FindConfigTaskGroup(job)
 	if taskGroup == nil {
 		taskGroup = nomadApi.NewTaskGroup(ConfigTaskGroupName, 0)
+		job.AddTaskGroup(taskGroup)
 	}
 	createDummyTaskIfNotPresent(taskGroup)
 	return taskGroup
@@ -213,19 +214,19 @@ func findOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 func createDummyTaskIfNotPresent(taskGroup *nomadApi.TaskGroup) {
 	var task *nomadApi.Task
 	for _, t := range taskGroup.Tasks {
-		if t.Name == DummyTaskName {
+		if t.Name == ConfigTaskName {
 			task = t
 			break
 		}
 	}
 
 	if task == nil {
-		task = nomadApi.NewTask(DummyTaskName, DefaultDummyTaskDriver)
+		task = nomadApi.NewTask(ConfigTaskName, ConfigTaskDriver)
 		taskGroup.Tasks = append(taskGroup.Tasks, task)
 	}
 
 	if task.Config == nil {
 		task.Config = make(map[string]interface{})
 	}
-	task.Config["command"] = DefaultDummyTaskCommand
+	task.Config["command"] = ConfigTaskCommand
 }

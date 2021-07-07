@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	nomadApi "github.com/hashicorp/nomad/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"io"
@@ -131,6 +132,8 @@ func (t *InactivityTimerImplementation) TimeoutPassed() bool {
 type Runner interface {
 	// ID returns the id of the runner.
 	ID() string
+	// MappedPorts returns the mapped ports of the runner.
+	MappedPorts() []*dto.MappedPort
 
 	ExecutionStorage
 	InactivityTimer
@@ -154,14 +157,18 @@ type Runner interface {
 type NomadJob struct {
 	ExecutionStorage
 	InactivityTimer
-	id  string
-	api nomad.ExecutorAPI
+	id           string
+	portMappings []nomadApi.PortMapping
+	api          nomad.ExecutorAPI
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.
-func NewNomadJob(id string, apiClient nomad.ExecutorAPI, manager Manager) *NomadJob {
+func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
+	apiClient nomad.ExecutorAPI, manager Manager,
+) *NomadJob {
 	job := &NomadJob{
 		id:               id,
+		portMappings:     portMappings,
 		api:              apiClient,
 		ExecutionStorage: NewLocalExecutionStorage(),
 	}
@@ -171,6 +178,17 @@ func NewNomadJob(id string, apiClient nomad.ExecutorAPI, manager Manager) *Nomad
 
 func (r *NomadJob) ID() string {
 	return r.id
+}
+
+func (r *NomadJob) MappedPorts() []*dto.MappedPort {
+	ports := make([]*dto.MappedPort, 0, len(r.portMappings))
+	for _, portMapping := range r.portMappings {
+		ports = append(ports, &dto.MappedPort{
+			ExposedPort: uint(portMapping.To),
+			HostAddress: fmt.Sprintf("%s:%d", portMapping.HostIP, portMapping.Value),
+		})
+	}
+	return ports
 }
 
 type ExitInfo struct {

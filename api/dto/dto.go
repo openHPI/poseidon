@@ -42,9 +42,17 @@ type ExecutionEnvironmentRequest struct {
 	ExposedPorts       []uint16 `json:"exposedPorts"`
 }
 
+// MappedPort contains the mapping from exposed port inside the container to the host address
+// outside the container.
+type MappedPort struct {
+	ExposedPort uint   `json:"exposedPort"`
+	HostAddress string `json:"hostAddress"`
+}
+
 // RunnerResponse is the expected response when providing a runner.
 type RunnerResponse struct {
-	ID string `json:"runnerId"`
+	ID          string        `json:"runnerId"`
+	MappedPorts []*MappedPort `json:"mappedPorts"`
 }
 
 // ExecutionResponse is the expected response when creating an execution for a runner.

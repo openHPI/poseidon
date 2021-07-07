@@ -370,9 +370,9 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 
 // --- Test suite specific test helpers ---
 
-func newNomadAllocationWithMockedAPIClient(runnerID string) (r runner.Runner, executorAPIMock *nomad.ExecutorAPIMock) {
-	executorAPIMock = &nomad.ExecutorAPIMock{}
-	r = runner.NewNomadJob(runnerID, executorAPIMock, nil)
+func newNomadAllocationWithMockedAPIClient(runnerID string) (r runner.Runner, mock *nomad.ExecutorAPIMock) {
+	mock = &nomad.ExecutorAPIMock{}
+	r = runner.NewNomadJob(runnerID, nil, mock, nil)
 	return
 }
 

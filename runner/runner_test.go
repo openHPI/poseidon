@@ -21,19 +21,19 @@ import (
 )
 
 func TestIdIsStored(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil, nil)
+	runner := NewNomadJob(tests.DefaultJobID, nil, nil, nil)
 	assert.Equal(t, tests.DefaultJobID, runner.ID())
 }
 
 func TestMarshalRunner(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil, nil)
+	runner := NewNomadJob(tests.DefaultJobID, nil, nil, nil)
 	marshal, err := json.Marshal(runner)
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"runnerId\":\""+tests.DefaultJobID+"\"}", string(marshal))
 }
 
 func TestExecutionRequestIsStored(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil, nil)
+	runner := NewNomadJob(tests.DefaultJobID, nil, nil, nil)
 	executionRequest := &dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,
@@ -48,7 +48,7 @@ func TestExecutionRequestIsStored(t *testing.T) {
 }
 
 func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil)
+	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil, nil)
 	ctx := context.Background()
 	newCtx := NewContext(ctx, runner)
 	storedRunner, ok := newCtx.Value(runnerContextKey).(Runner)
@@ -59,7 +59,7 @@ func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
 }
 
 func TestFromContextReturnsRunner(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil)
+	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil, nil)
 	ctx := NewContext(context.Background(), runner)
 	storedRunner, ok := FromContext(ctx)
 
@@ -389,5 +389,5 @@ func (s *InactivityTimerTestSuite) TestTimerIsInactiveWhenDurationIsZero() {
 
 // NewRunner creates a new runner with the provided id and manager.
 func NewRunner(id string, manager Manager) Runner {
-	return NewNomadJob(id, nil, manager)
+	return NewNomadJob(id, nil, nil, manager)
 }

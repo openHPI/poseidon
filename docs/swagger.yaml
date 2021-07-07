@@ -144,6 +144,21 @@ paths:
                     description: The UUID of the provided runner
                     type: string
                     example: 123e4567-e89b-12d3-a456-426614174000
+                  mappedPorts:
+                    description: Array containing the addresses of the mapped ports specified in the execution environment.
+                    type: array
+                    items:
+                      description: The exposedPort inside the container is reachable on the returned hostAddress.
+                      type: object
+                      properties:
+                        exposedPort:
+                          description: The port inside the container.
+                          type: uint
+                          example: 80
+                        hostAddress:
+                          description: The address which can be contacted to reach the mapped port.
+                          type: string
+                          example: 10.224.6.18:23832
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

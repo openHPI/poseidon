@@ -62,6 +62,22 @@ func (_m *RunnerMock) ID() string {
 	return r0
 }
 
+// MappedPorts provides a mock function with given fields:
+func (_m *RunnerMock) MappedPorts() []*dto.MappedPort {
+	ret := _m.Called()
+
+	var r0 []*dto.MappedPort
+	if rf, ok := ret.Get(0).(func() []*dto.MappedPort); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*dto.MappedPort)
+		}
+	}
+
+	return r0
+}
+
 // Pop provides a mock function with given fields: id
 func (_m *RunnerMock) Pop(id ExecutionID) (*dto.ExecutionRequest, bool) {
 	ret := _m.Called(id)

@@ -21,6 +21,7 @@ var (
 	ErrorEvaluation                  = errors.New("evaluation could not complete")
 	ErrorPlacingAllocations          = errors.New("failed to place all allocations")
 	ErrorLoadingJob                  = errors.New("failed to load job")
+	ErrorNoAllocatedResourcesFound   = errors.New("no allocated resources found")
 )
 
 type AllocationProcessor func(*nomadApi.Allocation)
@@ -38,6 +39,9 @@ type ExecutorAPI interface {
 	// LoadRunnerIDs returns the IDs of all runners of the specified environment which are running and not about to
 	// get stopped.
 	LoadRunnerIDs(environmentID string) (runnerIds []string, err error)
+
+	// LoadRunnerPortMappings returns the mapped ports of the runner.
+	LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapping, error)
 
 	// RegisterTemplateJob creates a template job based on the default job configuration and the given parameters.
 	// It registers the job and waits until the registration completes.
@@ -103,6 +107,17 @@ func (a *APIClient) LoadRunnerIDs(environmentID string) (runnerIDs []string, err
 		}
 	}
 	return runnerIDs, nil
+}
+
+func (a *APIClient) LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapping, error) {
+	alloc, err := a.apiQuerier.allocation(runnerID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying allocation for runner %s: %w", runnerID, err)
+	}
+	if alloc.AllocatedResources == nil {
+		return nil, ErrorNoAllocatedResourcesFound
+	}
+	return alloc.AllocatedResources.Shared.Ports, nil
 }
 
 func (a *APIClient) LoadRunnerJobs(environmentID string) ([]*nomadApi.Job, error) {

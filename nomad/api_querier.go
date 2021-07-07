@@ -40,6 +40,9 @@ type apiQuerier interface {
 	// job returns the job of the given jobID.
 	job(jobID string) (job *nomadApi.Job, err error)
 
+	// allocation returns the first allocation of the given job.
+	allocation(jobID string) (*nomadApi.Allocation, error)
+
 	// RegisterNomadJob registers a job with Nomad.
 	// It returns the evaluation ID that can be used when listening to the Nomad event stream.
 	RegisterNomadJob(job *nomadApi.Job) (string, error)
@@ -192,4 +195,19 @@ func (nc *nomadAPIClient) SetJobScale(jobID string, count uint, reason string) (
 func (nc *nomadAPIClient) job(jobID string) (job *nomadApi.Job, err error) {
 	job, _, err = nc.client.Jobs().Info(jobID, nil)
 	return
+}
+
+func (nc *nomadAPIClient) allocation(jobID string) (alloc *nomadApi.Allocation, err error) {
+	allocs, _, err := nc.client.Jobs().Allocations(jobID, false, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error requesting Nomad job allocations: %w", err)
+	}
+	if len(allocs) == 0 {
+		return nil, ErrorNoAllocationFound
+	}
+	alloc, _, err = nc.client.Allocations().Info(allocs[0].ID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error requesting Nomad allocation info: %w", err)
+	}
+	return alloc, nil
 }

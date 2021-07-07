@@ -234,6 +234,29 @@ func (_m *ExecutorAPIMock) LoadRunnerJobs(environmentID string) ([]*api.Job, err
 	return r0, r1
 }
 
+// LoadRunnerPorts provides a mock function with given fields: runnerID
+func (_m *ExecutorAPIMock) LoadRunnerPortMappings(runnerID string) ([]api.PortMapping, error) {
+	ret := _m.Called(runnerID)
+
+	var r0 []api.PortMapping
+	if rf, ok := ret.Get(0).(func(string) []api.PortMapping); ok {
+		r0 = rf(runnerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]api.PortMapping)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(runnerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // MarkRunnerAsUsed provides a mock function with given fields: runnerID, duration
 func (_m *ExecutorAPIMock) MarkRunnerAsUsed(runnerID string, duration int) error {
 	ret := _m.Called(runnerID, duration)
@@ -346,6 +369,29 @@ func (_m *ExecutorAPIMock) WatchAllocations(ctx context.Context, onNewAllocation
 	}
 
 	return r0
+}
+
+// allocation provides a mock function with given fields: jobID
+func (_m *ExecutorAPIMock) allocation(jobID string) (*api.Allocation, error) {
+	ret := _m.Called(jobID)
+
+	var r0 *api.Allocation
+	if rf, ok := ret.Get(0).(func(string) *api.Allocation); ok {
+		r0 = rf(jobID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.Allocation)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(jobID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // init provides a mock function with given fields: nomadURL, nomadNamespace

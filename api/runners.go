@@ -62,7 +62,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		}
 		return
 	}
-	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID()}, http.StatusOK)
+	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()}, http.StatusOK)
 }
 
 // updateFileSystem handles the files API route.

@@ -25,6 +25,14 @@ func TestIdIsStored(t *testing.T) {
 	assert.Equal(t, tests.DefaultJobID, runner.ID())
 }
 
+func TestMappedPortsAreStoredCorrectly(t *testing.T) {
+	runner := NewNomadJob(tests.DefaultJobID, tests.DefaultPortMappings, nil, nil)
+	assert.Equal(t, tests.DefaultMappedPorts, runner.MappedPorts())
+
+	runner = NewNomadJob(tests.DefaultJobID, nil, nil, nil)
+	assert.Empty(t, runner.MappedPorts())
+}
+
 func TestMarshalRunner(t *testing.T) {
 	runner := NewNomadJob(tests.DefaultJobID, nil, nil, nil)
 	marshal, err := json.Marshal(runner)

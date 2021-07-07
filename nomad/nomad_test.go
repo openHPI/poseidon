@@ -755,3 +755,35 @@ func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
 		Run(runFunc).
 		Return(exitCode, err)
 }
+
+func TestAPIClient_LoadRunnerPortMappings(t *testing.T) {
+	apiMock := &apiQuerierMock{}
+	mockedCall := apiMock.On("allocation", tests.DefaultRunnerID)
+	nomadAPIClient := APIClient{apiQuerier: apiMock}
+
+	t.Run("should return error when API query fails", func(t *testing.T) {
+		mockedCall.Return(nil, tests.ErrDefault)
+		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
+		assert.Nil(t, portMappings)
+		assert.ErrorIs(t, err, tests.ErrDefault)
+	})
+
+	t.Run("should return error when AllocatedResources is nil", func(t *testing.T) {
+		mockedCall.Return(&nomadApi.Allocation{AllocatedResources: nil}, nil)
+		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
+		assert.ErrorIs(t, err, ErrorNoAllocatedResourcesFound)
+		assert.Nil(t, portMappings)
+	})
+
+	t.Run("should correctly return ports", func(t *testing.T) {
+		allocation := &nomadApi.Allocation{
+			AllocatedResources: &nomadApi.AllocatedResources{
+				Shared: nomadApi.AllocatedSharedResources{Ports: tests.DefaultPortMappings},
+			},
+		}
+		mockedCall.Return(allocation, nil)
+		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
+		assert.NoError(t, err)
+		assert.Equal(t, tests.DefaultPortMappings, portMappings)
+	})
+}

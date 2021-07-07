@@ -2,6 +2,8 @@ package tests
 
 import (
 	"errors"
+	nomadApi "github.com/hashicorp/nomad/api"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"time"
 )
 
@@ -28,5 +30,7 @@ const (
 )
 
 var (
-	ErrDefault = errors.New("an error occurred")
+	ErrDefault          = errors.New("an error occurred")
+	DefaultPortMappings = []nomadApi.PortMapping{{To: 42, Value: 1337, Label: "lit", HostIP: "127.0.0.1"}}
+	DefaultMappedPorts  = []*dto.MappedPort{{ExposedPort: 42, HostAddress: "127.0.0.1:1337"}}
 )

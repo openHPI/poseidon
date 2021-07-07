@@ -284,3 +284,64 @@ func modifyMockedCall(apiMock *nomad.ExecutorAPIMock, method string, modifier fu
 		}
 	}
 }
+
+func (s *ManagerTestSuite) TestOnAllocationAdded() {
+	s.registerDefaultEnvironment()
+	s.Run("does not add environment template id job", func() {
+		alloc := &nomadApi.Allocation{JobID: TemplateJobID(tests.DefaultEnvironmentIDAsInteger)}
+		s.nomadRunnerManager.onAllocationAdded(alloc)
+		job, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsInteger)
+		s.True(ok)
+		s.Zero(job.idleRunners.Length())
+	})
+	s.Run("does not panic when environment id cannot be parsed", func() {
+		alloc := &nomadApi.Allocation{JobID: ""}
+		s.NotPanics(func() {
+			s.nomadRunnerManager.onAllocationAdded(alloc)
+		})
+	})
+	s.Run("does not panic when environment does not exist", func() {
+		nonExistentEnvironment := EnvironmentID(1234)
+		_, ok := s.nomadRunnerManager.environments.Get(nonExistentEnvironment)
+		s.Require().False(ok)
+
+		alloc := &nomadApi.Allocation{JobID: RunnerJobID(nonExistentEnvironment, "1-1-1-1")}
+		s.NotPanics(func() {
+			s.nomadRunnerManager.onAllocationAdded(alloc)
+		})
+	})
+	s.Run("adds correct job", func() {
+		s.Run("without allocated resources", func() {
+			alloc := &nomadApi.Allocation{
+				JobID:              tests.DefaultJobID,
+				AllocatedResources: nil,
+			}
+			s.nomadRunnerManager.onAllocationAdded(alloc)
+			job, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsInteger)
+			s.True(ok)
+			runner, ok := job.idleRunners.Get(tests.DefaultJobID)
+			s.True(ok)
+			nomadJob, ok := runner.(*NomadJob)
+			s.True(ok)
+			s.Equal(nomadJob.id, tests.DefaultJobID)
+			s.Empty(nomadJob.portMappings)
+		})
+		s.Run("with mapped ports", func() {
+			alloc := &nomadApi.Allocation{
+				JobID: tests.DefaultJobID,
+				AllocatedResources: &nomadApi.AllocatedResources{
+					Shared: nomadApi.AllocatedSharedResources{Ports: tests.DefaultPortMappings},
+				},
+			}
+			s.nomadRunnerManager.onAllocationAdded(alloc)
+			job, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsInteger)
+			s.True(ok)
+			runner, ok := job.idleRunners.Get(tests.DefaultJobID)
+			s.True(ok)
+			nomadJob, ok := runner.(*NomadJob)
+			s.True(ok)
+			s.Equal(nomadJob.id, tests.DefaultJobID)
+			s.Equal(nomadJob.portMappings, tests.DefaultPortMappings)
+		})
+	})
+}

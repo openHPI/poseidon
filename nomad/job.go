@@ -12,7 +12,9 @@ const (
 	TemplateJobPrefix     = "template"
 	TaskGroupName         = "default-group"
 	TaskName              = "default-task"
+	TaskCount             = 1
 	TaskDriver            = "docker"
+	TaskCommand           = "sleep"
 	ConfigTaskGroupName   = "config"
 	ConfigTaskName        = "config"
 	ConfigTaskDriver      = "exec"
@@ -25,6 +27,7 @@ const (
 )
 
 var (
+	TaskArgs                     = []string{"infinity"}
 	ErrorConfigTaskGroupNotFound = errors.New("config task group not found in job")
 )
 
@@ -79,7 +82,7 @@ func CreateTemplateJob(
 	job.ID = &id
 	job.Name = &id
 
-	var taskGroup = createTaskGroup(&job, TaskGroupName, prewarmingPoolSize)
+	var taskGroup = createTaskGroup(&job, TaskGroupName)
 	configureTask(taskGroup, TaskName, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
 	storeTemplateConfiguration(&job, prewarmingPoolSize)
 
@@ -96,15 +99,15 @@ func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
 	return a.MonitorEvaluation(evalID, context.Background())
 }
 
-func createTaskGroup(job *nomadApi.Job, name string, prewarmingPoolSize uint) *nomadApi.TaskGroup {
+func createTaskGroup(job *nomadApi.Job, name string) *nomadApi.TaskGroup {
 	var taskGroup *nomadApi.TaskGroup
 	if len(job.TaskGroups) == 0 {
-		taskGroup = nomadApi.NewTaskGroup(name, int(prewarmingPoolSize))
+		taskGroup = nomadApi.NewTaskGroup(name, TaskCount)
 		job.TaskGroups = []*nomadApi.TaskGroup{taskGroup}
 	} else {
 		taskGroup = job.TaskGroups[0]
 		taskGroup.Name = &name
-		count := 1
+		count := TaskCount
 		taskGroup.Count = &count
 	}
 	return taskGroup
@@ -173,7 +176,7 @@ func configureTask(
 	integerCPULimit := int(cpuLimit)
 	integerMemoryLimit := int(memoryLimit)
 	if task.Resources == nil {
-		task.Resources = &nomadApi.Resources{}
+		task.Resources = nomadApi.DefaultResources()
 	}
 	task.Resources.CPU = &integerCPULimit
 	task.Resources.MemoryMB = &integerMemoryLimit
@@ -182,6 +185,8 @@ func configureTask(
 		task.Config = make(map[string]interface{})
 	}
 	task.Config["image"] = image
+	task.Config["command"] = TaskCommand
+	task.Config["args"] = TaskArgs
 
 	configureNetwork(taskGroup, networkAccess, exposedPorts)
 }
@@ -206,12 +211,12 @@ func findOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 		taskGroup = nomadApi.NewTaskGroup(ConfigTaskGroupName, 0)
 		job.AddTaskGroup(taskGroup)
 	}
-	createDummyTaskIfNotPresent(taskGroup)
+	createConfigTaskIfNotPresent(taskGroup)
 	return taskGroup
 }
 
-// createDummyTaskIfNotPresent ensures that a dummy task is in the task group so that the group is accepted by Nomad.
-func createDummyTaskIfNotPresent(taskGroup *nomadApi.TaskGroup) {
+// createConfigTaskIfNotPresent ensures that a dummy task is in the task group so that the group is accepted by Nomad.
+func createConfigTaskIfNotPresent(taskGroup *nomadApi.TaskGroup) {
 	var task *nomadApi.Task
 	for _, t := range taskGroup.Tasks {
 		if t.Name == ConfigTaskName {

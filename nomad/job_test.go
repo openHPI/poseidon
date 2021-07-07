@@ -15,7 +15,7 @@ import (
 )
 
 func createTestTaskGroup() *nomadApi.TaskGroup {
-	return nomadApi.NewTaskGroup("taskGroup", 42)
+	return nomadApi.NewTaskGroup("taskGroup", 1)
 }
 
 func createTestTask() *nomadApi.Task {
@@ -23,9 +23,12 @@ func createTestTask() *nomadApi.Task {
 }
 
 func createTestResources() *nomadApi.Resources {
+	result := nomadApi.DefaultResources()
 	expectedCPULimit := 1337
 	expectedMemoryLimit := 42
-	return &nomadApi.Resources{CPU: &expectedCPULimit, MemoryMB: &expectedMemoryLimit}
+	result.CPU = &expectedCPULimit
+	result.MemoryMB = &expectedMemoryLimit
+	return result
 }
 
 func TestCreateTaskGroupCreatesNewTaskGroupWhenJobHasNoTaskGroup(t *testing.T) {
@@ -33,7 +36,7 @@ func TestCreateTaskGroupCreatesNewTaskGroupWhenJobHasNoTaskGroup(t *testing.T) {
 
 	if assert.Equal(t, 0, len(job.TaskGroups)) {
 		expectedTaskGroup := createTestTaskGroup()
-		taskGroup := createTaskGroup(job, *expectedTaskGroup.Name, uint(*expectedTaskGroup.Count))
+		taskGroup := createTaskGroup(job, *expectedTaskGroup.Name)
 
 		assert.Equal(t, *expectedTaskGroup, *taskGroup)
 		assert.Equal(t, []*nomadApi.TaskGroup{taskGroup}, job.TaskGroups, "it should add the task group to the job")
@@ -48,9 +51,7 @@ func TestCreateTaskGroupOverwritesOptionsWhenJobHasTaskGroup(t *testing.T) {
 	job.TaskGroups = newTaskGroupList
 
 	newName := *existingTaskGroup.Name + "longerName"
-	newCount := *existingTaskGroup.Count + 42
-
-	taskGroup := createTaskGroup(job, newName, uint(newCount))
+	taskGroup := createTaskGroup(job, newName)
 
 	// create a new copy to avoid changing the original one as it is a pointer
 	expectedTaskGroup := *existingTaskGroup
@@ -166,7 +167,10 @@ func TestConfigureTaskWhenNoTaskExists(t *testing.T) {
 	expectedTask := nomadApi.NewTask("task", TaskDriver)
 	expectedTask.Resources = expectedResources
 	expectedImage := "python:latest"
-	expectedTask.Config = map[string]interface{}{"image": expectedImage, "network_mode": "none"}
+	expectedCommand := "sleep"
+	expectedArgs := []string{"infinity"}
+	expectedTask.Config = map[string]interface{}{
+		"image": expectedImage, "command": expectedCommand, "args": expectedArgs, "network_mode": "none"}
 	expectedTaskGroup.Tasks = []*nomadApi.Task{expectedTask}
 	expectedTaskGroup.Networks = []*nomadApi.NetworkResource{}
 
@@ -203,11 +207,11 @@ func TestConfigureTaskWhenTaskExists(t *testing.T) {
 }
 
 func TestCreateTemplateJobSetsAllGivenArguments(t *testing.T) {
-	testJob := helpers.CreateTemplateJob()
+	base, testJob := helpers.CreateTemplateJob()
 	prewarmingPoolSize, err := strconv.Atoi(testJob.TaskGroups[1].Meta[ConfigMetaPoolSizeKey])
 	require.NoError(t, err)
 	job := CreateTemplateJob(
-		helpers.CreateTemplateJob(),
+		base,
 		tests.DefaultJobID,
 		uint(prewarmingPoolSize),
 		uint(*testJob.TaskGroups[0].Tasks[0].Resources.CPU),

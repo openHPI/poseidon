@@ -141,17 +141,14 @@ func HttpPutJSON(url string, body interface{}) (response *http.Response, err err
 	return HttpPut(url, reader)
 }
 
-func CreateTemplateJob() (job *nomadApi.Job) {
+func CreateTemplateJob() (base, job *nomadApi.Job) {
+	base = nomadApi.NewBatchJob(tests.DefaultJobID, tests.DefaultJobID, "region-name", 100)
 	job = nomadApi.NewBatchJob(tests.DefaultJobID, tests.DefaultJobID, "region-name", 100)
 	configTaskGroup := nomadApi.NewTaskGroup("config", 0)
 	configTaskGroup.Meta = make(map[string]string)
 	configTaskGroup.Meta["prewarmingPoolSize"] = "0"
 	configTask := nomadApi.NewTask("config", "exec")
-	configTask.Config = map[string]interface{}{
-		"command": "true",
-		"image":   "python:latest",
-	}
-	configTask.Resources = nomadApi.DefaultResources()
+	configTask.Config = map[string]interface{}{"command": "true"}
 	configTaskGroup.AddTask(configTask)
 
 	defaultTaskGroup := nomadApi.NewTaskGroup("default-group", 1)
@@ -167,5 +164,5 @@ func CreateTemplateJob() (job *nomadApi.Job) {
 	defaultTaskGroup.AddTask(defaultTask)
 
 	job.TaskGroups = []*nomadApi.TaskGroup{defaultTaskGroup, configTaskGroup}
-	return job
+	return base, job
 }

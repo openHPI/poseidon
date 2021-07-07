@@ -257,7 +257,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 }
 
 func (s *ManagerTestSuite) TestUpdateEnvironmentRemovesIdleRunnersWhenScalingDown() {
-	job := helpers.CreateTemplateJob()
+	_, job := helpers.CreateTemplateJob()
 	initialRunners := uint(40)
 	updatedRunners := uint(10)
 	err := s.nomadRunnerManager.registerEnvironment(anotherEnvironmentID, initialRunners, job, true)

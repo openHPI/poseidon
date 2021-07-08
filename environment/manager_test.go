@@ -62,13 +62,6 @@ func (s *CreateOrUpdateTestSuite) mockCreateOrUpdateEnvironment(created bool, er
 		Return(created, err)
 }
 
-func (s *CreateOrUpdateTestSuite) createJobForRequest() *nomadApi.Job {
-	return nomad.CreateTemplateJob(&s.manager.templateEnvironmentJob,
-		runner.TemplateJobID(tests.DefaultEnvironmentIDAsInteger),
-		s.request.PrewarmingPoolSize, s.request.CPULimit, s.request.MemoryLimit,
-		s.request.Image, s.request.NetworkAccess, s.request.ExposedPorts)
-}
-
 func (s *CreateOrUpdateTestSuite) TestRegistersCorrectTemplateJob() {
 	s.mockRegisterTemplateJob(&nomadApi.Job{}, nil)
 	s.mockCreateOrUpdateEnvironment(true, nil)
@@ -86,7 +79,7 @@ func (s *CreateOrUpdateTestSuite) TestReturnsErrorWhenRegisterTemplateJobReturns
 	s.mockRegisterTemplateJob(nil, tests.ErrDefault)
 
 	created, err := s.manager.CreateOrUpdate(s.environmentID, s.request)
-	s.Equal(tests.ErrDefault, err)
+	s.ErrorIs(err, tests.ErrDefault)
 	s.False(created)
 }
 
@@ -106,20 +99,22 @@ func (s *CreateOrUpdateTestSuite) TestReturnsErrorIfCreatesOrUpdateEnvironmentRe
 	s.mockRegisterTemplateJob(&nomadApi.Job{}, nil)
 	s.mockCreateOrUpdateEnvironment(false, tests.ErrDefault)
 	_, err := s.manager.CreateOrUpdate(runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
-	s.Equal(tests.ErrDefault, err)
+	s.ErrorIs(err, tests.ErrDefault)
 }
 
 func (s *CreateOrUpdateTestSuite) TestReturnsTrueIfCreatesOrUpdateEnvironmentReturnsTrue() {
 	s.mockRegisterTemplateJob(&nomadApi.Job{}, nil)
 	s.mockCreateOrUpdateEnvironment(true, nil)
-	created, _ := s.manager.CreateOrUpdate(runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
+	created, err := s.manager.CreateOrUpdate(runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
+	s.Require().NoError(err)
 	s.True(created)
 }
 
 func (s *CreateOrUpdateTestSuite) TestReturnsFalseIfCreatesOrUpdateEnvironmentReturnsFalse() {
 	s.mockRegisterTemplateJob(&nomadApi.Job{}, nil)
 	s.mockCreateOrUpdateEnvironment(false, nil)
-	created, _ := s.manager.CreateOrUpdate(runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
+	created, err := s.manager.CreateOrUpdate(runner.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
+	s.Require().NoError(err)
 	s.False(created)
 }
 

@@ -100,7 +100,7 @@ func (_m *apiQuerierMock) Execute(jobID string, ctx context.Context, command []s
 	return r0, r1
 }
 
-// JobScale provides a mock function with given fields: jobId
+// JobScale provides a mock function with given fields: jobID
 func (_m *apiQuerierMock) JobScale(jobId string) (uint, error) {
 	ret := _m.Called(jobId)
 
@@ -165,7 +165,7 @@ func (_m *apiQuerierMock) RegisterNomadJob(job *api.Job) (string, error) {
 	return r0, r1
 }
 
-// SetJobScale provides a mock function with given fields: jobId, count, reason
+// SetJobScale provides a mock function with given fields: jobID, count, reason
 func (_m *apiQuerierMock) SetJobScale(jobId string, count uint, reason string) error {
 	ret := _m.Called(jobId, count, reason)
 

@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -39,8 +40,9 @@ func (c *configuration) getReflectValue() reflect.Value {
 	return reflect.ValueOf(c).Elem()
 }
 
-// writeConfigurationFile creates a file on disk and returns the path to it
+// writeConfigurationFile creates a file on disk and returns the path to it.
 func writeConfigurationFile(t *testing.T, name string, content []byte) string {
+	t.Helper()
 	directory := t.TempDir()
 	filePath := filepath.Join(directory, name)
 	file, err := os.Create(filePath)
@@ -48,7 +50,8 @@ func writeConfigurationFile(t *testing.T, name string, content []byte) string {
 		t.Fatal("Could not create config file")
 	}
 	defer file.Close()
-	_, _ = file.Write(content)
+	_, err = file.Write(content)
+	require.NoError(t, err)
 	return filePath
 }
 
@@ -62,13 +65,15 @@ func TestCallingInitConfigTwiceReturnsError(t *testing.T) {
 
 func TestCallingInitConfigTwiceDoesNotChangeConfig(t *testing.T) {
 	configurationInitialized = false
-	_ = InitConfig()
+	err := InitConfig()
+	require.NoError(t, err)
 	Config = newTestConfiguration()
 	filePath := writeConfigurationFile(t, "test.yaml", []byte("server:\n  port: 5000\n"))
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	os.Args = append(os.Args, "-config", filePath)
-	_ = InitConfig()
+	err = InitConfig()
+	require.Error(t, err)
 	assert.Equal(t, 3000, Config.Server.Port)
 }
 
@@ -156,7 +161,8 @@ func TestReadConfigFileOverwritesConfig(t *testing.T) {
 	defer func() { os.Args = oldArgs }()
 	os.Args = append(os.Args, "-config", filePath)
 	configurationInitialized = false
-	_ = InitConfig()
+	err := InitConfig()
+	require.NoError(t, err)
 	assert.Equal(t, 5000, Config.Server.Port)
 }
 
@@ -166,7 +172,8 @@ func TestReadNonExistingConfigFileDoesNotOverwriteConfig(t *testing.T) {
 	defer func() { os.Args = oldArgs }()
 	os.Args = append(os.Args, "-config", "file_does_not_exist.yaml")
 	configurationInitialized = false
-	_ = InitConfig()
+	err := InitConfig()
+	require.NoError(t, err)
 	assert.Equal(t, 3000, Config.Server.Port)
 }
 

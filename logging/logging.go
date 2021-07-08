@@ -2,6 +2,7 @@ package logging
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
@@ -33,7 +34,7 @@ func GetLogger(pkg string) *logrus.Entry {
 }
 
 // loggingResponseWriter wraps the default http.ResponseWriter and catches the status code
-// that is written
+// that is written.
 type loggingResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
@@ -49,10 +50,14 @@ func (writer *loggingResponseWriter) WriteHeader(code int) {
 }
 
 func (writer *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	return writer.ResponseWriter.(http.Hijacker).Hijack()
+	conn, rw, err := writer.ResponseWriter.(http.Hijacker).Hijack()
+	if err != nil {
+		return conn, nil, fmt.Errorf("hijacking connection failed: %w", err)
+	}
+	return conn, rw, nil
 }
 
-// HTTPLoggingMiddleware returns an http.Handler that logs different information about every request
+// HTTPLoggingMiddleware returns an http.Handler that logs different information about every request.
 func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now().UTC()

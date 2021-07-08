@@ -10,7 +10,7 @@ import (
 
 // RunnerRequest is the expected json structure of the request body for the ProvideRunner function.
 type RunnerRequest struct {
-	ExecutionEnvironmentId int `json:"executionEnvironmentId"`
+	ExecutionEnvironmentID int `json:"executionEnvironmentId"`
 	InactivityTimeout      int `json:"inactivityTimeout"`
 }
 
@@ -22,7 +22,7 @@ type ExecutionRequest struct {
 }
 
 func (er *ExecutionRequest) FullCommand() []string {
-	var command []string
+	command := make([]string, 0)
 	command = append(command, "env", "-")
 	for variable, value := range er.Environment {
 		command = append(command, fmt.Sprintf("%s=%s", variable, value))
@@ -31,7 +31,8 @@ func (er *ExecutionRequest) FullCommand() []string {
 	return command
 }
 
-// ExecutionEnvironmentRequest is the expected json structure of the request body for the create execution environment function.
+// ExecutionEnvironmentRequest is the expected json structure of the request body
+// for the create execution environment function.
 type ExecutionEnvironmentRequest struct {
 	PrewarmingPoolSize uint     `json:"prewarmingPoolSize"`
 	CPULimit           uint     `json:"cpuLimit"`
@@ -43,12 +44,12 @@ type ExecutionEnvironmentRequest struct {
 
 // RunnerResponse is the expected response when providing a runner.
 type RunnerResponse struct {
-	Id string `json:"runnerId"`
+	ID string `json:"runnerId"`
 }
 
 // ExecutionResponse is the expected response when creating an execution for a runner.
 type ExecutionResponse struct {
-	WebSocketUrl string `json:"websocketUrl"`
+	WebSocketURL string `json:"websocketUrl"`
 }
 
 // UpdateFileSystemRequest is the expected json structure of the request body for the update file system route.
@@ -102,6 +103,13 @@ const (
 	WebSocketExit         WebSocketMessageType = "exit"
 )
 
+var (
+	ErrUnknownWebSocketMessageType = errors.New("unknown WebSocket message type")
+	ErrMissingType                 = errors.New("type is missing")
+	ErrMissingData                 = errors.New("data is missing")
+	ErrInvalidType                 = errors.New("invalid type")
+)
+
 // WebSocketMessage is the type for all messages send in the WebSocket to the client.
 // Depending on the MessageType the Data or ExitCode might not be included in the marshaled json message.
 type WebSocketMessage struct {
@@ -112,24 +120,29 @@ type WebSocketMessage struct {
 
 // MarshalJSON implements the json.Marshaler interface.
 // This converts the WebSocketMessage into the expected schema (see docs/websocket.schema.json).
-func (m WebSocketMessage) MarshalJSON() ([]byte, error) {
+func (m WebSocketMessage) MarshalJSON() (res []byte, err error) {
 	switch m.Type {
 	case WebSocketOutputStdout, WebSocketOutputStderr, WebSocketOutputError:
-		return json.Marshal(struct {
+		res, err = json.Marshal(struct {
 			MessageType WebSocketMessageType `json:"type"`
 			Data        string               `json:"data"`
 		}{m.Type, m.Data})
 	case WebSocketMetaStart, WebSocketMetaTimeout:
-		return json.Marshal(struct {
+		res, err = json.Marshal(struct {
 			MessageType WebSocketMessageType `json:"type"`
 		}{m.Type})
 	case WebSocketExit:
-		return json.Marshal(struct {
+		res, err = json.Marshal(struct {
 			MessageType WebSocketMessageType `json:"type"`
 			ExitCode    uint8                `json:"data"`
 		}{m.Type, m.ExitCode})
 	}
-	return nil, errors.New("unhandled WebSocket message type")
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling WebSocketMessage: %w", err)
+	} else if res == nil {
+		return nil, ErrUnknownWebSocketMessageType
+	}
+	return res, nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -138,47 +151,47 @@ func (m *WebSocketMessage) UnmarshalJSON(rawMessage []byte) error {
 	messageMap := make(map[string]interface{})
 	err := json.Unmarshal(rawMessage, &messageMap)
 	if err != nil {
-		return err
+		return fmt.Errorf("error unmarshiling raw WebSocket message: %w", err)
 	}
 	messageType, ok := messageMap["type"]
 	if !ok {
-		return errors.New("missing key type")
+		return ErrMissingType
 	}
 	messageTypeString, ok := messageType.(string)
 	if !ok {
-		return errors.New("value of key type must be a string")
+		return fmt.Errorf("value of key type must be a string: %w", ErrInvalidType)
 	}
 	switch messageType := WebSocketMessageType(messageTypeString); messageType {
 	case WebSocketExit:
 		data, ok := messageMap["data"]
 		if !ok {
-			return errors.New("missing key data")
+			return ErrMissingData
 		}
 		// json.Unmarshal converts any number to a float64 in the massageMap, so we must first cast it to the float.
 		exit, ok := data.(float64)
 		if !ok {
-			return errors.New("value of key data must be a number")
+			return fmt.Errorf("value of key data must be a number: %w", ErrInvalidType)
 		}
 		if exit != float64(uint8(exit)) {
-			return errors.New("value of key data must be uint8")
+			return fmt.Errorf("value of key data must be uint8: %w", ErrInvalidType)
 		}
 		m.Type = messageType
 		m.ExitCode = uint8(exit)
 	case WebSocketOutputStdout, WebSocketOutputStderr, WebSocketOutputError:
 		data, ok := messageMap["data"]
 		if !ok {
-			return errors.New("missing key data")
+			return ErrMissingData
 		}
 		text, ok := data.(string)
 		if !ok {
-			return errors.New("value of key data must be a string")
+			return fmt.Errorf("value of key data must be a string: %w", ErrInvalidType)
 		}
 		m.Type = messageType
 		m.Data = text
 	case WebSocketMetaStart, WebSocketMetaTimeout:
 		m.Type = messageType
 	default:
-		return errors.New("unknown WebSocket message type")
+		return ErrUnknownWebSocketMessageType
 	}
 	return nil
 }

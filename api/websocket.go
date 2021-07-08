@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/runner"
 	"io"
 	"net/http"
 )
+
+const CodeOceanToRawReaderBufferSize = 1024
+
+var ErrUnknownExecutionID = errors.New("execution id unknown")
 
 type webSocketConnection interface {
 	WriteMessage(messageType int, data []byte) error
@@ -21,11 +26,11 @@ type webSocketConnection interface {
 
 type WebSocketReader interface {
 	io.Reader
-	readInputLoop() context.CancelFunc
+	startReadInputLoop() context.CancelFunc
 }
 
-// codeOceanToRawReader is an io.Reader implementation that provides the content of the WebSocket connection to CodeOcean.
-// You have to start the Reader by calling readInputLoop. After that you can use the Read function.
+// codeOceanToRawReader is an io.Reader implementation that provides the content of the WebSocket connection
+// to CodeOcean. You have to start the Reader by calling readInputLoop. After that you can use the Read function.
 type codeOceanToRawReader struct {
 	connection webSocketConnection
 
@@ -38,74 +43,79 @@ type codeOceanToRawReader struct {
 func newCodeOceanToRawReader(connection webSocketConnection) *codeOceanToRawReader {
 	return &codeOceanToRawReader{
 		connection: connection,
-		buffer:     make(chan byte, 1024),
+		buffer:     make(chan byte, CodeOceanToRawReaderBufferSize),
 	}
 }
 
-// readInputLoop asynchronously reads from the WebSocket connection and buffers the user's input.
+// readInputLoop reads from the WebSocket connection and buffers the user's input.
 // This is necessary because input must be read for the connection to handle special messages like close and call the
 // CloseHandler.
-func (cr *codeOceanToRawReader) readInputLoop() context.CancelFunc {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		readMessage := make(chan bool)
-		for {
-			var messageType int
-			var reader io.Reader
-			var err error
+func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
+	readMessage := make(chan bool)
+	for {
+		var messageType int
+		var reader io.Reader
+		var err error
 
-			go func() {
-				messageType, reader, err = cr.connection.NextReader()
-				readMessage <- true
-			}()
+		go func() {
+			messageType, reader, err = cr.connection.NextReader()
+			readMessage <- true
+		}()
+		select {
+		case <-readMessage:
+		case <-ctx.Done():
+			return
+		}
+
+		if err != nil {
+			log.WithError(err).Warn("Error reading client message")
+			return
+		}
+		if messageType != websocket.TextMessage {
+			log.WithField("messageType", messageType).Warn("Received message of wrong type")
+			return
+		}
+
+		message, err := io.ReadAll(reader)
+		if err != nil {
+			log.WithError(err).Warn("error while reading WebSocket message")
+			return
+		}
+		for _, character := range message {
 			select {
-			case <-readMessage:
+			case cr.buffer <- character:
 			case <-ctx.Done():
 				return
 			}
-
-			if err != nil {
-				log.WithError(err).Warn("Error reading client message")
-				return
-			}
-			if messageType != websocket.TextMessage {
-				log.WithField("messageType", messageType).Warn("Received message of wrong type")
-				return
-			}
-
-			message, err := io.ReadAll(reader)
-			if err != nil {
-				log.WithError(err).Warn("error while reading WebSocket message")
-				return
-			}
-			for _, character := range message {
-				select {
-				case cr.buffer <- character:
-				case <-ctx.Done():
-					return
-				}
-			}
 		}
-	}()
+	}
+}
+
+// startReadInputLoop start the read input loop asynchronously and returns a context.CancelFunc which can be used
+// to cancel the read input loop.
+func (cr *codeOceanToRawReader) startReadInputLoop() context.CancelFunc {
+	ctx, cancel := context.WithCancel(context.Background())
+	go cr.readInputLoop(ctx)
 	return cancel
 }
 
 // Read implements the io.Reader interface.
 // It returns bytes from the buffer.
-func (cr *codeOceanToRawReader) Read(p []byte) (n int, err error) {
+func (cr *codeOceanToRawReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
-		return
+		return 0, nil
 	}
 	// Ensure to not return until at least one byte has been read to avoid busy waiting.
 	p[0] = <-cr.buffer
+	var n int
 	for n = 1; n < len(p); n++ {
 		select {
 		case p[n] = <-cr.buffer:
 		default:
-			return
+			return n, nil
 		}
 	}
-	return
+	return n, nil
 }
 
 // rawToCodeOceanWriter is an io.Writer implementation that, when written to, wraps the written data in the appropriate
@@ -137,7 +147,7 @@ func upgradeConnection(writer http.ResponseWriter, request *http.Request) (webSo
 	connection, err := connUpgrader.Upgrade(writer, request, nil)
 	if err != nil {
 		log.WithError(err).Warn("Connection upgrade failed")
-		return nil, err
+		return nil, fmt.Errorf("error upgrading the connection: %w", err)
 	}
 	return connection, nil
 }
@@ -161,7 +171,7 @@ func newWebSocketProxy(connection webSocketConnection) (*webSocketProxy, error) 
 
 	closeHandler := connection.CloseHandler()
 	connection.SetCloseHandler(func(code int, text string) error {
-		// The default close handler always returns nil, so the error can be safely ignored.
+		//nolint:errcheck // The default close handler always returns nil, so the error can be safely ignored.
 		_ = closeHandler(code, text)
 		close(proxy.userExit)
 		return nil
@@ -173,7 +183,7 @@ func newWebSocketProxy(connection webSocketConnection) (*webSocketProxy, error) 
 // and handles WebSocket exit messages.
 func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecution context.CancelFunc) {
 	defer wp.close()
-	cancelInputLoop := wp.Stdin.readInputLoop()
+	cancelInputLoop := wp.Stdin.startReadInputLoop()
 	var exitInfo runner.ExitInfo
 	select {
 	case exitInfo = <-exit:
@@ -187,12 +197,18 @@ func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecuti
 	}
 
 	if errors.Is(exitInfo.Err, context.DeadlineExceeded) || errors.Is(exitInfo.Err, runner.ErrorRunnerInactivityTimeout) {
-		_ = wp.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout})
+		err := wp.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout})
+		if err != nil {
+			log.WithError(err).Warn("Failed to send timeout message to client")
+		}
 		return
 	} else if exitInfo.Err != nil {
 		errorMessage := "Error executing the request"
 		log.WithError(exitInfo.Err).Warn(errorMessage)
-		_ = wp.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: errorMessage})
+		err := wp.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: errorMessage})
+		if err != nil {
+			log.WithError(err).Warn("Failed to send output error message to client")
+		}
 		return
 	}
 	log.WithField("exit_code", exitInfo.Code).Debug()
@@ -211,27 +227,29 @@ func (wp *webSocketProxy) sendToClient(message dto.WebSocketMessage) error {
 	if err != nil {
 		log.WithField("message", message).WithError(err).Warn("Marshal error")
 		wp.closeWithError("Error creating message")
-		return err
+		return fmt.Errorf("error marshaling WebSocket message: %w", err)
 	}
 	err = wp.connection.WriteMessage(websocket.TextMessage, encodedMessage)
 	if err != nil {
 		errorMessage := "Error writing the exit message"
 		log.WithError(err).Warn(errorMessage)
 		wp.closeWithError(errorMessage)
-		return err
+		return fmt.Errorf("error writing WebSocket message: %w", err)
 	}
 	return nil
 }
 
 func (wp *webSocketProxy) closeWithError(message string) {
-	err := wp.connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, message))
+	err := wp.connection.WriteMessage(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseInternalServerErr, message))
 	if err != nil {
 		log.WithError(err).Warn("Error during websocket close")
 	}
 }
 
 func (wp *webSocketProxy) close() {
-	err := wp.connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	err := wp.connection.WriteMessage(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	_ = wp.connection.Close()
 	if err != nil {
 		log.WithError(err).Warn("Error during websocket close")
@@ -241,10 +259,10 @@ func (wp *webSocketProxy) close() {
 // connectToRunner is the endpoint for websocket connections.
 func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	executionId := runner.ExecutionId(request.URL.Query().Get(ExecutionIdKey))
-	executionRequest, ok := targetRunner.Pop(executionId)
+	executionID := runner.ExecutionID(request.URL.Query().Get(ExecutionIDKey))
+	executionRequest, ok := targetRunner.Pop(executionID)
 	if !ok {
-		writeNotFound(writer, errors.New("executionId does not exist"))
+		writeNotFound(writer, ErrUnknownExecutionID)
 		return
 	}
 
@@ -258,7 +276,7 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 		return
 	}
 
-	log.WithField("runnerId", targetRunner.Id()).WithField("executionId", executionId).Info("Running execution")
+	log.WithField("runnerId", targetRunner.ID()).WithField("executionID", executionID).Info("Running execution")
 	exit, cancel := targetRunner.ExecuteInteractively(executionRequest, proxy.Stdin, proxy.Stdout, proxy.Stderr)
 
 	proxy.waitForExit(exit, cancel)

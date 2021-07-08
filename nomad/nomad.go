@@ -85,7 +85,10 @@ func NewExecutorAPI(nomadURL *url.URL, nomadNamespace string) (ExecutorAPI, erro
 
 // init prepares an apiClient to be able to communicate to a provided Nomad API.
 func (a *APIClient) init(nomadURL *url.URL, nomadNamespace string) error {
-	return a.apiQuerier.init(nomadURL, nomadNamespace)
+	if err := a.apiQuerier.init(nomadURL, nomadNamespace); err != nil {
+		return fmt.Errorf("error initializing API querier: %w", err)
+	}
+	return nil
 }
 
 func (a *APIClient) LoadRunnerIDs(environmentID string) (runnerIDs []string, err error) {
@@ -305,7 +308,11 @@ func (a *APIClient) ExecuteCommand(allocationID string,
 	if tty && config.Config.Server.InteractiveStderr {
 		return a.executeCommandInteractivelyWithStderr(allocationID, ctx, command, stdin, stdout, stderr)
 	}
-	return a.apiQuerier.Execute(allocationID, ctx, command, tty, stdin, stdout, stderr)
+	exitCode, err := a.apiQuerier.Execute(allocationID, ctx, command, tty, stdin, stdout, stderr)
+	if err != nil {
+		return 1, fmt.Errorf("error executing command in API: %w", err)
+	}
+	return exitCode, nil
 }
 
 // executeCommandInteractivelyWithStderr executes the given command interactively and splits stdout
@@ -325,7 +332,8 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 	stderrExitChan := make(chan int)
 	go func() {
 		// Catch stderr in separate execution.
-		exit, err := a.Execute(allocationID, ctx, stderrFifoCommand(currentNanoTime), true, util.NullReader{}, stderr, io.Discard)
+		exit, err := a.Execute(allocationID, ctx, stderrFifoCommand(currentNanoTime), true,
+			util.NullReader{}, stderr, io.Discard)
 		if err != nil {
 			log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
 		}
@@ -342,15 +350,15 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 const (
 	// stderrFifoFormat represents the format we use for our stderr fifos. The %d should be unique for the execution
 	// as otherwise multiple executions are not possible.
-	// Example: /tmp/stderr_1623330777825234133.fifo
+	// Example: "/tmp/stderr_1623330777825234133.fifo".
 	stderrFifoFormat = "/tmp/stderr_%d.fifo"
 	// stderrFifoCommandFormat, if executed, is supposed to create a fifo, read from it and remove it in the end.
-	// Example: mkfifo my.fifo && (cat my.fifo; rm my.fifo)
+	// Example: "mkfifo my.fifo && (cat my.fifo; rm my.fifo)".
 	stderrFifoCommandFormat = "mkfifo %s && (cat %s; rm %s)"
 	// stderrWrapperCommandFormat, if executed, is supposed to wait until a fifo exists (it sleeps 10ms to reduce load
 	// cause by busy waiting on the system). Once the fifo exists, the given command is executed and its stderr
 	// redirected to the fifo.
-	// Example: until [ -e my.fifo ]; do sleep 0.01; done; (echo "my.fifo exists") 2> my.fifo
+	// Example: "until [ -e my.fifo ]; do sleep 0.01; done; (echo \"my.fifo exists\") 2> my.fifo".
 	stderrWrapperCommandFormat = "until [ -e %s ]; do sleep 0.01; done; (%s) 2> %s"
 )
 

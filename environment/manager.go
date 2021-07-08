@@ -34,19 +34,18 @@ type Manager interface {
 		id runner.EnvironmentID,
 		request dto.ExecutionEnvironmentRequest,
 	) (bool, error)
-
-	// Delete removes the execution environment with the given id from the executor.
-	Delete(id string)
 }
 
-func NewNomadEnvironmentManager(runnerManager runner.Manager,
-	apiClient nomad.ExecutorAPI) (m *NomadEnvironmentManager) {
-	m = &NomadEnvironmentManager{runnerManager, apiClient, *parseJob(templateEnvironmentJobHCL)}
+func NewNomadEnvironmentManager(
+	runnerManager runner.Manager,
+	apiClient nomad.ExecutorAPI,
+) *NomadEnvironmentManager {
+	m := &NomadEnvironmentManager{runnerManager, apiClient, *parseJob(templateEnvironmentJobHCL)}
 	if err := m.Load(); err != nil {
 		log.WithError(err).Error("Error recovering the execution environments")
 	}
 	runnerManager.Load()
-	return
+	return m
 }
 
 type NomadEnvironmentManager struct {
@@ -64,18 +63,14 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 		request.Image, request.NetworkAccess, request.ExposedPorts)
 
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error registering template job in API: %w", err)
 	}
 
 	created, err := m.runnerManager.CreateOrUpdateEnvironment(id, request.PrewarmingPoolSize, templateJob, true)
 	if err != nil {
-		return created, err
+		return created, fmt.Errorf("error updating environment in runner manager: %w", err)
 	}
 	return created, nil
-}
-
-func (m *NomadEnvironmentManager) Delete(id string) {
-
 }
 
 func (m *NomadEnvironmentManager) Load() error {

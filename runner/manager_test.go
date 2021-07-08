@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"errors"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -129,8 +128,9 @@ func (s *ManagerTestSuite) TestClaimThrowsAnErrorIfNoRunnersAvailable() {
 
 func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 	s.AddIdleRunnerForDefaultEnvironment(s.exerciseRunner)
-	receivedRunner, _ := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
-	savedRunner, ok := s.nomadRunnerManager.usedRunners.Get(receivedRunner.Id())
+	receivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
+	s.Require().NoError(err)
+	savedRunner, ok := s.nomadRunnerManager.usedRunners.Get(receivedRunner.ID())
 	s.True(ok)
 	s.Equal(savedRunner, receivedRunner)
 }
@@ -147,7 +147,7 @@ func (s *ManagerTestSuite) TestTwoClaimsAddExactlyTwoRunners() {
 
 func (s *ManagerTestSuite) TestGetReturnsRunnerIfRunnerIsUsed() {
 	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner)
-	savedRunner, err := s.nomadRunnerManager.Get(s.exerciseRunner.Id())
+	savedRunner, err := s.nomadRunnerManager.Get(s.exerciseRunner.ID())
 	s.NoError(err)
 	s.Equal(savedRunner, s.exerciseRunner)
 }
@@ -163,7 +163,7 @@ func (s *ManagerTestSuite) TestReturnRemovesRunnerFromUsedRunners() {
 	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Nil(err)
-	_, ok := s.nomadRunnerManager.usedRunners.Get(s.exerciseRunner.Id())
+	_, ok := s.nomadRunnerManager.usedRunners.Get(s.exerciseRunner.ID())
 	s.False(ok)
 }
 
@@ -171,11 +171,11 @@ func (s *ManagerTestSuite) TestReturnCallsDeleteRunnerApiMethod() {
 	s.apiMock.On("DeleteRunner", mock.AnythingOfType("string")).Return(nil)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Nil(err)
-	s.apiMock.AssertCalled(s.T(), "DeleteRunner", s.exerciseRunner.Id())
+	s.apiMock.AssertCalled(s.T(), "DeleteRunner", s.exerciseRunner.ID())
 }
 
 func (s *ManagerTestSuite) TestReturnReturnsErrorWhenApiCallFailed() {
-	s.apiMock.On("DeleteRunner", mock.AnythingOfType("string")).Return(errors.New("return failed"))
+	s.apiMock.On("DeleteRunner", mock.AnythingOfType("string")).Return(tests.ErrDefault)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Error(err)
 }

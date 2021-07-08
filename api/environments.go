@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
@@ -14,6 +15,8 @@ const (
 	executionEnvironmentIDKey = "executionEnvironmentId"
 	createOrUpdateRouteName   = "createOrUpdate"
 )
+
+var ErrMissingURLParameter = errors.New("url parameter missing")
 
 type EnvironmentController struct {
 	manager environment.Manager
@@ -35,7 +38,7 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 
 	id, ok := mux.Vars(request)[executionEnvironmentIDKey]
 	if !ok {
-		writeBadRequest(writer, fmt.Errorf("could not find %s", executionEnvironmentIDKey))
+		writeBadRequest(writer, fmt.Errorf("could not find %s: %w", executionEnvironmentIDKey, ErrMissingURLParameter))
 		return
 	}
 	environmentID, err := runner.NewEnvironmentID(id)
@@ -53,9 +56,4 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 	} else {
 		writer.WriteHeader(http.StatusNoContent)
 	}
-}
-
-// delete removes an execution environment from the executor
-func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http.Request) { // nolint:unused ToDo
-
 }

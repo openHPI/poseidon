@@ -20,53 +20,53 @@ type AuthenticationMiddlewareTestSuite struct {
 	httpAuthenticationMiddleware http.Handler
 }
 
-func (suite *AuthenticationMiddlewareTestSuite) SetupTest() {
+func (s *AuthenticationMiddlewareTestSuite) SetupTest() {
 	correctAuthenticationToken = []byte(testToken)
-	suite.recorder = httptest.NewRecorder()
+	s.recorder = httptest.NewRecorder()
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/test", nil)
 	if err != nil {
-		suite.T().Fatal(err)
+		s.T().Fatal(err)
 	}
-	suite.request = request
-	suite.httpAuthenticationMiddleware = HTTPAuthenticationMiddleware(
+	s.request = request
+	s.httpAuthenticationMiddleware = HTTPAuthenticationMiddleware(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
 }
 
-func (suite *AuthenticationMiddlewareTestSuite) TearDownTest() {
+func (s *AuthenticationMiddlewareTestSuite) TearDownTest() {
 	correctAuthenticationToken = []byte(nil)
 }
 
-func (suite *AuthenticationMiddlewareTestSuite) TestReturns401WhenHeaderUnset() {
-	suite.httpAuthenticationMiddleware.ServeHTTP(suite.recorder, suite.request)
-	assert.Equal(suite.T(), http.StatusUnauthorized, suite.recorder.Code)
+func (s *AuthenticationMiddlewareTestSuite) TestReturns401WhenHeaderUnset() {
+	s.httpAuthenticationMiddleware.ServeHTTP(s.recorder, s.request)
+	assert.Equal(s.T(), http.StatusUnauthorized, s.recorder.Code)
 }
 
-func (suite *AuthenticationMiddlewareTestSuite) TestReturns401WhenTokenWrong() {
-	suite.request.Header.Set(TokenHeader, "Wr0ngT0k3n")
-	suite.httpAuthenticationMiddleware.ServeHTTP(suite.recorder, suite.request)
-	assert.Equal(suite.T(), http.StatusUnauthorized, suite.recorder.Code)
+func (s *AuthenticationMiddlewareTestSuite) TestReturns401WhenTokenWrong() {
+	s.request.Header.Set(TokenHeader, "Wr0ngT0k3n")
+	s.httpAuthenticationMiddleware.ServeHTTP(s.recorder, s.request)
+	assert.Equal(s.T(), http.StatusUnauthorized, s.recorder.Code)
 }
 
-func (suite *AuthenticationMiddlewareTestSuite) TestWarnsWhenUnauthorized() {
+func (s *AuthenticationMiddlewareTestSuite) TestWarnsWhenUnauthorized() {
 	var hook *test.Hook
 	logger, hook := test.NewNullLogger()
 	log = logger.WithField("pkg", "api/auth")
 
-	suite.request.Header.Set(TokenHeader, "Wr0ngT0k3n")
-	suite.httpAuthenticationMiddleware.ServeHTTP(suite.recorder, suite.request)
+	s.request.Header.Set(TokenHeader, "Wr0ngT0k3n")
+	s.httpAuthenticationMiddleware.ServeHTTP(s.recorder, s.request)
 
-	assert.Equal(suite.T(), http.StatusUnauthorized, suite.recorder.Code)
-	assert.Equal(suite.T(), logrus.WarnLevel, hook.LastEntry().Level)
-	assert.Equal(suite.T(), hook.LastEntry().Data["token"], "Wr0ngT0k3n")
+	assert.Equal(s.T(), http.StatusUnauthorized, s.recorder.Code)
+	assert.Equal(s.T(), logrus.WarnLevel, hook.LastEntry().Level)
+	assert.Equal(s.T(), hook.LastEntry().Data["token"], "Wr0ngT0k3n")
 }
 
-func (suite *AuthenticationMiddlewareTestSuite) TestPassesWhenTokenCorrect() {
-	suite.request.Header.Set(TokenHeader, testToken)
-	suite.httpAuthenticationMiddleware.ServeHTTP(suite.recorder, suite.request)
+func (s *AuthenticationMiddlewareTestSuite) TestPassesWhenTokenCorrect() {
+	s.request.Header.Set(TokenHeader, testToken)
+	s.httpAuthenticationMiddleware.ServeHTTP(s.recorder, s.request)
 
-	assert.Equal(suite.T(), http.StatusOK, suite.recorder.Code)
+	assert.Equal(s.T(), http.StatusOK, s.recorder.Code)
 }
 
 func TestHTTPAuthenticationMiddleware(t *testing.T) {

@@ -19,7 +19,7 @@ type RunnerMock struct {
 }
 
 // Add provides a mock function with given fields: id, executionRequest
-func (_m *RunnerMock) Add(id ExecutionId, executionRequest *dto.ExecutionRequest) {
+func (_m *RunnerMock) Add(id ExecutionID, executionRequest *dto.ExecutionRequest) {
 	_m.Called(id, executionRequest)
 }
 
@@ -49,7 +49,7 @@ func (_m *RunnerMock) ExecuteInteractively(request *dto.ExecutionRequest, stdin 
 }
 
 // Id provides a mock function with given fields:
-func (_m *RunnerMock) Id() string {
+func (_m *RunnerMock) ID() string {
 	ret := _m.Called()
 
 	var r0 string
@@ -63,11 +63,11 @@ func (_m *RunnerMock) Id() string {
 }
 
 // Pop provides a mock function with given fields: id
-func (_m *RunnerMock) Pop(id ExecutionId) (*dto.ExecutionRequest, bool) {
+func (_m *RunnerMock) Pop(id ExecutionID) (*dto.ExecutionRequest, bool) {
 	ret := _m.Called(id)
 
 	var r0 *dto.ExecutionRequest
-	if rf, ok := ret.Get(0).(func(ExecutionId) *dto.ExecutionRequest); ok {
+	if rf, ok := ret.Get(0).(func(ExecutionID) *dto.ExecutionRequest); ok {
 		r0 = rf(id)
 	} else {
 		if ret.Get(0) != nil {
@@ -76,7 +76,7 @@ func (_m *RunnerMock) Pop(id ExecutionId) (*dto.ExecutionRequest, bool) {
 	}
 
 	var r1 bool
-	if rf, ok := ret.Get(1).(func(ExecutionId) bool); ok {
+	if rf, ok := ret.Get(1).(func(ExecutionID) bool); ok {
 		r1 = rf(id)
 	} else {
 		r1 = ret.Get(1).(bool)

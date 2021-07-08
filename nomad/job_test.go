@@ -140,22 +140,27 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 			assert.Equal(t, "bridge", networkResource.Mode)
 			require.Equal(t, len(ports), len(networkResource.DynamicPorts))
 
-			for _, expectedPort := range ports {
-				found := false
-				for _, actualPort := range networkResource.DynamicPorts {
-					if actualPort.To == int(expectedPort) {
-						found = true
-						break
-					}
-				}
-				assert.True(t, found, fmt.Sprintf("port list should contain %v", expectedPort))
-			}
+			assertExpectedPorts(t, ports, networkResource)
 
 			mode, ok := testTask.Config["network_mode"]
 			assert.True(t, ok)
 			assert.Equal(t, mode, "")
 		}
 	})
+}
+
+func assertExpectedPorts(t *testing.T, expectedPorts []uint16, networkResource *nomadApi.NetworkResource) {
+	t.Helper()
+	for _, expectedPort := range expectedPorts {
+		found := false
+		for _, actualPort := range networkResource.DynamicPorts {
+			if actualPort.To == int(expectedPort) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, fmt.Sprintf("port list should contain %v", expectedPort))
+	}
 }
 
 func TestConfigureTaskWhenNoTaskExists(t *testing.T) {

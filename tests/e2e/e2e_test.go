@@ -85,7 +85,7 @@ func createDefaultEnvironment() {
 		ExposedPorts:       nil,
 	}
 
-	resp, err := helpers.HttpPutJSON(path, request)
+	resp, err := helpers.HTTPPutJSON(path, request)
 	if err != nil || resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
 		log.WithError(err).Fatal("Couldn't create default environment for e2e tests")
 	}

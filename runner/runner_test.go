@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
@@ -21,7 +22,7 @@ import (
 
 func TestIdIsStored(t *testing.T) {
 	runner := NewNomadJob(tests.DefaultJobID, nil, nil)
-	assert.Equal(t, tests.DefaultJobID, runner.Id())
+	assert.Equal(t, tests.DefaultJobID, runner.ID())
 }
 
 func TestMarshalRunner(t *testing.T) {
@@ -38,7 +39,7 @@ func TestExecutionRequestIsStored(t *testing.T) {
 		TimeLimit:   10,
 		Environment: nil,
 	}
-	id := ExecutionId("test-execution")
+	id := ExecutionID("test-execution")
 	runner.Add(id, executionRequest)
 	storedExecutionRunner, ok := runner.Pop(id)
 
@@ -50,7 +51,8 @@ func TestNewContextReturnsNewContextWithRunner(t *testing.T) {
 	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil)
 	ctx := context.Background()
 	newCtx := NewContext(ctx, runner)
-	storedRunner := newCtx.Value(runnerContextKey).(Runner)
+	storedRunner, ok := newCtx.Value(runnerContextKey).(Runner)
+	require.True(t, ok)
 
 	assert.NotEqual(t, ctx, newCtx)
 	assert.Equal(t, runner, storedRunner)
@@ -106,12 +108,14 @@ func (s *ExecuteInteractivelyTestSuite) TestCallsApi() {
 	s.runner.ExecuteInteractively(request, nil, nil, nil)
 
 	time.Sleep(tests.ShortTimeout)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", tests.DefaultRunnerID, mock.Anything, request.FullCommand(), true, mock.Anything, mock.Anything, mock.Anything)
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", tests.DefaultRunnerID, mock.Anything, request.FullCommand(),
+		true, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
-		ctx := args.Get(1).(context.Context)
+		ctx, ok := args.Get(1).(context.Context)
+		s.Require().True(ok)
 		<-ctx.Done()
 	}).
 		Return(0, nil)
@@ -173,10 +177,14 @@ func (s *UpdateFileSystemTestSuite) SetupTest() {
 		id:               tests.DefaultRunnerID,
 		api:              s.apiMock,
 	}
-	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything,
+		mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
-			s.command = args.Get(2).([]string)
-			s.stdin = args.Get(4).(*bytes.Buffer)
+			var ok bool
+			s.command, ok = args.Get(2).([]string)
+			s.Require().True(ok)
+			s.stdin, ok = args.Get(4).(*bytes.Buffer)
+			s.Require().True(ok)
 		}).Return(0, nil)
 }
 
@@ -186,7 +194,8 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtr
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything)
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
+		false, mock.Anything, mock.Anything, mock.Anything)
 	s.Regexp("tar --extract --absolute-names", s.command)
 }
 
@@ -205,10 +214,12 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfA
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
-	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
+	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
+		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything)
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false,
+		mock.Anything, mock.Anything, mock.Anything)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
 	s.Len(tarFiles, 1)
@@ -219,8 +230,10 @@ func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 }
 
 func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFilePath() {
-	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
-	_ = s.runner.UpdateFileSystem(copyRequest)
+	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
+		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
+	err := s.runner.UpdateFileSystem(copyRequest)
+	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
 	s.Len(tarFiles, 1)
@@ -229,8 +242,10 @@ func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFil
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLocation() {
-	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.FileNameWithAbsolutePath, Content: []byte(tests.DefaultFileContent)}}}
-	_ = s.runner.UpdateFileSystem(copyRequest)
+	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
+		{Path: tests.FileNameWithAbsolutePath, Content: []byte(tests.DefaultFileContent)}}}
+	err := s.runner.UpdateFileSystem(copyRequest)
+	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
 	s.Len(tarFiles, 1)
@@ -239,7 +254,8 @@ func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLoc
 
 func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultDirectoryName, Content: []byte{}}}}
-	_ = s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest)
+	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
 	s.Len(tarFiles, 1)
@@ -253,7 +269,8 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{tests.DefaultFileName}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything)
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false,
+		mock.Anything, mock.Anything, mock.Anything)
 	s.Regexp(fmt.Sprintf("rm[^;]+%s' *;", regexp.QuoteMeta(tests.DefaultFileName)), s.command)
 }
 
@@ -261,7 +278,8 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{"/some/potentially/harmful'filename"}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, mock.Anything, mock.Anything, mock.Anything)
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false,
+		mock.Anything, mock.Anything, mock.Anything)
 	s.Contains(strings.Join(s.command, " "), "'/some/potentially/harmful'\\''filename'")
 }
 
@@ -285,7 +303,8 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 		if err != nil {
 			break
 		}
-		bf, _ := io.ReadAll(reader)
+		bf, err := io.ReadAll(reader)
+		s.Require().NoError(err)
 		files = append(files, TarFile{Name: hdr.Name, Content: string(bf), TypeFlag: hdr.Typeflag})
 	}
 	return files

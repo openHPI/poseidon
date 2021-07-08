@@ -3,7 +3,6 @@ package nomad
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,9 +28,9 @@ func TestLoadRunnersTestSuite(t *testing.T) {
 
 type LoadRunnersTestSuite struct {
 	suite.Suite
-	jobId                  string
+	jobID                  string
 	mock                   *apiQuerierMock
-	nomadApiClient         APIClient
+	nomadAPIClient         APIClient
 	availableRunner        *nomadApi.JobListStub
 	anotherAvailableRunner *nomadApi.JobListStub
 	pendingRunner          *nomadApi.JobListStub
@@ -39,10 +38,10 @@ type LoadRunnersTestSuite struct {
 }
 
 func (s *LoadRunnersTestSuite) SetupTest() {
-	s.jobId = tests.DefaultJobID
+	s.jobID = tests.DefaultJobID
 
 	s.mock = &apiQuerierMock{}
-	s.nomadApiClient = APIClient{apiQuerier: s.mock}
+	s.nomadAPIClient = APIClient{apiQuerier: s.mock}
 
 	s.availableRunner = newJobListStub(tests.DefaultJobID, structs.JobStatusRunning, 1)
 	s.anotherAvailableRunner = newJobListStub(tests.AnotherJobID, structs.JobStatusRunning, 1)
@@ -65,7 +64,7 @@ func (s *LoadRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return(nil, tests.ErrDefault)
 
-	returnedIds, err := s.nomadApiClient.LoadRunnerIDs(s.jobId)
+	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
 	s.Nil(returnedIds)
 	s.Equal(tests.ErrDefault, err)
 }
@@ -74,7 +73,7 @@ func (s *LoadRunnersTestSuite) TestReturnsNoErrorWhenUnderlyingApiCallDoesNot() 
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{}, nil)
 
-	_, err := s.nomadApiClient.LoadRunnerIDs(s.jobId)
+	_, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
 	s.NoError(err)
 }
 
@@ -82,7 +81,8 @@ func (s *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.availableRunner}, nil)
 
-	returnedIds, _ := s.nomadApiClient.LoadRunnerIDs(s.jobId)
+	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	s.Require().NoError(err)
 	s.Len(returnedIds, 1)
 	s.Equal(s.availableRunner.ID, returnedIds[0])
 }
@@ -91,7 +91,8 @@ func (s *LoadRunnersTestSuite) TestPendingRunnerIsNotReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.pendingRunner}, nil)
 
-	returnedIds, _ := s.nomadApiClient.LoadRunnerIDs(s.jobId)
+	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	s.Require().NoError(err)
 	s.Empty(returnedIds)
 }
 
@@ -99,7 +100,8 @@ func (s *LoadRunnersTestSuite) TestDeadRunnerIsNotReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.deadRunner}, nil)
 
-	returnedIds, _ := s.nomadApiClient.LoadRunnerIDs(s.jobId)
+	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	s.Require().NoError(err)
 	s.Empty(returnedIds)
 }
 
@@ -113,7 +115,8 @@ func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return(runnersList, nil)
 
-	returnedIds, _ := s.nomadApiClient.LoadRunnerIDs(s.jobId)
+	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	s.Require().NoError(err)
 	s.Len(returnedIds, 2)
 	s.Contains(returnedIds, s.availableRunner.ID)
 	s.Contains(returnedIds, s.anotherAvailableRunner.ID)
@@ -189,12 +192,11 @@ func TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClosed(t *testing.T) {
 
 func TestApiClient_MonitorEvaluationReturnsErrorWhenStreamReturnsError(t *testing.T) {
 	apiMock := &apiQuerierMock{}
-	expectedErr := errors.New("test error")
 	apiMock.On("EvaluationStream", mock.AnythingOfType("string"), mock.AnythingOfType("*context.emptyCtx")).
-		Return(nil, expectedErr)
+		Return(nil, tests.ErrDefault)
 	apiClient := &APIClient{apiMock}
 	err := apiClient.MonitorEvaluation("id", context.Background())
-	assert.ErrorIs(t, err, expectedErr)
+	assert.ErrorIs(t, err, tests.ErrDefault)
 }
 
 type eventPayload struct {
@@ -205,10 +207,11 @@ type eventPayload struct {
 // eventForEvaluation takes an evaluation and creates an Event with the given evaluation
 // as its payload. Nomad uses the mapstructure library to decode the payload, which we
 // simply reverse here.
-func eventForEvaluation(t *testing.T, eval nomadApi.Evaluation) nomadApi.Event {
+func eventForEvaluation(t *testing.T, eval *nomadApi.Evaluation) nomadApi.Event {
+	t.Helper()
 	payload := make(map[string]interface{})
 
-	err := mapstructure.Decode(eventPayload{Evaluation: &eval}, &payload)
+	err := mapstructure.Decode(eventPayload{Evaluation: eval}, &payload)
 	if err != nil {
 		t.Fatalf("Couldn't decode evaluation %v into payload map", eval)
 		return nomadApi.Event{}
@@ -259,10 +262,10 @@ func TestApiClient_MonitorEvaluationWithSuccessfulEvent(t *testing.T) {
 	// make sure that the tested function can complete
 	require.Nil(t, checkEvaluation(&eval))
 
-	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, eval)}}
-	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, pendingEval)}}
+	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, &eval)}}
+	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, &pendingEval)}}
 	multipleEventsWithPending := nomadApi.Events{Events: []nomadApi.Event{
-		eventForEvaluation(t, pendingEval), eventForEvaluation(t, eval),
+		eventForEvaluation(t, &pendingEval), eventForEvaluation(t, &eval),
 	}}
 
 	var cases = []struct {
@@ -298,10 +301,10 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 
 	pendingEval := nomadApi.Evaluation{Status: structs.EvalStatusPending}
 
-	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, eval)}}
-	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, pendingEval)}}
+	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, &eval)}}
+	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, &pendingEval)}}
 	multipleEventsWithPending := nomadApi.Events{Events: []nomadApi.Event{
-		eventForEvaluation(t, pendingEval), eventForEvaluation(t, eval),
+		eventForEvaluation(t, &pendingEval), eventForEvaluation(t, &eval),
 	}}
 	eventsWithErr := nomadApi.Events{Err: tests.ErrDefault, Events: []nomadApi.Event{{}}}
 
@@ -390,7 +393,8 @@ func TestCheckEvaluationWithoutFailedAllocations(t *testing.T) {
 	})
 
 	t.Run("when evaluation status not complete", func(t *testing.T) {
-		incompleteStates := []string{structs.EvalStatusFailed, structs.EvalStatusCancelled, structs.EvalStatusBlocked, structs.EvalStatusPending}
+		incompleteStates := []string{structs.EvalStatusFailed, structs.EvalStatusCancelled,
+			structs.EvalStatusBlocked, structs.EvalStatusPending}
 		for _, status := range incompleteStates {
 			evaluation.Status = status
 			err := checkEvaluation(&evaluation)
@@ -741,7 +745,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError()
 	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
 	_, err := s.nomadAPIClient.
 		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, util.NullReader{}, io.Discard, io.Discard)
-	s.Equal(tests.ErrDefault, err)
+	s.ErrorIs(err, tests.ErrDefault)
 }
 
 func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,

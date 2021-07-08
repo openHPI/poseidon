@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"errors"
+	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"io"
 	"net/url"
@@ -21,13 +22,13 @@ type apiQuerier interface {
 	LoadJobList() (list []*nomadApi.JobListStub, err error)
 
 	// JobScale returns the scale of the passed job.
-	JobScale(jobId string) (jobScale uint, err error)
+	JobScale(jobID string) (jobScale uint, err error)
 
 	// SetJobScale sets the scaling count of the passed job to Nomad.
-	SetJobScale(jobId string, count uint, reason string) (err error)
+	SetJobScale(jobID string, count uint, reason string) (err error)
 
-	// DeleteRunner deletes the runner with the given Id.
-	DeleteRunner(runnerId string) (err error)
+	// DeleteRunner deletes the runner with the given ID.
+	DeleteRunner(runnerID string) (err error)
 
 	// Execute runs a command in the passed job.
 	Execute(jobID string, ctx context.Context, command []string, tty bool,
@@ -63,8 +64,11 @@ func (nc *nomadAPIClient) init(nomadURL *url.URL, nomadNamespace string) (err er
 		TLSConfig: &nomadApi.TLSConfig{},
 		Namespace: nomadNamespace,
 	})
+	if err != nil {
+		return fmt.Errorf("error creating new Nomad client: %w", err)
+	}
 	nc.namespace = nomadNamespace
-	return err
+	return nil
 }
 
 func (nc *nomadAPIClient) DeleteRunner(runnerID string) (err error) {
@@ -74,32 +78,43 @@ func (nc *nomadAPIClient) DeleteRunner(runnerID string) (err error) {
 
 func (nc *nomadAPIClient) Execute(runnerID string,
 	ctx context.Context, command []string, tty bool,
-	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	stdin io.Reader, stdout, stderr io.Writer,
+) (int, error) {
 	allocations, _, err := nc.client.Jobs().Allocations(runnerID, false, nil)
+	if err != nil {
+		return 1, fmt.Errorf("error retrieving allocations for runner: %w", err)
+	}
 	if len(allocations) == 0 {
 		return 1, ErrorNoAllocationFound
 	}
 	allocation, _, err := nc.client.Allocations().Info(allocations[0].ID, nil)
 	if err != nil {
-		return 1, err
+		return 1, fmt.Errorf("error retrieving allocation info: %w", err)
 	}
-	return nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
+	exitCode, err := nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
+	if err != nil {
+		return 1, fmt.Errorf("error executing command in allocation: %w", err)
+	}
+	return exitCode, nil
 }
 
-func (nc *nomadAPIClient) listJobs(prefix string) (jobs []*nomadApi.JobListStub, err error) {
+func (nc *nomadAPIClient) listJobs(prefix string) ([]*nomadApi.JobListStub, error) {
 	q := nomadApi.QueryOptions{
 		Namespace: nc.namespace,
 		Prefix:    prefix,
 	}
-	jobs, _, err = nc.client.Jobs().List(&q)
-	return
+	jobs, _, err := nc.client.Jobs().List(&q)
+	if err != nil {
+		return nil, fmt.Errorf("error listing Nomad jobs: %w", err)
+	}
+	return jobs, nil
 }
 
 func (nc *nomadAPIClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
 	job.Namespace = &nc.namespace
 	resp, _, err := nc.client.Jobs().Register(job, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error registering Nomad job: %w", err)
 	}
 	if resp.Warnings != "" {
 		log.
@@ -110,26 +125,32 @@ func (nc *nomadAPIClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
 	return resp.EvalID, nil
 }
 
-func (nc *nomadAPIClient) EvaluationStream(evalID string, ctx context.Context) (stream <-chan *nomadApi.Events, err error) {
-	stream, err = nc.client.EventStream().Stream(
+func (nc *nomadAPIClient) EvaluationStream(evalID string, ctx context.Context) (<-chan *nomadApi.Events, error) {
+	stream, err := nc.client.EventStream().Stream(
 		ctx,
 		map[nomadApi.Topic][]string{
 			nomadApi.TopicEvaluation: {evalID},
 		},
 		0,
 		nc.queryOptions())
-	return
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving Nomad Evaluation event stream: %w", err)
+	}
+	return stream, nil
 }
 
-func (nc *nomadAPIClient) AllocationStream(ctx context.Context) (stream <-chan *nomadApi.Events, err error) {
-	stream, err = nc.client.EventStream().Stream(
+func (nc *nomadAPIClient) AllocationStream(ctx context.Context) (<-chan *nomadApi.Events, error) {
+	stream, err := nc.client.EventStream().Stream(
 		ctx,
 		map[nomadApi.Topic][]string{
 			nomadApi.TopicAllocation: {},
 		},
 		0,
 		nc.queryOptions())
-	return
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving Nomad Allocation event stream: %w", err)
+	}
+	return stream, nil
 }
 
 func (nc *nomadAPIClient) queryOptions() *nomadApi.QueryOptions {
@@ -151,14 +172,14 @@ func (nc *nomadAPIClient) LoadJobList() (list []*nomadApi.JobListStub, err error
 }
 
 // JobScale returns the scale of the passed job.
-func (nc *nomadAPIClient) JobScale(jobID string) (jobScale uint, err error) {
+func (nc *nomadAPIClient) JobScale(jobID string) (uint, error) {
 	status, _, err := nc.client.Jobs().ScaleStatus(jobID, nc.queryOptions())
 	if err != nil {
-		return
+		return 0, fmt.Errorf("error retrieving scale status of job: %w", err)
 	}
 	// ToDo: Consider counting also the placed and desired allocations
-	jobScale = uint(status.TaskGroups[TaskGroupName].Running)
-	return
+	jobScale := uint(status.TaskGroups[TaskGroupName].Running)
+	return jobScale, nil
 }
 
 // SetJobScale sets the scaling count of the passed job to Nomad.

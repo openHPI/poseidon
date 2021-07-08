@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/sirupsen/logrus"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/nomad"
 	"strconv"
@@ -127,7 +128,8 @@ func (m *NomadRunnerManager) updateEnvironment(id EnvironmentID, desiredIdleRunn
 	}
 	environment.desiredIdleRunnersCount = desiredIdleRunnersCount
 	environment.templateJob = newTemplateJob
-	err := nomad.SetMetaConfigValue(newTemplateJob, nomad.ConfigMetaPoolSizeKey, strconv.Itoa(int(desiredIdleRunnersCount)))
+	err := nomad.SetMetaConfigValue(newTemplateJob, nomad.ConfigMetaPoolSizeKey,
+		strconv.Itoa(int(desiredIdleRunnersCount)))
 	if err != nil {
 		return fmt.Errorf("update environment couldn't update template environment: %w", err)
 	}
@@ -177,7 +179,7 @@ func (m *NomadRunnerManager) Claim(environmentID EnvironmentID, duration int) (R
 		return nil, ErrNoRunnersAvailable
 	}
 	m.usedRunners.Add(runner)
-	err := m.apiClient.MarkRunnerAsUsed(runner.Id(), duration)
+	err := m.apiClient.MarkRunnerAsUsed(runner.ID(), duration)
 	if err != nil {
 		return nil, fmt.Errorf("can't mark runner as used: %w", err)
 	}
@@ -200,14 +202,14 @@ func (m *NomadRunnerManager) Get(runnerID string) (Runner, error) {
 	return runner, nil
 }
 
-func (m *NomadRunnerManager) Return(r Runner) (err error) {
+func (m *NomadRunnerManager) Return(r Runner) error {
 	r.StopTimeout()
-	err = m.apiClient.DeleteRunner(r.Id())
+	err := m.apiClient.DeleteRunner(r.ID())
 	if err != nil {
-		return
+		return fmt.Errorf("error deleting runner in Nomad: %w", err)
 	}
-	m.usedRunners.Delete(r.Id())
-	return
+	m.usedRunners.Delete(r.ID())
+	return nil
 }
 
 func (m *NomadRunnerManager) Load() {
@@ -218,29 +220,35 @@ func (m *NomadRunnerManager) Load() {
 			environmentLogger.WithError(err).Warn("Error fetching the runner jobs")
 		}
 		for _, job := range runnerJobs {
-			configTaskGroup := nomad.FindConfigTaskGroup(job)
-			if configTaskGroup == nil {
-				environmentLogger.Infof("Couldn't find config task group in job %s, skipping ...", *job.ID)
-				continue
-			}
-			isUsed := configTaskGroup.Meta[nomad.ConfigMetaUsedKey] == nomad.ConfigMetaUsedValue
-			newJob := NewNomadJob(*job.ID, m.apiClient, m)
-			if isUsed {
-				m.usedRunners.Add(newJob)
-				timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])
-				if err != nil {
-					log.WithError(err).Warn("Error loading timeout from meta values")
-				} else {
-					newJob.SetupTimeout(time.Duration(timeout) * time.Second)
-				}
-			} else {
-				environment.idleRunners.Add(newJob)
-			}
+			m.loadSingleJob(job, environmentLogger, environment)
 		}
 		err = m.scaleEnvironment(environment.ID())
 		if err != nil {
 			environmentLogger.Error("Couldn't scale environment")
 		}
+	}
+}
+
+func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger *logrus.Entry,
+	environment *NomadEnvironment,
+) {
+	configTaskGroup := nomad.FindConfigTaskGroup(job)
+	if configTaskGroup == nil {
+		environmentLogger.Infof("Couldn't find config task group in job %s, skipping ...", *job.ID)
+		return
+	}
+	isUsed := configTaskGroup.Meta[nomad.ConfigMetaUsedKey] == nomad.ConfigMetaUsedValue
+	newJob := NewNomadJob(*job.ID, m.apiClient, m)
+	if isUsed {
+		m.usedRunners.Add(newJob)
+		timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])
+		if err != nil {
+			environmentLogger.WithError(err).Warn("Error loading timeout from meta values")
+		} else {
+			newJob.SetupTimeout(time.Duration(timeout) * time.Second)
+		}
+	} else {
+		environment.idleRunners.Add(newJob)
 	}
 }
 
@@ -319,7 +327,7 @@ func (m *NomadRunnerManager) createRunners(environment *NomadEnvironment, count 
 func (m *NomadRunnerManager) createRunner(environment *NomadEnvironment) error {
 	newUUID, err := uuid.NewUUID()
 	if err != nil {
-		return fmt.Errorf("failed generating runner id")
+		return fmt.Errorf("failed generating runner id: %w", err)
 	}
 	newRunnerID := RunnerJobID(environment.ID(), newUUID.String())
 
@@ -327,7 +335,11 @@ func (m *NomadRunnerManager) createRunner(environment *NomadEnvironment) error {
 	template.ID = &newRunnerID
 	template.Name = &newRunnerID
 
-	return m.apiClient.RegisterRunnerJob(&template)
+	err = m.apiClient.RegisterRunnerJob(&template)
+	if err != nil {
+		return fmt.Errorf("error registering new runner job: %w", err)
+	}
+	return nil
 }
 
 func (m *NomadRunnerManager) removeRunners(environment *NomadEnvironment, count uint) error {
@@ -337,7 +349,7 @@ func (m *NomadRunnerManager) removeRunners(environment *NomadEnvironment, count 
 		if !ok {
 			return fmt.Errorf("could not delete expected idle runner: %w", ErrRunnerNotFound)
 		}
-		err := m.apiClient.DeleteRunner(r.Id())
+		err := m.apiClient.DeleteRunner(r.ID())
 		if err != nil {
 			return fmt.Errorf("could not delete expected Nomad idle runner: %w", err)
 		}
@@ -345,9 +357,9 @@ func (m *NomadRunnerManager) removeRunners(environment *NomadEnvironment, count 
 	return nil
 }
 
-// RunnerJobID returns the nomad job id of the runner with the given environment id and uuid.
-func RunnerJobID(environmentID EnvironmentID, uuid string) string {
-	return fmt.Sprintf("%d-%s", environmentID, uuid)
+// RunnerJobID returns the nomad job id of the runner with the given environmentID and id.
+func RunnerJobID(environmentID EnvironmentID, id string) string {
+	return fmt.Sprintf("%d-%s", environmentID, id)
 }
 
 // EnvironmentIDFromJobID returns the environment id that is part of the passed job id.
@@ -363,6 +375,8 @@ func EnvironmentIDFromJobID(jobID string) (EnvironmentID, error) {
 	return EnvironmentID(environmentID), nil
 }
 
+const templateJobNameParts = 2
+
 // TemplateJobID returns the id of the template job for the environment with the given id.
 func TemplateJobID(id EnvironmentID) string {
 	return fmt.Sprintf("%s-%d", nomad.TemplateJobPrefix, id)
@@ -371,12 +385,12 @@ func TemplateJobID(id EnvironmentID) string {
 // IsEnvironmentTemplateID checks if the passed job id belongs to a template job.
 func IsEnvironmentTemplateID(jobID string) bool {
 	parts := strings.Split(jobID, "-")
-	return len(parts) == 2 && parts[0] == nomad.TemplateJobPrefix
+	return len(parts) == templateJobNameParts && parts[0] == nomad.TemplateJobPrefix
 }
 
 func EnvironmentIDFromTemplateJobID(id string) (string, error) {
 	parts := strings.Split(id, "-")
-	if len(parts) < 2 {
+	if len(parts) < templateJobNameParts {
 		return "", fmt.Errorf("invalid template job id: %w", ErrorInvalidJobID)
 	}
 	return parts[1], nil

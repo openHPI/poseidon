@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -34,144 +33,146 @@ func TestWebSocketTestSuite(t *testing.T) {
 type WebSocketTestSuite struct {
 	suite.Suite
 	router      *mux.Router
-	executionId runner.ExecutionId
+	executionID runner.ExecutionID
 	runner      runner.Runner
 	apiMock     *nomad.ExecutorAPIMock
 	server      *httptest.Server
 }
 
-func (suite *WebSocketTestSuite) SetupTest() {
-	runnerId := "runner-id"
-	suite.runner, suite.apiMock = newNomadAllocationWithMockedApiClient(runnerId)
+func (s *WebSocketTestSuite) SetupTest() {
+	runnerID := "runner-id"
+	s.runner, s.apiMock = newNomadAllocationWithMockedAPIClient(runnerID)
 
 	// default execution
-	suite.executionId = "execution-id"
-	suite.runner.Add(suite.executionId, &executionRequestHead)
-	mockApiExecuteHead(suite.apiMock)
+	s.executionID = "execution-id"
+	s.runner.Add(s.executionID, &executionRequestHead)
+	mockAPIExecuteHead(s.apiMock)
 
 	runnerManager := &runner.ManagerMock{}
-	runnerManager.On("Get", suite.runner.Id()).Return(suite.runner, nil)
-	suite.router = NewRouter(runnerManager, nil)
-	suite.server = httptest.NewServer(suite.router)
+	runnerManager.On("Get", s.runner.ID()).Return(s.runner, nil)
+	s.router = NewRouter(runnerManager, nil)
+	s.server = httptest.NewServer(s.router)
 }
 
-func (suite *WebSocketTestSuite) TearDownTest() {
-	suite.server.Close()
+func (s *WebSocketTestSuite) TearDownTest() {
+	s.server.Close()
 }
 
-func (suite *WebSocketTestSuite) TestWebsocketConnectionCanBeEstablished() {
-	wsUrl, err := suite.webSocketUrl("ws", suite.runner.Id(), suite.executionId)
-	suite.Require().NoError(err)
-	_, _, err = websocket.DefaultDialer.Dial(wsUrl.String(), nil)
-	suite.Require().NoError(err)
+func (s *WebSocketTestSuite) TestWebsocketConnectionCanBeEstablished() {
+	wsURL, err := s.webSocketURL("ws", s.runner.ID(), s.executionID)
+	s.Require().NoError(err)
+	_, _, err = websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	s.Require().NoError(err)
 }
 
-func (suite *WebSocketTestSuite) TestWebsocketReturns404IfExecutionDoesNotExist() {
-	wsUrl, err := suite.webSocketUrl("ws", suite.runner.Id(), "invalid-execution-id")
-	suite.Require().NoError(err)
-	_, response, _ := websocket.DefaultDialer.Dial(wsUrl.String(), nil)
-	suite.Equal(http.StatusNotFound, response.StatusCode)
+func (s *WebSocketTestSuite) TestWebsocketReturns404IfExecutionDoesNotExist() {
+	wsURL, err := s.webSocketURL("ws", s.runner.ID(), "invalid-execution-id")
+	s.Require().NoError(err)
+	_, response, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	s.Require().ErrorIs(err, websocket.ErrBadHandshake)
+	s.Equal(http.StatusNotFound, response.StatusCode)
 }
 
-func (suite *WebSocketTestSuite) TestWebsocketReturns400IfRequestedViaHttp() {
-	wsUrl, err := suite.webSocketUrl("http", suite.runner.Id(), suite.executionId)
-	suite.Require().NoError(err)
-	response, err := http.Get(wsUrl.String())
-	suite.Require().NoError(err)
+func (s *WebSocketTestSuite) TestWebsocketReturns400IfRequestedViaHttp() {
+	wsURL, err := s.webSocketURL("http", s.runner.ID(), s.executionID)
+	s.Require().NoError(err)
+	response, err := http.Get(wsURL.String())
+	s.Require().NoError(err)
 	// This functionality is implemented by the WebSocket library.
-	suite.Equal(http.StatusBadRequest, response.StatusCode)
+	s.Equal(http.StatusBadRequest, response.StatusCode)
 }
 
-func (suite *WebSocketTestSuite) TestWebsocketConnection() {
-	wsUrl, err := suite.webSocketUrl("ws", suite.runner.Id(), suite.executionId)
-	suite.Require().NoError(err)
-	connection, _, err := websocket.DefaultDialer.Dial(wsUrl.String(), nil)
-	suite.Require().NoError(err)
+func (s *WebSocketTestSuite) TestWebsocketConnection() {
+	wsURL, err := s.webSocketURL("ws", s.runner.ID(), s.executionID)
+	s.Require().NoError(err)
+	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	s.Require().NoError(err)
 	err = connection.SetReadDeadline(time.Now().Add(5 * time.Second))
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	suite.Run("Receives start message", func() {
+	s.Run("Receives start message", func() {
 		message, err := helpers.ReceiveNextWebSocketMessage(connection)
-		suite.Require().NoError(err)
-		suite.Equal(dto.WebSocketMetaStart, message.Type)
+		s.Require().NoError(err)
+		s.Equal(dto.WebSocketMetaStart, message.Type)
 	})
 
-	suite.Run("Executes the request in the runner", func() {
+	s.Run("Executes the request in the runner", func() {
 		<-time.After(100 * time.Millisecond)
-		suite.apiMock.AssertCalled(suite.T(), "ExecuteCommand",
+		s.apiMock.AssertCalled(s.T(), "ExecuteCommand",
 			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
-	suite.Run("Can send input", func() {
+	s.Run("Can send input", func() {
 		err = connection.WriteMessage(websocket.TextMessage, []byte("Hello World\n"))
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 	})
 
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
-	suite.Require().Error(err)
-	suite.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+	s.Require().Error(err)
+	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 
-	suite.Run("Receives output message", func() {
+	s.Run("Receives output message", func() {
 		stdout, _, _ := helpers.WebSocketOutputMessages(messages)
-		suite.Equal("Hello World", stdout)
+		s.Equal("Hello World", stdout)
 	})
 
-	suite.Run("Receives exit message", func() {
+	s.Run("Receives exit message", func() {
 		controlMessages := helpers.WebSocketControlMessages(messages)
-		suite.Require().Equal(1, len(controlMessages))
-		suite.Equal(dto.WebSocketExit, controlMessages[0].Type)
+		s.Require().Equal(1, len(controlMessages))
+		s.Equal(dto.WebSocketExit, controlMessages[0].Type)
 	})
 }
 
-func (suite *WebSocketTestSuite) TestCancelWebSocketConnection() {
-	executionId := runner.ExecutionId("sleeping-execution")
-	suite.runner.Add(executionId, &executionRequestSleep)
-	canceled := mockApiExecuteSleep(suite.apiMock)
+func (s *WebSocketTestSuite) TestCancelWebSocketConnection() {
+	executionID := runner.ExecutionID("sleeping-execution")
+	s.runner.Add(executionID, &executionRequestSleep)
+	canceled := mockAPIExecuteSleep(s.apiMock)
 
-	wsUrl, err := webSocketUrl("ws", suite.server, suite.router, suite.runner.Id(), executionId)
-	suite.Require().NoError(err)
-	connection, _, err := websocket.DefaultDialer.Dial(wsUrl.String(), nil)
-	suite.Require().NoError(err)
+	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
+	s.Require().NoError(err)
+	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	s.Require().NoError(err)
 
 	message, err := helpers.ReceiveNextWebSocketMessage(connection)
-	suite.Require().NoError(err)
-	suite.Equal(dto.WebSocketMetaStart, message.Type)
+	s.Require().NoError(err)
+	s.Equal(dto.WebSocketMetaStart, message.Type)
 
 	select {
 	case <-canceled:
-		suite.Fail("ExecuteInteractively canceled unexpected")
+		s.Fail("ExecuteInteractively canceled unexpected")
 	default:
 	}
 
-	err = connection.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-	suite.Require().NoError(err)
+	err = connection.WriteControl(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+	s.Require().NoError(err)
 
 	select {
 	case <-canceled:
 	case <-time.After(time.Second):
-		suite.Fail("ExecuteInteractively not canceled")
+		s.Fail("ExecuteInteractively not canceled")
 	}
 }
 
-func (suite *WebSocketTestSuite) TestWebSocketConnectionTimeout() {
-	executionId := runner.ExecutionId("time-out-execution")
+func (s *WebSocketTestSuite) TestWebSocketConnectionTimeout() {
+	executionID := runner.ExecutionID("time-out-execution")
 	limitExecution := executionRequestSleep
 	limitExecution.TimeLimit = 2
-	suite.runner.Add(executionId, &limitExecution)
-	canceled := mockApiExecuteSleep(suite.apiMock)
+	s.runner.Add(executionID, &limitExecution)
+	canceled := mockAPIExecuteSleep(s.apiMock)
 
-	wsUrl, err := webSocketUrl("ws", suite.server, suite.router, suite.runner.Id(), executionId)
-	suite.Require().NoError(err)
-	connection, _, err := websocket.DefaultDialer.Dial(wsUrl.String(), nil)
-	suite.Require().NoError(err)
+	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
+	s.Require().NoError(err)
+	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	s.Require().NoError(err)
 
 	message, err := helpers.ReceiveNextWebSocketMessage(connection)
-	suite.Require().NoError(err)
-	suite.Equal(dto.WebSocketMetaStart, message.Type)
+	s.Require().NoError(err)
+	s.Equal(dto.WebSocketMetaStart, message.Type)
 
 	select {
 	case <-canceled:
-		suite.Fail("ExecuteInteractively canceled unexpected")
+		s.Fail("ExecuteInteractively canceled unexpected")
 	case <-time.After(time.Duration(limitExecution.TimeLimit-1) * time.Second):
 		<-time.After(time.Second)
 	}
@@ -179,94 +180,94 @@ func (suite *WebSocketTestSuite) TestWebSocketConnectionTimeout() {
 	select {
 	case <-canceled:
 	case <-time.After(time.Second):
-		suite.Fail("ExecuteInteractively not canceled")
+		s.Fail("ExecuteInteractively not canceled")
 	}
 
 	message, err = helpers.ReceiveNextWebSocketMessage(connection)
-	suite.Require().NoError(err)
-	suite.Equal(dto.WebSocketMetaTimeout, message.Type)
+	s.Require().NoError(err)
+	s.Equal(dto.WebSocketMetaTimeout, message.Type)
 }
 
-func (suite *WebSocketTestSuite) TestWebsocketStdoutAndStderr() {
-	executionId := runner.ExecutionId("ls-execution")
-	suite.runner.Add(executionId, &executionRequestLs)
-	mockApiExecuteLs(suite.apiMock)
+func (s *WebSocketTestSuite) TestWebsocketStdoutAndStderr() {
+	executionID := runner.ExecutionID("ls-execution")
+	s.runner.Add(executionID, &executionRequestLs)
+	mockAPIExecuteLs(s.apiMock)
 
-	wsUrl, err := webSocketUrl("ws", suite.server, suite.router, suite.runner.Id(), executionId)
-	suite.Require().NoError(err)
-	connection, _, err := websocket.DefaultDialer.Dial(wsUrl.String(), nil)
-	suite.Require().NoError(err)
+	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
+	s.Require().NoError(err)
+	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	s.Require().NoError(err)
 
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
-	suite.Require().Error(err)
-	suite.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+	s.Require().Error(err)
+	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 	stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
 
-	suite.Contains(stdout, "existing-file")
+	s.Contains(stdout, "existing-file")
 
-	suite.Contains(stderr, "non-existing-file")
+	s.Contains(stderr, "non-existing-file")
 }
 
-func (suite *WebSocketTestSuite) TestWebsocketError() {
-	executionId := runner.ExecutionId("error-execution")
-	suite.runner.Add(executionId, &executionRequestError)
-	mockApiExecuteError(suite.apiMock)
+func (s *WebSocketTestSuite) TestWebsocketError() {
+	executionID := runner.ExecutionID("error-execution")
+	s.runner.Add(executionID, &executionRequestError)
+	mockAPIExecuteError(s.apiMock)
 
-	wsUrl, err := webSocketUrl("ws", suite.server, suite.router, suite.runner.Id(), executionId)
-	suite.Require().NoError(err)
-	connection, _, err := websocket.DefaultDialer.Dial(wsUrl.String(), nil)
-	suite.Require().NoError(err)
+	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
+	s.Require().NoError(err)
+	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	s.Require().NoError(err)
 
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
-	suite.Require().Error(err)
-	suite.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+	s.Require().Error(err)
+	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 
 	_, _, errMessages := helpers.WebSocketOutputMessages(messages)
-	suite.Equal(1, len(errMessages))
-	suite.Equal("Error executing the request", errMessages[0])
+	s.Equal(1, len(errMessages))
+	s.Equal("Error executing the request", errMessages[0])
 }
 
-func (suite *WebSocketTestSuite) TestWebsocketNonZeroExit() {
-	executionId := runner.ExecutionId("exit-execution")
-	suite.runner.Add(executionId, &executionRequestExitNonZero)
-	mockApiExecuteExitNonZero(suite.apiMock)
+func (s *WebSocketTestSuite) TestWebsocketNonZeroExit() {
+	executionID := runner.ExecutionID("exit-execution")
+	s.runner.Add(executionID, &executionRequestExitNonZero)
+	mockAPIExecuteExitNonZero(s.apiMock)
 
-	wsUrl, err := webSocketUrl("ws", suite.server, suite.router, suite.runner.Id(), executionId)
-	suite.Require().NoError(err)
-	connection, _, err := websocket.DefaultDialer.Dial(wsUrl.String(), nil)
-	suite.Require().NoError(err)
+	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
+	s.Require().NoError(err)
+	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	s.Require().NoError(err)
 
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
-	suite.Require().Error(err)
-	suite.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+	s.Require().Error(err)
+	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 
 	controlMessages := helpers.WebSocketControlMessages(messages)
-	suite.Equal(2, len(controlMessages))
-	suite.Equal(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: 42}, controlMessages[1])
+	s.Equal(2, len(controlMessages))
+	s.Equal(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: 42}, controlMessages[1])
 }
 
 func TestWebsocketTLS(t *testing.T) {
-	runnerId := "runner-id"
-	r, apiMock := newNomadAllocationWithMockedApiClient(runnerId)
+	runnerID := "runner-id"
+	r, apiMock := newNomadAllocationWithMockedAPIClient(runnerID)
 
-	executionId := runner.ExecutionId("execution-id")
-	r.Add(executionId, &executionRequestLs)
-	mockApiExecuteLs(apiMock)
+	executionID := runner.ExecutionID("execution-id")
+	r.Add(executionID, &executionRequestLs)
+	mockAPIExecuteLs(apiMock)
 
 	runnerManager := &runner.ManagerMock{}
-	runnerManager.On("Get", r.Id()).Return(r, nil)
+	runnerManager.On("Get", r.ID()).Return(r, nil)
 	router := NewRouter(runnerManager, nil)
 
 	server, err := helpers.StartTLSServer(t, router)
 	require.NoError(t, err)
 	defer server.Close()
 
-	wsUrl, err := webSocketUrl("wss", server, router, runnerId, executionId)
+	wsURL, err := webSocketURL("wss", server, router, runnerID, executionID)
 	require.NoError(t, err)
 
-	config := &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
+	config := &tls.Config{RootCAs: nil, InsecureSkipVerify: true} //nolint:gosec // test needs self-signed cert
 	d := websocket.Dialer{TLSClientConfig: config}
-	connection, _, err := d.Dial(wsUrl.String(), nil)
+	connection, _, err := d.Dial(wsURL.String(), nil)
 	require.NoError(t, err)
 
 	message, err := helpers.ReceiveNextWebSocketMessage(connection)
@@ -274,7 +275,7 @@ func TestWebsocketTLS(t *testing.T) {
 	assert.Equal(t, dto.WebSocketMetaStart, message.Type)
 	_, err = helpers.ReceiveAllWebSocketMessages(connection)
 	require.Error(t, err)
-	assert.Equal(t, &websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+	assert.True(t, websocket.IsCloseError(err, websocket.CloseNormalClosure))
 }
 
 func TestRawToCodeOceanWriter(t *testing.T) {
@@ -284,7 +285,9 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 	connectionMock := &webSocketConnectionMock{}
 	connectionMock.On("WriteMessage", mock.AnythingOfType("int"), mock.AnythingOfType("[]uint8")).
 		Run(func(args mock.Arguments) {
-			message = args.Get(1).([]byte)
+			var ok bool
+			message, ok = args.Get(1).([]byte)
+			require.True(t, ok)
 		}).
 		Return(nil)
 	connectionMock.On("CloseHandler").Return(nil)
@@ -300,10 +303,11 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 	_, err = writer.Write([]byte(testMessage))
 	require.NoError(t, err)
 
-	expected, _ := json.Marshal(struct {
+	expected, err := json.Marshal(struct {
 		Type string `json:"type"`
 		Data string `json:"data"`
 	}{string(dto.WebSocketOutputStdout), testMessage})
+	require.NoError(t, err)
 	assert.Equal(t, expected, message)
 }
 
@@ -312,8 +316,10 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead(t *testing.T) {
 
 	read := make(chan bool)
 	go func() {
+		//nolint:makezero // we can't make zero initial length here as the reader otherwise doesn't block
 		p := make([]byte, 10)
-		_, _ = reader.Read(p)
+		_, err := reader.Read(p)
+		require.NoError(t, err)
 		read <- true
 	}()
 
@@ -340,13 +346,15 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 	})
 
 	reader := newCodeOceanToRawReader(connection)
-	cancel := reader.readInputLoop()
+	cancel := reader.startReadInputLoop()
 	defer cancel()
 
 	read := make(chan bool)
+	//nolint:makezero // this is required here to make the Read call blocking
 	message := make([]byte, 10)
 	go func() {
-		_, _ = reader.Read(message)
+		_, err := reader.Read(message)
+		require.NoError(t, err)
 		read <- true
 	}()
 
@@ -362,36 +370,39 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 
 // --- Test suite specific test helpers ---
 
-func newNomadAllocationWithMockedApiClient(runnerId string) (r runner.Runner, mock *nomad.ExecutorAPIMock) {
-	mock = &nomad.ExecutorAPIMock{}
-	r = runner.NewNomadJob(runnerId, mock, nil)
+func newNomadAllocationWithMockedAPIClient(runnerID string) (r runner.Runner, executorAPIMock *nomad.ExecutorAPIMock) {
+	executorAPIMock = &nomad.ExecutorAPIMock{}
+	r = runner.NewNomadJob(runnerID, executorAPIMock, nil)
 	return
 }
 
-func webSocketUrl(scheme string, server *httptest.Server, router *mux.Router, runnerId string, executionId runner.ExecutionId) (*url.URL, error) {
-	websocketUrl, err := url.Parse(server.URL)
+func webSocketURL(scheme string, server *httptest.Server, router *mux.Router,
+	runnerID string, executionID runner.ExecutionID,
+) (*url.URL, error) {
+	websocketURL, err := url.Parse(server.URL)
 	if err != nil {
 		return nil, err
 	}
-	path, err := router.Get(WebsocketPath).URL(RunnerIdKey, runnerId)
+	path, err := router.Get(WebsocketPath).URL(RunnerIDKey, runnerID)
 	if err != nil {
 		return nil, err
 	}
-	websocketUrl.Scheme = scheme
-	websocketUrl.Path = path.Path
-	websocketUrl.RawQuery = fmt.Sprintf("executionId=%s", executionId)
-	return websocketUrl, nil
+	websocketURL.Scheme = scheme
+	websocketURL.Path = path.Path
+	websocketURL.RawQuery = fmt.Sprintf("executionID=%s", executionID)
+	return websocketURL, nil
 }
 
-func (suite *WebSocketTestSuite) webSocketUrl(scheme, runnerId string, executionId runner.ExecutionId) (*url.URL, error) {
-	return webSocketUrl(scheme, suite.server, suite.router, runnerId, executionId)
+func (s *WebSocketTestSuite) webSocketURL(scheme, runnerID string, executionID runner.ExecutionID) (*url.URL, error) {
+	return webSocketURL(scheme, s.server, s.router, runnerID, executionID)
 }
 
 var executionRequestLs = dto.ExecutionRequest{Command: "ls"}
 
-// mockApiExecuteLs mocks the ExecuteCommand of an ExecutorApi to act as if 'ls existing-file non-existing-file' was executed.
-func mockApiExecuteLs(api *nomad.ExecutorAPIMock) {
-	mockApiExecute(api, &executionRequestLs,
+// mockAPIExecuteLs mocks the ExecuteCommand of an ExecutorApi to act as if
+// 'ls existing-file non-existing-file' was executed.
+func mockAPIExecuteLs(api *nomad.ExecutorAPIMock) {
+	mockAPIExecute(api, &executionRequestLs,
 		func(_ string, _ context.Context, _ []string, _ bool, _ io.Reader, stdout, stderr io.Writer) (int, error) {
 			_, _ = stdout.Write([]byte("existing-file\n"))
 			_, _ = stderr.Write([]byte("ls: cannot access 'non-existing-file': No such file or directory\n"))
@@ -401,10 +412,12 @@ func mockApiExecuteLs(api *nomad.ExecutorAPIMock) {
 
 var executionRequestHead = dto.ExecutionRequest{Command: "head -n 1"}
 
-// mockApiExecuteHead mocks the ExecuteCommand of an ExecutorApi to act as if 'head -n 1' was executed.
-func mockApiExecuteHead(api *nomad.ExecutorAPIMock) {
-	mockApiExecute(api, &executionRequestHead,
-		func(_ string, _ context.Context, _ []string, _ bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+// mockAPIExecuteHead mocks the ExecuteCommand of an ExecutorApi to act as if 'head -n 1' was executed.
+func mockAPIExecuteHead(api *nomad.ExecutorAPIMock) {
+	mockAPIExecute(api, &executionRequestHead,
+		func(_ string, _ context.Context, _ []string, _ bool,
+			stdin io.Reader, stdout io.Writer, stderr io.Writer,
+		) (int, error) {
 			scanner := bufio.NewScanner(stdin)
 			for !scanner.Scan() {
 				scanner = bufio.NewScanner(stdin)
@@ -416,11 +429,13 @@ func mockApiExecuteHead(api *nomad.ExecutorAPIMock) {
 
 var executionRequestSleep = dto.ExecutionRequest{Command: "sleep infinity"}
 
-// mockApiExecuteSleep mocks the ExecuteCommand method of an ExecutorAPI to sleep until the execution is canceled.
-func mockApiExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
+// mockAPIExecuteSleep mocks the ExecuteCommand method of an ExecutorAPI to sleep until the execution is canceled.
+func mockAPIExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 	canceled := make(chan bool, 1)
-	mockApiExecute(api, &executionRequestSleep,
-		func(_ string, ctx context.Context, _ []string, _ bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+	mockAPIExecute(api, &executionRequestSleep,
+		func(_ string, ctx context.Context, _ []string, _ bool,
+			stdin io.Reader, stdout io.Writer, stderr io.Writer,
+		) (int, error) {
 			<-ctx.Done()
 			close(canceled)
 			return 0, ctx.Err()
@@ -430,28 +445,30 @@ func mockApiExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 
 var executionRequestError = dto.ExecutionRequest{Command: "error"}
 
-// mockApiExecuteError mocks the ExecuteCommand method of an ExecutorApi to return an error.
-func mockApiExecuteError(api *nomad.ExecutorAPIMock) {
-	mockApiExecute(api, &executionRequestError,
+// mockAPIExecuteError mocks the ExecuteCommand method of an ExecutorApi to return an error.
+func mockAPIExecuteError(api *nomad.ExecutorAPIMock) {
+	mockAPIExecute(api, &executionRequestError,
 		func(_ string, _ context.Context, _ []string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
-			return 0, errors.New("intended error")
+			return 0, tests.ErrDefault
 		})
 }
 
 var executionRequestExitNonZero = dto.ExecutionRequest{Command: "exit 42"}
 
-// mockApiExecuteExitNonZero mocks the ExecuteCommand method of an ExecutorApi to exit with exit status 42.
-func mockApiExecuteExitNonZero(api *nomad.ExecutorAPIMock) {
-	mockApiExecute(api, &executionRequestExitNonZero,
+// mockAPIExecuteExitNonZero mocks the ExecuteCommand method of an ExecutorApi to exit with exit status 42.
+func mockAPIExecuteExitNonZero(api *nomad.ExecutorAPIMock) {
+	mockAPIExecute(api, &executionRequestExitNonZero,
 		func(_ string, _ context.Context, _ []string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
 			return 42, nil
 		})
 }
 
-// mockApiExecute mocks the ExecuteCommand method of an ExecutorApi to call the given method run when the command
+// mockAPIExecute mocks the ExecuteCommand method of an ExecutorApi to call the given method run when the command
 // corresponding to the given ExecutionRequest is called.
-func mockApiExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
-	run func(runnerId string, ctx context.Context, command []string, tty bool, stdin io.Reader, stdout, stderr io.Writer) (int, error)) {
+func mockAPIExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
+	run func(runnerId string, ctx context.Context, command []string, tty bool,
+		stdin io.Reader, stdout, stderr io.Writer) (int, error),
+) {
 	call := api.On("ExecuteCommand",
 		mock.AnythingOfType("string"),
 		mock.Anything,

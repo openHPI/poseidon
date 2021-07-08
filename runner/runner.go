@@ -18,11 +18,11 @@ import (
 // ContextKey is the type for keys in a request context.
 type ContextKey string
 
-// ExecutionId is an id for an execution in a Runner.
-type ExecutionId string
+// ExecutionID is an id for an execution in a Runner.
+type ExecutionID string
 
 const (
-	// runnerContextKey is the key used to store runners in context.Context
+	// runnerContextKey is the key used to store runners in context.Context.
 	runnerContextKey ContextKey = "runner"
 )
 
@@ -93,9 +93,9 @@ func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
 		t.Unlock()
 		err := t.manager.Return(t.runner)
 		if err != nil {
-			log.WithError(err).WithField("id", t.runner.Id()).Warn("Returning runner after inactivity caused an error")
+			log.WithError(err).WithField("id", t.runner.ID()).Warn("Returning runner after inactivity caused an error")
 		} else {
-			log.WithField("id", t.runner.Id()).Info("Returning runner due to inactivity timeout")
+			log.WithField("id", t.runner.ID()).Info("Returning runner due to inactivity timeout")
 		}
 	})
 }
@@ -129,8 +129,8 @@ func (t *InactivityTimerImplementation) TimeoutPassed() bool {
 }
 
 type Runner interface {
-	// Id returns the id of the runner.
-	Id() string
+	// ID returns the id of the runner.
+	ID() string
 
 	ExecutionStorage
 	InactivityTimer
@@ -169,7 +169,7 @@ func NewNomadJob(id string, apiClient nomad.ExecutorAPI, manager Manager) *Nomad
 	return job
 }
 
-func (r *NomadJob) Id() string {
+func (r *NomadJob) ID() string {
 	return r.id
 }
 
@@ -241,21 +241,24 @@ func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer) error {
 	tarWriter := tar.NewWriter(w)
 	for _, file := range filesToCopy {
 		if err := tarWriter.WriteHeader(tarHeader(file)); err != nil {
+			err := fmt.Errorf("error writing tar file header: %w", err)
 			log.
-				WithError(err).
 				WithField("file", file).
-				Error("Error writing tar file header")
+				Error(err)
 			return err
 		}
 		if _, err := tarWriter.Write(file.ByteContent()); err != nil {
+			err := fmt.Errorf("error writing tar file content: %w", err)
 			log.
-				WithError(err).
 				WithField("file", file).
-				Error("Error writing tar file content")
+				Error(err)
 			return err
 		}
 	}
-	return tarWriter.Close()
+	if err := tarWriter.Close(); err != nil {
+		return fmt.Errorf("error closing tar writer: %w", err)
+	}
+	return nil
 }
 
 func fileDeletionCommand(pathsToDelete []dto.FilePath) string {
@@ -265,7 +268,8 @@ func fileDeletionCommand(pathsToDelete []dto.FilePath) string {
 	command := "rm --recursive --force "
 	for _, filePath := range pathsToDelete {
 		// To avoid command injection, filenames need to be quoted.
-		// See https://unix.stackexchange.com/questions/347332/what-characters-need-to-be-escaped-in-files-without-quotes for details.
+		// See https://unix.stackexchange.com/questions/347332/what-characters-need-to-be-escaped-in-files-without-quotes
+		// for details.
 		singleQuoteEscapedFileName := strings.ReplaceAll(filePath.Cleaned(), "'", "'\\''")
 		command += fmt.Sprintf("'%s' ", singleQuoteEscapedFileName)
 	}
@@ -293,11 +297,15 @@ func tarHeader(file dto.File) *tar.Header {
 // MarshalJSON implements json.Marshaler interface.
 // This exports private attributes like the id too.
 func (r *NomadJob) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
+	res, err := json.Marshal(struct {
 		ID string `json:"runnerId"`
 	}{
-		ID: r.Id(),
+		ID: r.ID(),
 	})
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling Nomad job: %w", err)
+	}
+	return res, nil
 }
 
 // NewContext creates a context containing a runner.

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func mockHttpStatusHandler(status int) http.Handler {
+func mockHTTPStatusHandler(status int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 	})
@@ -25,7 +25,7 @@ func TestHTTPMiddlewareWarnsWhenInternalServerError(t *testing.T) {
 		t.Fatal(err)
 	}
 	recorder := httptest.NewRecorder()
-	HTTPLoggingMiddleware(mockHttpStatusHandler(500)).ServeHTTP(recorder, request)
+	HTTPLoggingMiddleware(mockHTTPStatusHandler(500)).ServeHTTP(recorder, request)
 
 	assert.Equal(t, 1, len(hook.Entries))
 	assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
@@ -41,7 +41,7 @@ func TestHTTPMiddlewareDebugsWhenStatusOK(t *testing.T) {
 		t.Fatal(err)
 	}
 	recorder := httptest.NewRecorder()
-	HTTPLoggingMiddleware(mockHttpStatusHandler(200)).ServeHTTP(recorder, request)
+	HTTPLoggingMiddleware(mockHTTPStatusHandler(200)).ServeHTTP(recorder, request)
 
 	assert.Equal(t, 1, len(hook.Entries))
 	assert.Equal(t, logrus.DebugLevel, hook.LastEntry().Level)

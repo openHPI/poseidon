@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/logging"
 	"gopkg.in/yaml.v3"
 	"net/url"
@@ -45,6 +46,7 @@ var (
 		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
 		PreferServerCipherSuites: true,
 	}
+	ErrConfigInitialized = errors.New("configuration is already initialized")
 )
 
 // server configures the Poseidon webserver.
@@ -85,7 +87,7 @@ type configuration struct {
 // should be called directly after starting the program.
 func InitConfig() error {
 	if configurationInitialized {
-		return errors.New("configuration is already initialized")
+		return ErrConfigInitialized
 	}
 	configurationInitialized = true
 	content := readConfigFile()
@@ -104,9 +106,9 @@ func (c *configuration) PoseidonAPIURL() *url.URL {
 	return parseURL(Config.Server.Address, Config.Server.Port, false)
 }
 
-func parseURL(address string, port int, tls bool) *url.URL {
+func parseURL(address string, port int, tlsEnabled bool) *url.URL {
 	scheme := "http"
-	if tls {
+	if tlsEnabled {
 		scheme = "https"
 	}
 	return &url.URL{
@@ -151,38 +153,43 @@ func readFromEnvironment(prefix string, value reflect.Value) {
 	}
 
 	if value.Kind() != reflect.Struct {
-		content, ok := os.LookupEnv(prefix)
-		if !ok {
-			return
-		}
-		logEntry = logEntry.WithField("content", content)
-
-		switch value.Kind() {
-		case reflect.String:
-			value.SetString(content)
-		case reflect.Int:
-			integer, err := strconv.Atoi(content)
-			if err != nil {
-				logEntry.Warn("Could not parse environment variable as integer")
-				return
-			}
-			value.SetInt(int64(integer))
-		case reflect.Bool:
-			boolean, err := strconv.ParseBool(content)
-			if err != nil {
-				logEntry.Warn("Could not parse environment variable as boolean")
-				return
-			}
-			value.SetBool(boolean)
-		default:
-			// ignore this field
-			logEntry.WithField("type", value.Type().Name()).Warn("Setting configuration option via environment variables is not supported")
-		}
+		loadValue(prefix, value, logEntry)
 	} else {
 		for i := 0; i < value.NumField(); i++ {
 			fieldName := value.Type().Field(i).Name
 			newPrefix := fmt.Sprintf("%s_%s", prefix, strings.ToUpper(fieldName))
 			readFromEnvironment(newPrefix, value.Field(i))
 		}
+	}
+}
+
+func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
+	content, ok := os.LookupEnv(prefix)
+	if !ok {
+		return
+	}
+	logEntry = logEntry.WithField("content", content)
+
+	switch value.Kind() {
+	case reflect.String:
+		value.SetString(content)
+	case reflect.Int:
+		integer, err := strconv.Atoi(content)
+		if err != nil {
+			logEntry.Warn("Could not parse environment variable as integer")
+			return
+		}
+		value.SetInt(int64(integer))
+	case reflect.Bool:
+		boolean, err := strconv.ParseBool(content)
+		if err != nil {
+			logEntry.Warn("Could not parse environment variable as boolean")
+			return
+		}
+		value.SetBool(boolean)
+	default:
+		// ignore this field
+		logEntry.WithField("type", value.Type().Name()).
+			Warn("Setting configuration option via environment variables is not supported")
 	}
 }

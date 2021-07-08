@@ -14,7 +14,8 @@ type Storage interface {
 	// Iff the runner does not exist in the storage, ok will be false.
 	Get(id string) (r Runner, ok bool)
 
-	// Delete deletes the runner with the passed id from the storage. It does nothing if no runner with the id is present in the store.
+	// Delete deletes the runner with the passed id from the storage.
+	// It does nothing if no runner with the id is present in the store.
 	Delete(id string)
 
 	// Length returns the number of currently stored runners in the storage.
@@ -26,14 +27,14 @@ type Storage interface {
 }
 
 // localRunnerStorage stores runner objects in the local application memory.
-// ToDo: Create implementation that use some persistent storage like a database
+// ToDo: Create implementation that use some persistent storage like a database.
 type localRunnerStorage struct {
 	sync.RWMutex
 	runners map[string]Runner
 }
 
 // NewLocalRunnerStorage responds with a Storage implementation.
-// This implementation stores the data thread-safe in the local application memory
+// This implementation stores the data thread-safe in the local application memory.
 func NewLocalRunnerStorage() *localRunnerStorage {
 	return &localRunnerStorage{
 		runners: make(map[string]Runner),
@@ -43,7 +44,7 @@ func NewLocalRunnerStorage() *localRunnerStorage {
 func (s *localRunnerStorage) Add(r Runner) {
 	s.Lock()
 	defer s.Unlock()
-	s.runners[r.Id()] = r
+	s.runners[r.ID()] = r
 }
 
 func (s *localRunnerStorage) Get(id string) (r Runner, ok bool) {
@@ -63,7 +64,7 @@ func (s *localRunnerStorage) Sample() (Runner, bool) {
 	s.Lock()
 	defer s.Unlock()
 	for _, runner := range s.runners {
-		delete(s.runners, runner.Id())
+		delete(s.runners, runner.ID())
 		return runner, true
 	}
 	return nil, false

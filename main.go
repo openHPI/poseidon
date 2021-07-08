@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/environment"
@@ -15,7 +16,10 @@ import (
 	"time"
 )
 
-var log = logging.GetLogger("main")
+var (
+	gracefulShutdownWait = 15 * time.Second
+	log                  = logging.GetLogger("main")
+)
 
 func runServer(server *http.Server) {
 	log.WithField("address", server.Addr).Info("Starting server")
@@ -31,7 +35,7 @@ func runServer(server *http.Server) {
 		err = server.ListenAndServe()
 	}
 	if err != nil {
-		if err == http.ErrServerClosed {
+		if errors.Is(err, http.ErrServerClosed) {
 			log.WithError(err).Info("Server closed")
 		} else {
 			log.WithError(err).Fatal("Error during listening and serving")
@@ -59,7 +63,7 @@ func initServer() *http.Server {
 }
 
 // shutdownOnOSSignal listens for a signal from the operation system
-// When receiving a signal the server shuts down but waits up to 15 seconds to close remaining connections
+// When receiving a signal the server shuts down but waits up to 15 seconds to close remaining connections.
 func shutdownOnOSSignal(server *http.Server) {
 	// wait for SIGINT
 	signals := make(chan os.Signal, 1)
@@ -67,9 +71,11 @@ func shutdownOnOSSignal(server *http.Server) {
 	<-signals
 	log.Info("Received SIGINT, shutting down ...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownWait)
 	defer cancel()
-	_ = server.Shutdown(ctx)
+	if err := server.Shutdown(ctx); err != nil {
+		log.WithError(err).Warn("error shutting server down")
+	}
 }
 
 func main() {

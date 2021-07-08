@@ -23,7 +23,7 @@ func TestCreateOrUpdateEnvironment(t *testing.T) {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
 
 	t.Run("returns bad request with empty body", func(t *testing.T) {
-		resp, err := helpers.HttpPut(path, strings.NewReader(""))
+		resp, err := helpers.HTTPPut(path, strings.NewReader(""))
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
@@ -91,7 +91,7 @@ func cleanupJobsForEnvironment(t *testing.T, environmentID string) {
 func assertPutReturnsStatusAndZeroContent(t *testing.T, path string,
 	request dto.ExecutionEnvironmentRequest, status int) {
 	t.Helper()
-	resp, err := helpers.HttpPutJSON(path, request)
+	resp, err := helpers.HTTPPutJSON(path, request)
 	require.Nil(t, err)
 	assert.Equal(t, status, resp.StatusCode)
 	assert.Equal(t, int64(0), resp.ContentLength)

@@ -18,12 +18,12 @@ import (
 )
 
 func (s *E2ETestSuite) TestExecuteCommandRoute() {
-	runnerId, err := ProvideRunner(&dto.RunnerRequest{
-		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
 	})
 	s.Require().NoError(err)
 
-	webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerId, &dto.ExecutionRequest{Command: "true"})
+	webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{Command: "true"})
 	s.Require().NoError(err)
 	s.NotEqual("", webSocketURL)
 
@@ -50,7 +50,8 @@ func (s *E2ETestSuite) TestExecuteCommandRoute() {
 	s.Require().Error(err)
 	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
 
-	_, _, _ = connection.ReadMessage()
+	_, _, err = connection.ReadMessage()
+	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 	s.True(connectionClosed, "connection should be closed")
 }
 
@@ -150,7 +151,7 @@ func (s *E2ETestSuite) TestEchoEnvironment() {
 
 func (s *E2ETestSuite) TestStderrFifoIsRemoved() {
 	runnerID, err := ProvideRunner(&dto.RunnerRequest{
-		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
 	})
 	s.Require().NoError(err)
 
@@ -188,35 +189,39 @@ func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {
 
 // ProvideWebSocketConnection establishes a client WebSocket connection to run the passed ExecutionRequest.
 // It requires a running Poseidon instance.
-func ProvideWebSocketConnection(suite *suite.Suite, request *dto.ExecutionRequest) (connection *websocket.Conn, err error) {
-	runnerId, err := ProvideRunner(&dto.RunnerRequest{
-		ExecutionEnvironmentId: tests.DefaultEnvironmentIDAsInteger,
+func ProvideWebSocketConnection(s *suite.Suite, request *dto.ExecutionRequest) (*websocket.Conn, error) {
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
 	})
 	if err != nil {
-		return
+		return nil, fmt.Errorf("error providing runner: %w", err)
 	}
-	webSocketURL, err := ProvideWebSocketURL(suite, runnerId, request)
+	webSocketURL, err := ProvideWebSocketURL(s, runnerID, request)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("error providing WebSocket URL: %w", err)
 	}
-	connection, err = ConnectToWebSocket(webSocketURL)
-	return
+	connection, err := ConnectToWebSocket(webSocketURL)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to WebSocket: %w", err)
+	}
+	return connection, nil
 }
 
 // ProvideWebSocketURL creates a WebSocket endpoint from the ExecutionRequest via an external api request.
 // It requires a running Poseidon instance.
-func ProvideWebSocketURL(suite *suite.Suite, runnerId string, request *dto.ExecutionRequest) (string, error) {
-	url := helpers.BuildURL(api.BasePath, api.RunnersPath, runnerId, api.ExecutePath)
-	executionRequestByteString, _ := json.Marshal(request)
+func ProvideWebSocketURL(s *suite.Suite, runnerID string, request *dto.ExecutionRequest) (string, error) {
+	url := helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.ExecutePath)
+	executionRequestByteString, err := json.Marshal(request)
+	s.Require().NoError(err)
 	reader := strings.NewReader(string(executionRequestByteString))
-	resp, err := http.Post(url, "application/json", reader)
-	suite.Require().NoError(err)
-	suite.Require().Equal(http.StatusOK, resp.StatusCode)
+	resp, err := http.Post(url, "application/json", reader) //nolint:gosec // url is not influenced by a user
+	s.Require().NoError(err)
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
 
 	executionResponse := new(dto.ExecutionResponse)
 	err = json.NewDecoder(resp.Body).Decode(executionResponse)
-	suite.Require().NoError(err)
-	return executionResponse.WebSocketUrl, nil
+	s.Require().NoError(err)
+	return executionResponse.WebSocketURL, nil
 }
 
 // ConnectToWebSocket establish an external WebSocket connection to the provided url.

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -16,8 +17,8 @@ const (
 	WebsocketPath        = "/websocket"
 	UpdateFileSystemPath = "/files"
 	DeleteRoute          = "deleteRunner"
-	RunnerIdKey          = "runnerId"
-	ExecutionIdKey       = "executionId"
+	RunnerIDKey          = "runnerId"
+	ExecutionIDKey       = "executionID"
 	ProvideRoute         = "provideRunner"
 )
 
@@ -30,9 +31,10 @@ type RunnerController struct {
 func (r *RunnerController) ConfigureRoutes(router *mux.Router) {
 	runnersRouter := router.PathPrefix(RunnersPath).Subrouter()
 	runnersRouter.HandleFunc("", r.provide).Methods(http.MethodPost).Name(ProvideRoute)
-	r.runnerRouter = runnersRouter.PathPrefix(fmt.Sprintf("/{%s}", RunnerIdKey)).Subrouter()
+	r.runnerRouter = runnersRouter.PathPrefix(fmt.Sprintf("/{%s}", RunnerIDKey)).Subrouter()
 	r.runnerRouter.Use(r.findRunnerMiddleware)
-	r.runnerRouter.HandleFunc(UpdateFileSystemPath, r.updateFileSystem).Methods(http.MethodPatch).Name(UpdateFileSystemPath)
+	r.runnerRouter.HandleFunc(UpdateFileSystemPath, r.updateFileSystem).Methods(http.MethodPatch).
+		Name(UpdateFileSystemPath)
 	r.runnerRouter.HandleFunc(ExecutePath, r.execute).Methods(http.MethodPost).Name(ExecutePath)
 	r.runnerRouter.HandleFunc(WebsocketPath, r.connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
 	r.runnerRouter.HandleFunc("", r.delete).Methods(http.MethodDelete).Name(DeleteRoute)
@@ -46,21 +48,21 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	if err := parseJSONRequestBody(writer, request, runnerRequest); err != nil {
 		return
 	}
-	environmentId := runner.EnvironmentID(runnerRequest.ExecutionEnvironmentId)
-	nextRunner, err := r.manager.Claim(environmentId, runnerRequest.InactivityTimeout)
+	environmentID := runner.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
+	nextRunner, err := r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
 	if err != nil {
 		switch err {
 		case runner.ErrUnknownExecutionEnvironment:
 			writeNotFound(writer, err)
 		case runner.ErrNoRunnersAvailable:
-			log.WithField("environment", environmentId).Warn("No runners available")
+			log.WithField("environment", environmentID).Warn("No runners available")
 			writeInternalServerError(writer, err, dto.ErrorNomadOverload)
 		default:
 			writeInternalServerError(writer, err, dto.ErrorUnknown)
 		}
 		return
 	}
-	sendJson(writer, &dto.RunnerResponse{Id: nextRunner.Id()}, http.StatusOK)
+	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID()}, http.StatusOK)
 }
 
 // updateFileSystem handles the files API route.
@@ -98,36 +100,36 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 	}
 	targetRunner, _ := runner.FromContext(request.Context())
 
-	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIdKey, targetRunner.Id())
+	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIDKey, targetRunner.ID())
 	if err != nil {
 		log.WithError(err).Error("Could not create runner websocket URL.")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
 	}
-	newUuid, err := uuid.NewRandom()
+	newUUID, err := uuid.NewRandom()
 	if err != nil {
 		log.WithError(err).Error("Could not create execution id")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
 	}
-	id := runner.ExecutionId(newUuid.String())
+	id := runner.ExecutionID(newUUID.String())
 	targetRunner.Add(id, executionRequest)
-	webSocketUrl := url.URL{
+	webSocketURL := url.URL{
 		Scheme:   scheme,
 		Host:     request.Host,
 		Path:     path.String(),
-		RawQuery: fmt.Sprintf("%s=%s", ExecutionIdKey, id),
+		RawQuery: fmt.Sprintf("%s=%s", ExecutionIDKey, id),
 	}
 
-	sendJson(writer, &dto.ExecutionResponse{WebSocketUrl: webSocketUrl.String()}, http.StatusOK)
+	sendJSON(writer, &dto.ExecutionResponse{WebSocketURL: webSocketURL.String()}, http.StatusOK)
 }
 
 // The findRunnerMiddleware looks up the runnerId for routes containing it
 // and adds the runner to the context of the request.
 func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		runnerId := mux.Vars(request)[RunnerIdKey]
-		targetRunner, err := r.manager.Get(runnerId)
+		runnerID := mux.Vars(request)[RunnerIDKey]
+		targetRunner, err := r.manager.Get(runnerID)
 		if err != nil {
 			writeNotFound(writer, err)
 			return
@@ -145,7 +147,7 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 
 	err := r.manager.Return(targetRunner)
 	if err != nil {
-		if err == runner.ErrUnknownExecutionEnvironment {
+		if errors.Is(err, runner.ErrUnknownExecutionEnvironment) {
 			writeNotFound(writer, err)
 		} else {
 			writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)

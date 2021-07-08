@@ -2,23 +2,24 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/api/dto"
 	"net/http"
 )
 
 func writeInternalServerError(writer http.ResponseWriter, err error, errorCode dto.ErrorCode) {
-	sendJson(writer, &dto.InternalServerError{Message: err.Error(), ErrorCode: errorCode}, http.StatusInternalServerError)
+	sendJSON(writer, &dto.InternalServerError{Message: err.Error(), ErrorCode: errorCode}, http.StatusInternalServerError)
 }
 
 func writeBadRequest(writer http.ResponseWriter, err error) {
-	sendJson(writer, &dto.ClientError{Message: err.Error()}, http.StatusBadRequest)
+	sendJSON(writer, &dto.ClientError{Message: err.Error()}, http.StatusBadRequest)
 }
 
 func writeNotFound(writer http.ResponseWriter, err error) {
-	sendJson(writer, &dto.ClientError{Message: err.Error()}, http.StatusNotFound)
+	sendJSON(writer, &dto.ClientError{Message: err.Error()}, http.StatusNotFound)
 }
 
-func sendJson(writer http.ResponseWriter, content interface{}, httpStatusCode int) {
+func sendJSON(writer http.ResponseWriter, content interface{}, httpStatusCode int) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(httpStatusCode)
 	response, err := json.Marshal(content)
@@ -36,7 +37,7 @@ func sendJson(writer http.ResponseWriter, content interface{}, httpStatusCode in
 func parseJSONRequestBody(writer http.ResponseWriter, request *http.Request, structure interface{}) error {
 	if err := json.NewDecoder(request.Body).Decode(structure); err != nil {
 		writeBadRequest(writer, err)
-		return err
+		return fmt.Errorf("error parsing JSON request body: %w", err)
 	}
 	return nil
 }

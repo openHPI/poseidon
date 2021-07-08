@@ -121,7 +121,7 @@ func (_m *ExecutorAPIMock) ExecuteCommand(allocationID string, ctx context.Conte
 	return r0, r1
 }
 
-// JobScale provides a mock function with given fields: jobId
+// JobScale provides a mock function with given fields: jobID
 func (_m *ExecutorAPIMock) JobScale(jobId string) (uint, error) {
 	ret := _m.Called(jobId)
 
@@ -320,7 +320,7 @@ func (_m *ExecutorAPIMock) RegisterTemplateJob(defaultJob *api.Job, id string, p
 	return r0, r1
 }
 
-// SetJobScale provides a mock function with given fields: jobId, count, reason
+// SetJobScale provides a mock function with given fields: jobID, count, reason
 func (_m *ExecutorAPIMock) SetJobScale(jobId string, count uint, reason string) error {
 	ret := _m.Called(jobId, count, reason)
 

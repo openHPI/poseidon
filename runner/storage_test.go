@@ -17,87 +17,87 @@ type RunnerPoolTestSuite struct {
 	runner        Runner
 }
 
-func (suite *RunnerPoolTestSuite) SetupTest() {
-	suite.runnerStorage = NewLocalRunnerStorage()
-	suite.runner = NewRunner(tests.DefaultRunnerID, nil)
-	suite.runner.Add(tests.DefaultExecutionID, &dto.ExecutionRequest{Command: "true"})
+func (s *RunnerPoolTestSuite) SetupTest() {
+	s.runnerStorage = NewLocalRunnerStorage()
+	s.runner = NewRunner(tests.DefaultRunnerID, nil)
+	s.runner.Add(tests.DefaultExecutionID, &dto.ExecutionRequest{Command: "true"})
 }
 
-func (suite *RunnerPoolTestSuite) TestAddedRunnerCanBeRetrieved() {
-	suite.runnerStorage.Add(suite.runner)
-	retrievedRunner, ok := suite.runnerStorage.Get(suite.runner.Id())
-	suite.True(ok, "A saved runner should be retrievable")
-	suite.Equal(suite.runner, retrievedRunner)
+func (s *RunnerPoolTestSuite) TestAddedRunnerCanBeRetrieved() {
+	s.runnerStorage.Add(s.runner)
+	retrievedRunner, ok := s.runnerStorage.Get(s.runner.ID())
+	s.True(ok, "A saved runner should be retrievable")
+	s.Equal(s.runner, retrievedRunner)
 }
 
-func (suite *RunnerPoolTestSuite) TestRunnerWithSameIdOverwritesOldOne() {
-	otherRunnerWithSameId := NewRunner(suite.runner.Id(), nil)
+func (s *RunnerPoolTestSuite) TestRunnerWithSameIdOverwritesOldOne() {
+	otherRunnerWithSameID := NewRunner(s.runner.ID(), nil)
 	// assure runner is actually different
-	suite.NotEqual(suite.runner, otherRunnerWithSameId)
+	s.NotEqual(s.runner, otherRunnerWithSameID)
 
-	suite.runnerStorage.Add(suite.runner)
-	suite.runnerStorage.Add(otherRunnerWithSameId)
-	retrievedRunner, _ := suite.runnerStorage.Get(suite.runner.Id())
-	suite.NotEqual(suite.runner, retrievedRunner)
-	suite.Equal(otherRunnerWithSameId, retrievedRunner)
+	s.runnerStorage.Add(s.runner)
+	s.runnerStorage.Add(otherRunnerWithSameID)
+	retrievedRunner, _ := s.runnerStorage.Get(s.runner.ID())
+	s.NotEqual(s.runner, retrievedRunner)
+	s.Equal(otherRunnerWithSameID, retrievedRunner)
 }
 
-func (suite *RunnerPoolTestSuite) TestDeletedRunnersAreNotAccessible() {
-	suite.runnerStorage.Add(suite.runner)
-	suite.runnerStorage.Delete(suite.runner.Id())
-	retrievedRunner, ok := suite.runnerStorage.Get(suite.runner.Id())
-	suite.Nil(retrievedRunner)
-	suite.False(ok, "A deleted runner should not be accessible")
+func (s *RunnerPoolTestSuite) TestDeletedRunnersAreNotAccessible() {
+	s.runnerStorage.Add(s.runner)
+	s.runnerStorage.Delete(s.runner.ID())
+	retrievedRunner, ok := s.runnerStorage.Get(s.runner.ID())
+	s.Nil(retrievedRunner)
+	s.False(ok, "A deleted runner should not be accessible")
 }
 
-func (suite *RunnerPoolTestSuite) TestSampleReturnsRunnerWhenOneIsAvailable() {
-	suite.runnerStorage.Add(suite.runner)
-	sampledRunner, ok := suite.runnerStorage.Sample()
-	suite.NotNil(sampledRunner)
-	suite.True(ok)
+func (s *RunnerPoolTestSuite) TestSampleReturnsRunnerWhenOneIsAvailable() {
+	s.runnerStorage.Add(s.runner)
+	sampledRunner, ok := s.runnerStorage.Sample()
+	s.NotNil(sampledRunner)
+	s.True(ok)
 }
 
-func (suite *RunnerPoolTestSuite) TestSampleReturnsFalseWhenNoneIsAvailable() {
-	sampledRunner, ok := suite.runnerStorage.Sample()
-	suite.Nil(sampledRunner)
-	suite.False(ok)
+func (s *RunnerPoolTestSuite) TestSampleReturnsFalseWhenNoneIsAvailable() {
+	sampledRunner, ok := s.runnerStorage.Sample()
+	s.Nil(sampledRunner)
+	s.False(ok)
 }
 
-func (suite *RunnerPoolTestSuite) TestSampleRemovesRunnerFromPool() {
-	suite.runnerStorage.Add(suite.runner)
-	sampledRunner, _ := suite.runnerStorage.Sample()
-	_, ok := suite.runnerStorage.Get(sampledRunner.Id())
-	suite.False(ok)
+func (s *RunnerPoolTestSuite) TestSampleRemovesRunnerFromPool() {
+	s.runnerStorage.Add(s.runner)
+	sampledRunner, _ := s.runnerStorage.Sample()
+	_, ok := s.runnerStorage.Get(sampledRunner.ID())
+	s.False(ok)
 }
 
-func (suite *RunnerPoolTestSuite) TestLenOfEmptyPoolIsZero() {
-	suite.Equal(0, suite.runnerStorage.Length())
+func (s *RunnerPoolTestSuite) TestLenOfEmptyPoolIsZero() {
+	s.Equal(0, s.runnerStorage.Length())
 }
 
-func (suite *RunnerPoolTestSuite) TestLenChangesOnStoreContentChange() {
-	suite.Run("len increases when runner is added", func() {
-		suite.runnerStorage.Add(suite.runner)
-		suite.Equal(1, suite.runnerStorage.Length())
+func (s *RunnerPoolTestSuite) TestLenChangesOnStoreContentChange() {
+	s.Run("len increases when runner is added", func() {
+		s.runnerStorage.Add(s.runner)
+		s.Equal(1, s.runnerStorage.Length())
 	})
 
-	suite.Run("len does not increase when runner with same id is added", func() {
-		suite.runnerStorage.Add(suite.runner)
-		suite.Equal(1, suite.runnerStorage.Length())
+	s.Run("len does not increase when runner with same id is added", func() {
+		s.runnerStorage.Add(s.runner)
+		s.Equal(1, s.runnerStorage.Length())
 	})
 
-	suite.Run("len increases again when different runner is added", func() {
+	s.Run("len increases again when different runner is added", func() {
 		anotherRunner := NewRunner(tests.AnotherRunnerID, nil)
-		suite.runnerStorage.Add(anotherRunner)
-		suite.Equal(2, suite.runnerStorage.Length())
+		s.runnerStorage.Add(anotherRunner)
+		s.Equal(2, s.runnerStorage.Length())
 	})
 
-	suite.Run("len decreases when runner is deleted", func() {
-		suite.runnerStorage.Delete(suite.runner.Id())
-		suite.Equal(1, suite.runnerStorage.Length())
+	s.Run("len decreases when runner is deleted", func() {
+		s.runnerStorage.Delete(s.runner.ID())
+		s.Equal(1, s.runnerStorage.Length())
 	})
 
-	suite.Run("len decreases when runner is sampled", func() {
-		_, _ = suite.runnerStorage.Sample()
-		suite.Equal(0, suite.runnerStorage.Length())
+	s.Run("len decreases when runner is sampled", func() {
+		_, _ = s.runnerStorage.Sample()
+		s.Equal(0, s.runnerStorage.Length())
 	})
 }

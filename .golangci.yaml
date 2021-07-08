@@ -93,3 +93,7 @@ issues:
     - path: _test\.go
       linters:
         - noctx
+        # Always closing the HTTP body unnecessarily complicates the tests
+        - bodyclose
+        # We don't need to wrap errors in tests
+        - wrapcheck

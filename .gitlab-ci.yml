@@ -37,7 +37,6 @@ golangci-lint:
   image: golangci/golangci-lint:latest
   script:
     - make golangci-lint
-  allow_failure: true
 
 test:
   stage: test

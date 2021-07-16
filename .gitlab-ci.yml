@@ -77,7 +77,7 @@ dockerimage:
     # Prevent pull rate limit but still have normal alpine image in Dockerfile
     - docker pull $DOCKER_REGISTRY/library/alpine:latest
     - docker tag $DOCKER_REGISTRY/library/alpine:latest alpine:latest
-    - docker build -t $IMAGE_NAME_ENV .
+    - docker build -t $IMAGE_NAME_ENV -f deploy/poseidon/Dockerfile .
     # Run vulnerability scan before pushing the image
     - make trivy-scan-docker DOCKER_TAG=$IMAGE_NAME_ENV
     - docker push $IMAGE_NAME_ENV
@@ -98,7 +98,7 @@ nomadimage:
       alias: docker
   needs: []
   script:
-    - cd ci
+    - cd deploy/nomad-ci
     - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
     - docker pull $DOCKER_REGISTRY/library/golang:latest
     - docker tag $DOCKER_REGISTRY/library/golang:latest golang:latest
@@ -131,7 +131,7 @@ test_e2e:
     - nomad agent -dev -log-level=WARN &
     - sleep 5
     - export NOMAD_NAMESPACE="default"
-    - ./ci/nomad-run-env-job.sh ci/demo-job.tpl.nomad ci/demo-job.nomad
+    - ./deploy/nomad-run-env-job.sh deploy/demo-job.tpl.nomad deploy/demo-job.nomad
     - sleep 5
     # Start Poseidon and wait for it
     - ./poseidon &
@@ -151,15 +151,15 @@ test_e2e:
     - nomad namespace apply $NOMAD_NAMESPACE
   script:
     # Only replace set env vars
-    - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < ci/api.tpl.nomad > ci/api.nomad
+    - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < deploy/api.tpl.nomad > deploy/api.nomad
     # Make sure to set NOMAD_ADDR, NOMAD_SKIP_VERIFY and NOMAD_TOKEN env vars in CI settings appropriately
-    - nomad validate ci/api.nomad
+    - nomad validate deploy/api.nomad
     # nomad plan returns 1 if allocation is created or destroyed which is what we want here
-    - nomad plan     ci/api.nomad || [ $? == 1 ]
-    - nomad-run-and-wait ci/api.nomad
+    - nomad plan     deploy/api.nomad || [ $? == 1 ]
+    - nomad-run-and-wait deploy/api.nomad
   artifacts:
     paths:
-      - ci/api.nomad
+      - deploy/api.nomad
     expire_in: 1 month
     expose_as: api-nomad
 
@@ -174,7 +174,7 @@ deploy_review:
   before_script:
     - export NOMAD_NAMESPACE="$NOMAD_SLUG"
     - nomad namespace apply $NOMAD_NAMESPACE
-    - ./ci/nomad-run-env-job.sh ci/demo-job.tpl.nomad ci/demo-job.nomad
+    - ./deploy/nomad-run-env-job.sh deploy/demo-job.tpl.nomad deploy/demo-job.nomad
   only:
     - branches
     - tags

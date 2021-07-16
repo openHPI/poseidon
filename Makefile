@@ -1,5 +1,5 @@
 PROJECT_NAME := "poseidon"
-PKG := "gitlab.hpi.de/codeocean/codemoon/$(PROJECT_NAME)"
+PKG := "gitlab.hpi.de/codeocean/codemoon/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)"
 UNIT_TESTS = $(shell go list ./... | grep -v /e2e)
 
 DOCKER_E2E_CONTAINER_NAME := "$(PROJECT_NAME)-e2e-tests"
@@ -28,16 +28,16 @@ git-hooks: .git/hooks/pre-commit ## Install the git-hooks
 
 .PHONY: build
 build: deps ## Build the binary
-	@go build -v $(PKG)
+	@go build -o $(PROJECT_NAME) -v $(PKG)
 
 .PHONY: clean
 clean: ## Remove previous build
-	@rm -f $(PROJECT_NAME)
+	@rm -f poseidon
 
 .PHONY: docker
 docker:
 	@CGO_ENABLED=0 make build
-	@docker build -t $(DOCKER_TAG) .
+	@docker build -t $(DOCKER_TAG) -f deploy/poseidon/Dockerfile .
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies

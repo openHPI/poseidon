@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"github.com/stretchr/testify/assert"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/api"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/api"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"net/http"
 	"testing"

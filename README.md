@@ -11,7 +11,7 @@ To get your local setup going, run `make bootstrap`. It will install all require
 
 The project can be compiled using `make build`. This should create a binary which can then be executed.
 
-Alternatively, the `go run .` command can be used to automatically compile and run the project.
+Alternatively, the `go run ./cmd/poseidon` command can be used to automatically compile and run the project.
 
 ### Docker
 
@@ -55,7 +55,7 @@ If a value is not specified, the value of the subsequent possibility is used.
 
 ### Documentation
 
-For the OpenAPI 3.0 definition of the API Poseidon provides, see [`swagger.yaml`](docs/swagger.yaml).
+For the OpenAPI 3.0 definition of the API Poseidon provides, see [`swagger.yaml`](api/swagger.yaml).
 
 ### Authentication
 

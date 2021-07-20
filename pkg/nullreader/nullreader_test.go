@@ -3,9 +3,11 @@ package nullreader
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"testing"
+	"time"
 )
+
+const shortTimeout = 100 * time.Millisecond
 
 func TestNullReaderDoesNotReturnImmediately(t *testing.T) {
 	reader := &NullReader{}
@@ -16,5 +18,14 @@ func TestNullReaderDoesNotReturnImmediately(t *testing.T) {
 		require.NoError(t, err)
 		close(readerReturned)
 	}()
-	assert.False(t, tests.ChannelReceivesSomething(readerReturned, tests.ShortTimeout))
+
+	var received bool
+	select {
+	case <-readerReturned:
+		received = true
+	case <-time.After(shortTimeout):
+		received = false
+	}
+
+	assert.False(t, received)
 }

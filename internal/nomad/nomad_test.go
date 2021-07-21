@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/nullreader"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/nullio"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"io"
 	"net/url"
@@ -679,7 +679,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 	})
 
 	exitCode, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullreader.NullReader{}, &stdout, &stderr)
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullio.Reader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
 	s.apiMock.AssertNumberOfCalls(s.T(), "Execute", 2)
@@ -710,7 +710,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
 	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
 	s.mockExecute(mock.AnythingOfType("[]string"), 1, nil, func(args mock.Arguments) {})
 	_, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullreader.NullReader{}, io.Discard, io.Discard)
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullio.Reader{}, io.Discard, io.Discard)
 	s.Equal(tests.ErrDefault, err)
 }
 
@@ -732,7 +732,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 	})
 
 	exitCode, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullreader.NullReader{}, &stdout, &stderr)
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullio.Reader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
 	s.apiMock.AssertNumberOfCalls(s.T(), "Execute", 1)
@@ -745,7 +745,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError()
 	config.Config.Server.InteractiveStderr = false
 	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
 	_, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullreader.NullReader{}, io.Discard, io.Discard)
+		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullio.Reader{}, io.Discard, io.Discard)
 	s.ErrorIs(err, tests.ErrDefault)
 }
 

@@ -25,6 +25,11 @@ type ExecutionID string
 const (
 	// runnerContextKey is the key used to store runners in context.Context.
 	runnerContextKey ContextKey = "runner"
+	// SIGQUIT is the character that causes a tty to send the SIGQUIT signal to the controlled process.
+	SIGQUIT = 0x1c
+	// executionTimeoutGracePeriod is the time to wait after sending a SIGQUIT signal to a timed out execution.
+	// If the execution does not return after this grace period, the runner is destroyed.
+	executionTimeoutGracePeriod = 3 * time.Second
 )
 
 var (
@@ -143,7 +148,7 @@ type Runner interface {
 	// Output from the runner is forwarded immediately.
 	ExecuteInteractively(
 		request *dto.ExecutionRequest,
-		stdin io.Reader,
+		stdin io.ReadWriter,
 		stdout,
 		stderr io.Writer,
 	) (exit <-chan ExitInfo, cancel context.CancelFunc)
@@ -151,6 +156,9 @@ type Runner interface {
 	// UpdateFileSystem processes a dto.UpdateFileSystemRequest by first deleting each given dto.FilePath recursively
 	// and then copying each given dto.File to the runner.
 	UpdateFileSystem(request *dto.UpdateFileSystemRequest) error
+
+	// Destroy destroys the Runner in Nomad.
+	Destroy() error
 }
 
 // NomadJob is an abstraction to communicate with Nomad environments.
@@ -160,6 +168,7 @@ type NomadJob struct {
 	id           string
 	portMappings []nomadApi.PortMapping
 	api          nomad.ExecutorAPI
+	manager      Manager
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.
@@ -171,6 +180,7 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 		portMappings:     portMappings,
 		api:              apiClient,
 		ExecutionStorage: NewLocalExecutionStorage(),
+		manager:          manager,
 	}
 	job.InactivityTimer = NewInactivityTimer(job, manager)
 	return job
@@ -196,30 +206,80 @@ type ExitInfo struct {
 	Err  error
 }
 
-func (r *NomadJob) ExecuteInteractively(
-	request *dto.ExecutionRequest,
-	stdin io.Reader,
-	stdout, stderr io.Writer,
-) (<-chan ExitInfo, context.CancelFunc) {
-	r.ResetTimeout()
-
-	command := request.FullCommand()
-	var ctx context.Context
-	var cancel context.CancelFunc
+func prepareExecution(request *dto.ExecutionRequest) (
+	command []string, ctx context.Context, cancel context.CancelFunc,
+) {
+	command = request.FullCommand()
 	if request.TimeLimit == 0 {
 		ctx, cancel = context.WithCancel(context.Background())
 	} else {
 		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(request.TimeLimit)*time.Second)
 	}
-	exit := make(chan ExitInfo)
-	go func() {
-		exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, stdin, stdout, stderr)
-		if err == nil && r.TimeoutPassed() {
-			err = ErrorRunnerInactivityTimeout
-		}
-		exit <- ExitInfo{uint8(exitCode), err}
+	return command, ctx, cancel
+}
+
+func (r *NomadJob) executeCommand(ctx context.Context, command []string,
+	stdin io.ReadWriter, stdout, stderr io.Writer, exit chan<- ExitInfo,
+) {
+	exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, stdin, stdout, stderr)
+	if err == nil && r.TimeoutPassed() {
+		err = ErrorRunnerInactivityTimeout
+	}
+	exit <- ExitInfo{uint8(exitCode), err}
+}
+
+func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute context.CancelFunc,
+	exitInternal <-chan ExitInfo, exit chan<- ExitInfo, stdin io.ReadWriter,
+) {
+	defer cancelExecute()
+	select {
+	case exitInfo := <-exitInternal:
+		exit <- exitInfo
 		close(exit)
-	}()
+		return
+	case <-ctx.Done():
+		// From this time on until the WebSocket connection to the client is closed in /internal/api/websocket.go
+		// waitForExit, output can still be forwarded to the client. We accept this race condition because adding
+		// a locking mechanism would complicate the interfaces used (currently io.Writer).
+		exit <- ExitInfo{255, ctx.Err()}
+		close(exit)
+	}
+	// This injects the SIGQUIT character into the stdin. This character is parsed by the tty line discipline
+	// (tty has to be true) and converted to a SIGQUIT signal sent to the foreground process attached to the tty.
+	// By default, SIGQUIT causes the process to terminate and produces a core dump. Processes can catch this signal
+	// and ignore it, which is why we destroy the runner if the process does not terminate after a grace period.
+	n, err := stdin.Write([]byte{SIGQUIT})
+	if n != 1 {
+		log.WithField("runner", r.id).Warn("Could not send SIGQUIT because nothing was written")
+	}
+	if err != nil {
+		log.WithField("runner", r.id).WithError(err).Warn("Could not send SIGQUIT due to error")
+	}
+
+	select {
+	case <-exitInternal:
+		log.WithField("runner", r.id).Debug("Execution terminated after SIGQUIT")
+	case <-time.After(executionTimeoutGracePeriod):
+		log.WithField("runner", r.id).Info("Execution did not quit after SIGQUIT")
+		if err := r.Destroy(); err != nil {
+			log.WithField("runner", r.id).Error("Error when destroying runner")
+		}
+	}
+}
+
+func (r *NomadJob) ExecuteInteractively(
+	request *dto.ExecutionRequest,
+	stdin io.ReadWriter,
+	stdout, stderr io.Writer,
+) (<-chan ExitInfo, context.CancelFunc) {
+	r.ResetTimeout()
+
+	command, ctx, cancel := prepareExecution(request)
+	exitInternal := make(chan ExitInfo)
+	exit := make(chan ExitInfo, 1)
+	ctxExecute, cancelExecute := context.WithCancel(context.Background())
+	go r.executeCommand(ctxExecute, command, stdin, stdout, stderr, exitInternal)
+	go r.handleExitOrContextDone(ctx, cancelExecute, exitInternal, exit, stdin)
 	return exit, cancel
 }
 
@@ -251,6 +311,13 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) er
 			ErrorFileCopyFailed,
 			stdErr.String(),
 			stdOut.String())
+	}
+	return nil
+}
+
+func (r *NomadJob) Destroy() error {
+	if err := r.manager.Return(r); err != nil {
+		return fmt.Errorf("error while destroying runner: %w", err)
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package nullreader
+package nullio
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -9,8 +9,8 @@ import (
 
 const shortTimeout = 100 * time.Millisecond
 
-func TestNullReaderDoesNotReturnImmediately(t *testing.T) {
-	reader := &NullReader{}
+func TestReaderDoesNotReturnImmediately(t *testing.T) {
+	reader := &Reader{}
 	readerReturned := make(chan bool)
 	go func() {
 		p := make([]byte, 0, 5)

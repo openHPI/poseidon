@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/nullio"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"io"
 	"regexp"
@@ -82,6 +83,15 @@ func TestFromContextReturnsIsNotOkWhenContextHasNoRunner(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestDestroyReturnsRunner(t *testing.T) {
+	manager := &ManagerMock{}
+	manager.On("Return", mock.Anything).Return(nil)
+	runner := NewRunner(tests.DefaultRunnerID, manager)
+	err := runner.Destroy()
+	assert.NoError(t, err)
+	manager.AssertCalled(t, "Return", runner)
+}
+
 func TestExecuteInteractivelyTestSuite(t *testing.T) {
 	suite.Run(t, new(ExecuteInteractivelyTestSuite))
 }
@@ -91,6 +101,7 @@ type ExecuteInteractivelyTestSuite struct {
 	runner                   *NomadJob
 	apiMock                  *nomad.ExecutorAPIMock
 	timer                    *InactivityTimerMock
+	manager                  *ManagerMock
 	mockedExecuteCommandCall *mock.Call
 	mockedTimeoutPassedCall  *mock.Call
 }
@@ -103,11 +114,15 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 	s.timer = &InactivityTimerMock{}
 	s.timer.On("ResetTimeout").Return()
 	s.mockedTimeoutPassedCall = s.timer.On("TimeoutPassed").Return(false)
+	s.manager = &ManagerMock{}
+	s.manager.On("Return", mock.Anything).Return(nil)
+
 	s.runner = &NomadJob{
 		ExecutionStorage: NewLocalExecutionStorage(),
 		InactivityTimer:  s.timer,
 		id:               tests.DefaultRunnerID,
 		api:              s.apiMock,
+		manager:          s.manager,
 	}
 }
 
@@ -122,15 +137,12 @@ func (s *ExecuteInteractivelyTestSuite) TestCallsApi() {
 
 func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
-		ctx, ok := args.Get(1).(context.Context)
-		s.Require().True(ok)
-		<-ctx.Done()
-	}).
-		Return(0, nil)
+		select {}
+	}).Return(0, nil)
 
 	timeLimit := 1
 	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
-	exit, _ := s.runner.ExecuteInteractively(execution, nil, nil, nil)
+	exit, _ := s.runner.ExecuteInteractively(execution, &nullio.ReadWriter{}, nil, nil)
 
 	select {
 	case <-exit:
@@ -142,8 +154,40 @@ func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
 	case <-time.After(time.Duration(timeLimit) * time.Second):
 		s.FailNow("ExecuteInteractively should return after the time limit")
 	case exitInfo := <-exit:
-		s.Equal(uint8(0), exitInfo.Code)
+		s.Equal(uint8(255), exitInfo.Code)
 	}
+}
+
+func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
+	quit := make(chan struct{})
+	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
+		stdin, ok := args.Get(4).(io.Reader)
+		s.Require().True(ok)
+		buffer := make([]byte, 1)                                                  //nolint:makezero,lll // If the length is zero, the Read call never reads anything. gofmt want this alignment.
+		for n := 0; !(n == 1 && buffer[0] == SIGQUIT); n, _ = stdin.Read(buffer) { //nolint:errcheck,lll // Read returns EOF errors but that is expected. This nolint makes the line too long.
+			time.After(tests.ShortTimeout)
+		}
+		close(quit)
+	}).Return(0, nil)
+	timeLimit := 1
+	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
+	_, _ = s.runner.ExecuteInteractively(execution, bytes.NewBuffer(make([]byte, 1)), nil, nil)
+	select {
+	case <-time.After(2 * (time.Duration(timeLimit) * time.Second)):
+		s.FailNow("The execution should receive a SIGQUIT after the timeout")
+	case <-quit:
+	}
+}
+
+func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal() {
+	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
+		select {}
+	})
+	timeLimit := 1
+	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
+	_, _ = s.runner.ExecuteInteractively(execution, bytes.NewBuffer(make([]byte, 1)), nil, nil)
+	<-time.After(executionTimeoutGracePeriod + time.Duration(timeLimit)*time.Second + tests.ShortTimeout)
+	s.manager.AssertCalled(s.T(), "Return", s.runner)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
@@ -152,10 +196,10 @@ func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
 	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }
 
-func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfExecutionTimesOut() {
+func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut() {
 	s.mockedTimeoutPassedCall.Return(true)
 	execution := &dto.ExecutionRequest{}
-	exitChannel, _ := s.runner.ExecuteInteractively(execution, nil, nil, nil)
+	exitChannel, _ := s.runner.ExecuteInteractively(execution, &nullio.ReadWriter{}, nil, nil)
 	exit := <-exitChannel
 	s.Equal(ErrorRunnerInactivityTimeout, exit.Err)
 }

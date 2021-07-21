@@ -223,7 +223,7 @@ func (s *WebSocketTestSuite) TestWebsocketError() {
 	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 
 	_, _, errMessages := helpers.WebSocketOutputMessages(messages)
-	s.Equal(1, len(errMessages))
+	s.Require().Equal(1, len(errMessages))
 	s.Equal("Error executing the request", errMessages[0])
 }
 
@@ -370,10 +370,12 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 
 // --- Test suite specific test helpers ---
 
-func newNomadAllocationWithMockedAPIClient(runnerID string) (r runner.Runner, executorAPIMock *nomad.ExecutorAPIMock) {
-	executorAPIMock = &nomad.ExecutorAPIMock{}
-	r = runner.NewNomadJob(runnerID, nil, executorAPIMock, nil)
-	return
+func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nomad.ExecutorAPIMock) {
+	executorAPIMock := &nomad.ExecutorAPIMock{}
+	manager := &runner.ManagerMock{}
+	manager.On("Return", mock.Anything).Return(nil)
+	r := runner.NewNomadJob(runnerID, nil, executorAPIMock, manager)
+	return r, executorAPIMock
 }
 
 func webSocketURL(scheme string, server *httptest.Server, router *mux.Router,
@@ -429,14 +431,21 @@ func mockAPIExecuteHead(api *nomad.ExecutorAPIMock) {
 
 var executionRequestSleep = dto.ExecutionRequest{Command: "sleep infinity"}
 
-// mockAPIExecuteSleep mocks the ExecuteCommand method of an ExecutorAPI to sleep until the execution is canceled.
+// mockAPIExecuteSleep mocks the ExecuteCommand method of an ExecutorAPI to sleep
+// until the execution receives a SIGQUIT.
 func mockAPIExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 	canceled := make(chan bool, 1)
 	mockAPIExecute(api, &executionRequestSleep,
 		func(_ string, ctx context.Context, _ []string, _ bool,
 			stdin io.Reader, stdout io.Writer, stderr io.Writer,
 		) (int, error) {
-			<-ctx.Done()
+			var err error
+			buffer := make([]byte, 1) //nolint:makezero // if the length is zero, the Read call never reads anything
+			for n := 0; !(n == 1 && buffer[0] == runner.SIGQUIT); n, err = stdin.Read(buffer) {
+				if err != nil {
+					return 0, fmt.Errorf("error while reading stdin: %w", err)
+				}
+			}
 			close(canceled)
 			return 0, ctx.Err()
 		})

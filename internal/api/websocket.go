@@ -24,8 +24,11 @@ type webSocketConnection interface {
 	SetCloseHandler(handler func(code int, text string) error)
 }
 
+// WebSocketReader is an interface that is intended for providing abstraction around reading from a WebSocket.
+// Besides io.Reader, it also implements io.Writer. The Write method is used to inject data into the WebSocket stream.
 type WebSocketReader interface {
 	io.Reader
+	io.Writer
 	startReadInputLoop() context.CancelFunc
 }
 
@@ -38,12 +41,17 @@ type codeOceanToRawReader struct {
 	// and retrieve it when Read(..) is called. Since channels are thread-safe, we use one here
 	// instead of bytes.Buffer.
 	buffer chan byte
+	// The priorityBuffer is a buffer for injecting data into stdin of the execution from Poseidon,
+	// for example the character that causes the tty to generate a SIGQUIT signal.
+	// It is always read before the regular buffer.
+	priorityBuffer chan byte
 }
 
 func newCodeOceanToRawReader(connection webSocketConnection) *codeOceanToRawReader {
 	return &codeOceanToRawReader{
-		connection: connection,
-		buffer:     make(chan byte, CodeOceanToRawReaderBufferSize),
+		connection:     connection,
+		buffer:         make(chan byte, CodeOceanToRawReaderBufferSize),
+		priorityBuffer: make(chan byte, CodeOceanToRawReaderBufferSize),
 	}
 }
 
@@ -101,19 +109,37 @@ func (cr *codeOceanToRawReader) startReadInputLoop() context.CancelFunc {
 }
 
 // Read implements the io.Reader interface.
-// It returns bytes from the buffer.
+// It returns bytes from the buffer or priorityBuffer.
 func (cr *codeOceanToRawReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
 	// Ensure to not return until at least one byte has been read to avoid busy waiting.
-	p[0] = <-cr.buffer
+	select {
+	case p[0] = <-cr.priorityBuffer:
+	case p[0] = <-cr.buffer:
+	}
 	var n int
 	for n = 1; n < len(p); n++ {
 		select {
+		case p[n] = <-cr.priorityBuffer:
 		case p[n] = <-cr.buffer:
 		default:
 			return n, nil
+		}
+	}
+	return n, nil
+}
+
+// Write implements the io.Writer interface.
+// Data written to a codeOceanToRawReader using this method is returned by Read before other data from the WebSocket.
+func (cr *codeOceanToRawReader) Write(p []byte) (n int, err error) {
+	var c byte
+	for n, c = range p {
+		select {
+		case cr.priorityBuffer <- c:
+		default:
+			break
 		}
 	}
 	return n, nil

@@ -23,12 +23,26 @@ func (_m *RunnerMock) Add(id ExecutionID, executionRequest *dto.ExecutionRequest
 	_m.Called(id, executionRequest)
 }
 
+// Destroy provides a mock function with given fields:
+func (_m *RunnerMock) Destroy() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // ExecuteInteractively provides a mock function with given fields: request, stdin, stdout, stderr
-func (_m *RunnerMock) ExecuteInteractively(request *dto.ExecutionRequest, stdin io.Reader, stdout io.Writer, stderr io.Writer) (<-chan ExitInfo, context.CancelFunc) {
+func (_m *RunnerMock) ExecuteInteractively(request *dto.ExecutionRequest, stdin io.ReadWriter, stdout io.Writer, stderr io.Writer) (<-chan ExitInfo, context.CancelFunc) {
 	ret := _m.Called(request, stdin, stdout, stderr)
 
 	var r0 <-chan ExitInfo
-	if rf, ok := ret.Get(0).(func(*dto.ExecutionRequest, io.Reader, io.Writer, io.Writer) <-chan ExitInfo); ok {
+	if rf, ok := ret.Get(0).(func(*dto.ExecutionRequest, io.ReadWriter, io.Writer, io.Writer) <-chan ExitInfo); ok {
 		r0 = rf(request, stdin, stdout, stderr)
 	} else {
 		if ret.Get(0) != nil {
@@ -37,7 +51,7 @@ func (_m *RunnerMock) ExecuteInteractively(request *dto.ExecutionRequest, stdin 
 	}
 
 	var r1 context.CancelFunc
-	if rf, ok := ret.Get(1).(func(*dto.ExecutionRequest, io.Reader, io.Writer, io.Writer) context.CancelFunc); ok {
+	if rf, ok := ret.Get(1).(func(*dto.ExecutionRequest, io.ReadWriter, io.Writer, io.Writer) context.CancelFunc); ok {
 		r1 = rf(request, stdin, stdout, stderr)
 	} else {
 		if ret.Get(1) != nil {
@@ -48,7 +62,7 @@ func (_m *RunnerMock) ExecuteInteractively(request *dto.ExecutionRequest, stdin 
 	return r0, r1
 }
 
-// Id provides a mock function with given fields:
+// ID provides a mock function with given fields:
 func (_m *RunnerMock) ID() string {
 	ret := _m.Called()
 

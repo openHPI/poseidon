@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/logging"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/nullreader"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/nullio"
 	"io"
 	"net/url"
 	"strconv"
@@ -348,7 +348,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 	go func() {
 		// Catch stderr in separate execution.
 		exit, err := a.Execute(allocationID, ctx, stderrFifoCommand(currentNanoTime), true,
-			nullreader.NullReader{}, stderr, io.Discard)
+			nullio.Reader{}, stderr, io.Discard)
 		if err != nil {
 			log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
 		}

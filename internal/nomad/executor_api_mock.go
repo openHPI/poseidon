@@ -42,13 +42,13 @@ func (_m *ExecutorAPIMock) AllocationStream(ctx context.Context) (<-chan *api.Ev
 	return r0, r1
 }
 
-// DeleteRunner provides a mock function with given fields: runnerId
-func (_m *ExecutorAPIMock) DeleteRunner(runnerId string) error {
-	ret := _m.Called(runnerId)
+// DeleteRunner provides a mock function with given fields: runnerID
+func (_m *ExecutorAPIMock) DeleteRunner(runnerID string) error {
+	ret := _m.Called(runnerID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(runnerId)
+		r0 = rf(runnerID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -122,19 +122,19 @@ func (_m *ExecutorAPIMock) ExecuteCommand(allocationID string, ctx context.Conte
 }
 
 // JobScale provides a mock function with given fields: jobID
-func (_m *ExecutorAPIMock) JobScale(jobId string) (uint, error) {
-	ret := _m.Called(jobId)
+func (_m *ExecutorAPIMock) JobScale(jobID string) (uint, error) {
+	ret := _m.Called(jobID)
 
 	var r0 uint
 	if rf, ok := ret.Get(0).(func(string) uint); ok {
-		r0 = rf(jobId)
+		r0 = rf(jobID)
 	} else {
 		r0 = ret.Get(0).(uint)
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(jobId)
+		r1 = rf(jobID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -234,7 +234,7 @@ func (_m *ExecutorAPIMock) LoadRunnerJobs(environmentID string) ([]*api.Job, err
 	return r0, r1
 }
 
-// LoadRunnerPorts provides a mock function with given fields: runnerID
+// LoadRunnerPortMappings provides a mock function with given fields: runnerID
 func (_m *ExecutorAPIMock) LoadRunnerPortMappings(runnerID string) ([]api.PortMapping, error) {
 	ret := _m.Called(runnerID)
 
@@ -344,12 +344,12 @@ func (_m *ExecutorAPIMock) RegisterTemplateJob(defaultJob *api.Job, id string, p
 }
 
 // SetJobScale provides a mock function with given fields: jobID, count, reason
-func (_m *ExecutorAPIMock) SetJobScale(jobId string, count uint, reason string) error {
-	ret := _m.Called(jobId, count, reason)
+func (_m *ExecutorAPIMock) SetJobScale(jobID string, count uint, reason string) error {
+	ret := _m.Called(jobID, count, reason)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, uint, string) error); ok {
-		r0 = rf(jobId, count, reason)
+		r0 = rf(jobID, count, reason)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -394,13 +394,13 @@ func (_m *ExecutorAPIMock) allocation(jobID string) (*api.Allocation, error) {
 	return r0, r1
 }
 
-// init provides a mock function with given fields: nomadURL, nomadNamespace
-func (_m *ExecutorAPIMock) init(nomadURL *url.URL, nomadNamespace string) error {
-	ret := _m.Called(nomadURL, nomadNamespace)
+// init provides a mock function with given fields: nomadURL, nomadNamespace, nomadToken
+func (_m *ExecutorAPIMock) init(nomadURL *url.URL, nomadNamespace string, nomadToken string) error {
+	ret := _m.Called(nomadURL, nomadNamespace, nomadToken)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*url.URL, string) error); ok {
-		r0 = rf(nomadURL, nomadNamespace)
+	if rf, ok := ret.Get(0).(func(*url.URL, string, string) error); ok {
+		r0 = rf(nomadURL, nomadNamespace, nomadToken)
 	} else {
 		r0 = ret.Error(0)
 	}

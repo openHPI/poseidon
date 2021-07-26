@@ -16,7 +16,7 @@ var (
 // apiQuerier provides access to the Nomad functionality.
 type apiQuerier interface {
 	// init prepares an apiClient to be able to communicate to a provided Nomad API.
-	init(nomadURL *url.URL, nomadNamespace string) (err error)
+	init(nomadURL *url.URL, nomadNamespace, nomadToken string) (err error)
 
 	// LoadJobList loads the list of jobs from the Nomad API.
 	LoadJobList() (list []*nomadApi.JobListStub, err error)
@@ -61,11 +61,12 @@ type nomadAPIClient struct {
 	namespace string
 }
 
-func (nc *nomadAPIClient) init(nomadURL *url.URL, nomadNamespace string) (err error) {
+func (nc *nomadAPIClient) init(nomadURL *url.URL, nomadNamespace, nomadToken string) (err error) {
 	nc.client, err = nomadApi.NewClient(&nomadApi.Config{
 		Address:   nomadURL.String(),
 		TLSConfig: &nomadApi.TLSConfig{},
 		Namespace: nomadNamespace,
+		SecretID:  nomadToken,
 	})
 	if err != nil {
 		return fmt.Errorf("error creating new Nomad client: %w", err)
@@ -146,7 +147,13 @@ func (nc *nomadAPIClient) AllocationStream(ctx context.Context) (<-chan *nomadAp
 	stream, err := nc.client.EventStream().Stream(
 		ctx,
 		map[nomadApi.Topic][]string{
-			nomadApi.TopicAllocation: {},
+			nomadApi.TopicAllocation: {
+				// Necessary to have the "topic" URL param show up in the HTTP request to Nomad.
+				// Without the param, Nomad will try to deliver all event types.
+				// However, this includes some events that require a management authentication token.
+				// As Poseidon uses no such token, the request will return a permission denied error.
+				"*",
+			},
 		},
 		0,
 		nc.queryOptions())

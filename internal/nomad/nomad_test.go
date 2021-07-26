@@ -130,10 +130,11 @@ var (
 )
 
 const TestNamespace = "unit-tests"
+const TestNomadToken = "n0m4d-t0k3n"
 
 func TestApiClient_init(t *testing.T) {
 	client := &APIClient{apiQuerier: &nomadAPIClient{}}
-	err := client.init(&TestURL, TestNamespace)
+	err := client.init(&TestURL, TestNamespace, TestNomadToken)
 	require.Nil(t, err)
 }
 
@@ -142,16 +143,16 @@ func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
 	err := client.init(&url.URL{
 		Scheme: "http",
 		Host:   "http://127.0.0.1:4646",
-	}, TestNamespace)
+	}, TestNamespace, TestNomadToken)
 	assert.NotNil(t, err)
 }
 
 func TestNewExecutorApiCanBeCreatedWithoutError(t *testing.T) {
 	expectedClient := &APIClient{apiQuerier: &nomadAPIClient{}}
-	err := expectedClient.init(&TestURL, TestNamespace)
+	err := expectedClient.init(&TestURL, TestNamespace, TestNomadToken)
 	require.Nil(t, err)
 
-	_, err = NewExecutorAPI(&TestURL, TestNamespace)
+	_, err = NewExecutorAPI(&TestURL, TestNamespace, TestNomadToken)
 	require.Nil(t, err)
 }
 

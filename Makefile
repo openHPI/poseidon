@@ -51,7 +51,7 @@ golangci-lint: ## Lint the source code using golangci-lint
 lint: golangci-lint ## Lint the source code using all linters
 
 .PHONY: mock
-snaked_name=$(shell sed -e "s/\([A-Z]\)/_\L\1/g" -e "s/^_//" <<< "$(name)")
+snaked_name=$(shell sed -e "s/\([a-z]\)\([A-Z]\)/\1_\2/g" -e "s/\([A-Z]\)/\L\1/g" -e "s/^_//" <<< "$(name)")
 mock: deps ## Create/Update a mock. Example: make mock name=apiQuerier pkg=./nomad
 	@mockery \
       --name=$(name) \

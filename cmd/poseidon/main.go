@@ -45,7 +45,11 @@ func runServer(server *http.Server) {
 
 func initServer() *http.Server {
 	// API initialization
-	nomadAPIClient, err := nomad.NewExecutorAPI(config.Config.NomadAPIURL(), config.Config.Nomad.Namespace)
+	nomadAPIClient, err := nomad.NewExecutorAPI(
+		config.Config.NomadAPIURL(),
+		config.Config.Nomad.Namespace,
+		config.Config.Nomad.Token,
+	)
 	if err != nil {
 		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
 	}

@@ -29,3 +29,11 @@ func TestReaderDoesNotReturnImmediately(t *testing.T) {
 
 	assert.False(t, received)
 }
+
+func TestReadWriterWritesEverything(t *testing.T) {
+	readWriter := &ReadWriter{}
+	p := []byte{1, 2, 3}
+	n, err := readWriter.Write(p)
+	assert.NoError(t, err)
+	assert.Equal(t, len(p), n)
+}

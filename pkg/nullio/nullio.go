@@ -13,12 +13,16 @@ func (r Reader) Read(_ []byte) (int, error) {
 	select {}
 }
 
-// ReadWriter implements io.ReadWriter and does nothing on Read an Write.
+// ReadWriter implements io.ReadWriter. It does not return from Read and discards everything on Write.
 type ReadWriter struct {
 	Reader
 }
 
-func (nrw *ReadWriter) Write(p []byte) (int, error) {
+func (rw *ReadWriter) Write(p []byte) (int, error) {
 	n, err := io.Discard.Write(p)
-	return n, fmt.Errorf("error writing to io.Discard: %w", err)
+	if err != nil {
+		return n, fmt.Errorf("error writing to io.Discard: %w", err)
+	} else {
+		return n, nil
+	}
 }

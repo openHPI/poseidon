@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	getServerPort = func(c *configuration) interface{} { return c.Server.Port }
-	getNomadToken = func(c *configuration) interface{} { return c.Nomad.Token }
-	getNomadTLS   = func(c *configuration) interface{} { return c.Nomad.TLS }
+	getServerPort     = func(c *configuration) interface{} { return c.Server.Port }
+	getNomadToken     = func(c *configuration) interface{} { return c.Nomad.Token }
+	getNomadTLSActive = func(c *configuration) interface{} { return c.Nomad.TLS.Active }
 )
 
 func newTestConfiguration() *configuration {
@@ -24,11 +24,13 @@ func newTestConfiguration() *configuration {
 			Address: "127.0.0.1",
 			Port:    3000,
 		},
-		Nomad: nomad{
+		Nomad: Nomad{
 			Address: "127.0.0.2",
 			Port:    4646,
 			Token:   "SECRET",
-			TLS:     false,
+			TLS: TLS{
+				Active: false,
+			},
 		},
 		Logger: logger{
 			Level: "INFO",
@@ -87,8 +89,8 @@ func TestReadEnvironmentVariables(t *testing.T) {
 		{"SERVER_PORT", "4000", 4000, getServerPort},
 		{"SERVER_PORT", "hello", 3000, getServerPort},
 		{"NOMAD_TOKEN", "ACCESS", "ACCESS", getNomadToken},
-		{"NOMAD_TLS", "true", true, getNomadTLS},
-		{"NOMAD_TLS", "hello", false, getNomadTLS},
+		{"NOMAD_TLS_ACTIVE", "true", true, getNomadTLSActive},
+		{"NOMAD_TLS_ACTIVE", "hello", false, getNomadTLSActive},
 	}
 	prefix := "POSEIDON_TEST"
 	for _, testCase := range environmentTests {
@@ -131,8 +133,8 @@ func TestReadYamlConfigFile(t *testing.T) {
 	}{
 		{[]byte("server:\n  port: 5000\n"), 5000, getServerPort},
 		{[]byte("nomad:\n  token: ACCESS\n"), "ACCESS", getNomadToken},
-		{[]byte("nomad:\n  tls: true\n"), true, getNomadTLS},
-		{[]byte(""), false, getNomadTLS},
+		{[]byte("nomad:\n  tls:\n    active: true\n"), true, getNomadTLSActive},
+		{[]byte(""), false, getNomadTLSActive},
 		{[]byte("nomad:\n  token:\n"), "SECRET", getNomadToken},
 	}
 	for _, testCase := range yamlTests {
@@ -197,12 +199,12 @@ func TestURLParsing(t *testing.T) {
 
 func TestNomadAPIURL(t *testing.T) {
 	config := newTestConfiguration()
-	assert.Equal(t, "http", config.NomadAPIURL().Scheme)
-	assert.Equal(t, "127.0.0.2:4646", config.NomadAPIURL().Host)
+	assert.Equal(t, "http", config.Nomad.URL().Scheme)
+	assert.Equal(t, "127.0.0.2:4646", config.Nomad.URL().Host)
 }
 
 func TestPoseidonAPIURL(t *testing.T) {
 	config := newTestConfiguration()
-	assert.Equal(t, "http", config.PoseidonAPIURL().Scheme)
-	assert.Equal(t, "127.0.0.1:3000", config.PoseidonAPIURL().Host)
+	assert.Equal(t, "http", config.Server.URL().Scheme)
+	assert.Equal(t, "127.0.0.1:3000", config.Server.URL().Host)
 }

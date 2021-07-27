@@ -19,19 +19,26 @@ import (
 var (
 	Config = &configuration{
 		Server: server{
-			Address:           "127.0.0.1",
-			Port:              7200,
-			Token:             "",
-			TLS:               false,
-			CertFile:          "",
-			KeyFile:           "",
+			Address: "127.0.0.1",
+			Port:    7200,
+			Token:   "",
+			TLS: TLS{
+				Active:   false,
+				CertFile: "",
+				KeyFile:  "",
+			},
 			InteractiveStderr: true,
 		},
-		Nomad: nomad{
-			Address:   "127.0.0.1",
-			Port:      4646,
-			Token:     "",
-			TLS:       false,
+		Nomad: Nomad{
+			Address: "127.0.0.1",
+			Port:    4646,
+			Token:   "",
+			TLS: TLS{
+				Active:   false,
+				CAFile:   "",
+				CertFile: "",
+				KeyFile:  "",
+			},
 			Namespace: "default",
 		},
 		Logger: logger{
@@ -54,19 +61,35 @@ type server struct {
 	Address           string
 	Port              int
 	Token             string
-	TLS               bool
-	CertFile          string
-	KeyFile           string
+	TLS               TLS
 	InteractiveStderr bool
 }
 
-// nomad configures the used Nomad cluster.
-type nomad struct {
+// URL returns the URL of the Poseidon webserver.
+func (s *server) URL() *url.URL {
+	return parseURL(s.Address, s.Port, s.TLS.Active)
+}
+
+// Nomad configures the used Nomad cluster.
+type Nomad struct {
 	Address   string
 	Port      int
 	Token     string
-	TLS       bool
+	TLS       TLS
 	Namespace string
+}
+
+// URL returns the URL for the configured Nomad cluster.
+func (n *Nomad) URL() *url.URL {
+	return parseURL(n.Address, n.Port, n.TLS.Active)
+}
+
+// TLS configures TLS on a connection.
+type TLS struct {
+	Active   bool
+	CAFile   string
+	CertFile string
+	KeyFile  string
 }
 
 // logger configures the used logger.
@@ -77,7 +100,7 @@ type logger struct {
 // configuration contains the complete configuration of Poseidon.
 type configuration struct {
 	Server server
-	Nomad  nomad
+	Nomad  Nomad
 	Logger logger
 }
 
@@ -94,16 +117,6 @@ func InitConfig() error {
 	Config.mergeYaml(content)
 	Config.mergeEnvironmentVariables()
 	return nil
-}
-
-// NomadAPIURL returns the URL for the configured Nomad cluster.
-func (c *configuration) NomadAPIURL() *url.URL {
-	return parseURL(Config.Nomad.Address, Config.Nomad.Port, Config.Nomad.TLS)
-}
-
-// PoseidonAPIURL returns the URL of the Poseidon webserver.
-func (c *configuration) PoseidonAPIURL() *url.URL {
-	return parseURL(Config.Server.Address, Config.Server.Port, false)
 }
 
 func parseURL(address string, port int, tlsEnabled bool) *url.URL {

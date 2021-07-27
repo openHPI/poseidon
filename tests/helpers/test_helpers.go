@@ -24,7 +24,7 @@ import (
 
 // BuildURL joins multiple route paths.
 func BuildURL(parts ...string) string {
-	url := config.Config.PoseidonAPIURL().String()
+	url := config.Config.Server.URL().String()
 	for _, part := range parts {
 		if !strings.HasPrefix(part, "/") {
 			url += "/"

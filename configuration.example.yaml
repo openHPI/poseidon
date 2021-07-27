@@ -6,12 +6,14 @@ server:
   port: 7200
   # If set, this token is required in the X-Poseidon-Token header for each route except /health
   token: SECRET
-  # If set, the API uses TLS for all incoming connections
-  tls: true
-  # The path to the certificate file used for TLS
-  certfile: ./poseidon.crt
-  # The path to the key file used for TLS
-  keyfile: ./poseidon.key
+  # Configuration of TLS between the web client and Poseidon.
+  tls:
+    # If set, the API uses TLS for all incoming connections.
+    active: true
+    # The path to the certificate file used for TLS
+    certfile: ./poseidon.crt
+    # The path to the key file used for TLS
+    keyfile: ./poseidon.key
   # If true, an additional WebSocket connection will be opened to split stdout and stderr when executing interactively
   interactiveStderr: true
 
@@ -23,8 +25,16 @@ nomad:
   port: 4646
   # Authenticate requests to the Nomad server with this token
   token: SECRET
-  # Specifies whether to use TLS when communicating with the Nomad server
-  tls: false
+  # Configuration of TLS between the Poseidon and Nomad.
+  tls:
+    # Specifies whether to use TLS when communicating with the Nomad server.
+    active: false
+    # The path to the certificate of the CA authority of the Nomad host.
+    cafile: ./ca.crt
+    # The path to the client certificate file used for TLS
+    certfile: ./poseidon.crt
+    # The path to the client key file used for TLS
+    keyfile: ./poseidon.key
   # Nomad namespace to use. If unset, 'default' is used
   namespace: poseidon
 

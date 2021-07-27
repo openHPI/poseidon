@@ -93,7 +93,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 	}
 
 	var scheme string
-	if config.Config.Server.TLS {
+	if config.Config.Server.TLS.Active {
 		scheme = "wss"
 	} else {
 		scheme = "ws"

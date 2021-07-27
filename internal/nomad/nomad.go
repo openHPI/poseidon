@@ -10,7 +10,6 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/logging"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/nullio"
 	"io"
-	"net/url"
 	"strconv"
 	"time"
 )
@@ -81,15 +80,15 @@ type APIClient struct {
 
 // NewExecutorAPI creates a new api client.
 // One client is usually sufficient for the complete runtime of the API.
-func NewExecutorAPI(nomadURL *url.URL, nomadNamespace, nomadToken string) (ExecutorAPI, error) {
+func NewExecutorAPI(nomadConfig *config.Nomad) (ExecutorAPI, error) {
 	client := &APIClient{apiQuerier: &nomadAPIClient{}}
-	err := client.init(nomadURL, nomadNamespace, nomadToken)
+	err := client.init(nomadConfig)
 	return client, err
 }
 
 // init prepares an apiClient to be able to communicate to a provided Nomad API.
-func (a *APIClient) init(nomadURL *url.URL, nomadNamespace, nomadToken string) error {
-	if err := a.apiQuerier.init(nomadURL, nomadNamespace, nomadToken); err != nil {
+func (a *APIClient) init(nomadConfig *config.Nomad) error {
+	if err := a.apiQuerier.init(nomadConfig); err != nil {
 		return fmt.Errorf("error initializing API querier: %w", err)
 	}
 	return nil

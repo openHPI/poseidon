@@ -131,28 +131,38 @@ var (
 
 const TestNamespace = "unit-tests"
 const TestNomadToken = "n0m4d-t0k3n"
+const TestDefaultAddress = "127.0.0.1"
+
+func NomadTestConfig(address string) *config.Nomad {
+	return &config.Nomad{
+		Address: address,
+		Port:    4646,
+		Token:   TestNomadToken,
+		TLS: config.TLS{
+			Active: false,
+		},
+		Namespace: TestNamespace,
+	}
+}
 
 func TestApiClient_init(t *testing.T) {
 	client := &APIClient{apiQuerier: &nomadAPIClient{}}
-	err := client.init(&TestURL, TestNamespace, TestNomadToken)
+	err := client.init(NomadTestConfig(TestDefaultAddress))
 	require.Nil(t, err)
 }
 
 func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
 	client := &APIClient{apiQuerier: &nomadAPIClient{}}
-	err := client.init(&url.URL{
-		Scheme: "http",
-		Host:   "http://127.0.0.1:4646",
-	}, TestNamespace, TestNomadToken)
+	err := client.init(NomadTestConfig("http://" + TestDefaultAddress))
 	assert.NotNil(t, err)
 }
 
 func TestNewExecutorApiCanBeCreatedWithoutError(t *testing.T) {
 	expectedClient := &APIClient{apiQuerier: &nomadAPIClient{}}
-	err := expectedClient.init(&TestURL, TestNamespace, TestNomadToken)
+	err := expectedClient.init(NomadTestConfig(TestDefaultAddress))
 	require.Nil(t, err)
 
-	_, err = NewExecutorAPI(&TestURL, TestNamespace, TestNomadToken)
+	_, err = NewExecutorAPI(NomadTestConfig(TestDefaultAddress))
 	require.Nil(t, err)
 }
 

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
 	"io"
-	"net/url"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 // apiQuerier provides access to the Nomad functionality.
 type apiQuerier interface {
 	// init prepares an apiClient to be able to communicate to a provided Nomad API.
-	init(nomadURL *url.URL, nomadNamespace, nomadToken string) (err error)
+	init(nomadConfig *config.Nomad) (err error)
 
 	// LoadJobList loads the list of jobs from the Nomad API.
 	LoadJobList() (list []*nomadApi.JobListStub, err error)
@@ -61,17 +61,24 @@ type nomadAPIClient struct {
 	namespace string
 }
 
-func (nc *nomadAPIClient) init(nomadURL *url.URL, nomadNamespace, nomadToken string) (err error) {
+func (nc *nomadAPIClient) init(nomadConfig *config.Nomad) (err error) {
+	nomadTLSConfig := &nomadApi.TLSConfig{}
+	if nomadConfig.TLS.Active {
+		nomadTLSConfig.CACert = nomadConfig.TLS.CAFile
+		nomadTLSConfig.ClientCert = nomadConfig.TLS.CertFile
+		nomadTLSConfig.ClientKey = nomadConfig.TLS.KeyFile
+	}
+
 	nc.client, err = nomadApi.NewClient(&nomadApi.Config{
-		Address:   nomadURL.String(),
-		TLSConfig: &nomadApi.TLSConfig{},
-		Namespace: nomadNamespace,
-		SecretID:  nomadToken,
+		Address:   nomadConfig.URL().String(),
+		TLSConfig: nomadTLSConfig,
+		Namespace: nomadConfig.Namespace,
+		SecretID:  nomadConfig.Token,
 	})
 	if err != nil {
 		return fmt.Errorf("error creating new Nomad client: %w", err)
 	}
-	nc.namespace = nomadNamespace
+	nc.namespace = nomadConfig.Namespace
 	return nil
 }
 

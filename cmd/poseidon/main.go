@@ -24,13 +24,13 @@ var (
 func runServer(server *http.Server) {
 	log.WithField("address", server.Addr).Info("Starting server")
 	var err error
-	if config.Config.Server.TLS {
+	if config.Config.Server.TLS.Active {
 		server.TLSConfig = config.TLSConfig
 		log.
-			WithField("CertFile", config.Config.Server.CertFile).
-			WithField("KeyFile", config.Config.Server.KeyFile).
+			WithField("CertFile", config.Config.Server.TLS.CertFile).
+			WithField("KeyFile", config.Config.Server.TLS.KeyFile).
 			Debug("Using TLS")
-		err = server.ListenAndServeTLS(config.Config.Server.CertFile, config.Config.Server.KeyFile)
+		err = server.ListenAndServeTLS(config.Config.Server.TLS.CertFile, config.Config.Server.TLS.KeyFile)
 	} else {
 		err = server.ListenAndServe()
 	}
@@ -45,20 +45,16 @@ func runServer(server *http.Server) {
 
 func initServer() *http.Server {
 	// API initialization
-	nomadAPIClient, err := nomad.NewExecutorAPI(
-		config.Config.NomadAPIURL(),
-		config.Config.Nomad.Namespace,
-		config.Config.Nomad.Token,
-	)
+	nomadAPIClient, err := nomad.NewExecutorAPI(&config.Config.Nomad)
 	if err != nil {
-		log.WithError(err).WithField("nomad url", config.Config.NomadAPIURL()).Fatal("Error parsing the nomad url")
+		log.WithError(err).WithField("nomad config", config.Config.Nomad).Fatal("Error creating Nomad API client")
 	}
 
 	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
 	environmentManager := environment.NewNomadEnvironmentManager(runnerManager, nomadAPIClient)
 
 	return &http.Server{
-		Addr:         config.Config.PoseidonAPIURL().Host,
+		Addr:         config.Config.Server.URL().Host,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,

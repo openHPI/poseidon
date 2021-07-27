@@ -101,7 +101,7 @@ Once configured, all requests to the Nomad API automatically contain a `X-Nomad-
 
 ### TLS
 
-We highly encourage the use of TLS in this API to increase the security. To enable TLS, set `server.tls` or the corresponding environment variable to true and specify the `server.certfile` and `server.keyfile` options.
+We highly encourage the use of TLS in this API to increase the security. To enable TLS, set `server.tls.active` or the corresponding environment variable to true and specify the `server.tls.certfile` and `server.tls.keyfile` options.
 
 You can create a self-signed certificate to use with this API using the following command.
 

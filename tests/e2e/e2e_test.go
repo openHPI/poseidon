@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	}
 	nomadNamespace = config.Config.Nomad.Namespace
 	nomadClient, err = nomadApi.NewClient(&nomadApi.Config{
-		Address:   config.Config.NomadAPIURL().String(),
+		Address:   config.Config.Nomad.URL().String(),
 		TLSConfig: &nomadApi.TLSConfig{},
 		Namespace: nomadNamespace,
 	})

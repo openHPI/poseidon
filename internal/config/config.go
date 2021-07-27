@@ -28,6 +28,7 @@ var (
 				KeyFile:  "",
 			},
 			InteractiveStderr: true,
+			TemplateJobFile:   "",
 		},
 		Nomad: Nomad{
 			Address: "127.0.0.1",
@@ -63,6 +64,7 @@ type server struct {
 	Token             string
 	TLS               TLS
 	InteractiveStderr bool
+	TemplateJobFile   string
 }
 
 // URL returns the URL of the Poseidon webserver.

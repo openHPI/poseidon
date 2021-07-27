@@ -51,7 +51,11 @@ func initServer() *http.Server {
 	}
 
 	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
-	environmentManager := environment.NewNomadEnvironmentManager(runnerManager, nomadAPIClient)
+	environmentManager, err := environment.
+		NewNomadEnvironmentManager(runnerManager, nomadAPIClient, config.Config.Server.TemplateJobFile)
+	if err != nil {
+		log.WithError(err).Fatal("Error initializing environment manager")
+	}
 
 	return &http.Server{
 		Addr:         config.Config.Server.URL().Host,

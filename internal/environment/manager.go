@@ -10,6 +10,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/logging"
+	"os"
 	"strconv"
 )
 
@@ -39,13 +40,35 @@ type Manager interface {
 func NewNomadEnvironmentManager(
 	runnerManager runner.Manager,
 	apiClient nomad.ExecutorAPI,
-) *NomadEnvironmentManager {
-	m := &NomadEnvironmentManager{runnerManager, apiClient, *parseJob(templateEnvironmentJobHCL)}
+	templateJobFile string,
+) (*NomadEnvironmentManager, error) {
+	if err := loadTemplateEnvironmentJobHCL(templateJobFile); err != nil {
+		return nil, err
+	}
+	templateEnvironmentJob, err := parseJob(templateEnvironmentJobHCL)
+	if err != nil {
+		return nil, err
+	}
+	m := &NomadEnvironmentManager{runnerManager, apiClient, *templateEnvironmentJob}
 	if err := m.Load(); err != nil {
 		log.WithError(err).Error("Error recovering the execution environments")
 	}
 	runnerManager.Load()
-	return m
+	return m, nil
+}
+
+// loadTemplateEnvironmentJobHCL loads the template environment job HCL from the given path.
+// If the path is empty, the embedded default file is used.
+func loadTemplateEnvironmentJobHCL(path string) error {
+	if path == "" {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("error loading template environment job: %w", err)
+	}
+	templateEnvironmentJobHCL = string(data)
+	return nil
 }
 
 type NomadEnvironmentManager struct {
@@ -116,7 +139,7 @@ func (m *NomadEnvironmentManager) Load() error {
 	return nil
 }
 
-func parseJob(jobHCL string) *nomadApi.Job {
+func parseJob(jobHCL string) (*nomadApi.Job, error) {
 	config := jobspec2.ParseConfig{
 		Body:    []byte(jobHCL),
 		AllowFS: false,
@@ -124,9 +147,8 @@ func parseJob(jobHCL string) *nomadApi.Job {
 	}
 	job, err := jobspec2.ParseWithConfig(&config)
 	if err != nil {
-		log.WithError(err).Fatal("Error parsing Nomad job")
-		return nil
+		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
 	}
 
-	return job
+	return job, nil
 }

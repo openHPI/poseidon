@@ -2,15 +2,15 @@ package environment
 
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
+	"os"
 	"testing"
 )
 
@@ -119,24 +119,66 @@ func (s *CreateOrUpdateTestSuite) TestReturnsFalseIfCreatesOrUpdateEnvironmentRe
 }
 
 func TestParseJob(t *testing.T) {
-	exited := false
-	logger, hook := test.NewNullLogger()
-	logger.ExitFunc = func(i int) {
-		exited = true
-	}
-
-	log = logger.WithField("pkg", "nomad")
-
 	t.Run("parses the given default job", func(t *testing.T) {
-		job := parseJob(templateEnvironmentJobHCL)
-		assert.False(t, exited)
+		job, err := parseJob(templateEnvironmentJobHCL)
+		assert.NoError(t, err)
 		assert.NotNil(t, job)
 	})
 
-	t.Run("fatals when given wrong job", func(t *testing.T) {
-		job := parseJob("")
-		assert.True(t, exited)
+	t.Run("returns error when given wrong job", func(t *testing.T) {
+		job, err := parseJob("")
+		assert.Error(t, err)
 		assert.Nil(t, job)
-		assert.Equal(t, logrus.FatalLevel, hook.LastEntry().Level)
 	})
+}
+
+func TestNewNomadEnvironmentManager(t *testing.T) {
+	executorAPIMock := &nomad.ExecutorAPIMock{}
+	executorAPIMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
+
+	runnerManagerMock := &runner.ManagerMock{}
+	runnerManagerMock.On("Load").Return()
+
+	previousTemplateEnvironmentJobHCL := templateEnvironmentJobHCL
+
+	t.Run("returns error if template file does not exist", func(t *testing.T) {
+		_, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, "/non-existent/file")
+		assert.Error(t, err)
+	})
+
+	t.Run("loads template environment job from file", func(t *testing.T) {
+		templateJobHCL := "job \"test\" {}"
+		expectedJob, err := parseJob(templateJobHCL)
+		require.NoError(t, err)
+		f := createTempFile(t, templateJobHCL)
+		defer os.Remove(f.Name())
+
+		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
+		assert.NoError(t, err)
+		assert.NotNil(t, m)
+		assert.Equal(t, templateJobHCL, templateEnvironmentJobHCL)
+		assert.Equal(t, *expectedJob, m.templateEnvironmentJob)
+	})
+
+	t.Run("returns error if template file is invalid", func(t *testing.T) {
+		templateJobHCL := "invalid hcl file"
+		f := createTempFile(t, templateJobHCL)
+		defer os.Remove(f.Name())
+
+		_, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
+		assert.Error(t, err)
+	})
+
+	templateEnvironmentJobHCL = previousTemplateEnvironmentJobHCL
+}
+
+func createTempFile(t *testing.T, content string) *os.File {
+	t.Helper()
+	f, err := os.CreateTemp("", "test")
+	require.NoError(t, err)
+	n, err := f.WriteString(content)
+	require.NoError(t, err)
+	require.Equal(t, len(content), n)
+
+	return f
 }

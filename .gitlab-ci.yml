@@ -130,9 +130,6 @@ test_e2e:
     - export NOMAD_ADDR=http://localhost:4646
     - nomad agent -dev -log-level=WARN &
     - sleep 5
-    - export NOMAD_NAMESPACE="default"
-    - ./deploy/nomad-run-env-job.sh deploy/demo-job.tpl.nomad deploy/demo-job.nomad
-    - sleep 5
     # Start Poseidon and wait for it
     - ./poseidon &
     - sleep 20
@@ -174,7 +171,6 @@ deploy_review:
   before_script:
     - export NOMAD_NAMESPACE="$NOMAD_SLUG"
     - nomad namespace apply $NOMAD_NAMESPACE
-    - ./deploy/nomad-run-env-job.sh deploy/demo-job.tpl.nomad deploy/demo-job.nomad
   only:
     - branches
     - tags

@@ -61,10 +61,18 @@ job "${NOMAD_SLUG}" {
         image = "${IMAGE_NAME_ENV}"
       }
 
+      template {
+          source        = "${NOMAD_CACERT}"
+          destination   = "/home/api/nomad-ca.crt"
+          change_mode   = "noop"
+      }
+
       env {
         POSEIDON_SERVER_ADDRESS = "${POSEIDON_LISTEN_ADDRESS}"
         POSEIDON_NOMAD_ADDRESS =  "${NOMAD_SERVER_HOST}"
         POSEIDON_NOMAD_NAMESPACE = "${NOMAD_NAMESPACE}"
+        POSEIDON_NOMAD_TLS_ACTIVE = "${NOMAD_TLS_ACTIVE}"
+        POSEIDON_NOMAD_TLS_CAFILE = "nomad-ca.crt"
       }
 
       resources {

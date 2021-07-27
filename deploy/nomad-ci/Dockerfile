@@ -24,14 +24,13 @@ RUN apt-get update && \
     apt-get install -y docker-ce docker-ce-cli containerd.io && \
     rm -rf /var/lib/apt/lists
 
+ENV NOMAD_VERSION="1.1.2"
+
 # Download Nomad
-RUN wget "https://releases.hashicorp.com/nomad/1.1.1/nomad_1.1.1_linux_amd64.zip" && \
-    wget "https://releases.hashicorp.com/nomad/1.1.1/nomad_1.1.1_SHA256SUMS" && \
-    grep "nomad_1.1.1_linux_amd64.zip" nomad_1.1.1_SHA256SUMS | sha256sum -c - && \
-    unzip nomad_1.1.1_linux_amd64.zip
+RUN wget "https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip" && \
+    wget "https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS" && \
+    grep "nomad_${NOMAD_VERSION}_linux_amd64.zip" nomad_${NOMAD_VERSION}_SHA256SUMS | sha256sum -c - && \
+    unzip nomad_${NOMAD_VERSION}_linux_amd64.zip
 
 # Install Nomad
 RUN mv nomad /usr/sbin/ && nomad -version
-
-COPY nomad-run-and-wait /usr/sbin/
-RUN chmod +x /usr/sbin/nomad-run-and-wait

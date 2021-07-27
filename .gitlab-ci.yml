@@ -153,7 +153,7 @@ test_e2e:
     - nomad validate deploy/api.nomad
     # nomad plan returns 1 if allocation is created or destroyed which is what we want here
     - nomad plan     deploy/api.nomad || [ $? == 1 ]
-    - nomad-run-and-wait deploy/api.nomad
+    - nomad run      deploy/api.nomad
   artifacts:
     paths:
       - deploy/api.nomad

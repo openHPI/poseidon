@@ -6,9 +6,8 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
-	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/nomad v1.1.1
-	github.com/hashicorp/nomad/api v0.0.0-20210610125730-91c6193bf18b
+	github.com/hashicorp/nomad v1.1.2
+	github.com/hashicorp/nomad/api v0.0.0-20210727093536-62057de30422
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0

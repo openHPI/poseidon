@@ -15,10 +15,6 @@ import (
 	"testing"
 )
 
-const (
-	dockerImage = "python:latest"
-)
-
 func TestCreateOrUpdateEnvironment(t *testing.T) {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
 
@@ -34,7 +30,7 @@ func TestCreateOrUpdateEnvironment(t *testing.T) {
 		PrewarmingPoolSize: 1,
 		CPULimit:           100,
 		MemoryLimit:        100,
-		Image:              dockerImage,
+		Image:              *testDockerImage,
 		NetworkAccess:      false,
 		ExposedPorts:       nil,
 	}

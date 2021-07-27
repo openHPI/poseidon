@@ -101,13 +101,25 @@ Once configured, all requests to the Nomad API automatically contain a `X-Nomad-
 
 ### TLS
 
-We highly encourage the use of TLS in this API to increase the security. To enable TLS, set `server.tls.active` or the corresponding environment variable to true and specify the `server.tls.certfile` and `server.tls.keyfile` options.
+We highly encourage the use of TLS in this API to increase the security. 
+
+#### Poseidon
+
+To enable TLS, set `server.tls.active` or the corresponding environment variable to `true` and specify the `server.tls.certfile` and `server.tls.keyfile` options.
 
 You can create a self-signed certificate to use with this API using the following command.
 
 ```shell
 $ openssl req -x509 -nodes -newkey rsa:2048 -keyout server.rsa.key -out server.rsa.crt -days 3650
 ```
+
+#### Nomad
+
+To enable TLS between Poseidon and Nomad, TLS needs to be first activated in Nomad. See [the Nomad documentation](https://learn.hashicorp.com/collections/nomad/transport-security) for a guideline on how to do that.
+
+Afterwards, it is *required* to set the `nomad.tls.active` config option to `true`, as Nomad will no longer accept any connections over HTTP. To make sure the authenticity of the Nomad host can be validated, the `nomad.tls.cafile` option has to point to a certificate of the signing authority.
+
+If using mutual TLS between Poseidon and Nomad is desired, the `nomad.tls.certfile` and `nomad.tls.keyfile` options can hold a client certificate. This certificate must be signed by the same CA as the certificates of the Nomad hosts. Note that mTLS can (and should) be enforced by Nomad in this case using the [verify_https_client](https://www.nomadproject.io/docs/configuration/tls#verify_https_client) configuration option.
 
 ## Tests
 

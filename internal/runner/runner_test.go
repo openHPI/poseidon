@@ -119,7 +119,7 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 	s.manager.On("Return", mock.Anything).Return(nil)
 
 	s.runner = &NomadJob{
-		Storage:         execution.NewLocalStorage(),
+		Storer:          execution.NewLocalStorage(),
 		InactivityTimer: s.timer,
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,
@@ -225,7 +225,7 @@ func (s *UpdateFileSystemTestSuite) SetupTest() {
 	s.timer.On("ResetTimeout").Return()
 	s.timer.On("TimeoutPassed").Return(false)
 	s.runner = &NomadJob{
-		Storage:         execution.NewLocalStorage(),
+		Storer:          execution.NewLocalStorage(),
 		InactivityTimer: s.timer,
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,

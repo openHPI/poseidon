@@ -37,7 +37,7 @@ type Runner interface {
 	// MappedPorts returns the mapped ports of the runner.
 	MappedPorts() []*dto.MappedPort
 
-	execution.Storage
+	execution.Storer
 	InactivityTimer
 
 	// ExecuteInteractively runs the given execution request and forwards from and to the given reader and writers.
@@ -60,7 +60,7 @@ type Runner interface {
 
 // NomadJob is an abstraction to communicate with Nomad environments.
 type NomadJob struct {
-	execution.Storage
+	execution.Storer
 	InactivityTimer
 	id           string
 	portMappings []nomadApi.PortMapping
@@ -76,7 +76,7 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 		id:           id,
 		portMappings: portMappings,
 		api:          apiClient,
-		Storage:      execution.NewLocalStorage(),
+		Storer:       execution.NewLocalStorage(),
 		manager:      manager,
 	}
 	job.InactivityTimer = NewInactivityTimer(job, manager)

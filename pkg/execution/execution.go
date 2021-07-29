@@ -7,8 +7,8 @@ import (
 // ID is an identifier for an execution.
 type ID string
 
-// Storage stores executions.
-type Storage interface {
+// Storer stores executions.
+type Storer interface {
 	// Add adds a runner to the storage.
 	// It overwrites the existing execution if an execution with the same id already exists.
 	Add(id ID, executionRequest *dto.ExecutionRequest)

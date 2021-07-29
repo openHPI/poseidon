@@ -12,7 +12,7 @@ type localStorage struct {
 	executions map[ID]*dto.ExecutionRequest
 }
 
-// NewLocalStorage responds with an Storage implementation.
+// NewLocalStorage responds with an Storer implementation.
 // This implementation stores the data thread-safe in the local application memory.
 func NewLocalStorage() *localStorage {
 	return &localStorage{

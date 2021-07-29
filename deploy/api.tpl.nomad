@@ -62,8 +62,13 @@ job "${NOMAD_SLUG}" {
       }
 
       template {
-          source        = "${NOMAD_CACERT}"
-          destination   = "/home/api/nomad-ca.crt"
+          data          = <<EOH
+${NOMAD_CACERT_DATA}
+EOH
+          // Note that only some destinations are allowed here
+          // (see https://www.nomadproject.io/docs/job-specification/template#destination).
+          // The secrets folder (NOMAD_SECRETS_DIR) is one of them.
+          destination   = "secrets/nomad-ca.crt"
           change_mode   = "noop"
       }
 
@@ -73,7 +78,7 @@ job "${NOMAD_SLUG}" {
         POSEIDON_NOMAD_NAMESPACE  = "${NOMAD_NAMESPACE}"
         POSEIDON_NOMAD_TOKEN      = "${DEPLOY_POSEIDON_NOMAD_TOKEN}"
         POSEIDON_NOMAD_TLS_ACTIVE = "${DEPLOY_POSEIDON_NOMAD_TLS_ACTIVE}"
-        POSEIDON_NOMAD_TLS_CAFILE = "nomad-ca.crt"
+        POSEIDON_NOMAD_TLS_CAFILE = "/secrets/nomad-ca.crt"
       }
 
       resources {

@@ -147,6 +147,7 @@ test_e2e:
     - export NOMAD_NAMESPACE="$NOMAD_SLUG"
     - nomad namespace apply $NOMAD_NAMESPACE
   script:
+    - export NOMAD_CACERT_DATA=$(cat $NOMAD_CACERT)
     # Only replace set env vars
     - envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < deploy/api.tpl.nomad > deploy/api.nomad
     # Make sure to set NOMAD_ADDR, NOMAD_SKIP_VERIFY and NOMAD_TOKEN env vars in CI settings appropriately

@@ -8,6 +8,7 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/execution"
 	"net/http"
 	"net/url"
 )
@@ -112,7 +113,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
 	}
-	id := runner.ExecutionID(newUUID.String())
+	id := execution.ID(newUUID.String())
 	targetRunner.Add(id, executionRequest)
 	webSocketURL := url.URL{
 		Scheme:   scheme,

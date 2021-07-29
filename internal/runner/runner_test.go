@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/execution"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/nullio"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"io"
@@ -48,7 +49,7 @@ func TestExecutionRequestIsStored(t *testing.T) {
 		TimeLimit:   10,
 		Environment: nil,
 	}
-	id := ExecutionID("test-execution")
+	id := execution.ID("test-execution")
 	runner.Add(id, executionRequest)
 	storedExecutionRunner, ok := runner.Pop(id)
 
@@ -118,11 +119,11 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 	s.manager.On("Return", mock.Anything).Return(nil)
 
 	s.runner = &NomadJob{
-		ExecutionStorage: NewLocalExecutionStorage(),
-		InactivityTimer:  s.timer,
-		id:               tests.DefaultRunnerID,
-		api:              s.apiMock,
-		manager:          s.manager,
+		Storage:         execution.NewLocalStorage(),
+		InactivityTimer: s.timer,
+		id:              tests.DefaultRunnerID,
+		api:             s.apiMock,
+		manager:         s.manager,
 	}
 }
 
@@ -141,8 +142,8 @@ func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
 	}).Return(0, nil)
 
 	timeLimit := 1
-	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
-	exit, _ := s.runner.ExecuteInteractively(execution, &nullio.ReadWriter{}, nil, nil)
+	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
+	exit, _ := s.runner.ExecuteInteractively(executionRequest, &nullio.ReadWriter{}, nil, nil)
 
 	select {
 	case <-exit:
@@ -170,8 +171,8 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 		close(quit)
 	}).Return(0, nil)
 	timeLimit := 1
-	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
-	_, _ = s.runner.ExecuteInteractively(execution, bytes.NewBuffer(make([]byte, 1)), nil, nil)
+	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
+	_, _ = s.runner.ExecuteInteractively(executionRequest, bytes.NewBuffer(make([]byte, 1)), nil, nil)
 	select {
 	case <-time.After(2 * (time.Duration(timeLimit) * time.Second)):
 		s.FailNow("The execution should receive a SIGQUIT after the timeout")
@@ -184,22 +185,22 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 		select {}
 	})
 	timeLimit := 1
-	execution := &dto.ExecutionRequest{TimeLimit: timeLimit}
-	_, _ = s.runner.ExecuteInteractively(execution, bytes.NewBuffer(make([]byte, 1)), nil, nil)
+	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
+	_, _ = s.runner.ExecuteInteractively(executionRequest, bytes.NewBuffer(make([]byte, 1)), nil, nil)
 	<-time.After(executionTimeoutGracePeriod + time.Duration(timeLimit)*time.Second + tests.ShortTimeout)
 	s.manager.AssertCalled(s.T(), "Return", s.runner)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
-	execution := &dto.ExecutionRequest{}
-	s.runner.ExecuteInteractively(execution, nil, nil, nil)
+	executionRequest := &dto.ExecutionRequest{}
+	s.runner.ExecuteInteractively(executionRequest, nil, nil, nil)
 	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut() {
 	s.mockedTimeoutPassedCall.Return(true)
-	execution := &dto.ExecutionRequest{}
-	exitChannel, _ := s.runner.ExecuteInteractively(execution, &nullio.ReadWriter{}, nil, nil)
+	executionRequest := &dto.ExecutionRequest{}
+	exitChannel, _ := s.runner.ExecuteInteractively(executionRequest, &nullio.ReadWriter{}, nil, nil)
 	exit := <-exitChannel
 	s.Equal(ErrorRunnerInactivityTimeout, exit.Err)
 }
@@ -224,10 +225,10 @@ func (s *UpdateFileSystemTestSuite) SetupTest() {
 	s.timer.On("ResetTimeout").Return()
 	s.timer.On("TimeoutPassed").Return(false)
 	s.runner = &NomadJob{
-		ExecutionStorage: NewLocalExecutionStorage(),
-		InactivityTimer:  s.timer,
-		id:               tests.DefaultRunnerID,
-		api:              s.apiMock,
+		Storage:         execution.NewLocalStorage(),
+		InactivityTimer: s.timer,
+		id:              tests.DefaultRunnerID,
+		api:             s.apiMock,
 	}
 	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything,
 		mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).

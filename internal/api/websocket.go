@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/execution"
 	"io"
 	"net/http"
 	"sync"
@@ -298,7 +299,7 @@ func (wp *webSocketProxy) writeMessage(messageType int, data []byte) error {
 // connectToRunner is the endpoint for websocket connections.
 func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	executionID := runner.ExecutionID(request.URL.Query().Get(ExecutionIDKey))
+	executionID := execution.ID(request.URL.Query().Get(ExecutionIDKey))
 	executionRequest, ok := targetRunner.Pop(executionID)
 	if !ok {
 		writeNotFound(writer, ErrUnknownExecutionID)

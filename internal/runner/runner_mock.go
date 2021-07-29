@@ -4,6 +4,7 @@ package runner
 
 import (
 	context "context"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/execution"
 	io "io"
 
 	dto "gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
@@ -19,7 +20,7 @@ type RunnerMock struct {
 }
 
 // Add provides a mock function with given fields: id, executionRequest
-func (_m *RunnerMock) Add(id ExecutionID, executionRequest *dto.ExecutionRequest) {
+func (_m *RunnerMock) Add(id execution.ID, executionRequest *dto.ExecutionRequest) {
 	_m.Called(id, executionRequest)
 }
 
@@ -93,11 +94,11 @@ func (_m *RunnerMock) MappedPorts() []*dto.MappedPort {
 }
 
 // Pop provides a mock function with given fields: id
-func (_m *RunnerMock) Pop(id ExecutionID) (*dto.ExecutionRequest, bool) {
+func (_m *RunnerMock) Pop(id execution.ID) (*dto.ExecutionRequest, bool) {
 	ret := _m.Called(id)
 
 	var r0 *dto.ExecutionRequest
-	if rf, ok := ret.Get(0).(func(ExecutionID) *dto.ExecutionRequest); ok {
+	if rf, ok := ret.Get(0).(func(execution.ID) *dto.ExecutionRequest); ok {
 		r0 = rf(id)
 	} else {
 		if ret.Get(0) != nil {
@@ -106,7 +107,7 @@ func (_m *RunnerMock) Pop(id ExecutionID) (*dto.ExecutionRequest, bool) {
 	}
 
 	var r1 bool
-	if rf, ok := ret.Get(1).(func(ExecutionID) bool); ok {
+	if rf, ok := ret.Get(1).(func(execution.ID) bool); ok {
 		r1 = rf(id)
 	} else {
 		r1 = ret.Get(1).(bool)

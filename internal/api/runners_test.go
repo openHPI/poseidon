@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/execution"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"net/http"
 	"net/http/httptest"
@@ -85,7 +86,7 @@ type RunnerRouteTestSuite struct {
 	runnerManager *runner.ManagerMock
 	router        *mux.Router
 	runner        runner.Runner
-	executionID   runner.ExecutionID
+	executionID   execution.ID
 }
 
 func (s *RunnerRouteTestSuite) SetupTest() {
@@ -200,7 +201,7 @@ func (s *RunnerRouteTestSuite) TestExecuteRoute() {
 			webSocketURL, err := url.Parse(webSocketResponse.WebSocketURL)
 			s.Require().NoError(err)
 			executionID := webSocketURL.Query().Get(ExecutionIDKey)
-			storedExecutionRequest, ok := s.runner.Pop(runner.ExecutionID(executionID))
+			storedExecutionRequest, ok := s.runner.Pop(execution.ID(executionID))
 
 			s.True(ok, "No execution request with this id: ", executionID)
 			s.Equal(&executionRequest, storedExecutionRequest)

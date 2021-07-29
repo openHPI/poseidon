@@ -5,7 +5,29 @@ Poseidon can be configured to suit different use cases.
 
 ## Poseidon
 
-Poseidon's configuration options are described in the sample configuration file.
+The file `config/config.go` contains a configuration struct containing all possible configuration options for Poseidon. The file also defines default values for most of the configuration options.  
+The options *can* be overridden with a yaml configuration file whose path can be configured with the flag `-config`. By default, Poseidon searches for `configuration.yaml` in the working directory. `configuration.example.yaml` is an example for a configuration file and contains explanations for all options.
+The options *can* also be overridden by environment variables. Currently, only the Go types `string`, `int`, `bool` and `struct` (nested) are implemented. The name of the environment variable is constructed as follows: `POSEIDON_(<name of nested struct>_)*<name of field>` (all letters are uppercase).
+
+The precedence of configuration possibilities is:
+
+1. Environment variables
+1. Configuration file
+1. Default values
+
+If a value is not specified, the value of the subsequent possibility is used.
+
+### Example
+
+- The default value for the `Port` (type `int`) field in the `Server` field (type `struct`) of the configuration is `7200`.
+- This can be overwritten with the following `configuration.yaml`:
+
+  ```yaml
+  server:
+    port: 4000
+  ```
+
+- Again, this can be overwritten by the environment variable `POSEIDON_SERVER_PORT`, e.g., using `export POSEIDON_SERVER_PORT=5000`.
 
 
 ## Nomad

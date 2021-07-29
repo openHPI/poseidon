@@ -5,7 +5,7 @@ Poseidon is an abstraction of the functionality provided by Nomad. In the follow
 Nomad is structured in different levels of abstraction. Jobs are collected in namespaces. Each Job can contain several Task Groups. Each Task Group can contain several Tasks. Finally, Allocations map Task Groups to Nomad Clients. For more insights take a look at [the official description](https://www.nomadproject.io/docs/internals/architecture).
 In our case, a Task is executed in a Docker container.
 
-![Overview Poseidon-Nomad mapping](ressources/OverviewPoseidonNomadMapping.png)
+![Overview Poseidon-Nomad mapping](resources/OverviewPoseidonNomadMapping.png)
 
 ## Execution environments as template Jobs
 

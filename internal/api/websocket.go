@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/websocket"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/execution"
 	"io"
 	"net/http"
 	"sync"
@@ -299,9 +298,8 @@ func (wp *webSocketProxy) writeMessage(messageType int, data []byte) error {
 // connectToRunner is the endpoint for websocket connections.
 func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	executionID := execution.ID(request.URL.Query().Get(ExecutionIDKey))
-	executionRequest, ok := targetRunner.Pop(executionID)
-	if !ok {
+	executionID := request.URL.Query().Get(ExecutionIDKey)
+	if !targetRunner.ExecutionExists(executionID) {
 		writeNotFound(writer, ErrUnknownExecutionID)
 		return
 	}
@@ -317,7 +315,11 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 	}
 
 	log.WithField("runnerId", targetRunner.ID()).WithField("executionID", executionID).Info("Running execution")
-	exit, cancel := targetRunner.ExecuteInteractively(executionRequest, proxy.Stdin, proxy.Stdout, proxy.Stderr)
+	exit, cancel, err := targetRunner.ExecuteInteractively(executionID, proxy.Stdin, proxy.Stdout, proxy.Stderr)
+	if err != nil {
+		proxy.closeWithError(fmt.Sprintf("execution failed with: %v", err))
+		return
+	}
 
 	proxy.waitForExit(exit, cancel)
 }

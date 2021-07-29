@@ -20,7 +20,7 @@ type RunnerPoolTestSuite struct {
 func (s *RunnerPoolTestSuite) SetupTest() {
 	s.runnerStorage = NewLocalRunnerStorage()
 	s.runner = NewRunner(tests.DefaultRunnerID, nil)
-	s.runner.Add(tests.DefaultExecutionID, &dto.ExecutionRequest{Command: "true"})
+	s.runner.StoreExecution(tests.DefaultExecutionID, &dto.ExecutionRequest{Command: "true"})
 }
 
 func (s *RunnerPoolTestSuite) TestAddedRunnerCanBeRetrieved() {

@@ -29,26 +29,40 @@ const (
 	executionTimeoutGracePeriod = 3 * time.Second
 )
 
-var ErrorFileCopyFailed = errors.New("file copy failed")
+var (
+	ErrorUnknownExecution = errors.New("unknown execution")
+	ErrorFileCopyFailed   = errors.New("file copy failed")
+)
+
+type ExitInfo struct {
+	Code uint8
+	Err  error
+}
 
 type Runner interface {
+	InactivityTimer
+
 	// ID returns the id of the runner.
 	ID() string
+
 	// MappedPorts returns the mapped ports of the runner.
 	MappedPorts() []*dto.MappedPort
 
-	execution.Storer
-	InactivityTimer
+	// StoreExecution adds a new execution to the runner that can then be executed using ExecuteInteractively.
+	StoreExecution(id string, executionRequest *dto.ExecutionRequest)
+
+	// ExecutionExists returns whether the execution with the given id is already stored.
+	ExecutionExists(id string) bool
 
 	// ExecuteInteractively runs the given execution request and forwards from and to the given reader and writers.
 	// An ExitInfo is sent to the exit channel on command completion.
 	// Output from the runner is forwarded immediately.
 	ExecuteInteractively(
-		request *dto.ExecutionRequest,
+		id string,
 		stdin io.ReadWriter,
 		stdout,
 		stderr io.Writer,
-	) (exit <-chan ExitInfo, cancel context.CancelFunc)
+	) (exit <-chan ExitInfo, cancel context.CancelFunc, err error)
 
 	// UpdateFileSystem processes a dto.UpdateFileSystemRequest by first deleting each given dto.FilePath recursively
 	// and then copying each given dto.File to the runner.
@@ -60,8 +74,8 @@ type Runner interface {
 
 // NomadJob is an abstraction to communicate with Nomad environments.
 type NomadJob struct {
-	execution.Storer
 	InactivityTimer
+	executions   execution.Storer
 	id           string
 	portMappings []nomadApi.PortMapping
 	api          nomad.ExecutorAPI
@@ -76,7 +90,7 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 		id:           id,
 		portMappings: portMappings,
 		api:          apiClient,
-		Storer:       execution.NewLocalStorage(),
+		executions:   execution.NewLocalStorage(),
 		manager:      manager,
 	}
 	job.InactivityTimer = NewInactivityTimer(job, manager)
@@ -98,9 +112,74 @@ func (r *NomadJob) MappedPorts() []*dto.MappedPort {
 	return ports
 }
 
-type ExitInfo struct {
-	Code uint8
-	Err  error
+func (r *NomadJob) StoreExecution(id string, request *dto.ExecutionRequest) {
+	r.executions.Add(execution.ID(id), request)
+}
+
+func (r *NomadJob) ExecutionExists(id string) bool {
+	return r.executions.Exists(execution.ID(id))
+}
+
+func (r *NomadJob) ExecuteInteractively(
+	id string,
+	stdin io.ReadWriter,
+	stdout, stderr io.Writer,
+) (<-chan ExitInfo, context.CancelFunc, error) {
+	request, ok := r.executions.Pop(execution.ID(id))
+	if !ok {
+		return nil, nil, ErrorUnknownExecution
+	}
+
+	r.ResetTimeout()
+
+	command, ctx, cancel := prepareExecution(request)
+	exitInternal := make(chan ExitInfo)
+	exit := make(chan ExitInfo, 1)
+	ctxExecute, cancelExecute := context.WithCancel(context.Background())
+
+	go r.executeCommand(ctxExecute, command, stdin, stdout, stderr, exitInternal)
+	go r.handleExitOrContextDone(ctx, cancelExecute, exitInternal, exit, stdin)
+
+	return exit, cancel, nil
+}
+
+func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) error {
+	r.ResetTimeout()
+
+	var tarBuffer bytes.Buffer
+	if err := createTarArchiveForFiles(copyRequest.Copy, &tarBuffer); err != nil {
+		return err
+	}
+
+	fileDeletionCommand := fileDeletionCommand(copyRequest.Delete)
+	copyCommand := "tar --extract --absolute-names --verbose --file=/dev/stdin;"
+	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
+	stdOut := bytes.Buffer{}
+	stdErr := bytes.Buffer{}
+	exitCode, err := r.api.ExecuteCommand(r.id, context.Background(), updateFileCommand, false,
+		&tarBuffer, &stdOut, &stdErr)
+
+	if err != nil {
+		return fmt.Errorf(
+			"%w: nomad error during file copy: %v",
+			nomad.ErrorExecutorCommunicationFailed,
+			err)
+	}
+	if exitCode != 0 {
+		return fmt.Errorf(
+			"%w: stderr output '%s' and stdout output '%s'",
+			ErrorFileCopyFailed,
+			stdErr.String(),
+			stdOut.String())
+	}
+	return nil
+}
+
+func (r *NomadJob) Destroy() error {
+	if err := r.manager.Return(r); err != nil {
+		return fmt.Errorf("error while destroying runner: %w", err)
+	}
+	return nil
 }
 
 func prepareExecution(request *dto.ExecutionRequest) (
@@ -162,61 +241,6 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 			log.WithField("runner", r.id).Error("Error when destroying runner")
 		}
 	}
-}
-
-func (r *NomadJob) ExecuteInteractively(
-	request *dto.ExecutionRequest,
-	stdin io.ReadWriter,
-	stdout, stderr io.Writer,
-) (<-chan ExitInfo, context.CancelFunc) {
-	r.ResetTimeout()
-
-	command, ctx, cancel := prepareExecution(request)
-	exitInternal := make(chan ExitInfo)
-	exit := make(chan ExitInfo, 1)
-	ctxExecute, cancelExecute := context.WithCancel(context.Background())
-	go r.executeCommand(ctxExecute, command, stdin, stdout, stderr, exitInternal)
-	go r.handleExitOrContextDone(ctx, cancelExecute, exitInternal, exit, stdin)
-	return exit, cancel
-}
-
-func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) error {
-	r.ResetTimeout()
-
-	var tarBuffer bytes.Buffer
-	if err := createTarArchiveForFiles(copyRequest.Copy, &tarBuffer); err != nil {
-		return err
-	}
-
-	fileDeletionCommand := fileDeletionCommand(copyRequest.Delete)
-	copyCommand := "tar --extract --absolute-names --verbose --file=/dev/stdin;"
-	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
-	stdOut := bytes.Buffer{}
-	stdErr := bytes.Buffer{}
-	exitCode, err := r.api.ExecuteCommand(r.id, context.Background(), updateFileCommand, false,
-		&tarBuffer, &stdOut, &stdErr)
-
-	if err != nil {
-		return fmt.Errorf(
-			"%w: nomad error during file copy: %v",
-			nomad.ErrorExecutorCommunicationFailed,
-			err)
-	}
-	if exitCode != 0 {
-		return fmt.Errorf(
-			"%w: stderr output '%s' and stdout output '%s'",
-			ErrorFileCopyFailed,
-			stdErr.String(),
-			stdOut.String())
-	}
-	return nil
-}
-
-func (r *NomadJob) Destroy() error {
-	if err := r.manager.Return(r); err != nil {
-		return fmt.Errorf("error while destroying runner: %w", err)
-	}
-	return nil
 }
 
 func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer) error {

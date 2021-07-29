@@ -26,6 +26,13 @@ func (s *localStorage) Add(id ID, executionRequest *dto.ExecutionRequest) {
 	s.executions[id] = executionRequest
 }
 
+func (s *localStorage) Exists(id ID) bool {
+	s.Lock()
+	defer s.Unlock()
+	_, ok := s.executions[id]
+	return ok
+}
+
 func (s *localStorage) Pop(id ID) (*dto.ExecutionRequest, bool) {
 	s.Lock()
 	defer s.Unlock()

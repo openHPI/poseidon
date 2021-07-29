@@ -15,7 +15,6 @@ import (
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/nomad"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/execution"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"io"
@@ -34,7 +33,7 @@ func TestWebSocketTestSuite(t *testing.T) {
 type WebSocketTestSuite struct {
 	suite.Suite
 	router      *mux.Router
-	executionID execution.ID
+	executionID string
 	runner      runner.Runner
 	apiMock     *nomad.ExecutorAPIMock
 	server      *httptest.Server
@@ -46,7 +45,7 @@ func (s *WebSocketTestSuite) SetupTest() {
 
 	// default execution
 	s.executionID = "execution-id"
-	s.runner.Add(s.executionID, &executionRequestHead)
+	s.runner.StoreExecution(s.executionID, &executionRequestHead)
 	mockAPIExecuteHead(s.apiMock)
 
 	runnerManager := &runner.ManagerMock{}
@@ -125,8 +124,8 @@ func (s *WebSocketTestSuite) TestWebsocketConnection() {
 }
 
 func (s *WebSocketTestSuite) TestCancelWebSocketConnection() {
-	executionID := execution.ID("sleeping-execution")
-	s.runner.Add(executionID, &executionRequestSleep)
+	executionID := "sleeping-execution"
+	s.runner.StoreExecution(executionID, &executionRequestSleep)
 	canceled := mockAPIExecuteSleep(s.apiMock)
 
 	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
@@ -156,10 +155,10 @@ func (s *WebSocketTestSuite) TestCancelWebSocketConnection() {
 }
 
 func (s *WebSocketTestSuite) TestWebSocketConnectionTimeout() {
-	executionID := execution.ID("time-out-execution")
+	executionID := "time-out-execution"
 	limitExecution := executionRequestSleep
 	limitExecution.TimeLimit = 2
-	s.runner.Add(executionID, &limitExecution)
+	s.runner.StoreExecution(executionID, &limitExecution)
 	canceled := mockAPIExecuteSleep(s.apiMock)
 
 	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
@@ -190,8 +189,8 @@ func (s *WebSocketTestSuite) TestWebSocketConnectionTimeout() {
 }
 
 func (s *WebSocketTestSuite) TestWebsocketStdoutAndStderr() {
-	executionID := execution.ID("ls-execution")
-	s.runner.Add(executionID, &executionRequestLs)
+	executionID := "ls-execution"
+	s.runner.StoreExecution(executionID, &executionRequestLs)
 	mockAPIExecuteLs(s.apiMock)
 
 	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
@@ -210,8 +209,8 @@ func (s *WebSocketTestSuite) TestWebsocketStdoutAndStderr() {
 }
 
 func (s *WebSocketTestSuite) TestWebsocketError() {
-	executionID := execution.ID("error-execution")
-	s.runner.Add(executionID, &executionRequestError)
+	executionID := "error-execution"
+	s.runner.StoreExecution(executionID, &executionRequestError)
 	mockAPIExecuteError(s.apiMock)
 
 	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
@@ -229,8 +228,8 @@ func (s *WebSocketTestSuite) TestWebsocketError() {
 }
 
 func (s *WebSocketTestSuite) TestWebsocketNonZeroExit() {
-	executionID := execution.ID("exit-execution")
-	s.runner.Add(executionID, &executionRequestExitNonZero)
+	executionID := "exit-execution"
+	s.runner.StoreExecution(executionID, &executionRequestExitNonZero)
 	mockAPIExecuteExitNonZero(s.apiMock)
 
 	wsURL, err := webSocketURL("ws", s.server, s.router, s.runner.ID(), executionID)
@@ -251,8 +250,8 @@ func TestWebsocketTLS(t *testing.T) {
 	runnerID := "runner-id"
 	r, apiMock := newNomadAllocationWithMockedAPIClient(runnerID)
 
-	executionID := execution.ID("execution-id")
-	r.Add(executionID, &executionRequestLs)
+	executionID := "execution-id"
+	r.StoreExecution(executionID, &executionRequestLs)
 	mockAPIExecuteLs(apiMock)
 
 	runnerManager := &runner.ManagerMock{}
@@ -380,7 +379,7 @@ func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nom
 }
 
 func webSocketURL(scheme string, server *httptest.Server, router *mux.Router,
-	runnerID string, executionID execution.ID,
+	runnerID string, executionID string,
 ) (*url.URL, error) {
 	websocketURL, err := url.Parse(server.URL)
 	if err != nil {
@@ -396,7 +395,7 @@ func webSocketURL(scheme string, server *httptest.Server, router *mux.Router,
 	return websocketURL, nil
 }
 
-func (s *WebSocketTestSuite) webSocketURL(scheme, runnerID string, executionID execution.ID) (*url.URL, error) {
+func (s *WebSocketTestSuite) webSocketURL(scheme, runnerID, executionID string) (*url.URL, error) {
 	return webSocketURL(scheme, s.server, s.router, runnerID, executionID)
 }
 

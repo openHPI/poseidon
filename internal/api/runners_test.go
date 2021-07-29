@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/execution"
 	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"net/http"
 	"net/http/httptest"
@@ -86,15 +85,15 @@ type RunnerRouteTestSuite struct {
 	runnerManager *runner.ManagerMock
 	router        *mux.Router
 	runner        runner.Runner
-	executionID   execution.ID
+	executionID   string
 }
 
 func (s *RunnerRouteTestSuite) SetupTest() {
 	s.runnerManager = &runner.ManagerMock{}
 	s.router = NewRouter(s.runnerManager, nil)
 	s.runner = runner.NewNomadJob("some-id", nil, nil, nil)
-	s.executionID = "execution-id"
-	s.runner.Add(s.executionID, &dto.ExecutionRequest{})
+	s.executionID = "execution"
+	s.runner.StoreExecution(s.executionID, &dto.ExecutionRequest{})
 	s.runnerManager.On("Get", s.runner.ID()).Return(s.runner, nil)
 }
 
@@ -201,10 +200,9 @@ func (s *RunnerRouteTestSuite) TestExecuteRoute() {
 			webSocketURL, err := url.Parse(webSocketResponse.WebSocketURL)
 			s.Require().NoError(err)
 			executionID := webSocketURL.Query().Get(ExecutionIDKey)
-			storedExecutionRequest, ok := s.runner.Pop(execution.ID(executionID))
+			ok := s.runner.ExecutionExists(executionID)
 
 			s.True(ok, "No execution request with this id: ", executionID)
-			s.Equal(&executionRequest, storedExecutionRequest)
 		})
 	})
 

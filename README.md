@@ -3,6 +3,8 @@
 [![pipeline status](https://gitlab.hpi.de/codeocean/codemoon/poseidon/badges/main/pipeline.svg)](https://gitlab.hpi.de/codeocean/codemoon/poseidon/-/commits/main)
 [![coverage report](https://gitlab.hpi.de/codeocean/codemoon/poseidon/badges/main/coverage.svg)](https://gitlab.hpi.de/codeocean/codemoon/poseidon/-/commits/main)
 
+<img src="assets/Poseidon.svg" alt="Poseidon logo" width="20%">
+
 Poseidon provides containerized execution of arbitrary user code inside a Docker container for learning purposes. It has two main purposes:
 
 1. Securing the executions so that they are isolated from each other and from the host system.

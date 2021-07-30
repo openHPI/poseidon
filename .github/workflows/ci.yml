@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NOMAD_VERSION: 1.1.2
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: 0
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Build
+        run: make build
+      - name: Upload Poseidon binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: poseidon
+          path: poseidon
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2.5.2
+        with:
+          version: latest
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [ compile ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Run tests
+        run: make coverhtml
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage
+          path: coverage_unit.html
+
+  dep-scan:
+    runs-on: ubuntu-latest
+    needs: [ compile ]
+    steps:
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'template'
+          template: '@/contrib/sarif.tpl'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  e2e-test:
+    runs-on: ubuntu-latest
+    needs: [ compile, dep-scan, test ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - name: Cache Go modules
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Cache Nomad binary
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/nomad
+          key: ${{ runner.os }}-nomad-${{ env.NOMAD_VERSION }}
+          restore-keys: |
+            ${{ runner.os }}-nomad-${{ env.NOMAD_VERSION }}
+      - name: Download Nomad binary
+        run: |
+          if [[ -f ./nomad ]]; then exit 0; fi
+          wget -q "https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip"
+          wget -q "https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS"
+          grep "nomad_${NOMAD_VERSION}_linux_amd64.zip" nomad_${NOMAD_VERSION}_SHA256SUMS | sha256sum -c -
+          unzip nomad_${NOMAD_VERSION}_linux_amd64.zip
+      - name: Download Poseidon binary
+        uses: actions/download-artifact@v2
+        with:
+          name: poseidon
+      - name: Run e2e tests
+        run: |
+          sudo ./nomad agent -dev -log-level=WARN &
+          until curl -s --fail http://localhost:4646/v1/agent/health ; do sleep 1; done
+          chmod +x ./poseidon
+          ./poseidon &
+          make e2e-test

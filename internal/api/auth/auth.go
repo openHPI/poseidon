@@ -2,8 +2,8 @@ package auth
 
 import (
 	"crypto/subtle"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/logging"
+	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"net/http"
 )
 

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"net/http"
 	"net/url"
 )

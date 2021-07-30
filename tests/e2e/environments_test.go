@@ -2,13 +2,13 @@ package e2e
 
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/internal/api"
+	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/tests"
+	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/api"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"io"
 	"net/http"
 	"strings"

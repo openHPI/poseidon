@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/environment"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/internal/environment"
+	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"net/http"
 )
 

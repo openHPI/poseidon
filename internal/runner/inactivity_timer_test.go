@@ -1,9 +1,9 @@
 package runner
 
 import (
+	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"testing"
 	"time"
 )

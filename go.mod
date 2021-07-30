@@ -1,4 +1,4 @@
-module gitlab.hpi.de/codeocean/codemoon/poseidon
+module github.com/openHPI/poseidon
 
 go 1.16
 

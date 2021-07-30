@@ -1,5 +1,5 @@
 PROJECT_NAME := "poseidon"
-PKG := "gitlab.hpi.de/codeocean/codemoon/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)"
+PKG := "github.com/openHPI/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)"
 UNIT_TESTS = $(shell go list ./... | grep -v /e2e)
 
 DOCKER_E2E_CONTAINER_NAME := "$(PROJECT_NAME)-e2e-tests"

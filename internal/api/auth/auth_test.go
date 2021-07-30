@@ -1,11 +1,11 @@
 package auth
 
 import (
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"

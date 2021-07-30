@@ -6,7 +6,7 @@ import (
 	context "context"
 	io "io"
 
-	dto "gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	dto "github.com/openHPI/poseidon/pkg/dto"
 
 	mock "github.com/stretchr/testify/mock"
 

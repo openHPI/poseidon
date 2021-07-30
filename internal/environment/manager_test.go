@@ -2,14 +2,14 @@ package environment
 
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/internal/nomad"
+	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/nomad"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
 	"os"
 	"testing"
 )

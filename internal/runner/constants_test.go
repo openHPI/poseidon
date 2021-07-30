@@ -1,6 +1,6 @@
 package runner
 
-import "gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
+import "github.com/openHPI/poseidon/tests"
 
 const (
 	defaultEnvironmentID     = EnvironmentID(tests.DefaultEnvironmentIDAsInteger)

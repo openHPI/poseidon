@@ -2,10 +2,10 @@ package api
 
 import (
 	"github.com/gorilla/mux"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/api/auth"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/environment"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/runner"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/logging"
+	"github.com/openHPI/poseidon/internal/api/auth"
+	"github.com/openHPI/poseidon/internal/environment"
+	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"net/http"
 )
 

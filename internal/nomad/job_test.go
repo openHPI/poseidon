@@ -3,13 +3,13 @@ package nomad
 import (
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/tests"
+	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/tests/helpers"
 	"strconv"
 	"testing"
 )

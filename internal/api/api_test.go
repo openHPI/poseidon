@@ -2,8 +2,8 @@ package api
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/stretchr/testify/assert"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"

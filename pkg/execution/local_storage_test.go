@@ -1,9 +1,9 @@
 package execution
 
 import (
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
 	"testing"
 )
 

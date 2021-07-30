@@ -6,7 +6,7 @@ import (
 	context "context"
 
 	api "github.com/hashicorp/nomad/api"
-	config "gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
+	config "github.com/openHPI/poseidon/internal/config"
 
 	io "io"
 

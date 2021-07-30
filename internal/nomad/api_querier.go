@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/internal/config"
+	"github.com/openHPI/poseidon/internal/config"
 	"io"
 )
 

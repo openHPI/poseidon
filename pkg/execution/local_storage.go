@@ -1,7 +1,7 @@
 package execution
 
 import (
-	"gitlab.hpi.de/codeocean/codemoon/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"sync"
 )
 

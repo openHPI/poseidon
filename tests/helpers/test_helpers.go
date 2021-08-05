@@ -171,9 +171,11 @@ func HTTPPutJSON(url string, body interface{}) (response *http.Response, err err
 	return HTTPPut(url, reader)
 }
 
+const templateJobPriority = 100
+
 func CreateTemplateJob() (base, job *nomadApi.Job) {
-	base = nomadApi.NewBatchJob(tests.DefaultJobID, tests.DefaultJobID, "region-name", 100)
-	job = nomadApi.NewBatchJob(tests.DefaultJobID, tests.DefaultJobID, "region-name", 100)
+	base = nomadApi.NewBatchJob(tests.DefaultJobID, tests.DefaultJobID, "region-name", templateJobPriority)
+	job = nomadApi.NewBatchJob(tests.DefaultJobID, tests.DefaultJobID, "region-name", templateJobPriority)
 	configTaskGroup := nomadApi.NewTaskGroup("config", 0)
 	configTaskGroup.Meta = make(map[string]string)
 	configTaskGroup.Meta["prewarmingPoolSize"] = "0"

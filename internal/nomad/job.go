@@ -113,6 +113,8 @@ func createTaskGroup(job *nomadApi.Job, name string) *nomadApi.TaskGroup {
 	return taskGroup
 }
 
+const portNumberBase = 10
+
 func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposedPorts []uint16) {
 	if len(taskGroup.Tasks) == 0 {
 		// This function is only used internally and must be called as last step when configuring the task.
@@ -138,7 +140,7 @@ func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposed
 		networkResource.Mode = "bridge"
 		for _, portNumber := range exposedPorts {
 			port := nomadApi.Port{
-				Label: strconv.FormatUint(uint64(portNumber), 10),
+				Label: strconv.FormatUint(uint64(portNumber), portNumberBase),
 				To:    int(portNumber),
 			}
 			networkResource.DynamicPorts = append(networkResource.DynamicPorts, port)

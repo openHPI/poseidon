@@ -1,0 +1,82 @@
+---
+
+# Run this playbook via e.g.: ansible-playbook -i inventory-staging.yaml playbook.yml
+- name: Build and Deploy Poseidon
+  connection: ssh
+  gather_facts: false
+  hosts: all
+  tasks:
+    # Build Poseidon
+    - name: Build Poseidon
+      local_action:
+        module: make
+        chdir: "{{ playbook_dir }}/../.."
+        target: build
+
+    # Create user for executing poseidon
+    - name: Add the user api
+      become: yes
+      ansible.builtin.user:
+        name: api
+        comment: Poseidon API
+
+    # Copy binary
+    - name: Copy poseidon binary with owner and permissions
+      become: yes
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../poseidon"
+        dest: /home/api/poseidon
+        owner: api
+        group: api
+        mode: '0744'
+
+    # Copy configuration
+    - name: Copy configuration file with owner and permissions
+      become: yes
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/configuration.yaml"
+        dest: /home/api/configuration.yaml
+        owner: api
+        group: api
+        mode: '0644'
+
+    # Copy Nomad ca file
+    - name: Copy Nomad ca file with owner and permissions
+      become: yes
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/ca.crt"
+        dest: /home/api/ca.crt
+        owner: api
+        group: api
+        mode: '0644'
+
+    # ToDo: Security
+    # ToDo: Copy Nomad-Poseidon mTLS certificate
+    # ToDo: Generate Poseidons TLS certificate
+    # ToDo: Copy certificate
+
+    # Check / Write systemd service
+    - name: Copy Systemd service file with owner and permissions
+      become: yes
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/poseidon.service"
+        dest: /etc/systemd/system/poseidon.service
+        owner: root
+        group: root
+        mode: '0644'
+      register: unitextists
+
+    # Reload systemd
+    - name: Just force systemd to reread configs
+      become: yes
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      when: unitextists.changed
+
+    # Restart systemd service
+    - name: Enable Poseidon service
+      become: yes
+      ansible.builtin.systemd:
+        name: poseidon
+        enabled: yes
+        state: restarted

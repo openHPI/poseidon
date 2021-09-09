@@ -5,6 +5,11 @@
 configuration.yaml
 tests/e2e/configuration.yaml
 
+# Ansible configuration
+deploy/ansible/configuration.yaml
+deploy/ansible/inventory-staging.yaml
+deploy/ansible/inventory-production.yaml
+
 # TLS certificate/key
 *.crt
 *.key

@@ -1,7 +1,6 @@
 # Poseidon
 
-[![pipeline status](https://gitlab.hpi.de/codeocean/codemoon/poseidon/badges/main/pipeline.svg)](https://gitlab.hpi.de/codeocean/codemoon/poseidon/-/commits/main)
-[![coverage report](https://gitlab.hpi.de/codeocean/codemoon/poseidon/badges/main/coverage.svg)](https://gitlab.hpi.de/codeocean/codemoon/poseidon/-/commits/main)
+[![CI](https://github.com/openHPI/poseidon/actions/workflows/ci.yml/badge.svg)](https://github.com/openHPI/poseidon/actions/workflows/ci.yml)
 
 <img src="assets/Poseidon.svg" alt="Poseidon logo" width="20%">
 

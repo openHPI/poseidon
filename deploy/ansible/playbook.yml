@@ -1,6 +1,6 @@
 ---
 
-# Run this playbook via e.g.: ansible-playbook -i inventory-staging.yaml playbook.yml
+# Run this playbook via e.g.: ansible-playbook -i staging/inventory.yaml playbook.yml
 - name: Build and Deploy Poseidon
   connection: ssh
   gather_facts: false
@@ -34,26 +34,66 @@
     - name: Copy configuration file with owner and permissions
       become: yes
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/configuration.yaml"
+        src: "{{ inventory_dir }}/configuration.yaml"
         dest: /home/api/configuration.yaml
         owner: api
         group: api
         mode: '0644'
+    - name: Load configuration into variable
+      include_vars:
+        file: "{{ inventory_dir }}/configuration.yaml"
+        name: config
 
     # Copy Nomad ca file
     - name: Copy Nomad ca file with owner and permissions
       become: yes
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/ca.crt"
+        src: "{{ inventory_dir }}/ca.crt"
         dest: /home/api/ca.crt
         owner: api
         group: api
         mode: '0644'
+      when: config.nomad.tls.cafile is defined
 
-    # ToDo: Security
-    # ToDo: Copy Nomad-Poseidon mTLS certificate
-    # ToDo: Generate Poseidons TLS certificate
-    # ToDo: Copy certificate
+    # Copy Nomad-Poseidon mTLS certificate
+    - name: Copy Nomad-Poseidon mTLS certificate
+      become: yes
+      ansible.builtin.copy:
+        src: "{{ inventory_dir }}/nomad-poseidon.pem"
+        dest: /home/api/nomad-poseidon.pem
+        owner: api
+        group: api
+        mode: '0644'
+        when: config.nomad.tls.certfile is defined
+    - name: Copy Nomad-Poseidon mTLS certificate key
+      become: yes
+      ansible.builtin.copy:
+        src: "{{ inventory_dir }}/nomad-poseidon-key.pem"
+        dest: /home/api/nomad-poseidon-key.pem
+        owner: api
+        group: api
+        mode: '0600'
+      when: config.nomad.tls.keyfile is defined
+
+    # Copy Poseidon TLS certificate
+    - name: Copy Poseidon TLS certificate
+      become: yes
+      ansible.builtin.copy:
+        src: "{{ inventory_dir }}/server-poseidon.pem"
+        dest: /home/api/server-poseidon.pem
+        owner: api
+        group: api
+        mode: '0644'
+      when: config.server.tls.certfile is defined
+    - name: Copy Poseidon TLS certificate key
+      become: yes
+      ansible.builtin.copy:
+        src: "{{ inventory_dir }}/server-poseidon-key.pem"
+        dest: /home/api/server-poseidon-key.pem
+        owner: api
+        group: api
+        mode: '0600'
+      when: config.server.tls.keyfile is defined
 
     # Check / Write systemd service
     - name: Copy Systemd service file with owner and permissions
@@ -67,7 +107,7 @@
       register: unitextists
 
     # Reload systemd
-    - name: Just force systemd to reread configs
+    - name: Force systemd to reread configs
       become: yes
       ansible.builtin.systemd:
         daemon_reload: yes

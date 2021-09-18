@@ -1,5 +1,31 @@
 # Security configurations
 
+## TLS
+
+⚠️ We highly encourage the use of TLS in this API to increase the security.
+
+### Poseidon
+
+To enable TLS, you need to create an appropriate certificate first.
+You can do this in the same way [as for Nomad](https://learn.hashicorp.com/tutorials/nomad/security-enable-tls):
+- `cfssl print-defaults csr | cfssl gencert -initca - | cfssljson -bare poseidon-ca`
+- Copy `cfssl.json`
+- `echo '{}' | cfssl gencert -ca=poseidon-ca.pem -ca-key=poseidon-ca-key.pem -config=cfssl.json -hostname="<<poseidon server hostname>>,localhost,127.0.0.1" - | cfssljson -bare poseidon-server`
+
+
+Then, set `server.tls.active` or the corresponding environment variable to `true` and specify the `server.tls.certfile` and `server.tls.keyfile` options.
+
+### Nomad
+
+To enable TLS between Poseidon and Nomad, TLS needs to be first activated in Nomad. See [the Nomad documentation](https://learn.hashicorp.com/collections/nomad/transport-security) for a guideline on how to do that.
+
+Afterwards, it is *required* to set the `nomad.tls.active` config option to `true`, as Nomad will no longer accept any connections over HTTP. To make sure the authenticity of the Nomad host can be validated, the `nomad.tls.cafile` option has to point to a certificate of the signing authority.
+
+If using mutual TLS between Poseidon and Nomad is desired, the `nomad.tls.certfile` and `nomad.tls.keyfile` options can hold a client certificate. This certificate must be signed by the same CA as the certificates of the Nomad hosts. Note that mTLS can (and should) be enforced by Nomad in this case using the [verify_https_client](https://www.nomadproject.io/docs/configuration/tls#verify_https_client) configuration option.
+
+Here are sample configurations for [all Nomad nodes](resources/nomad.example.hcl), [the Nomad servers](resources/server.example.hcl) and [the Nomad clients](resources/client.example.hcl).
+
+
 ## Authentication
 
 ⚠️ Don't use authentication without TLS enabled, as otherwise the token will be transmitted in clear text.
@@ -20,9 +46,10 @@ $ curl -H "X-Poseidon-Token: SECRET" http://localhost:7200/api/v1/some-protected
 
 ### Nomad
 
-⚠️ Enabling access control in the Nomad cluster is also recommended, to avoid having unauthorized actors perform unwanted actions in the cluster. Instructions on setting up the cluster appropriately can be found in [the Nomad documentation](https://learn.hashicorp.com/collections/nomad/access-control).
+An alternative or additional measure to mTLS (as mentioned above) is to enable access control in the Nomad cluster to prevent unauthorised actors from performing unwanted actions in the cluster.
+ Instructions on setting up the cluster appropriately can be found in [the Nomad documentation](https://learn.hashicorp.com/collections/nomad/access-control).
 
-Afterwards, it is recommended to create a specific [Access Policy](https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control) for Poseidon with the minimal set of capabilities it needs for operating the cluster. A non-minimal example with complete permissions can be found [here](docs/poseidon_policy.hcl). Poseidon requires a corresponding [Access Token](https://learn.hashicorp.com/tutorials/nomad/access-control-tokens?in=nomad/access-control) to send commands to Nomad. A Token looks like this:
+Afterwards, it is recommended to create a specific [Access Policy](https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control) for Poseidon with the minimal set of capabilities it needs for operating the cluster. A non-minimal example with complete permissions can be found [here](poseidon_policy.hcl). Poseidon requires a corresponding [Access Token](https://learn.hashicorp.com/tutorials/nomad/access-control-tokens?in=nomad/access-control) to send commands to Nomad. A Token looks like this:
 
 ```text
 Accessor ID  = 463d3216-dc16-570f-380c-a48f5d26d955
@@ -41,20 +68,3 @@ The `Secret ID` of the Token needs to be specified as the value of `nomad.token`
 Once configured, all requests to the Nomad API automatically contain a `X-Nomad-Token` header containing the token.
 
 ⚠️ Make sure that no (overly permissive) `anonymous` access policy is present in the cluster after the policy for Poseidon has been added. Anyone can perform actions as specified by this special policy without authenticating!
-
-## TLS
-
-We highly encourage the use of TLS in this API to increase the security.
-
-### Poseidon
-
-To enable TLS, you need to create an appropriate certificate first. Then,
-set `server.tls.active` or the corresponding environment variable to `true` and specify the `server.tls.certfile` and `server.tls.keyfile` options.
-
-### Nomad
-
-To enable TLS between Poseidon and Nomad, TLS needs to be first activated in Nomad. See [the Nomad documentation](https://learn.hashicorp.com/collections/nomad/transport-security) for a guideline on how to do that.
-
-Afterwards, it is *required* to set the `nomad.tls.active` config option to `true`, as Nomad will no longer accept any connections over HTTP. To make sure the authenticity of the Nomad host can be validated, the `nomad.tls.cafile` option has to point to a certificate of the signing authority.
-
-If using mutual TLS between Poseidon and Nomad is desired, the `nomad.tls.certfile` and `nomad.tls.keyfile` options can hold a client certificate. This certificate must be signed by the same CA as the certificates of the Nomad hosts. Note that mTLS can (and should) be enforced by Nomad in this case using the [verify_https_client](https://www.nomadproject.io/docs/configuration/tls#verify_https_client) configuration option.

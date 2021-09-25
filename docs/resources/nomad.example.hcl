@@ -12,8 +12,8 @@ tls {
   http = true
   rpc  = true
 
-  ca_file   = "/home/ubuntu/nomad-ca.pem"
-  cert_file = "/home/ubuntu/cert.pem"
+  ca_file   = "/home/ubuntu/ca.crt"
+  cert_file = "/home/ubuntu/cert.crt"
   key_file  = "/home/ubuntu/cert-key.pem"
 
   verify_server_hostname = true

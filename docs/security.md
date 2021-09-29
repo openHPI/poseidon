@@ -10,12 +10,12 @@
 
 The API supports authentication via an HTTP header. To enable it, specify the `server.token` value in the `configuration.yaml` or the corresponding environment variable `POSEIDON_SERVER_TOKEN`.
 
-Once configured, all requests to the API, except the `health` route require the configured token in the `X-Poseidon-Token` header.
+Once configured, all requests to the API, except the `health` route require the configured token in the `Poseidon-Token` header.
 
 An example `curl` command with the configured token being `SECRET` looks as follows:
 
 ```bash
-$ curl -H "X-Poseidon-Token: SECRET" http://localhost:7200/api/v1/some-protected-route
+$ curl -H "Poseidon-Token: SECRET" http://localhost:7200/api/v1/some-protected-route
 ```
 
 ### Nomad

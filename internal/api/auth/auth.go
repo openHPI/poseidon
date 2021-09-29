@@ -9,7 +9,7 @@ import (
 
 var log = logging.GetLogger("api/auth")
 
-const TokenHeader = "X-Poseidon-Token"
+const TokenHeader = "Poseidon-Token"
 
 var correctAuthenticationToken []byte
 

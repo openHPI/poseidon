@@ -4,7 +4,7 @@ server:
   address: 127.0.0.1
   # Port on which the webserver listens
   port: 7200
-  # If set, this token is required in the X-Poseidon-Token header for each route except /health
+  # If set, this token is required in the `Poseidon-Token` header for each route except /health
   token: SECRET
   # Configuration of TLS between the web client and Poseidon.
   tls:

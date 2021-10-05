@@ -1,0 +1,11 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "03:00"
+      timezone: UTC
+    labels:
+      - dependencies

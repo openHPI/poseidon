@@ -20,10 +20,8 @@ const (
 	AnotherEnvironmentIDAsString  = "42"
 	DefaultUUID                   = "MY-DEFAULT-RANDOM-UUID"
 	AnotherUUID                   = "another-uuid-43"
-	DefaultJobID                  = DefaultEnvironmentIDAsString + "-" + DefaultUUID
-	AnotherJobID                  = AnotherEnvironmentIDAsString + "-" + AnotherUUID
-	DefaultRunnerID               = DefaultJobID
-	AnotherRunnerID               = AnotherJobID
+	DefaultRunnerID               = DefaultEnvironmentIDAsString + "-" + DefaultUUID
+	AnotherRunnerID               = AnotherEnvironmentIDAsString + "-" + AnotherUUID
 	DefaultExecutionID            = "s0m3-3x3cu710n-1d"
 	DefaultMockID                 = "m0ck-1d"
 	ShortTimeout                  = 100 * time.Millisecond

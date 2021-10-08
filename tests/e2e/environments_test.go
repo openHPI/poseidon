@@ -3,7 +3,7 @@ package e2e
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/api"
-	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
@@ -133,9 +133,9 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 	}
 }
 
-func findTemplateJob(t *testing.T, id runner.EnvironmentID) *nomadApi.Job {
+func findTemplateJob(t *testing.T, id dto.EnvironmentID) *nomadApi.Job {
 	t.Helper()
-	job, _, err := nomadClient.Jobs().Info(runner.TemplateJobID(id), nil)
+	job, _, err := nomadClient.Jobs().Info(nomad.TemplateJobID(id), nil)
 	if err != nil {
 		t.Fatalf("Error retrieving Nomad job: %v", err)
 	}

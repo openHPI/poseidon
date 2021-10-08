@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/environment"
-	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
@@ -36,7 +35,7 @@ func (s *EnvironmentControllerTestSuite) SetupTest() {
 type CreateOrUpdateEnvironmentTestSuite struct {
 	EnvironmentControllerTestSuite
 	path string
-	id   runner.EnvironmentID
+	id   dto.EnvironmentID
 	body []byte
 }
 

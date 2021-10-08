@@ -321,6 +321,14 @@ paths:
       description: List all execution environments the API is aware of.
       tags:
         - execution environment
+      parameters:
+        - name: fetch
+          in: query
+          description: Flag if environments are fetched again from storage before returning.
+          schema:
+            type: boolean
+            default: false
+          required: false
       responses:
         "200":
           description: Success. Returns all execution environments
@@ -350,6 +358,14 @@ paths:
       description: Get a representation of the execution environment specified by the id.
       tags:
         - execution environment
+      parameters:
+        - name: fetch
+          in: query
+          description: Flag if the environment is fetched again from storage before returning.
+          schema:
+            type: boolean
+            default: false
+          required: false
       responses:
         "200":
           description: Success. Returns the execution environment

@@ -122,7 +122,7 @@ func (s *ProvideRunnerTestSuite) SetupTest() {
 }
 
 func (s *ProvideRunnerTestSuite) TestValidRequestReturnsRunner() {
-	s.runnerManager.On("Claim", mock.AnythingOfType("runner.EnvironmentID"),
+	s.runnerManager.On("Claim", mock.AnythingOfType("dto.EnvironmentID"),
 		mock.AnythingOfType("int")).Return(s.runner, nil)
 	recorder := httptest.NewRecorder()
 
@@ -149,7 +149,7 @@ func (s *ProvideRunnerTestSuite) TestInvalidRequestReturnsBadRequest() {
 
 func (s *ProvideRunnerTestSuite) TestWhenExecutionEnvironmentDoesNotExistReturnsNotFound() {
 	s.runnerManager.
-		On("Claim", mock.AnythingOfType("runner.EnvironmentID"), mock.AnythingOfType("int")).
+		On("Claim", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("int")).
 		Return(nil, runner.ErrUnknownExecutionEnvironment)
 	recorder := httptest.NewRecorder()
 
@@ -158,7 +158,7 @@ func (s *ProvideRunnerTestSuite) TestWhenExecutionEnvironmentDoesNotExistReturns
 }
 
 func (s *ProvideRunnerTestSuite) TestWhenNoRunnerAvailableReturnsNomadOverload() {
-	s.runnerManager.On("Claim", mock.AnythingOfType("runner.EnvironmentID"), mock.AnythingOfType("int")).
+	s.runnerManager.On("Claim", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("int")).
 		Return(nil, runner.ErrNoRunnersAvailable)
 	recorder := httptest.NewRecorder()
 

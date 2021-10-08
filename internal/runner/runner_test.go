@@ -25,27 +25,27 @@ import (
 const defaultExecutionID = "execution-id"
 
 func TestIdIsStored(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil, nil, nil)
-	assert.Equal(t, tests.DefaultJobID, runner.ID())
+	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil, nil)
+	assert.Equal(t, tests.DefaultRunnerID, runner.ID())
 }
 
 func TestMappedPortsAreStoredCorrectly(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, tests.DefaultPortMappings, nil, nil)
+	runner := NewNomadJob(tests.DefaultRunnerID, tests.DefaultPortMappings, nil, nil)
 	assert.Equal(t, tests.DefaultMappedPorts, runner.MappedPorts())
 
-	runner = NewNomadJob(tests.DefaultJobID, nil, nil, nil)
+	runner = NewNomadJob(tests.DefaultRunnerID, nil, nil, nil)
 	assert.Empty(t, runner.MappedPorts())
 }
 
 func TestMarshalRunner(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil, nil, nil)
+	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil, nil)
 	marshal, err := json.Marshal(runner)
 	assert.NoError(t, err)
-	assert.Equal(t, "{\"runnerId\":\""+tests.DefaultJobID+"\"}", string(marshal))
+	assert.Equal(t, "{\"runnerId\":\""+tests.DefaultRunnerID+"\"}", string(marshal))
 }
 
 func TestExecutionRequestIsStored(t *testing.T) {
-	runner := NewNomadJob(tests.DefaultJobID, nil, nil, nil)
+	runner := NewNomadJob(tests.DefaultRunnerID, nil, nil, nil)
 	executionRequest := &dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,

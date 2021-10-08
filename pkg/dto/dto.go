@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -29,6 +30,27 @@ func (er *ExecutionRequest) FullCommand() []string {
 	}
 	command = append(command, "sh", "-c", er.Command)
 	return command
+}
+
+// EnvironmentID is an id of an environment.
+type EnvironmentID int
+
+// NewEnvironmentID parses a string into an EnvironmentID.
+func NewEnvironmentID(id string) (EnvironmentID, error) {
+	environment, err := strconv.Atoi(id)
+	return EnvironmentID(environment), err
+}
+
+// ToString pareses an EnvironmentID back to a string.
+func (e EnvironmentID) ToString() string {
+	return strconv.Itoa(int(e))
+}
+
+// ExecutionEnvironmentData is the expected json structure of the response body
+// for routes returning an execution environment.
+type ExecutionEnvironmentData struct {
+	ExecutionEnvironmentRequest
+	ID int `json:"id"`
 }
 
 // ExecutionEnvironmentRequest is the expected json structure of the request body

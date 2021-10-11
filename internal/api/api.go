@@ -34,6 +34,10 @@ func NewRouter(runnerManager runner.Manager, environmentManager environment.Mana
 
 // configureV1Router configures a given router with the routes of version 1 of the Poseidon API.
 func configureV1Router(router *mux.Router, runnerManager runner.Manager, environmentManager environment.Manager) {
+	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.WithField("request", r).Debug("Not Found Handler")
+		w.WriteHeader(http.StatusNotFound)
+	})
 	v1 := router.PathPrefix(BasePath).Subrouter()
 	v1.HandleFunc(HealthPath, Health).Methods(http.MethodGet)
 
@@ -50,7 +54,7 @@ func configureV1Router(router *mux.Router, runnerManager runner.Manager, environ
 		// All routes added to v1 after this require authentication.
 		authenticatedV1Router := v1.PathPrefix("").Subrouter()
 		authenticatedV1Router.Use(auth.HTTPAuthenticationMiddleware)
-		runnerController.ConfigureRoutes(authenticatedV1Router)
+		configureRoutes(authenticatedV1Router)
 	} else {
 		configureRoutes(v1)
 	}

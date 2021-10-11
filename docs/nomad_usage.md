@@ -33,4 +33,4 @@ To reduce the response time in the process of claiming a runner, Poseidon create
 When a user requests a runner, a runner from this pool can be used.
 In the background, a new runner is created, thus replenishing the pool.
 By running in the background, the user does not have to wait as long as the runner needs to start.
-The implementation of this concept can be seen in [the Runner Manager](internal/runner/manager.go).
+The implementation of this concept can be seen in [the Runner Manager](/internal/runner/manager.go).

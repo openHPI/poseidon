@@ -21,6 +21,14 @@ deps: ## Get the dependencies
 	@go get -v -d ./...
 	@go install github.com/vektra/mockery/v2@latest
 
+.PHONY: upgrade-deps
+upgrade-deps: ## Upgrade the dependencies
+	@go get -u -v -d ./...
+
+.PHONY: tidy-deps
+tidy-deps: ## Remove unused dependencies
+	@go mod tidy
+
 
 .PHONY: git-hooks
 git-hooks: .git/hooks/pre-commit ## Install the git-hooks

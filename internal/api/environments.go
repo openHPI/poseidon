@@ -27,6 +27,10 @@ type EnvironmentController struct {
 	manager environment.Manager
 }
 
+type ExecutionEnvironmentsResponse struct {
+	ExecutionEnvironments []runner.ExecutionEnvironment `json:"executionEnvironments"`
+}
+
 func (e *EnvironmentController) ConfigureRoutes(router *mux.Router) {
 	environmentRouter := router.PathPrefix(EnvironmentsPath).Subrouter()
 	environmentRouter.HandleFunc("", e.list).Methods(http.MethodGet).Name(listRouteName)
@@ -51,9 +55,7 @@ func (e *EnvironmentController) list(writer http.ResponseWriter, request *http.R
 		return
 	}
 
-	sendJSON(writer, struct {
-		ExecutionEnvironments []runner.ExecutionEnvironment `json:"executionEnvironments"`
-	}{environments}, http.StatusOK)
+	sendJSON(writer, ExecutionEnvironmentsResponse{environments}, http.StatusOK)
 }
 
 // get returns all information about the requested execution environment.

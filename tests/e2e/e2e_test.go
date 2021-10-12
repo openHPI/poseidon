@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 	<-time.After(10 * time.Second)
 
 	code := m.Run()
-	cleanupJobsForEnvironment(&testing.T{}, "0")
+	cleanupJobsForEnvironment(&testing.T{}, tests.DefaultEnvironmentIDAsString)
 	os.Exit(code)
 }
 

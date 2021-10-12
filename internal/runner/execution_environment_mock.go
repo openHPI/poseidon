@@ -210,6 +210,11 @@ func (_m *ExecutionEnvironmentMock) SetCPULimit(limit uint) {
 	_m.Called(limit)
 }
 
+// SetConfigFrom provides a mock function with given fields: environment
+func (_m *ExecutionEnvironmentMock) SetConfigFrom(environment ExecutionEnvironment) {
+	_m.Called(environment)
+}
+
 // SetID provides a mock function with given fields: id
 func (_m *ExecutionEnvironmentMock) SetID(id dto.EnvironmentID) {
 	_m.Called(id)

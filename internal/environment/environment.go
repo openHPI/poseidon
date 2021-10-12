@@ -38,7 +38,10 @@ func NewNomadEnvironment(jobHCL string) (*NomadEnvironment, error) {
 }
 
 func (n *NomadEnvironment) ID() dto.EnvironmentID {
-	id, _ := nomad.EnvironmentIDFromTemplateJobID(*n.job.ID)
+	id, err := nomad.EnvironmentIDFromTemplateJobID(*n.job.ID)
+	if err != nil {
+		log.WithError(err).Error("Environment ID can not be parsed from Job")
+	}
 	return id
 }
 
@@ -50,7 +53,10 @@ func (n *NomadEnvironment) SetID(id dto.EnvironmentID) {
 
 func (n *NomadEnvironment) PrewarmingPoolSize() uint {
 	configTaskGroup := nomad.FindOrCreateConfigTaskGroup(n.job)
-	count, _ := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaPoolSizeKey])
+	count, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaPoolSizeKey])
+	if err != nil {
+		log.WithError(err).Error("Prewarming pool size can not be parsed from Job")
+	}
 	return uint(count)
 }
 
@@ -167,7 +173,11 @@ func (n *NomadEnvironment) Register(apiClient nomad.ExecutorAPI) error {
 	if err != nil {
 		return fmt.Errorf("couldn't register job: %w", err)
 	}
-	return apiClient.MonitorEvaluation(evalID, context.Background())
+	err = apiClient.MonitorEvaluation(evalID, context.Background())
+	if err != nil {
+		return fmt.Errorf("error during the monitoring of the environment job: %w", err)
+	}
+	return nil
 }
 
 func (n *NomadEnvironment) Delete(apiClient nomad.ExecutorAPI) error {
@@ -175,7 +185,11 @@ func (n *NomadEnvironment) Delete(apiClient nomad.ExecutorAPI) error {
 	if err != nil {
 		return err
 	}
-	return apiClient.DeleteJob(*n.job.ID)
+	err = apiClient.DeleteJob(*n.job.ID)
+	if err != nil {
+		return fmt.Errorf("couldn't delete environment job: %w", err)
+	}
+	return nil
 }
 
 func (n *NomadEnvironment) Scale(apiClient nomad.ExecutorAPI) error {
@@ -237,7 +251,7 @@ func (n *NomadEnvironment) DeleteRunner(id string) {
 func (n *NomadEnvironment) MarshalJSON() (res []byte, err error) {
 	networkAccess, exposedPorts := n.NetworkAccess()
 
-	return json.Marshal(dto.ExecutionEnvironmentData{
+	res, err = json.Marshal(dto.ExecutionEnvironmentData{
 		ID: int(n.ID()),
 		ExecutionEnvironmentRequest: dto.ExecutionEnvironmentRequest{
 			PrewarmingPoolSize: n.PrewarmingPoolSize(),
@@ -248,6 +262,10 @@ func (n *NomadEnvironment) MarshalJSON() (res []byte, err error) {
 			ExposedPorts:       exposedPorts,
 		},
 	})
+	if err != nil {
+		return res, fmt.Errorf("couldn't marshal execution environment: %w", err)
+	}
+	return res, nil
 }
 
 // DeepCopyJob clones the native Nomad job in a way that it can be used as Runner job.
@@ -259,13 +277,17 @@ func (n *NomadEnvironment) DeepCopyJob() *nomadApi.Job {
 	}
 	copyEnvironment := &NomadEnvironment{job: copyJob}
 
-	copyEnvironment.SetID(n.ID())
-	copyEnvironment.SetPrewarmingPoolSize(n.PrewarmingPoolSize())
-	copyEnvironment.SetCPULimit(n.CPULimit())
-	copyEnvironment.SetMemoryLimit(n.MemoryLimit())
-	copyEnvironment.SetImage(n.Image())
-
+	copyEnvironment.SetConfigFrom(n)
 	return copyEnvironment.job
+}
+
+func (n *NomadEnvironment) SetConfigFrom(environment runner.ExecutionEnvironment) {
+	n.SetID(environment.ID())
+	n.SetPrewarmingPoolSize(environment.PrewarmingPoolSize())
+	n.SetCPULimit(environment.CPULimit())
+	n.SetMemoryLimit(environment.MemoryLimit())
+	n.SetImage(environment.Image())
+	n.SetNetworkAccess(environment.NetworkAccess())
 }
 
 func parseJob(jobHCL string) (*nomadApi.Job, error) {
@@ -274,7 +296,11 @@ func parseJob(jobHCL string) (*nomadApi.Job, error) {
 		AllowFS: false,
 		Strict:  true,
 	}
-	return jobspec2.ParseWithConfig(&config)
+	job, err := jobspec2.ParseWithConfig(&config)
+	if err != nil {
+		return job, fmt.Errorf("couldn't parse job HCL: %w", err)
+	}
+	return job, nil
 }
 
 func (n *NomadEnvironment) createRunners(apiClient nomad.ExecutorAPI, count uint) error {

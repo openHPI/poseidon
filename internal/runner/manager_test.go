@@ -131,7 +131,8 @@ func (s *ManagerTestSuite) TestClaimReturnsNoRunnerOfDifferentEnvironment() {
 
 func (s *ManagerTestSuite) TestClaimDoesNotReturnTheSameRunnerTwice() {
 	s.exerciseEnvironment.On("Sample", mock.Anything).Return(s.exerciseRunner, true).Once()
-	s.exerciseEnvironment.On("Sample", mock.Anything).Return(NewRunner(tests.AnotherRunnerID, s.nomadRunnerManager), true).Once()
+	s.exerciseEnvironment.On("Sample", mock.Anything).
+		Return(NewRunner(tests.AnotherRunnerID, s.nomadRunnerManager), true).Once()
 
 	firstReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	s.NoError(err)

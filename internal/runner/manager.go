@@ -43,6 +43,8 @@ type ExecutionEnvironment interface {
 	// NetworkAccess sets if a runner should have network access and if ports should be mapped.
 	NetworkAccess() (bool, []uint16)
 	SetNetworkAccess(allow bool, ports []uint16)
+	// SetConfigFrom copies all above attributes from the passed environment to the object itself.
+	SetConfigFrom(environment ExecutionEnvironment)
 
 	// Register saves this environment at the executor.
 	Register(apiClient nomad.ExecutorAPI) error

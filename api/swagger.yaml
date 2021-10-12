@@ -324,7 +324,7 @@ paths:
       parameters:
         - name: fetch
           in: query
-          description: Flag if environments are fetched again from storage before returning.
+          description: Specify whether environments should be fetched again from the executor before returning. Otherwise, the data currently in cache is returned.
           schema:
             type: boolean
             default: false
@@ -361,7 +361,7 @@ paths:
       parameters:
         - name: fetch
           in: query
-          description: Flag if the environment is fetched again from storage before returning.
+          description: Specify whether the environment should be fetched again from the executor before returning. Otherwise, the data currently in cache is returned.
           schema:
             type: boolean
             default: false

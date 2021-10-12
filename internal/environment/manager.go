@@ -69,53 +69,34 @@ func NewNomadEnvironmentManager(
 	return m, nil
 }
 
-func (m *NomadEnvironmentManager) Get(id dto.EnvironmentID, fetch bool) (runner.ExecutionEnvironment, error) {
+func (m *NomadEnvironmentManager) Get(id dto.EnvironmentID, fetch bool) (
+	executionEnvironment runner.ExecutionEnvironment, err error) {
 	executionEnvironment, ok := m.runnerManager.GetEnvironment(id)
 
 	if fetch {
-		var fetchedEnvironment runner.ExecutionEnvironment
-		environments, err := m.api.LoadEnvironmentJobs()
-		if err != nil {
-			return nil, fmt.Errorf("error fetching the environment jobs: %w", err)
-		}
-		for _, job := range environments {
-			environmentID, err := nomad.EnvironmentIDFromTemplateJobID(*job.ID)
-			if err != nil {
-				log.WithError(err).Warn("Cannot parse environment id of loaded environment")
-				continue
-			}
-			if id == environmentID {
-				fetchedEnvironment = &NomadEnvironment{
-					jobHCL:      templateEnvironmentJobHCL,
-					job:         job,
-					idleRunners: runner.NewLocalRunnerStorage(),
-				}
-			}
-		}
-		if fetchedEnvironment == nil {
+		fetchedEnvironment, err := fetchEnvironment(id, m.api)
+		switch {
+		case err != nil:
+			return nil, err
+		case fetchedEnvironment == nil:
 			_, err = m.Delete(id)
 			if err != nil {
 				return nil, err
 			}
 			ok = false
-		} else if !ok {
+		case !ok:
 			m.runnerManager.SetEnvironment(fetchedEnvironment)
 			executionEnvironment = fetchedEnvironment
 			ok = true
-		} else {
-			executionEnvironment.SetPrewarmingPoolSize(fetchedEnvironment.PrewarmingPoolSize())
-			executionEnvironment.SetCPULimit(fetchedEnvironment.CPULimit())
-			executionEnvironment.SetMemoryLimit(fetchedEnvironment.MemoryLimit())
-			executionEnvironment.SetImage(fetchedEnvironment.Image())
-			executionEnvironment.SetNetworkAccess(fetchedEnvironment.NetworkAccess())
+		default:
+			executionEnvironment.SetConfigFrom(fetchedEnvironment)
 		}
 	}
 
-	if ok {
-		return executionEnvironment, nil
-	} else {
-		return nil, runner.ErrUnknownExecutionEnvironment
+	if !ok {
+		err = runner.ErrUnknownExecutionEnvironment
 	}
+	return executionEnvironment, err
 }
 
 func (m *NomadEnvironmentManager) List(fetch bool) ([]runner.ExecutionEnvironment, error) {
@@ -143,6 +124,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request d
 	environment.SetCPULimit(request.CPULimit)
 	environment.SetMemoryLimit(request.MemoryLimit)
 	environment.SetImage(request.Image)
+	environment.SetNetworkAccess(request.NetworkAccess, request.ExposedPorts)
 	created = m.runnerManager.SetEnvironment(environment)
 
 	err = environment.Register(m.api)
@@ -167,7 +149,11 @@ func (m *NomadEnvironmentManager) Delete(id dto.EnvironmentID) (bool, error) {
 		return false, nil
 	}
 	m.runnerManager.DeleteEnvironment(id)
-	return true, executionEnvironment.Delete(m.api)
+	err := executionEnvironment.Delete(m.api)
+	if err != nil {
+		return true, fmt.Errorf("could not delete environment: %w", err)
+	}
+	return true, nil
 }
 
 func (m *NomadEnvironmentManager) Load() error {
@@ -210,4 +196,27 @@ func loadTemplateEnvironmentJobHCL(path string) error {
 	}
 	templateEnvironmentJobHCL = string(data)
 	return nil
+}
+
+func fetchEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner.ExecutionEnvironment, error) {
+	environments, err := apiClient.LoadEnvironmentJobs()
+	if err != nil {
+		return nil, fmt.Errorf("error fetching the environment jobs: %w", err)
+	}
+	var fetchedEnvironment runner.ExecutionEnvironment
+	for _, job := range environments {
+		environmentID, err := nomad.EnvironmentIDFromTemplateJobID(*job.ID)
+		if err != nil {
+			log.WithError(err).Warn("Cannot parse environment id of loaded environment")
+			continue
+		}
+		if id == environmentID {
+			fetchedEnvironment = &NomadEnvironment{
+				jobHCL:      templateEnvironmentJobHCL,
+				job:         job,
+				idleRunners: runner.NewLocalRunnerStorage(),
+			}
+		}
+	}
+	return fetchedEnvironment, nil
 }

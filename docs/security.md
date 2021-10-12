@@ -49,7 +49,7 @@ $ curl -H "X-Poseidon-Token: SECRET" http://localhost:7200/api/v1/some-protected
 An alternative or additional measure to mTLS (as mentioned above) is to enable access control in the Nomad cluster to prevent unauthorised actors from performing unwanted actions in the cluster.
  Instructions on setting up the cluster appropriately can be found in [the Nomad documentation](https://learn.hashicorp.com/collections/nomad/access-control).
 
-Afterwards, it is recommended to create a specific [Access Policy](https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control) for Poseidon with the minimal set of capabilities it needs for operating the cluster. A non-minimal example with complete permissions can be found [here](poseidon_policy.hcl). Poseidon requires a corresponding [Access Token](https://learn.hashicorp.com/tutorials/nomad/access-control-tokens?in=nomad/access-control) to send commands to Nomad. A Token looks like this:
+Afterwards, it is recommended to create a specific [Access Policy](https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control) for Poseidon with the minimal set of capabilities it needs for operating the cluster. A non-minimal example with complete permissions can be found [here](resources/poseidon_policy.hcl). Poseidon requires a corresponding [Access Token](https://learn.hashicorp.com/tutorials/nomad/access-control-tokens?in=nomad/access-control) to send commands to Nomad. A Token looks like this:
 
 ```text
 Accessor ID  = 463d3216-dc16-570f-380c-a48f5d26d955

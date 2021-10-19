@@ -1,7 +1,9 @@
 package environment
 
 import (
+	"context"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
@@ -12,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"os"
 	"testing"
+	"time"
 )
 
 type CreateOrUpdateTestSuite struct {
@@ -96,6 +99,144 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 	})
 
 	templateEnvironmentJobHCL = previousTemplateEnvironmentJobHCL
+}
+
+func TestNomadEnvironmentManager_Get(t *testing.T) {
+	apiMock := &nomad.ExecutorAPIMock{}
+	mockWatchAllocations(apiMock)
+	call := apiMock.On("LoadEnvironmentJobs")
+	call.Run(func(args mock.Arguments) {
+		call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{}, nil}
+	})
+
+	runnerManager := runner.NewNomadRunnerManager(apiMock, context.Background())
+	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	require.NoError(t, err)
+
+	t.Run("Returns error when not found", func(t *testing.T) {
+		_, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		assert.Error(t, err)
+	})
+
+	t.Run("Returns environment when it was added before", func(t *testing.T) {
+		expectedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+		expectedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
+		require.NoError(t, err)
+		runnerManager.SetEnvironment(expectedEnvironment)
+
+		environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedEnvironment, environment)
+	})
+
+	t.Run("Fetch", func(t *testing.T) {
+		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+		t.Run("Returns error when not found", func(t *testing.T) {
+			_, err := m.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			assert.Error(t, err)
+		})
+
+		t.Run("Updates values when environment already known by Poseidon", func(t *testing.T) {
+			fetchedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+			require.NoError(t, err)
+			fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
+			fetchedEnvironment.SetImage("random docker image")
+			call.Run(func(args mock.Arguments) {
+				call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
+			})
+
+			localEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+			require.NoError(t, err)
+			localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
+			runnerManager.SetEnvironment(localEnvironment)
+
+			environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
+			assert.NoError(t, err)
+			assert.NotEqual(t, fetchedEnvironment.Image(), environment.Image())
+
+			environment, err = m.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			assert.NoError(t, err)
+			assert.Equal(t, fetchedEnvironment.Image(), environment.Image())
+		})
+		runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
+
+		t.Run("Adds environment when not already known by Poseidon", func(t *testing.T) {
+			fetchedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+			require.NoError(t, err)
+			fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
+			fetchedEnvironment.SetImage("random docker image")
+			call.Run(func(args mock.Arguments) {
+				call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
+			})
+
+			_, err = m.Get(tests.DefaultEnvironmentIDAsInteger, false)
+			assert.Error(t, err)
+
+			environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			assert.NoError(t, err)
+			assert.Equal(t, fetchedEnvironment.Image(), environment.Image())
+		})
+	})
+}
+
+func TestNomadEnvironmentManager_List(t *testing.T) {
+	apiMock := &nomad.ExecutorAPIMock{}
+	mockWatchAllocations(apiMock)
+	call := apiMock.On("LoadEnvironmentJobs")
+	call.Run(func(args mock.Arguments) {
+		call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{}, nil}
+	})
+
+	runnerManager := runner.NewNomadRunnerManager(apiMock, context.Background())
+	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	require.NoError(t, err)
+
+	t.Run("with no environments", func(t *testing.T) {
+		environments, err := m.List(true)
+		assert.NoError(t, err)
+		assert.Empty(t, environments)
+	})
+
+	t.Run("Returns added environment", func(t *testing.T) {
+		localEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+		require.NoError(t, err)
+		localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
+		runnerManager.SetEnvironment(localEnvironment)
+
+		environments, err := m.List(false)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(environments))
+		assert.Equal(t, localEnvironment, environments[0])
+	})
+	runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
+
+	t.Run("Fetches new Runners via the api client", func(t *testing.T) {
+		fetchedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+		require.NoError(t, err)
+		fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
+		status := structs.JobStatusRunning
+		fetchedEnvironment.job.Status = &status
+		call.Run(func(args mock.Arguments) {
+			call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
+		})
+
+		environments, err := m.List(false)
+		assert.NoError(t, err)
+		assert.Empty(t, environments)
+
+		environments, err = m.List(true)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(environments))
+		assert.Equal(t, fetchedEnvironment, environments[0])
+	})
+}
+
+func mockWatchAllocations(apiMock *nomad.ExecutorAPIMock) {
+	call := apiMock.On("WatchAllocations", mock.Anything, mock.Anything, mock.Anything)
+	call.Run(func(args mock.Arguments) {
+		<-time.After(10 * time.Minute) // 10 minutes is the default test timeout
+		call.ReturnArguments = mock.Arguments{nil}
+	})
 }
 
 func createTempFile(t *testing.T, content string) *os.File {

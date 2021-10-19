@@ -128,7 +128,12 @@ func FindOrCreateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 // IsEnvironmentTemplateID checks if the passed job id belongs to a template job.
 func IsEnvironmentTemplateID(jobID string) bool {
 	parts := strings.Split(jobID, "-")
-	return len(parts) == TemplateJobNameParts && parts[0] == TemplateJobPrefix
+	if len(parts) != TemplateJobNameParts || parts[0] != TemplateJobPrefix {
+		return false
+	}
+
+	_, err := EnvironmentIDFromTemplateJobID(jobID)
+	return err == nil
 }
 
 // RunnerJobID returns the nomad job id of the runner with the given environmentID and id.

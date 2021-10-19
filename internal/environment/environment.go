@@ -100,7 +100,11 @@ func (n *NomadEnvironment) SetMemoryLimit(limit uint) {
 func (n *NomadEnvironment) Image() string {
 	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
-	return defaultTask.Config["image"].(string)
+	image, ok := defaultTask.Config["image"].(string)
+	if !ok {
+		image = ""
+	}
+	return image
 }
 
 func (n *NomadEnvironment) SetImage(image string) {

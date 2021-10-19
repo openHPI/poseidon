@@ -62,6 +62,7 @@ func (e *EnvironmentController) list(writer http.ResponseWriter, request *http.R
 func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Request) {
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
+		// This case is never used as the router validates the id format
 		writeBadRequest(writer, err)
 		return
 	}
@@ -87,6 +88,7 @@ func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Re
 func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http.Request) {
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
+		// This case is never used as the router validates the id format
 		writeBadRequest(writer, err)
 		return
 	}

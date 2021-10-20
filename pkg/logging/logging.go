@@ -13,8 +13,9 @@ import (
 var log = &logrus.Logger{
 	Out: os.Stderr,
 	Formatter: &logrus.TextFormatter{
-		DisableColors: true,
-		FullTimestamp: true,
+		TimestampFormat: "2006-01-02T15:04:05.000000Z",
+		DisableColors:   true,
+		FullTimestamp:   true,
 	},
 	Hooks: make(logrus.LevelHooks),
 	Level: logrus.InfoLevel,

@@ -12,3 +12,7 @@ tests/e2e/configuration.yaml
 
 # trivy artifacts
 .trivy
+
+# IDE files
+/.idea
+*.iml

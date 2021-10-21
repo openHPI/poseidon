@@ -67,6 +67,44 @@ You can use the `DOCKER_OPTS` variable to add additional arguments to the Docker
 $ make e2e-docker DOCKER_OPTS=""
 ```
 
+### Local Nomad
+
+In order to support the development of Poseidon, a local Nomad dev server is recommended. Following the instructions below, you can setup a Nomad server on your local system that won't persist any data between restarts. More details can be found on [Nomad's official website](https://www.nomadproject.io/docs/install).
+
+#### macOS
+
+```shell
+brew tap hashicorp/tap
+brew install hashicorp/tap/nomad
+brew services start nomad
+```
+
+**Prerequisites**: [Docker for Mac](https://docs.docker.com/desktop/mac/install/) is installed and started:
+```shell
+brew install --cask docker
+```
+
+**Note**: Due to architecture of Docker networking on macOS, the bridge network is not available with Nomad. Please refer to the [Nomad FAQ](https://www.nomadproject.io/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos) for more information. As a result, those environments having network access enabled won't sync properly to Nomad and thus cannot be started. 
+
+#### Linux
+
+```shell
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+sudo apt-get update && sudo apt-get install nomad
+sudo nomad agent -dev
+```
+
+#### Namespace registration
+
+As the Nomad dev serer does not persist any data, the namespace selected in the configuration of Poseidon needs to be created each time the Nomad server is started. This can be done with the following command:
+
+```shell
+nomad namespace apply -description "Poseidon development namespace" poseidon
+```
+
+Alternatively, the namespace used by Poseidon can be updated to `default` so that no additional namespace is required.
+
 ## Coding Style
 
 ### Git hooks
@@ -83,6 +121,6 @@ We use the Gitlab CI to automatically build the project, run unit and e2e-tests,
 
 ### Docker
 
-The CI builds a Docker image and pushes it to our Docker registry at `drp.codemoon.xopic.de`. In order to pull an image from the registry you have to login with `sudo docker login drp.codemoon.xopic.de`. Execute `sudo docker run -p 7200:7200 drp.codemoon.xopic.de/<image name>` to run the image locally. You can find the image name in the `dockerimage` CI job. You can then interact with the webserver on your local port 7200.
+The CI builds a Docker image and pushes it to the Docker registry associated with this repo. Execute `sudo docker run -p 7200:7200 ghcr.io/openhpi/poseidon` to run the image locally. You can find all available images on the [package listing on GitHub](https://github.com/openHPI/poseidon/pkgs/container/poseidon). Once started, you can then interact with the webserver on your local port 7200.
 
 You can also build the Docker image locally by executing `make docker` in the root directory of this project. It builds the binary first and a container with the tag `poseidon:latest` afterwards. You can then start a Docker container with `sudo docker run --rm -p 7200:7200 poseidon:latest`.

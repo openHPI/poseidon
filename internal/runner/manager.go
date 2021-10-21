@@ -141,15 +141,18 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 	if !ok {
 		return nil, ErrUnknownExecutionEnvironment
 	}
+	log.Debug("Before Sample")
 	runner, ok := environment.Sample(m.apiClient)
 	if !ok {
 		return nil, ErrNoRunnersAvailable
 	}
 	m.usedRunners.Add(runner)
+	log.Debug("Before Mark Runner As Used")
 	err := m.apiClient.MarkRunnerAsUsed(runner.ID(), duration)
 	if err != nil {
 		return nil, fmt.Errorf("can't mark runner as used: %w", err)
 	}
+	log.Debug("After Mark Runner As Used")
 
 	runner.SetupTimeout(time.Duration(duration) * time.Second)
 	return runner, nil

@@ -234,10 +234,12 @@ func (n *NomadEnvironment) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error 
 func (n *NomadEnvironment) Sample(apiClient nomad.ExecutorAPI) (runner.Runner, bool) {
 	r, ok := n.idleRunners.Sample()
 	if ok {
-		err := n.createRunner(apiClient)
-		if err != nil {
-			log.WithError(err).WithField("environmentID", n.ID()).Error("Couldn't create new runner for claimed one")
-		}
+		go func() {
+			err := n.createRunner(apiClient)
+			if err != nil {
+				log.WithError(err).WithField("environmentID", n.ID()).Error("Couldn't create new runner for claimed one")
+			}
+		}()
 	}
 	return r, ok
 }

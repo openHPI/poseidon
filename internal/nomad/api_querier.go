@@ -27,8 +27,8 @@ type apiQuerier interface {
 	// SetJobScale sets the scaling count of the passed job to Nomad.
 	SetJobScale(jobID string, count uint, reason string) (err error)
 
-	// DeleteRunner deletes the runner with the given ID.
-	DeleteRunner(runnerID string) (err error)
+	// DeleteJob deletes the Job with the given ID.
+	DeleteJob(jobID string) (err error)
 
 	// Execute runs a command in the passed job.
 	Execute(jobID string, ctx context.Context, command []string, tty bool,
@@ -82,8 +82,8 @@ func (nc *nomadAPIClient) init(nomadConfig *config.Nomad) (err error) {
 	return nil
 }
 
-func (nc *nomadAPIClient) DeleteRunner(runnerID string) (err error) {
-	_, _, err = nc.client.Jobs().Deregister(runnerID, true, nc.writeOptions())
+func (nc *nomadAPIClient) DeleteJob(jobID string) (err error) {
+	_, _, err = nc.client.Jobs().Deregister(jobID, true, nc.writeOptions())
 	return
 }
 

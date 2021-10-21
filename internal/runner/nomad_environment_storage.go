@@ -1,74 +1,75 @@
 package runner
 
 import (
+	"github.com/openHPI/poseidon/pkg/dto"
 	"sync"
 )
 
-// NomadEnvironmentStorage is an interface for storing Nomad environments.
-type NomadEnvironmentStorage interface {
+// EnvironmentStorage is an interface for storing environments.
+type EnvironmentStorage interface {
 	// List returns all environments stored in this storage.
-	List() []*NomadEnvironment
+	List() []ExecutionEnvironment
 
 	// Add adds an environment to the storage.
 	// It overwrites the old environment if one with the same id was already stored.
-	Add(environment *NomadEnvironment)
+	Add(environment ExecutionEnvironment)
 
 	// Get returns an environment from the storage.
 	// Iff the environment does not exist in the store, ok will be false.
-	Get(id EnvironmentID) (environment *NomadEnvironment, ok bool)
+	Get(id dto.EnvironmentID) (environment ExecutionEnvironment, ok bool)
 
 	// Delete deletes the environment with the passed id from the storage. It does nothing if no environment with the id
 	// is present in the storage.
-	Delete(id EnvironmentID)
+	Delete(id dto.EnvironmentID)
 
 	// Length returns the number of currently stored environments in the storage.
 	Length() int
 }
 
-// localNomadEnvironmentStorage stores NomadEnvironment objects in the local application memory.
-type localNomadEnvironmentStorage struct {
+// localEnvironmentStorage stores ExecutionEnvironment objects in the local application memory.
+type localEnvironmentStorage struct {
 	sync.RWMutex
-	environments map[EnvironmentID]*NomadEnvironment
+	environments map[dto.EnvironmentID]ExecutionEnvironment
 }
 
-// NewLocalNomadEnvironmentStorage responds with an empty localNomadEnvironmentStorage.
+// NewLocalEnvironmentStorage responds with an empty localEnvironmentStorage.
 // This implementation stores the data thread-safe in the local application memory.
-func NewLocalNomadEnvironmentStorage() *localNomadEnvironmentStorage {
-	return &localNomadEnvironmentStorage{
-		environments: make(map[EnvironmentID]*NomadEnvironment),
+func NewLocalEnvironmentStorage() *localEnvironmentStorage {
+	return &localEnvironmentStorage{
+		environments: make(map[dto.EnvironmentID]ExecutionEnvironment),
 	}
 }
 
-func (s *localNomadEnvironmentStorage) List() []*NomadEnvironment {
+func (s *localEnvironmentStorage) List() []ExecutionEnvironment {
 	s.RLock()
 	defer s.RUnlock()
-	values := make([]*NomadEnvironment, 0, len(s.environments))
+	values := make([]ExecutionEnvironment, 0, len(s.environments))
 	for _, v := range s.environments {
 		values = append(values, v)
 	}
 	return values
 }
 
-func (s *localNomadEnvironmentStorage) Add(environment *NomadEnvironment) {
+func (s *localEnvironmentStorage) Add(environment ExecutionEnvironment) {
 	s.Lock()
 	defer s.Unlock()
 	s.environments[environment.ID()] = environment
 }
 
-func (s *localNomadEnvironmentStorage) Get(id EnvironmentID) (environment *NomadEnvironment, ok bool) {
+func (s *localEnvironmentStorage) Get(id dto.EnvironmentID) (environment ExecutionEnvironment, ok bool) {
 	s.RLock()
 	defer s.RUnlock()
 	environment, ok = s.environments[id]
 	return
 }
 
-func (s *localNomadEnvironmentStorage) Delete(id EnvironmentID) {
+func (s *localEnvironmentStorage) Delete(id dto.EnvironmentID) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.environments, id)
 }
 
-func (s *localNomadEnvironmentStorage) Length() int {
+func (s *localEnvironmentStorage) Length() int {
 	s.RLock()
 	defer s.RUnlock()
 	return len(s.environments)

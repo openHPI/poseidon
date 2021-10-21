@@ -1,7 +1,6 @@
 package runner
 
 import (
-	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -12,13 +11,15 @@ func TestEnvironmentStoreTestSuite(t *testing.T) {
 
 type EnvironmentStoreTestSuite struct {
 	suite.Suite
-	environmentStorage *localNomadEnvironmentStorage
-	environment        *NomadEnvironment
+	environmentStorage *localEnvironmentStorage
+	environment        *ExecutionEnvironmentMock
 }
 
 func (s *EnvironmentStoreTestSuite) SetupTest() {
-	s.environmentStorage = NewLocalNomadEnvironmentStorage()
-	s.environment = &NomadEnvironment{environmentID: defaultEnvironmentID}
+	s.environmentStorage = NewLocalEnvironmentStorage()
+	environmentMock := &ExecutionEnvironmentMock{}
+	environmentMock.On("ID").Return(defaultEnvironmentID)
+	s.environment = environmentMock
 }
 
 func (s *EnvironmentStoreTestSuite) TestAddedEnvironmentCanBeRetrieved() {
@@ -29,8 +30,8 @@ func (s *EnvironmentStoreTestSuite) TestAddedEnvironmentCanBeRetrieved() {
 }
 
 func (s *EnvironmentStoreTestSuite) TestEnvironmentWithSameIdOverwritesOldOne() {
-	otherEnvironmentWithSameID := &NomadEnvironment{environmentID: defaultEnvironmentID}
-	otherEnvironmentWithSameID.templateJob = &nomadApi.Job{}
+	otherEnvironmentWithSameID := &ExecutionEnvironmentMock{}
+	otherEnvironmentWithSameID.On("ID").Return(defaultEnvironmentID)
 	s.NotEqual(s.environment, otherEnvironmentWithSameID)
 
 	s.environmentStorage.Add(s.environment)
@@ -64,7 +65,8 @@ func (s *EnvironmentStoreTestSuite) TestLenChangesOnStoreContentChange() {
 	})
 
 	s.Run("len increases again when different environment is added", func() {
-		anotherEnvironment := &NomadEnvironment{environmentID: anotherEnvironmentID}
+		anotherEnvironment := &ExecutionEnvironmentMock{}
+		anotherEnvironment.On("ID").Return(anotherEnvironmentID)
 		s.environmentStorage.Add(anotherEnvironment)
 		s.Equal(2, s.environmentStorage.Length())
 	})
@@ -72,5 +74,30 @@ func (s *EnvironmentStoreTestSuite) TestLenChangesOnStoreContentChange() {
 	s.Run("len decreases when environment is deleted", func() {
 		s.environmentStorage.Delete(s.environment.ID())
 		s.Equal(1, s.environmentStorage.Length())
+	})
+}
+
+func (s *EnvironmentStoreTestSuite) TestListEnvironments() {
+	s.Run("list returns empty array", func() {
+		environments := s.environmentStorage.List()
+		s.Empty(environments)
+	})
+
+	s.Run("list returns one environment", func() {
+		s.environmentStorage.Add(s.environment)
+
+		environments := s.environmentStorage.List()
+		s.Equal(1, len(environments))
+		s.Equal(defaultEnvironmentID, environments[0].ID())
+	})
+
+	s.Run("list returns multiple environments", func() {
+		anotherEnvironment := &ExecutionEnvironmentMock{}
+		anotherEnvironment.On("ID").Return(anotherEnvironmentID)
+		s.environmentStorage.Add(s.environment)
+		s.environmentStorage.Add(anotherEnvironment)
+
+		environments := s.environmentStorage.List()
+		s.Equal(2, len(environments))
 	})
 }

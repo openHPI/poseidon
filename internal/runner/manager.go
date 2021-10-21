@@ -2,52 +2,89 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/nomad"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/sirupsen/logrus"
 	"strconv"
-	"strings"
 	"time"
 )
 
 var (
-	log                               = logging.GetLogger("runner")
-	ErrUnknownExecutionEnvironment    = errors.New("execution environment not found")
-	ErrNoRunnersAvailable             = errors.New("no runners available for this execution environment")
-	ErrRunnerNotFound                 = errors.New("no runner found with this id")
-	ErrorUpdatingExecutionEnvironment = errors.New("errors occurred when updating environment")
-	ErrorInvalidJobID                 = errors.New("invalid job id")
+	log                            = logging.GetLogger("runner")
+	ErrUnknownExecutionEnvironment = errors.New("execution environment not found")
+	ErrNoRunnersAvailable          = errors.New("no runners available for this execution environment")
+	ErrRunnerNotFound              = errors.New("no runner found with this id")
 )
 
-type EnvironmentID int
+// ExecutionEnvironment are groups of runner that share the configuration stored in the environment.
+type ExecutionEnvironment interface {
+	json.Marshaler
 
-func NewEnvironmentID(id string) (EnvironmentID, error) {
-	environment, err := strconv.Atoi(id)
-	return EnvironmentID(environment), err
+	// ID returns the id of the environment.
+	ID() dto.EnvironmentID
+	SetID(id dto.EnvironmentID)
+	// PrewarmingPoolSize sets the number of idle runner of this environment that should be prewarmed.
+	PrewarmingPoolSize() uint
+	SetPrewarmingPoolSize(count uint)
+	// CPULimit sets the share of cpu that a runner should receive at minimum.
+	CPULimit() uint
+	SetCPULimit(limit uint)
+	// MemoryLimit sets the amount of memory that should be available for each runner.
+	MemoryLimit() uint
+	SetMemoryLimit(limit uint)
+	// Image sets the image of the runner, e.g. Docker image.
+	Image() string
+	SetImage(image string)
+	// NetworkAccess sets if a runner should have network access and if ports should be mapped.
+	NetworkAccess() (bool, []uint16)
+	SetNetworkAccess(allow bool, ports []uint16)
+	// SetConfigFrom copies all above attributes from the passed environment to the object itself.
+	SetConfigFrom(environment ExecutionEnvironment)
+
+	// Register saves this environment at the executor.
+	Register(apiClient nomad.ExecutorAPI) error
+	// Delete removes this environment and all it's runner from the executor and Poseidon itself.
+	Delete(apiClient nomad.ExecutorAPI) error
+	// Scale manages if the executor has enough idle runner according to the PrewarmingPoolSize.
+	Scale(apiClient nomad.ExecutorAPI) error
+	// UpdateRunnerSpecs updates all Runner of the passed environment to have the same definition as the environment.
+	UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error
+
+	// Sample returns and removes an arbitrary available runner.
+	// ok is true iff a runner was returned.
+	Sample(apiClient nomad.ExecutorAPI) (r Runner, ok bool)
+	// AddRunner adds an existing runner to the idle runners of the environment.
+	AddRunner(r Runner)
+	// DeleteRunner removes an idle runner from the environment.
+	DeleteRunner(id string)
 }
-
-func (e EnvironmentID) toString() string {
-	return strconv.Itoa(int(e))
-}
-
-type NomadJobID string
 
 // Manager keeps track of the used and unused runners of all execution environments in order to provide unused
 // runners to new clients and ensure no runner is used twice.
 type Manager interface {
-	// CreateOrUpdateEnvironment creates the given environment if it does not exist. Otherwise, it updates
-	// the existing environment and all runners. Iff a new Environment has been created, it returns true.
-	// Iff scale is true, runners are created until the desiredIdleRunnersCount is reached.
-	CreateOrUpdateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint, templateJob *nomadApi.Job,
-		scale bool) (bool, error)
+	// ListEnvironments returns all execution environments known by Poseidon.
+	ListEnvironments() []ExecutionEnvironment
+
+	// GetEnvironment returns the details of the requested environment.
+	// Iff the requested environment is not stored it returns false.
+	GetEnvironment(id dto.EnvironmentID) (ExecutionEnvironment, bool)
+
+	// SetEnvironment stores the environment in Poseidons memory.
+	// It returns true iff a new environment is stored and false iff an existing environment was updated.
+	SetEnvironment(environment ExecutionEnvironment) bool
+
+	// DeleteEnvironment removes the specified execution environment in Poseidons memory.
+	// It does nothing if the specified environment can not be found.
+	DeleteEnvironment(id dto.EnvironmentID)
 
 	// Claim returns a new runner. The runner is deleted after duration seconds if duration is not 0.
 	// It makes sure that the runner is not in use yet and returns an error if no runner could be provided.
-	Claim(id EnvironmentID, duration int) (Runner, error)
+	Claim(id dto.EnvironmentID, duration int) (Runner, error)
 
 	// Get returns the used runner with the given runnerId.
 	// If no runner with the given runnerId is currently used, it returns an error.
@@ -64,7 +101,7 @@ type Manager interface {
 
 type NomadRunnerManager struct {
 	apiClient    nomad.ExecutorAPI
-	environments NomadEnvironmentStorage
+	environments EnvironmentStorage
 	usedRunners  Storage
 }
 
@@ -74,107 +111,37 @@ type NomadRunnerManager struct {
 func NewNomadRunnerManager(apiClient nomad.ExecutorAPI, ctx context.Context) *NomadRunnerManager {
 	m := &NomadRunnerManager{
 		apiClient,
-		NewLocalNomadEnvironmentStorage(),
+		NewLocalEnvironmentStorage(),
 		NewLocalRunnerStorage(),
 	}
 	go m.keepRunnersSynced(ctx)
 	return m
 }
 
-type NomadEnvironment struct {
-	environmentID           EnvironmentID
-	idleRunners             Storage
-	desiredIdleRunnersCount uint
-	templateJob             *nomadApi.Job
+func (m *NomadRunnerManager) ListEnvironments() []ExecutionEnvironment {
+	return m.environments.List()
 }
 
-func (j *NomadEnvironment) ID() EnvironmentID {
-	return j.environmentID
+func (m *NomadRunnerManager) GetEnvironment(id dto.EnvironmentID) (ExecutionEnvironment, bool) {
+	return m.environments.Get(id)
 }
 
-func (m *NomadRunnerManager) CreateOrUpdateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint,
-	templateJob *nomadApi.Job, scale bool) (bool, error) {
-	_, ok := m.environments.Get(id)
-	if !ok {
-		return true, m.registerEnvironment(id, desiredIdleRunnersCount, templateJob, scale)
-	}
-	return false, m.updateEnvironment(id, desiredIdleRunnersCount, templateJob, scale)
+func (m *NomadRunnerManager) SetEnvironment(environment ExecutionEnvironment) bool {
+	_, ok := m.environments.Get(environment.ID())
+	m.environments.Add(environment)
+	return !ok
 }
 
-func (m *NomadRunnerManager) registerEnvironment(environmentID EnvironmentID, desiredIdleRunnersCount uint,
-	templateJob *nomadApi.Job, scale bool) error {
-	m.environments.Add(&NomadEnvironment{
-		environmentID,
-		NewLocalRunnerStorage(),
-		desiredIdleRunnersCount,
-		templateJob,
-	})
-	if scale {
-		err := m.scaleEnvironment(environmentID)
-		if err != nil {
-			return fmt.Errorf("couldn't upscale environment %w", err)
-		}
-	}
-	return nil
+func (m *NomadRunnerManager) DeleteEnvironment(id dto.EnvironmentID) {
+	m.environments.Delete(id)
 }
 
-// updateEnvironment updates all runners of the specified environment. This is required as attributes like the
-// CPULimit or MemoryMB could be changed in the new template job.
-func (m *NomadRunnerManager) updateEnvironment(id EnvironmentID, desiredIdleRunnersCount uint,
-	newTemplateJob *nomadApi.Job, scale bool) error {
-	environment, ok := m.environments.Get(id)
-	if !ok {
-		return ErrUnknownExecutionEnvironment
-	}
-	environment.desiredIdleRunnersCount = desiredIdleRunnersCount
-	environment.templateJob = newTemplateJob
-	err := nomad.SetMetaConfigValue(newTemplateJob, nomad.ConfigMetaPoolSizeKey,
-		strconv.Itoa(int(desiredIdleRunnersCount)))
-	if err != nil {
-		return fmt.Errorf("update environment couldn't update template environment: %w", err)
-	}
-
-	err = m.updateRunnerSpecs(id, newTemplateJob)
-	if err != nil {
-		return err
-	}
-
-	if scale {
-		err = m.scaleEnvironment(id)
-	}
-	return err
-}
-
-func (m *NomadRunnerManager) updateRunnerSpecs(environmentID EnvironmentID, templateJob *nomadApi.Job) error {
-	runners, err := m.apiClient.LoadRunnerIDs(environmentID.toString())
-	if err != nil {
-		return fmt.Errorf("update environment couldn't load runners: %w", err)
-	}
-
-	var occurredError error
-	for _, id := range runners {
-		// avoid taking the address of the loop variable
-		runnerID := id
-		updatedRunnerJob := *templateJob
-		updatedRunnerJob.ID = &runnerID
-		updatedRunnerJob.Name = &runnerID
-		err := m.apiClient.RegisterRunnerJob(&updatedRunnerJob)
-		if err != nil {
-			if occurredError == nil {
-				occurredError = ErrorUpdatingExecutionEnvironment
-			}
-			occurredError = fmt.Errorf("%w; new api error for runner %s - %v", occurredError, id, err)
-		}
-	}
-	return occurredError
-}
-
-func (m *NomadRunnerManager) Claim(environmentID EnvironmentID, duration int) (Runner, error) {
+func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int) (Runner, error) {
 	environment, ok := m.environments.Get(environmentID)
 	if !ok {
 		return nil, ErrUnknownExecutionEnvironment
 	}
-	runner, ok := environment.idleRunners.Sample()
+	runner, ok := environment.Sample(m.apiClient)
 	if !ok {
 		return nil, ErrNoRunnersAvailable
 	}
@@ -185,12 +152,6 @@ func (m *NomadRunnerManager) Claim(environmentID EnvironmentID, duration int) (R
 	}
 
 	runner.SetupTimeout(time.Duration(duration) * time.Second)
-
-	err = m.createRunner(environment)
-	if err != nil {
-		log.WithError(err).WithField("environmentID", environmentID).Error("Couldn't create new runner for claimed one")
-	}
-
 	return runner, nil
 }
 
@@ -204,7 +165,7 @@ func (m *NomadRunnerManager) Get(runnerID string) (Runner, error) {
 
 func (m *NomadRunnerManager) Return(r Runner) error {
 	r.StopTimeout()
-	err := m.apiClient.DeleteRunner(r.ID())
+	err := m.apiClient.DeleteJob(r.ID())
 	if err != nil {
 		return fmt.Errorf("error deleting runner in Nomad: %w", err)
 	}
@@ -215,24 +176,23 @@ func (m *NomadRunnerManager) Return(r Runner) error {
 func (m *NomadRunnerManager) Load() {
 	for _, environment := range m.environments.List() {
 		environmentLogger := log.WithField("environmentID", environment.ID())
-		runnerJobs, err := m.apiClient.LoadRunnerJobs(environment.ID().toString())
+		runnerJobs, err := m.apiClient.LoadRunnerJobs(environment.ID().ToString())
 		if err != nil {
 			environmentLogger.WithError(err).Warn("Error fetching the runner jobs")
 		}
 		for _, job := range runnerJobs {
 			m.loadSingleJob(job, environmentLogger, environment)
 		}
-		err = m.scaleEnvironment(environment.ID())
+		err = environment.Scale(m.apiClient)
 		if err != nil {
-			environmentLogger.Error("Couldn't scale environment")
+			environmentLogger.WithError(err).Error("Couldn't scale environment")
 		}
 	}
 }
 
 func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger *logrus.Entry,
-	environment *NomadEnvironment,
-) {
-	configTaskGroup := nomad.FindConfigTaskGroup(job)
+	environment ExecutionEnvironment) {
+	configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
 	if configTaskGroup == nil {
 		environmentLogger.Infof("Couldn't find config task group in job %s, skipping ...", *job.ID)
 		return
@@ -253,7 +213,7 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 			newJob.SetupTimeout(time.Duration(timeout) * time.Second)
 		}
 	} else {
-		environment.idleRunners.Add(newJob)
+		environment.AddRunner(newJob)
 	}
 }
 
@@ -270,137 +230,38 @@ func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
 func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation) {
 	log.WithField("id", alloc.JobID).Debug("Runner started")
 
-	if IsEnvironmentTemplateID(alloc.JobID) {
+	if nomad.IsEnvironmentTemplateID(alloc.JobID) {
 		return
 	}
 
-	environmentID, err := EnvironmentIDFromJobID(alloc.JobID)
+	environmentID, err := nomad.EnvironmentIDFromRunnerID(alloc.JobID)
 	if err != nil {
 		log.WithError(err).Warn("Allocation could not be added")
 		return
 	}
 
-	job, ok := m.environments.Get(environmentID)
+	environment, ok := m.environments.Get(environmentID)
 	if ok {
 		var mappedPorts []nomadApi.PortMapping
 		if alloc.AllocatedResources != nil {
 			mappedPorts = alloc.AllocatedResources.Shared.Ports
 		}
-		job.idleRunners.Add(NewNomadJob(alloc.JobID, mappedPorts, m.apiClient, m))
+		environment.AddRunner(NewNomadJob(alloc.JobID, mappedPorts, m.apiClient, m))
 	}
 }
 
 func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation) {
 	log.WithField("id", alloc.JobID).Debug("Runner stopped")
 
-	environmentID, err := EnvironmentIDFromJobID(alloc.JobID)
+	environmentID, err := nomad.EnvironmentIDFromRunnerID(alloc.JobID)
 	if err != nil {
 		log.WithError(err).Warn("Stopped allocation can not be handled")
 		return
 	}
 
 	m.usedRunners.Delete(alloc.JobID)
-	job, ok := m.environments.Get(environmentID)
+	environment, ok := m.environments.Get(environmentID)
 	if ok {
-		job.idleRunners.Delete(alloc.JobID)
+		environment.DeleteRunner(alloc.JobID)
 	}
-}
-
-// scaleEnvironment makes sure that the amount of idle runners is at least the desiredIdleRunnersCount.
-func (m *NomadRunnerManager) scaleEnvironment(id EnvironmentID) error {
-	environment, ok := m.environments.Get(id)
-	if !ok {
-		return ErrUnknownExecutionEnvironment
-	}
-
-	required := int(environment.desiredIdleRunnersCount) - environment.idleRunners.Length()
-
-	if required > 0 {
-		return m.createRunners(environment, uint(required))
-	} else {
-		return m.removeRunners(environment, uint(-required))
-	}
-}
-
-func (m *NomadRunnerManager) createRunners(environment *NomadEnvironment, count uint) error {
-	log.WithField("runnersRequired", count).WithField("id", environment.ID()).Debug("Creating new runners")
-	for i := 0; i < int(count); i++ {
-		err := m.createRunner(environment)
-		if err != nil {
-			return fmt.Errorf("couldn't create new runner: %w", err)
-		}
-	}
-	return nil
-}
-
-func (m *NomadRunnerManager) createRunner(environment *NomadEnvironment) error {
-	newUUID, err := uuid.NewUUID()
-	if err != nil {
-		return fmt.Errorf("failed generating runner id: %w", err)
-	}
-	newRunnerID := RunnerJobID(environment.ID(), newUUID.String())
-
-	template := *environment.templateJob
-	template.ID = &newRunnerID
-	template.Name = &newRunnerID
-
-	err = m.apiClient.RegisterRunnerJob(&template)
-	if err != nil {
-		return fmt.Errorf("error registering new runner job: %w", err)
-	}
-	return nil
-}
-
-func (m *NomadRunnerManager) removeRunners(environment *NomadEnvironment, count uint) error {
-	log.WithField("runnersToDelete", count).WithField("id", environment.ID()).Debug("Removing idle runners")
-	for i := 0; i < int(count); i++ {
-		r, ok := environment.idleRunners.Sample()
-		if !ok {
-			return fmt.Errorf("could not delete expected idle runner: %w", ErrRunnerNotFound)
-		}
-		err := m.apiClient.DeleteRunner(r.ID())
-		if err != nil {
-			return fmt.Errorf("could not delete expected Nomad idle runner: %w", err)
-		}
-	}
-	return nil
-}
-
-// RunnerJobID returns the nomad job id of the runner with the given environmentID and id.
-func RunnerJobID(environmentID EnvironmentID, id string) string {
-	return fmt.Sprintf("%d-%s", environmentID, id)
-}
-
-// EnvironmentIDFromJobID returns the environment id that is part of the passed job id.
-func EnvironmentIDFromJobID(jobID string) (EnvironmentID, error) {
-	parts := strings.Split(jobID, "-")
-	if len(parts) == 0 {
-		return 0, fmt.Errorf("empty job id: %w", ErrorInvalidJobID)
-	}
-	environmentID, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return 0, fmt.Errorf("invalid environment id par %v: %w", err, ErrorInvalidJobID)
-	}
-	return EnvironmentID(environmentID), nil
-}
-
-const templateJobNameParts = 2
-
-// TemplateJobID returns the id of the template job for the environment with the given id.
-func TemplateJobID(id EnvironmentID) string {
-	return fmt.Sprintf("%s-%d", nomad.TemplateJobPrefix, id)
-}
-
-// IsEnvironmentTemplateID checks if the passed job id belongs to a template job.
-func IsEnvironmentTemplateID(jobID string) bool {
-	parts := strings.Split(jobID, "-")
-	return len(parts) == templateJobNameParts && parts[0] == nomad.TemplateJobPrefix
-}
-
-func EnvironmentIDFromTemplateJobID(id string) (string, error) {
-	parts := strings.Split(id, "-")
-	if len(parts) < templateJobNameParts {
-		return "", fmt.Errorf("invalid template job id: %w", ErrorInvalidJobID)
-	}
-	return parts[1], nil
 }

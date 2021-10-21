@@ -1,9 +1,12 @@
 package runner
 
-import "github.com/openHPI/poseidon/tests"
+import (
+	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/tests"
+)
 
 const (
-	defaultEnvironmentID     = EnvironmentID(tests.DefaultEnvironmentIDAsInteger)
-	anotherEnvironmentID     = EnvironmentID(tests.AnotherEnvironmentIDAsInteger)
+	defaultEnvironmentID     = dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger)
+	anotherEnvironmentID     = dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger)
 	defaultInactivityTimeout = 0
 )

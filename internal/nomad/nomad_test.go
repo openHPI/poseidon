@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"io"
-	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -38,15 +37,15 @@ type LoadRunnersTestSuite struct {
 }
 
 func (s *LoadRunnersTestSuite) SetupTest() {
-	s.jobID = tests.DefaultJobID
+	s.jobID = tests.DefaultRunnerID
 
 	s.mock = &apiQuerierMock{}
 	s.nomadAPIClient = APIClient{apiQuerier: s.mock}
 
-	s.availableRunner = newJobListStub(tests.DefaultJobID, structs.JobStatusRunning, 1)
-	s.anotherAvailableRunner = newJobListStub(tests.AnotherJobID, structs.JobStatusRunning, 1)
-	s.pendingRunner = newJobListStub(tests.DefaultJobID+"-1", structs.JobStatusPending, 0)
-	s.deadRunner = newJobListStub(tests.AnotherJobID+"-1", structs.JobStatusDead, 0)
+	s.availableRunner = newJobListStub(tests.DefaultRunnerID, structs.JobStatusRunning, 1)
+	s.anotherAvailableRunner = newJobListStub(tests.AnotherRunnerID, structs.JobStatusRunning, 1)
+	s.pendingRunner = newJobListStub(tests.DefaultRunnerID+"-1", structs.JobStatusPending, 0)
+	s.deadRunner = newJobListStub(tests.AnotherRunnerID+"-1", structs.JobStatusDead, 0)
 }
 
 func newJobListStub(id, status string, amountRunning int) *nomadApi.JobListStub {
@@ -121,13 +120,6 @@ func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	s.Contains(returnedIds, s.availableRunner.ID)
 	s.Contains(returnedIds, s.anotherAvailableRunner.ID)
 }
-
-var (
-	TestURL = url.URL{
-		Scheme: "http",
-		Host:   "127.0.0.1:4646",
-	}
-)
 
 const TestNamespace = "unit-tests"
 const TestNomadToken = "n0m4d-t0k3n"

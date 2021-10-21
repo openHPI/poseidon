@@ -6,7 +6,7 @@ import (
 
 // Storage is an interface for storing runners.
 type Storage interface {
-	// Add adds an runner to the storage.
+	// Add adds a runner to the storage.
 	// It overwrites the old runner if one with the same id was already stored.
 	Add(Runner)
 

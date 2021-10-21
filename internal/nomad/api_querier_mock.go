@@ -42,7 +42,7 @@ func (_m *apiQuerierMock) AllocationStream(ctx context.Context) (<-chan *api.Eve
 }
 
 // DeleteRunner provides a mock function with given fields: runnerID
-func (_m *apiQuerierMock) DeleteRunner(runnerID string) error {
+func (_m *apiQuerierMock) DeleteJob(runnerID string) error {
 	ret := _m.Called(runnerID)
 
 	var r0 error

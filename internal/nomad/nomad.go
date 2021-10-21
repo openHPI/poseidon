@@ -25,7 +25,7 @@ var (
 
 type AllocationProcessor func(*nomadApi.Allocation)
 
-// ExecutorAPI provides access to an container orchestration solution.
+// ExecutorAPI provides access to a container orchestration solution.
 type ExecutorAPI interface {
 	apiQuerier
 
@@ -41,12 +41,6 @@ type ExecutorAPI interface {
 
 	// LoadRunnerPortMappings returns the mapped ports of the runner.
 	LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapping, error)
-
-	// RegisterTemplateJob creates a template job based on the default job configuration and the given parameters.
-	// It registers the job and waits until the registration completes.
-	RegisterTemplateJob(defaultJob *nomadApi.Job, id string,
-		prewarmingPoolSize, cpuLimit, memoryLimit uint,
-		image string, networkAccess bool, exposedPorts []uint16) (*nomadApi.Job, error)
 
 	// RegisterRunnerJob creates a runner job based on the template job.
 	// It registers the job and waits until the registration completes.
@@ -278,14 +272,10 @@ func (a *APIClient) MarkRunnerAsUsed(runnerID string, duration int) error {
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve job info: %w", err)
 	}
-	err = SetMetaConfigValue(job, ConfigMetaUsedKey, ConfigMetaUsedValue)
-	if err != nil {
-		return fmt.Errorf("couldn't update runner in job as used: %w", err)
-	}
-	err = SetMetaConfigValue(job, ConfigMetaTimeoutKey, strconv.Itoa(duration))
-	if err != nil {
-		return fmt.Errorf("couldn't update runner in job with timeout: %w", err)
-	}
+	configTaskGroup := FindOrCreateConfigTaskGroup(job)
+	configTaskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUsedValue
+	configTaskGroup.Meta[ConfigMetaTimeoutKey] = strconv.Itoa(duration)
+
 	_, err = a.RegisterNomadJob(job)
 	if err != nil {
 		return fmt.Errorf("couldn't update runner config: %w", err)

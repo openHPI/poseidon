@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -24,73 +26,19 @@ const (
 	ConfigMetaUnusedValue = "false"
 	ConfigMetaTimeoutKey  = "timeout"
 	ConfigMetaPoolSizeKey = "prewarmingPoolSize"
+	TemplateJobNameParts  = 2
 )
 
 var (
-	TaskArgs                     = []string{"infinity"}
-	ErrorConfigTaskGroupNotFound = errors.New("config task group not found in job")
+	ErrorInvalidJobID = errors.New("invalid job id")
+	TaskArgs          = []string{"infinity"}
 )
 
-// FindConfigTaskGroup returns the config task group of a job.
-// The config task group should be included in all jobs.
-func FindConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
-	for _, tg := range job.TaskGroups {
-		if *tg.Name == ConfigTaskGroupName {
-			return tg
-		}
-	}
-	return nil
-}
-
-func SetMetaConfigValue(job *nomadApi.Job, key, value string) error {
-	configTaskGroup := FindConfigTaskGroup(job)
-	if configTaskGroup == nil {
-		return ErrorConfigTaskGroupNotFound
-	}
-	configTaskGroup.Meta[key] = value
-	return nil
-}
-
-// RegisterTemplateJob creates a Nomad job based on the default job configuration and the given parameters.
-// It registers the job with Nomad and waits until the registration completes.
-func (a *APIClient) RegisterTemplateJob(
-	basisJob *nomadApi.Job,
-	id string,
-	prewarmingPoolSize, cpuLimit, memoryLimit uint,
-	image string,
-	networkAccess bool,
-	exposedPorts []uint16) (*nomadApi.Job, error) {
-	job := CreateTemplateJob(basisJob, id, prewarmingPoolSize,
-		cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
-	evalID, err := a.apiQuerier.RegisterNomadJob(job)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't register template job: %w", err)
-	}
-	return job, a.MonitorEvaluation(evalID, context.Background())
-}
-
-// CreateTemplateJob creates a Nomad job based on the default job configuration and the given parameters.
-// It registers the job with Nomad and waits until the registration completes.
-func CreateTemplateJob(
-	basisJob *nomadApi.Job,
-	id string,
-	prewarmingPoolSize, cpuLimit, memoryLimit uint,
-	image string,
-	networkAccess bool,
-	exposedPorts []uint16) *nomadApi.Job {
-	job := *basisJob
-	job.ID = &id
-	job.Name = &id
-
-	var taskGroup = createTaskGroup(&job, TaskGroupName)
-	configureTask(taskGroup, TaskName, cpuLimit, memoryLimit, image, networkAccess, exposedPorts)
-	storeTemplateConfiguration(&job, prewarmingPoolSize)
-
-	return &job
-}
-
 func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
-	storeRunnerConfiguration(template)
+	taskGroup := FindOrCreateConfigTaskGroup(template)
+
+	taskGroup.Meta = make(map[string]string)
+	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
 
 	evalID, err := a.apiQuerier.RegisterNomadJob(template)
 	if err != nil {
@@ -99,126 +47,37 @@ func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
 	return a.MonitorEvaluation(evalID, context.Background())
 }
 
-func createTaskGroup(job *nomadApi.Job, name string) *nomadApi.TaskGroup {
-	var taskGroup *nomadApi.TaskGroup
-	if len(job.TaskGroups) == 0 {
-		taskGroup = nomadApi.NewTaskGroup(name, TaskCount)
-		job.TaskGroups = []*nomadApi.TaskGroup{taskGroup}
-	} else {
-		taskGroup = job.TaskGroups[0]
-		taskGroup.Name = &name
-		count := TaskCount
-		taskGroup.Count = &count
+func FindTaskGroup(job *nomadApi.Job, name string) *nomadApi.TaskGroup {
+	for _, tg := range job.TaskGroups {
+		if *tg.Name == name {
+			return tg
+		}
 	}
+	return nil
+}
+
+func FindOrCreateDefaultTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
+	taskGroup := FindTaskGroup(job, TaskGroupName)
+	if taskGroup == nil {
+		taskGroup = nomadApi.NewTaskGroup(TaskGroupName, TaskCount)
+		job.AddTaskGroup(taskGroup)
+	}
+	FindOrCreateDefaultTask(taskGroup)
 	return taskGroup
 }
 
-const portNumberBase = 10
-
-func configureNetwork(taskGroup *nomadApi.TaskGroup, networkAccess bool, exposedPorts []uint16) {
-	if len(taskGroup.Tasks) == 0 {
-		// This function is only used internally and must be called as last step when configuring the task.
-		// This error is not recoverable.
-		log.Fatal("Can't configure network before task has been configured!")
-	}
-	task := taskGroup.Tasks[0]
-
-	if task.Config == nil {
-		task.Config = make(map[string]interface{})
-	}
-
-	if networkAccess {
-		var networkResource *nomadApi.NetworkResource
-		if len(taskGroup.Networks) == 0 {
-			networkResource = &nomadApi.NetworkResource{}
-			taskGroup.Networks = []*nomadApi.NetworkResource{networkResource}
-		} else {
-			networkResource = taskGroup.Networks[0]
-		}
-		// Prefer "bridge" network over "host" to have an isolated network namespace with bridged interface
-		// instead of joining the host network namespace.
-		networkResource.Mode = "bridge"
-		for _, portNumber := range exposedPorts {
-			port := nomadApi.Port{
-				Label: strconv.FormatUint(uint64(portNumber), portNumberBase),
-				To:    int(portNumber),
-			}
-			networkResource.DynamicPorts = append(networkResource.DynamicPorts, port)
-		}
-
-		// Explicitly set mode to override existing settings when updating job from without to with network.
-		// Don't use bridge as it collides with the bridge mode above. This results in Docker using 'bridge'
-		// mode, meaning all allocations will be attached to the `docker0` adapter and could reach other
-		// non-Nomad containers attached to it. This is avoided when using Nomads bridge network mode.
-		task.Config["network_mode"] = ""
-	} else {
-		// Somehow, we can't set the network mode to none in the NetworkResource on task group level.
-		// See https://github.com/hashicorp/nomad/issues/10540
-		task.Config["network_mode"] = "none"
-		// Explicitly set Networks to signal Nomad to remove the possibly existing networkResource
-		taskGroup.Networks = []*nomadApi.NetworkResource{}
-	}
-}
-
-func configureTask(
-	taskGroup *nomadApi.TaskGroup,
-	name string,
-	cpuLimit, memoryLimit uint,
-	image string,
-	networkAccess bool,
-	exposedPorts []uint16) {
-	var task *nomadApi.Task
-	if len(taskGroup.Tasks) == 0 {
-		task = nomadApi.NewTask(name, TaskDriver)
-		taskGroup.Tasks = []*nomadApi.Task{task}
-	} else {
-		task = taskGroup.Tasks[0]
-		task.Name = name
-	}
-	integerCPULimit := int(cpuLimit)
-	integerMemoryLimit := int(memoryLimit)
-	if task.Resources == nil {
-		task.Resources = nomadApi.DefaultResources()
-	}
-	task.Resources.CPU = &integerCPULimit
-	task.Resources.MemoryMB = &integerMemoryLimit
-
-	if task.Config == nil {
-		task.Config = make(map[string]interface{})
-	}
-	task.Config["image"] = image
-	task.Config["command"] = TaskCommand
-	task.Config["args"] = TaskArgs
-
-	configureNetwork(taskGroup, networkAccess, exposedPorts)
-}
-
-func storeTemplateConfiguration(job *nomadApi.Job, prewarmingPoolSize uint) {
-	taskGroup := findOrCreateConfigTaskGroup(job)
-
-	taskGroup.Meta = make(map[string]string)
-	taskGroup.Meta[ConfigMetaPoolSizeKey] = strconv.Itoa(int(prewarmingPoolSize))
-}
-
-func storeRunnerConfiguration(job *nomadApi.Job) {
-	taskGroup := findOrCreateConfigTaskGroup(job)
-
-	taskGroup.Meta = make(map[string]string)
-	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
-}
-
-func findOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
-	taskGroup := FindConfigTaskGroup(job)
+func FindOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
+	taskGroup := FindTaskGroup(job, ConfigTaskGroupName)
 	if taskGroup == nil {
 		taskGroup = nomadApi.NewTaskGroup(ConfigTaskGroupName, 0)
 		job.AddTaskGroup(taskGroup)
 	}
-	createConfigTaskIfNotPresent(taskGroup)
+	FindOrCreateConfigTask(taskGroup)
 	return taskGroup
 }
 
-// createConfigTaskIfNotPresent ensures that a dummy task is in the task group so that the group is accepted by Nomad.
-func createConfigTaskIfNotPresent(taskGroup *nomadApi.TaskGroup) {
+// FindOrCreateConfigTask ensures that a dummy task is in the task group so that the group is accepted by Nomad.
+func FindOrCreateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	var task *nomadApi.Task
 	for _, t := range taskGroup.Tasks {
 		if t.Name == ConfigTaskName {
@@ -236,4 +95,75 @@ func createConfigTaskIfNotPresent(taskGroup *nomadApi.TaskGroup) {
 		task.Config = make(map[string]interface{})
 	}
 	task.Config["command"] = ConfigTaskCommand
+	return task
+}
+
+// FindOrCreateDefaultTask ensures that a default task is in the task group in that the executions are made.
+func FindOrCreateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
+	var task *nomadApi.Task
+	for _, t := range taskGroup.Tasks {
+		if t.Name == TaskName {
+			task = t
+			break
+		}
+	}
+
+	if task == nil {
+		task = nomadApi.NewTask(TaskName, TaskDriver)
+		taskGroup.Tasks = append(taskGroup.Tasks, task)
+	}
+
+	if task.Resources == nil {
+		task.Resources = nomadApi.DefaultResources()
+	}
+
+	if task.Config == nil {
+		task.Config = make(map[string]interface{})
+	}
+	task.Config["command"] = TaskCommand
+	task.Config["args"] = TaskArgs
+	return task
+}
+
+// IsEnvironmentTemplateID checks if the passed job id belongs to a template job.
+func IsEnvironmentTemplateID(jobID string) bool {
+	parts := strings.Split(jobID, "-")
+	if len(parts) != TemplateJobNameParts || parts[0] != TemplateJobPrefix {
+		return false
+	}
+
+	_, err := EnvironmentIDFromTemplateJobID(jobID)
+	return err == nil
+}
+
+// RunnerJobID returns the nomad job id of the runner with the given environmentID and id.
+func RunnerJobID(environmentID dto.EnvironmentID, id string) string {
+	return fmt.Sprintf("%d-%s", environmentID, id)
+}
+
+// TemplateJobID returns the id of the nomad job for the environment with the given id.
+func TemplateJobID(id dto.EnvironmentID) string {
+	return fmt.Sprintf("%s-%d", TemplateJobPrefix, id)
+}
+
+// EnvironmentIDFromRunnerID returns the environment id that is part of the passed runner job id.
+func EnvironmentIDFromRunnerID(jobID string) (dto.EnvironmentID, error) {
+	return partOfJobID(jobID, 0)
+}
+
+// EnvironmentIDFromTemplateJobID returns the environment id that is part of the passed environment job id.
+func EnvironmentIDFromTemplateJobID(id string) (dto.EnvironmentID, error) {
+	return partOfJobID(id, 1)
+}
+
+func partOfJobID(id string, part uint) (dto.EnvironmentID, error) {
+	parts := strings.Split(id, "-")
+	if len(parts) == 0 {
+		return 0, fmt.Errorf("empty job id: %w", ErrorInvalidJobID)
+	}
+	environmentID, err := strconv.Atoi(parts[part])
+	if err != nil {
+		return 0, fmt.Errorf("invalid environment id par %v: %w", err, ErrorInvalidJobID)
+	}
+	return dto.EnvironmentID(environmentID), nil
 }

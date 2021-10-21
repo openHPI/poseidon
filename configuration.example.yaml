@@ -1,6 +1,7 @@
 # Configuration of the Poseidon webserver
 server:
-  # Address on which the webserver listens
+  # Address or hostname on which the webserver listens
+  # If a hostname is specified, the server might listen on only one of the resolved IPv4 or IPv6 addresses
   address: 127.0.0.1
   # Port on which the webserver listens
   port: 7200

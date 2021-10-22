@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists(t *testing.T) {
@@ -188,5 +189,6 @@ func TestTwoSampleAddExactlyTwoRunners(t *testing.T) {
 	_, ok = environment.Sample(apiMock)
 	require.True(t, ok)
 
+	<-time.After(tests.ShortTimeout) // New Runners are requested asynchronously
 	apiMock.AssertNumberOfCalls(t, "RegisterRunnerJob", 2)
 }

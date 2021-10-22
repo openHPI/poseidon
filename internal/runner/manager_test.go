@@ -150,6 +150,23 @@ func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 	s.Equal(savedRunner, receivedRunner)
 }
 
+func (s *ManagerTestSuite) TestClaimRemovesRunnerWhenMarkAsUsedFails() {
+	s.exerciseEnvironment.On("Sample", mock.Anything).Return(s.exerciseRunner, true)
+	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	modifyMockedCall(s.apiMock, "MarkRunnerAsUsed", func(call *mock.Call) {
+		call.Run(func(args mock.Arguments) {
+			call.ReturnArguments = mock.Arguments{tests.ErrDefault}
+		})
+	})
+
+	claimedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
+	s.Require().NoError(err)
+	<-time.After(tests.ShortTimeout) // Claimed runners are marked as used asynchronously
+	s.apiMock.AssertCalled(s.T(), "DeleteJob", claimedRunner.ID())
+	_, ok := s.nomadRunnerManager.usedRunners.Get(claimedRunner.ID())
+	s.False(ok)
+}
+
 func (s *ManagerTestSuite) TestGetReturnsRunnerIfRunnerIsUsed() {
 	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner)
 	savedRunner, err := s.nomadRunnerManager.Get(s.exerciseRunner.ID())

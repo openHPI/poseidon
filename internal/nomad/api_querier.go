@@ -91,6 +91,7 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	ctx context.Context, command []string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
+	log.Debug("Before fetching Allocations")
 	allocations, _, err := nc.client.Jobs().Allocations(runnerID, false, nil)
 	if err != nil {
 		return 1, fmt.Errorf("error retrieving allocations for runner: %w", err)
@@ -98,14 +99,17 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	if len(allocations) == 0 {
 		return 1, ErrorNoAllocationFound
 	}
+	log.Debug("Before fetching Info about allocation")
 	allocation, _, err := nc.client.Allocations().Info(allocations[0].ID, nil)
 	if err != nil {
 		return 1, fmt.Errorf("error retrieving allocation info: %w", err)
 	}
+	log.Debug("Before executing in allocation")
 	exitCode, err := nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
 	if err != nil {
 		return 1, fmt.Errorf("error executing command in allocation: %w", err)
 	}
+	log.Debug("After executing in allocation")
 	return exitCode, nil
 }
 

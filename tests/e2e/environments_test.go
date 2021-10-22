@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCreateOrUpdateEnvironment(t *testing.T) {
@@ -114,6 +115,7 @@ func TestListEnvironments(t *testing.T) {
 		job.Name = &jobID
 		_, _, err := nomadClient.Jobs().Register(job, nil)
 		require.NoError(t, err)
+		<-time.After(tests.ShortTimeout) // Nomad needs a bit to create the job
 
 		// List without fetch should not include the added environment
 		response, err := http.Get(path) //nolint:gosec // because we build this path right above
@@ -167,6 +169,7 @@ func TestGetEnvironment(t *testing.T) {
 		job.Name = &jobID
 		_, _, err := nomadClient.Jobs().Register(job, nil)
 		require.NoError(t, err)
+		<-time.After(tests.ShortTimeout) // Nomad needs a bit to create the job
 
 		// List without fetch should not include the added environment
 		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)

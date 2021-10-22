@@ -176,7 +176,7 @@ func (m *NomadRunnerManager) Return(r Runner) error {
 func (m *NomadRunnerManager) Load() {
 	for _, environment := range m.environments.List() {
 		environmentLogger := log.WithField("environmentID", environment.ID())
-		runnerJobs, err := m.apiClient.LoadRunnerJobs(environment.ID().ToString())
+		runnerJobs, err := m.apiClient.LoadRunnerJobs(environment.ID())
 		if err != nil {
 			environmentLogger.WithError(err).Warn("Error fetching the runner jobs")
 		}

@@ -7,6 +7,7 @@ import (
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/nullio"
 	"io"
@@ -33,11 +34,11 @@ type ExecutorAPI interface {
 	LoadEnvironmentJobs() ([]*nomadApi.Job, error)
 
 	// LoadRunnerJobs loads all runner jobs specific for the environment.
-	LoadRunnerJobs(environmentID string) ([]*nomadApi.Job, error)
+	LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi.Job, error)
 
-	// LoadRunnerIDs returns the IDs of all runners of the specified environment which are running and not about to
+	// LoadRunnerIDs returns the IDs of all runners with the specified id prefix which are running and not about to
 	// get stopped.
-	LoadRunnerIDs(environmentID string) (runnerIds []string, err error)
+	LoadRunnerIDs(prefix string) (runnerIds []string, err error)
 
 	// LoadRunnerPortMappings returns the mapped ports of the runner.
 	LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapping, error)
@@ -88,8 +89,8 @@ func (a *APIClient) init(nomadConfig *config.Nomad) error {
 	return nil
 }
 
-func (a *APIClient) LoadRunnerIDs(environmentID string) (runnerIDs []string, err error) {
-	list, err := a.listJobs(environmentID)
+func (a *APIClient) LoadRunnerIDs(prefix string) (runnerIDs []string, err error) {
+	list, err := a.listJobs(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +114,8 @@ func (a *APIClient) LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapp
 	return alloc.AllocatedResources.Shared.Ports, nil
 }
 
-func (a *APIClient) LoadRunnerJobs(environmentID string) ([]*nomadApi.Job, error) {
-	runnerIDs, err := a.LoadRunnerIDs(environmentID)
+func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi.Job, error) {
+	runnerIDs, err := a.LoadRunnerIDs(RunnerJobID(environmentID, ""))
 	if err != nil {
 		return []*nomadApi.Job{}, fmt.Errorf("couldn't load jobs: %w", err)
 	}

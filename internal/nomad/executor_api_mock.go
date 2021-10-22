@@ -8,6 +8,8 @@ import (
 	api "github.com/hashicorp/nomad/api"
 	config "github.com/openHPI/poseidon/internal/config"
 
+	dto "github.com/openHPI/poseidon/pkg/dto"
+
 	io "io"
 
 	mock "github.com/stretchr/testify/mock"
@@ -187,13 +189,13 @@ func (_m *ExecutorAPIMock) LoadJobList() ([]*api.JobListStub, error) {
 	return r0, r1
 }
 
-// LoadRunnerIDs provides a mock function with given fields: environmentID
-func (_m *ExecutorAPIMock) LoadRunnerIDs(environmentID string) ([]string, error) {
-	ret := _m.Called(environmentID)
+// LoadRunnerIDs provides a mock function with given fields: prefix
+func (_m *ExecutorAPIMock) LoadRunnerIDs(prefix string) ([]string, error) {
+	ret := _m.Called(prefix)
 
 	var r0 []string
 	if rf, ok := ret.Get(0).(func(string) []string); ok {
-		r0 = rf(environmentID)
+		r0 = rf(prefix)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
@@ -202,7 +204,7 @@ func (_m *ExecutorAPIMock) LoadRunnerIDs(environmentID string) ([]string, error)
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(environmentID)
+		r1 = rf(prefix)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -211,11 +213,11 @@ func (_m *ExecutorAPIMock) LoadRunnerIDs(environmentID string) ([]string, error)
 }
 
 // LoadRunnerJobs provides a mock function with given fields: environmentID
-func (_m *ExecutorAPIMock) LoadRunnerJobs(environmentID string) ([]*api.Job, error) {
+func (_m *ExecutorAPIMock) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*api.Job, error) {
 	ret := _m.Called(environmentID)
 
 	var r0 []*api.Job
-	if rf, ok := ret.Get(0).(func(string) []*api.Job); ok {
+	if rf, ok := ret.Get(0).(func(dto.EnvironmentID) []*api.Job); ok {
 		r0 = rf(environmentID)
 	} else {
 		if ret.Get(0) != nil {
@@ -224,7 +226,7 @@ func (_m *ExecutorAPIMock) LoadRunnerJobs(environmentID string) ([]*api.Job, err
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
+	if rf, ok := ret.Get(1).(func(dto.EnvironmentID) error); ok {
 		r1 = rf(environmentID)
 	} else {
 		r1 = ret.Error(1)

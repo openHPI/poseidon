@@ -168,7 +168,8 @@ func asynchronouslyMonitorEvaluation(stream chan *nomadApi.Events) chan error {
 	readOnlyStream := func() <-chan *nomadApi.Events { return stream }()
 
 	apiMock := &apiQuerierMock{}
-	apiMock.On("EvaluationStream", mock.AnythingOfType("string"), ctx).Return(readOnlyStream, nil)
+	apiMock.On("EvaluationStream", mock.AnythingOfType("string"), mock.AnythingOfType("*context.cancelCtx")).
+		Return(readOnlyStream, nil)
 	apiClient := &APIClient{apiMock}
 
 	errChan := make(chan error)
@@ -195,7 +196,7 @@ func TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClosed(t *testing.T) {
 
 func TestApiClient_MonitorEvaluationReturnsErrorWhenStreamReturnsError(t *testing.T) {
 	apiMock := &apiQuerierMock{}
-	apiMock.On("EvaluationStream", mock.AnythingOfType("string"), mock.AnythingOfType("*context.emptyCtx")).
+	apiMock.On("EvaluationStream", mock.AnythingOfType("string"), mock.AnythingOfType("*context.cancelCtx")).
 		Return(nil, tests.ErrDefault)
 	apiClient := &APIClient{apiMock}
 	err := apiClient.MonitorEvaluation("id", context.Background())

@@ -136,7 +136,9 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 	return jobs, occurredError
 }
 
-func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) error {
+func (a *APIClient) MonitorEvaluation(evaluationID string, outerContext context.Context) error {
+	ctx, cancel := context.WithCancel(outerContext)
+	defer cancel()
 	stream, err := a.apiQuerier.EvaluationStream(evaluationID, ctx)
 	if err != nil {
 		return fmt.Errorf("failed retrieving evaluation stream: %w", err)

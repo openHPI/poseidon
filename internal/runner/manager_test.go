@@ -42,7 +42,7 @@ func (s *ManagerTestSuite) SetupTest() {
 func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []string) {
 	// reset expected calls to allow new mocked return values
 	apiMock.ExpectedCalls = []*mock.Call{}
-	call := apiMock.On("WatchAllocations", mock.Anything, mock.Anything, mock.Anything)
+	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
 	call.Run(func(args mock.Arguments) {
 		<-time.After(10 * time.Minute) // 10 minutes is the default test timeout
 		call.ReturnArguments = mock.Arguments{nil}
@@ -206,7 +206,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 	var hook *test.Hook
 	logger, hook := test.NewNullLogger()
 	log = logger.WithField("pkg", "runner")
-	modifyMockedCall(s.apiMock, "WatchAllocations", func(call *mock.Call) {
+	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{tests.ErrDefault}
 		})
@@ -232,7 +232,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 	_, ok = environment.Sample(s.apiMock)
 	s.Require().False(ok)
 
-	modifyMockedCall(s.apiMock, "WatchAllocations", func(call *mock.Call) {
+	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
 			onCreate, ok := args.Get(1).(nomad.AllocationProcessor)
 			s.Require().True(ok)
@@ -260,7 +260,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	environment.AddRunner(testRunner)
 	s.nomadRunnerManager.usedRunners.Add(testRunner)
 
-	modifyMockedCall(s.apiMock, "WatchAllocations", func(call *mock.Call) {
+	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
 			onDelete, ok := args.Get(2).(nomad.AllocationProcessor)
 			s.Require().True(ok)

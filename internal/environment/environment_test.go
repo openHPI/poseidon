@@ -116,24 +116,15 @@ func TestRegisterFailsWhenNomadJobRegistrationFails(t *testing.T) {
 	err := environment.Register(apiClientMock)
 
 	assert.ErrorIs(t, err, expectedErr)
-	apiClientMock.AssertNotCalled(t, "EvaluationStream")
+	apiClientMock.AssertNotCalled(t, "MonitorEvaluation")
 }
 
 func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
 	apiClientMock := &nomad.ExecutorAPIMock{}
 	evaluationID := "id"
 
-	stream := make(chan *nomadApi.Events)
-	readonlyStream := func() <-chan *nomadApi.Events {
-		return stream
-	}()
-	// Immediately close stream to avoid any reading from it resulting in endless wait
-	close(stream)
-
 	apiClientMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
 	apiClientMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.Anything).Return(nil)
-	apiClientMock.On("EvaluationStream", evaluationID, mock.AnythingOfType("*context.emptyCtx")).
-		Return(readonlyStream, nil)
 
 	environment := &NomadEnvironment{"", &nomadApi.Job{}, nil}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)

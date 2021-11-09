@@ -24,6 +24,9 @@ var (
 	ErrorNoAllocatedResourcesFound   = errors.New("no allocated resources found")
 )
 
+// resultChannelWriteTimeout is to detect the error when more element are written into a channel than expected.
+const resultChannelWriteTimeout = 10 * time.Millisecond
+
 type AllocationProcessor func(*nomadApi.Allocation)
 
 // ExecutorAPI provides access to a container orchestration solution.
@@ -53,9 +56,10 @@ type ExecutorAPI interface {
 	// See also https://github.com/hashicorp/nomad/blob/7d5a9ecde95c18da94c9b6ace2565afbfdd6a40d/command/monitor.go#L175
 	MonitorEvaluation(evaluationID string, ctx context.Context) error
 
-	// WatchAllocations listens on the Nomad event stream for allocation events.
+	// WatchEventStream listens on the Nomad event stream for allocation and evaluation events.
 	// Depending on the incoming event, any of the given function is executed.
-	WatchAllocations(ctx context.Context, onNewAllocation, onDeletedAllocation AllocationProcessor) error
+	// Do not run multiple times simultaneously.
+	WatchEventStream(ctx context.Context, onNewAllocation, onDeletedAllocation AllocationProcessor) error
 
 	// ExecuteCommand executes the given command in the allocation with the given id.
 	// It writes the output of the command to stdout/stderr and reads input from stdin.
@@ -71,12 +75,14 @@ type ExecutorAPI interface {
 // Executor API and its return values.
 type APIClient struct {
 	apiQuerier
+	evaluations map[string]chan error
+	isListening bool
 }
 
 // NewExecutorAPI creates a new api client.
 // One client is usually sufficient for the complete runtime of the API.
 func NewExecutorAPI(nomadConfig *config.Nomad) (ExecutorAPI, error) {
-	client := &APIClient{apiQuerier: &nomadAPIClient{}}
+	client := &APIClient{apiQuerier: &nomadAPIClient{}, evaluations: map[string]chan error{}}
 	err := client.init(nomadConfig)
 	return client, err
 }
@@ -136,31 +142,53 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 	return jobs, occurredError
 }
 
-func (a *APIClient) MonitorEvaluation(evaluationID string, outerContext context.Context) error {
-	ctx, cancel := context.WithCancel(outerContext)
-	defer cancel()
-	stream, err := a.apiQuerier.EvaluationStream(evaluationID, ctx)
-	if err != nil {
-		return fmt.Errorf("failed retrieving evaluation stream: %w", err)
+func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) (err error) {
+	a.evaluations[evaluationID] = make(chan error, 1)
+	defer delete(a.evaluations, evaluationID)
+
+	if !a.isListening {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel() // cancel the WatchEventStream when the evaluation result was read.
+
+		go func() {
+			err = a.WatchEventStream(ctx, func(_ *nomadApi.Allocation) {}, func(_ *nomadApi.Allocation) {})
+			cancel() // cancel the waiting for an evaluation result if watching the event stream ends.
+		}()
 	}
-	// If ctx is canceled, the stream will be closed by Nomad and we exit the for loop.
-	return receiveAndHandleNomadAPIEvents(stream, handleEvaluationEvent)
+
+	select {
+	case <-ctx.Done():
+		return err
+	case err := <-a.evaluations[evaluationID]:
+		// At the moment we expect only one error to be sent via this channel.
+		return err
+	}
 }
 
-func (a *APIClient) WatchAllocations(ctx context.Context,
+func (a *APIClient) WatchEventStream(ctx context.Context,
 	onNewAllocation, onDeletedAllocation AllocationProcessor) error {
 	startTime := time.Now().UnixNano()
-	stream, err := a.AllocationStream(ctx)
+	stream, err := a.EventStream(ctx)
 	if err != nil {
 		return fmt.Errorf("failed retrieving allocation stream: %w", err)
 	}
 	pendingAllocations := make(map[string]bool)
 
 	handler := func(event *nomadApi.Event) (bool, error) {
-		return false, handleAllocationEvent(startTime, pendingAllocations, event, onNewAllocation, onDeletedAllocation)
+		switch event.Topic {
+		case nomadApi.TopicEvaluation:
+			return false, handleEvaluationEvent(a.evaluations, event)
+		case nomadApi.TopicAllocation:
+			return false, handleAllocationEvent(startTime, pendingAllocations, event, onNewAllocation, onDeletedAllocation)
+		default:
+			return false, nil
+		}
 	}
 
+	a.isListening = true
 	err = receiveAndHandleNomadAPIEvents(stream, handler)
+	a.isListening = false
 	return err
 }
 
@@ -193,21 +221,29 @@ func receiveAndHandleNomadAPIEvents(stream <-chan *nomadApi.Events, handler noma
 	return nil
 }
 
-// handleEvaluationEvent is a nomadAPIEventHandler that returns whether the evaluation described by the event
+// handleEvaluationEvent is an event handler that returns whether the evaluation described by the event
 // was successful.
-func handleEvaluationEvent(event *nomadApi.Event) (bool, error) {
+func handleEvaluationEvent(evaluations map[string]chan error, event *nomadApi.Event) error {
 	eval, err := event.Evaluation()
 	if err != nil {
-		return true, fmt.Errorf("failed to monitor evaluation: %w", err)
+		return fmt.Errorf("failed to monitor evaluation: %w", err)
 	}
 	switch eval.Status {
 	case structs.EvalStatusComplete, structs.EvalStatusCancelled, structs.EvalStatusFailed:
-		return true, checkEvaluation(eval)
+		resultChannel, ok := evaluations[eval.ID]
+		if ok {
+			select {
+			case resultChannel <- checkEvaluation(eval):
+				close(resultChannel)
+			case <-time.After(resultChannelWriteTimeout):
+				log.WithField("eval", eval).Error("Full evaluation channel")
+			}
+		}
 	}
-	return false, nil
+	return nil
 }
 
-// handleAllocationEvent is a nomadAPIEventHandler that processes allocation events.
+// handleAllocationEvent is an event handler that processes allocation events.
 // If a new allocation is received, onNewAllocation is called. If an allocation is deleted, onDeletedAllocation
 // is called. The pendingAllocations map is used to store allocations that are pending but not started yet. Using the
 // map the state is persisted between multiple calls of this function.

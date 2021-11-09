@@ -228,7 +228,7 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
 	retries := 0
 	for ctx.Err() == nil {
-		err := m.apiClient.WatchAllocations(ctx, m.onAllocationAdded, m.onAllocationStopped)
+		err := m.apiClient.WatchEventStream(ctx, m.onAllocationAdded, m.onAllocationStopped)
 		retries += 1
 		log.WithError(err).Errorf("Stopped updating the runners! Retry %v", retries)
 		<-time.After(time.Second)

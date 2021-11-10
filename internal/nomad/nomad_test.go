@@ -320,9 +320,7 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 		name                    string
 	}{
 		{[]*nomadApi.Events{&events}, 1, evalErr,
-			"it completes with failing event"},
-		{[]*nomadApi.Events{&events, &events}, 1, evalErr,
-			"it does not fail after first failing event"},
+			"it fails with failing event"},
 		{[]*nomadApi.Events{{}, &events}, 2, evalErr,
 			"it skips heartbeat and fail"},
 		{[]*nomadApi.Events{&pendingEvaluationEvents, &events}, 2, evalErr,

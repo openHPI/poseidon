@@ -19,7 +19,7 @@ func TestNewRouterV1WithAuthenticationDisabled(t *testing.T) {
 	configureV1Router(router, nil, nil)
 
 	t.Run("health route is accessible", func(t *testing.T) {
-		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
+		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", http.NoBody)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -30,7 +30,7 @@ func TestNewRouterV1WithAuthenticationDisabled(t *testing.T) {
 
 	t.Run("added route is accessible", func(t *testing.T) {
 		router.HandleFunc("/api/v1/test", mockHTTPHandler)
-		request, err := http.NewRequest(http.MethodGet, "/api/v1/test", nil)
+		request, err := http.NewRequest(http.MethodGet, "/api/v1/test", http.NoBody)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -46,7 +46,7 @@ func TestNewRouterV1WithAuthenticationEnabled(t *testing.T) {
 	configureV1Router(router, nil, nil)
 
 	t.Run("health route is accessible", func(t *testing.T) {
-		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
+		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", http.NoBody)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +58,7 @@ func TestNewRouterV1WithAuthenticationEnabled(t *testing.T) {
 	t.Run("protected route is not accessible", func(t *testing.T) {
 		// request an available API route that should be guarded by authentication.
 		// (which one, in particular, does not matter here)
-		request, err := http.NewRequest(http.MethodPost, "/api/v1/runners", nil)
+		request, err := http.NewRequest(http.MethodPost, "/api/v1/runners", http.NoBody)
 		if err != nil {
 			t.Fatal(err)
 		}

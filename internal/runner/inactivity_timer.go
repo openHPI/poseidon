@@ -38,7 +38,7 @@ type InactivityTimerImplementation struct {
 	state    TimerState
 	runner   Runner
 	manager  Manager
-	sync.Mutex
+	mu       sync.Mutex
 }
 
 func NewInactivityTimer(runner Runner, manager Manager) InactivityTimer {
@@ -50,8 +50,8 @@ func NewInactivityTimer(runner Runner, manager Manager) InactivityTimer {
 }
 
 func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
-	t.Lock()
-	defer t.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	// Stop old timer if present.
 	if t.timer != nil {
 		t.timer.Stop()
@@ -64,10 +64,10 @@ func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
 	t.duration = duration
 
 	t.timer = time.AfterFunc(duration, func() {
-		t.Lock()
+		t.mu.Lock()
 		t.state = TimerExpired
 		// The timer must be unlocked here already in order to avoid a deadlock with the call to StopTimout in Manager.Return.
-		t.Unlock()
+		t.mu.Unlock()
 		err := t.manager.Return(t.runner)
 		if err != nil {
 			log.WithError(err).WithField("id", t.runner.ID()).Warn("Returning runner after inactivity caused an error")
@@ -78,8 +78,8 @@ func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
 }
 
 func (t *InactivityTimerImplementation) ResetTimeout() {
-	t.Lock()
-	defer t.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if t.state != TimerRunning {
 		// The timer has already expired or been stopped. We don't want to restart it.
 		return
@@ -92,8 +92,8 @@ func (t *InactivityTimerImplementation) ResetTimeout() {
 }
 
 func (t *InactivityTimerImplementation) StopTimeout() {
-	t.Lock()
-	defer t.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if t.state != TimerRunning {
 		return
 	}

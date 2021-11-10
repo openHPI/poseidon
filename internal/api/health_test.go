@@ -8,7 +8,7 @@ import (
 )
 
 func TestHealthRoute(t *testing.T) {
-	request, err := http.NewRequest(http.MethodGet, "/health", nil)
+	request, err := http.NewRequest(http.MethodGet, "/health", http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}

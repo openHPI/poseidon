@@ -23,7 +23,7 @@ type AuthenticationMiddlewareTestSuite struct {
 func (s *AuthenticationMiddlewareTestSuite) SetupTest() {
 	correctAuthenticationToken = []byte(testToken)
 	s.recorder = httptest.NewRecorder()
-	request, err := http.NewRequest(http.MethodGet, "/api/v1/test", nil)
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/test", http.NoBody)
 	if err != nil {
 		s.T().Fatal(err)
 	}

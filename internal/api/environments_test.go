@@ -41,7 +41,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 	})
 	path, err := s.router.Get(listRouteName).URL()
 	s.Require().NoError(err)
-	request, err := http.NewRequest(http.MethodGet, path.String(), nil)
+	request, err := http.NewRequest(http.MethodGet, path.String(), http.NoBody)
 	s.Require().NoError(err)
 
 	s.Run("with no Environments", func() {
@@ -63,7 +63,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 		query := path.Query()
 		query.Set("fetch", "true")
 		path.RawQuery = query.Encode()
-		request, err := http.NewRequest(http.MethodGet, path.String(), nil)
+		request, err := http.NewRequest(http.MethodGet, path.String(), http.NoBody)
 		s.Require().NoError(err)
 
 		s.router.ServeHTTP(recorder, request)
@@ -77,7 +77,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 		query := path.Query()
 		query.Set("fetch", "YouDecide")
 		path.RawQuery = query.Encode()
-		request, err := http.NewRequest(http.MethodGet, path.String(), nil)
+		request, err := http.NewRequest(http.MethodGet, path.String(), http.NoBody)
 		s.Require().NoError(err)
 
 		s.router.ServeHTTP(recorder, request)
@@ -114,7 +114,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 	call := s.manager.On("Get", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("bool"))
 	path, err := s.router.Get(getRouteName).URL(executionEnvironmentIDKey, tests.DefaultEnvironmentIDAsString)
 	s.Require().NoError(err)
-	request, err := http.NewRequest(http.MethodGet, path.String(), nil)
+	request, err := http.NewRequest(http.MethodGet, path.String(), http.NoBody)
 	s.Require().NoError(err)
 
 	s.Run("with unknown environment", func() {
@@ -134,7 +134,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 		query := path.Query()
 		query.Set("fetch", "true")
 		path.RawQuery = query.Encode()
-		request, err := http.NewRequest(http.MethodGet, path.String(), nil)
+		request, err := http.NewRequest(http.MethodGet, path.String(), http.NoBody)
 		s.Require().NoError(err)
 
 		call.Run(func(args mock.Arguments) {
@@ -174,7 +174,7 @@ func (s *EnvironmentControllerTestSuite) TestDelete() {
 	call := s.manager.On("Delete", mock.AnythingOfType("dto.EnvironmentID"))
 	path, err := s.router.Get(deleteRouteName).URL(executionEnvironmentIDKey, tests.DefaultEnvironmentIDAsString)
 	s.Require().NoError(err)
-	request, err := http.NewRequest(http.MethodDelete, path.String(), nil)
+	request, err := http.NewRequest(http.MethodDelete, path.String(), http.NoBody)
 	s.Require().NoError(err)
 
 	s.Run("environment not found", func() {

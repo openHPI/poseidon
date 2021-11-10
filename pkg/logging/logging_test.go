@@ -20,7 +20,7 @@ func TestHTTPMiddlewareWarnsWhenInternalServerError(t *testing.T) {
 	log, hook = test.NewNullLogger()
 	InitializeLogging(logrus.DebugLevel.String())
 
-	request, err := http.NewRequest(http.MethodGet, "/", nil)
+	request, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestHTTPMiddlewareDebugsWhenStatusOK(t *testing.T) {
 	log, hook = test.NewNullLogger()
 	InitializeLogging(logrus.DebugLevel.String())
 
-	request, err := http.NewRequest(http.MethodGet, "/", nil)
+	request, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -288,13 +288,13 @@ func tarHeader(file dto.File) *tar.Header {
 		return &tar.Header{
 			Typeflag: tar.TypeDir,
 			Name:     file.CleanedPath(),
-			Mode:     0755,
+			Mode:     0o755,
 		}
 	} else {
 		return &tar.Header{
 			Typeflag: tar.TypeReg,
 			Name:     file.CleanedPath(),
-			Mode:     0744,
+			Mode:     0o744,
 			Size:     int64(len(file.Content)),
 		}
 	}

@@ -33,7 +33,7 @@ func (s *MiddlewareTestSuite) SetupTest() {
 	s.runnerRequest = func(runnerId string) *http.Request {
 		path, err := s.router.Get("test-runner-id").URL(RunnerIDKey, runnerId)
 		s.Require().NoError(err)
-		request, err := http.NewRequest(http.MethodPost, path.String(), nil)
+		request, err := http.NewRequest(http.MethodPost, path.String(), http.NoBody)
 		s.Require().NoError(err)
 		return request
 	}
@@ -310,7 +310,7 @@ func (s *DeleteRunnerRouteTestSuite) TestValidRequestReturnsNoContent() {
 	s.runnerManager.On("Return", s.runner).Return(nil)
 
 	recorder := httptest.NewRecorder()
-	request, err := http.NewRequest(http.MethodDelete, s.path, nil)
+	request, err := http.NewRequest(http.MethodDelete, s.path, http.NoBody)
 	s.Require().NoError(err)
 
 	s.router.ServeHTTP(recorder, request)
@@ -326,7 +326,7 @@ func (s *DeleteRunnerRouteTestSuite) TestReturnInternalServerErrorWhenApiCallToN
 	s.runnerManager.On("Return", s.runner).Return(tests.ErrDefault)
 
 	recorder := httptest.NewRecorder()
-	request, err := http.NewRequest(http.MethodDelete, s.path, nil)
+	request, err := http.NewRequest(http.MethodDelete, s.path, http.NoBody)
 	s.Require().NoError(err)
 
 	s.router.ServeHTTP(recorder, request)
@@ -341,7 +341,7 @@ func (s *DeleteRunnerRouteTestSuite) TestDeleteInvalidRunnerIdReturnsNotFound() 
 	deletePath := deleteURL.String()
 
 	recorder := httptest.NewRecorder()
-	request, err := http.NewRequest(http.MethodDelete, deletePath, nil)
+	request, err := http.NewRequest(http.MethodDelete, deletePath, http.NoBody)
 	s.Require().NoError(err)
 
 	s.router.ServeHTTP(recorder, request)

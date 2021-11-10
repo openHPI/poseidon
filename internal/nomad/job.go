@@ -8,6 +8,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -27,6 +28,7 @@ const (
 	ConfigMetaTimeoutKey  = "timeout"
 	ConfigMetaPoolSizeKey = "prewarmingPoolSize"
 	TemplateJobNameParts  = 2
+	RegisterTimeout       = 10 * time.Second
 )
 
 var (
@@ -44,7 +46,10 @@ func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
 	if err != nil {
 		return fmt.Errorf("couldn't register runner job: %w", err)
 	}
-	return a.MonitorEvaluation(evalID, context.Background())
+
+	registerTimeout, cancel := context.WithTimeout(context.Background(), RegisterTimeout)
+	defer cancel()
+	return a.MonitorEvaluation(evalID, registerTimeout)
 }
 
 func FindTaskGroup(job *nomadApi.Job, name string) *nomadApi.TaskGroup {

@@ -177,7 +177,9 @@ func (n *NomadEnvironment) Register(apiClient nomad.ExecutorAPI) error {
 	if err != nil {
 		return fmt.Errorf("couldn't register job: %w", err)
 	}
-	err = apiClient.MonitorEvaluation(evalID, context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), nomad.RegisterTimeout)
+	defer cancel()
+	err = apiClient.MonitorEvaluation(evalID, ctx)
 	if err != nil {
 		return fmt.Errorf("error during the monitoring of the environment job: %w", err)
 	}

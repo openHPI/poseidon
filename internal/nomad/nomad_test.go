@@ -124,6 +124,7 @@ func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 const TestNamespace = "unit-tests"
 const TestNomadToken = "n0m4d-t0k3n"
 const TestDefaultAddress = "127.0.0.1"
+const evaluationID = "evaluation-id"
 
 func NomadTestConfig(address string) *config.Nomad {
 	return &config.Nomad{
@@ -168,12 +169,13 @@ func asynchronouslyMonitorEvaluation(stream chan *nomadApi.Events) chan error {
 	readOnlyStream := func() <-chan *nomadApi.Events { return stream }()
 
 	apiMock := &apiQuerierMock{}
-	apiMock.On("EvaluationStream", mock.AnythingOfType("string"), ctx).Return(readOnlyStream, nil)
-	apiClient := &APIClient{apiMock}
+	apiMock.On("EventStream", mock.AnythingOfType("*context.cancelCtx")).
+		Return(readOnlyStream, nil)
+	apiClient := &APIClient{apiMock, map[string]chan error{}, false}
 
 	errChan := make(chan error)
 	go func() {
-		errChan <- apiClient.MonitorEvaluation("id", ctx)
+		errChan <- apiClient.MonitorEvaluation(evaluationID, ctx)
 	}()
 	return errChan
 }
@@ -195,9 +197,9 @@ func TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClosed(t *testing.T) {
 
 func TestApiClient_MonitorEvaluationReturnsErrorWhenStreamReturnsError(t *testing.T) {
 	apiMock := &apiQuerierMock{}
-	apiMock.On("EvaluationStream", mock.AnythingOfType("string"), mock.AnythingOfType("*context.emptyCtx")).
+	apiMock.On("EventStream", mock.AnythingOfType("*context.cancelCtx")).
 		Return(nil, tests.ErrDefault)
-	apiClient := &APIClient{apiMock}
+	apiClient := &APIClient{apiMock, map[string]chan error{}, false}
 	err := apiClient.MonitorEvaluation("id", context.Background())
 	assert.ErrorIs(t, err, tests.ErrDefault)
 }
@@ -278,8 +280,8 @@ func TestApiClient_MonitorEvaluationWithSuccessfulEvent(t *testing.T) {
 	}{
 		{[]*nomadApi.Events{&events}, 1,
 			"it completes with successful event"},
-		{[]*nomadApi.Events{&events, &events}, 1,
-			"it completes at first successful event"},
+		{[]*nomadApi.Events{&events, &events}, 2,
+			"it keeps listening after first successful event"},
 		{[]*nomadApi.Events{{}, &events}, 2,
 			"it skips heartbeat and completes"},
 		{[]*nomadApi.Events{&pendingEvaluationEvents, &events}, 2,
@@ -298,7 +300,7 @@ func TestApiClient_MonitorEvaluationWithSuccessfulEvent(t *testing.T) {
 }
 
 func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
-	eval := nomadApi.Evaluation{Status: structs.EvalStatusFailed}
+	eval := nomadApi.Evaluation{ID: evaluationID, Status: structs.EvalStatusFailed}
 	evalErr := checkEvaluation(&eval)
 	require.NotNil(t, evalErr)
 
@@ -318,9 +320,9 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 		name                    string
 	}{
 		{[]*nomadApi.Events{&events}, 1, evalErr,
-			"it fails with failing event"},
+			"it completes with failing event"},
 		{[]*nomadApi.Events{&events, &events}, 1, evalErr,
-			"it fails at first failing event"},
+			"it does not fail after first failing event"},
 		{[]*nomadApi.Events{{}, &events}, 2, evalErr,
 			"it skips heartbeat and fail"},
 		{[]*nomadApi.Events{&pendingEvaluationEvents, &events}, 2, evalErr,
@@ -510,11 +512,11 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 
 func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved(t *testing.T) {
 	apiMock := &apiQuerierMock{}
-	apiMock.On("AllocationStream", mock.Anything).Return(nil, tests.ErrDefault)
-	apiClient := &APIClient{apiMock}
+	apiMock.On("EventStream", mock.Anything).Return(nil, tests.ErrDefault)
+	apiClient := &APIClient{apiMock, map[string]chan error{}, false}
 
 	noop := func(a *nomadApi.Allocation) {}
-	err := apiClient.WatchAllocations(context.Background(), noop, noop)
+	err := apiClient.WatchEventStream(context.Background(), noop, noop)
 	assert.ErrorIs(t, err, tests.ErrDefault)
 }
 
@@ -579,12 +581,12 @@ func asynchronouslyWatchAllocations(stream chan *nomadApi.Events,
 	readOnlyStream := func() <-chan *nomadApi.Events { return stream }()
 
 	apiMock := &apiQuerierMock{}
-	apiMock.On("AllocationStream", ctx).Return(readOnlyStream, nil)
-	apiClient := &APIClient{apiMock}
+	apiMock.On("EventStream", ctx).Return(readOnlyStream, nil)
+	apiClient := &APIClient{apiMock, map[string]chan error{}, false}
 
 	errChan := make(chan error)
 	go func() {
-		errChan <- apiClient.WatchAllocations(ctx, onNewAllocation, onDeletedAllocation)
+		errChan <- apiClient.WatchEventStream(ctx, onNewAllocation, onDeletedAllocation)
 	}()
 	return errChan
 }

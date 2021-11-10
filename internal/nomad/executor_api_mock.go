@@ -20,29 +20,6 @@ type ExecutorAPIMock struct {
 	mock.Mock
 }
 
-// AllocationStream provides a mock function with given fields: ctx
-func (_m *ExecutorAPIMock) AllocationStream(ctx context.Context) (<-chan *api.Events, error) {
-	ret := _m.Called(ctx)
-
-	var r0 <-chan *api.Events
-	if rf, ok := ret.Get(0).(func(context.Context) <-chan *api.Events); ok {
-		r0 = rf(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(<-chan *api.Events)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // DeleteJob provides a mock function with given fields: jobID
 func (_m *ExecutorAPIMock) DeleteJob(jobID string) error {
 	ret := _m.Called(jobID)
@@ -57,13 +34,13 @@ func (_m *ExecutorAPIMock) DeleteJob(jobID string) error {
 	return r0
 }
 
-// EvaluationStream provides a mock function with given fields: evalID, ctx
-func (_m *ExecutorAPIMock) EvaluationStream(evalID string, ctx context.Context) (<-chan *api.Events, error) {
-	ret := _m.Called(evalID, ctx)
+// EventStream provides a mock function with given fields: ctx
+func (_m *ExecutorAPIMock) EventStream(ctx context.Context) (<-chan *api.Events, error) {
+	ret := _m.Called(ctx)
 
 	var r0 <-chan *api.Events
-	if rf, ok := ret.Get(0).(func(string, context.Context) <-chan *api.Events); ok {
-		r0 = rf(evalID, ctx)
+	if rf, ok := ret.Get(0).(func(context.Context) <-chan *api.Events); ok {
+		r0 = rf(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(<-chan *api.Events)
@@ -71,8 +48,8 @@ func (_m *ExecutorAPIMock) EvaluationStream(evalID string, ctx context.Context) 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, context.Context) error); ok {
-		r1 = rf(evalID, ctx)
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -335,8 +312,8 @@ func (_m *ExecutorAPIMock) SetJobScale(jobID string, count uint, reason string) 
 	return r0
 }
 
-// WatchAllocations provides a mock function with given fields: ctx, onNewAllocation, onDeletedAllocation
-func (_m *ExecutorAPIMock) WatchAllocations(ctx context.Context, onNewAllocation AllocationProcessor, onDeletedAllocation AllocationProcessor) error {
+// WatchEventStream provides a mock function with given fields: ctx, onNewAllocation, onDeletedAllocation
+func (_m *ExecutorAPIMock) WatchEventStream(ctx context.Context, onNewAllocation AllocationProcessor, onDeletedAllocation AllocationProcessor) error {
 	ret := _m.Called(ctx, onNewAllocation, onDeletedAllocation)
 
 	var r0 error

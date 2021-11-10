@@ -47,12 +47,8 @@ type apiQuerier interface {
 	// It returns the evaluation ID that can be used when listening to the Nomad event stream.
 	RegisterNomadJob(job *nomadApi.Job) (string, error)
 
-	// EvaluationStream returns a Nomad event stream filtered to return only events belonging to the
-	// given evaluation ID.
-	EvaluationStream(evalID string, ctx context.Context) (<-chan *nomadApi.Events, error)
-
-	// AllocationStream returns a Nomad event stream filtered to return only allocation events.
-	AllocationStream(ctx context.Context) (<-chan *nomadApi.Events, error)
+	// EventStream returns a Nomad event stream filtered to return only allocation and evaluation events.
+	EventStream(ctx context.Context) (<-chan *nomadApi.Events, error)
 }
 
 // nomadAPIClient implements the nomadApiQuerier interface and provides access to a real Nomad API.
@@ -136,24 +132,11 @@ func (nc *nomadAPIClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
 	return resp.EvalID, nil
 }
 
-func (nc *nomadAPIClient) EvaluationStream(evalID string, ctx context.Context) (<-chan *nomadApi.Events, error) {
+func (nc *nomadAPIClient) EventStream(ctx context.Context) (<-chan *nomadApi.Events, error) {
 	stream, err := nc.client.EventStream().Stream(
 		ctx,
 		map[nomadApi.Topic][]string{
-			nomadApi.TopicEvaluation: {evalID},
-		},
-		0,
-		nc.queryOptions())
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving Nomad Evaluation event stream: %w", err)
-	}
-	return stream, nil
-}
-
-func (nc *nomadAPIClient) AllocationStream(ctx context.Context) (<-chan *nomadApi.Events, error) {
-	stream, err := nc.client.EventStream().Stream(
-		ctx,
-		map[nomadApi.Topic][]string{
+			nomadApi.TopicEvaluation: {"*"},
 			nomadApi.TopicAllocation: {
 				// Necessary to have the "topic" URL param show up in the HTTP request to Nomad.
 				// Without the param, Nomad will try to deliver all event types.

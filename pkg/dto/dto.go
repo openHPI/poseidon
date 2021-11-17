@@ -24,7 +24,7 @@ type ExecutionRequest struct {
 
 func (er *ExecutionRequest) FullCommand() []string {
 	command := make([]string, 0)
-	command = append(command, "env", "-")
+	command = append(command, "env")
 	for variable, value := range er.Environment {
 		command = append(command, fmt.Sprintf("%s=%s", variable, value))
 	}

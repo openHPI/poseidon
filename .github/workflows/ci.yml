@@ -7,7 +7,8 @@ on:
     branches: [ main ]
 
 env:
-  NOMAD_VERSION: 1.1.2
+  GO_VERSION: 1.17
+  NOMAD_VERSION: 1.1.6
 
 jobs:
   compile:
@@ -19,7 +20,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: ${{ env.GO_VERSION }}
       - uses: actions/cache@v2
         with:
           path: |
@@ -59,7 +60,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: ${{ env.GO_VERSION }}
       - uses: actions/cache@v2
         with:
           path: |
@@ -108,7 +109,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: ${{ env.GO_VERSION }}
       - name: Cache Go modules
         uses: actions/cache@v2
         with:

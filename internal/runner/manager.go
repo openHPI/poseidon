@@ -261,6 +261,10 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation) {
 func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation) {
 	log.WithField("id", alloc.JobID).Debug("Runner stopped")
 
+	if nomad.IsEnvironmentTemplateID(alloc.JobID) {
+		return
+	}
+
 	environmentID, err := nomad.EnvironmentIDFromRunnerID(alloc.JobID)
 	if err != nil {
 		log.WithError(err).Warn("Stopped allocation can not be handled")

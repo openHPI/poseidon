@@ -278,7 +278,7 @@ paths:
                   type: string
                   example: python exercise.py
                 environment:
-                  description: Environment variables for this execution. The keys of this object are the variable names and the value of each key is the value of the variable with the same name
+                  description: Environment variables for this execution. The keys of this object are the variable names and the value of each key is the value of the variable with the same name. The environment variables of the system remain accessible.
                   type: object
                   additionalProperties:
                     type: string

@@ -28,6 +28,11 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Update last trim for Go build cache
+        # Go usually trims all builds not used for at least five days. We simulate that the last trim just occurred recently.
+        # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.
+        # More details: https://github.com/golang/go/blob/d60ad1e068263832c711aaf17b6ccb1b7f71b000/src/cmd/go/internal/cache/cache.go#L255-L326
+        run: date +%s > ~/.cache/go-build/trim.txt
       - name: Build
         run: make build
       - name: Upload Poseidon binary
@@ -63,6 +68,11 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Update last trim for Go build cache
+        # Go usually trims all builds not used for at least five days. We simulate that the last trim just occurred recently.
+        # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.
+        # More details: https://github.com/golang/go/blob/d60ad1e068263832c711aaf17b6ccb1b7f71b000/src/cmd/go/internal/cache/cache.go#L255-L326
+        run: date +%s > ~/.cache/go-build/trim.txt
       - name: Run tests
         run: make coverhtml
       - name: Upload coverage report
@@ -108,6 +118,11 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Update last trim for Go build cache
+        # Go usually trims all builds not used for at least five days. We simulate that the last trim just occurred recently.
+        # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.
+        # More details: https://github.com/golang/go/blob/d60ad1e068263832c711aaf17b6ccb1b7f71b000/src/cmd/go/internal/cache/cache.go#L255-L326
+        run: date +%s > ~/.cache/go-build/trim.txt
       - name: Cache Nomad binary
         uses: actions/cache@v2
         with:

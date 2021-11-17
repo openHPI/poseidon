@@ -149,4 +149,5 @@ jobs:
           until curl -s --fail http://localhost:4646/v1/agent/health ; do sleep 1; done
           chmod +x ./poseidon
           ./poseidon &
+          until curl -s --fail http://localhost:7200/api/v1/health ; do sleep 1; done
           make e2e-test

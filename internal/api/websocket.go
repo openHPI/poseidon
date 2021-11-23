@@ -151,23 +151,28 @@ func (cr *codeOceanToRawReader) Write(p []byte) (n int, err error) {
 type rawToCodeOceanWriter struct {
 	proxy      *webSocketProxy
 	outputType dto.WebSocketMessageType
+	stopped    bool
 }
 
 // Write implements the io.Writer interface.
 // The passed data is forwarded to the WebSocket to CodeOcean.
 func (rc *rawToCodeOceanWriter) Write(p []byte) (int, error) {
+	if rc.stopped {
+		return 0, nil
+	}
 	err := rc.proxy.sendToClient(dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
 	return len(p), err
 }
 
 // webSocketProxy is an encapsulation of logic for forwarding between Runners and CodeOcean.
 type webSocketProxy struct {
-	userExit     chan bool
-	connection   webSocketConnection
-	connectionMu sync.Mutex
-	Stdin        WebSocketReader
-	Stdout       io.Writer
-	Stderr       io.Writer
+	userExit             chan bool
+	connection           webSocketConnection
+	connectionMu         sync.Mutex
+	Stdin                WebSocketReader
+	Stdout               io.Writer
+	Stderr               io.Writer
+	cancelWebSocketWrite func()
 }
 
 // upgradeConnection upgrades a connection to a websocket and returns a webSocketProxy for this connection.
@@ -190,8 +195,14 @@ func newWebSocketProxy(connection webSocketConnection) (*webSocketProxy, error) 
 		Stdin:      stdin,
 		userExit:   make(chan bool),
 	}
-	proxy.Stdout = &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStdout}
-	proxy.Stderr = &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStderr}
+	stdOut := &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStdout}
+	stdErr := &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStderr}
+	proxy.cancelWebSocketWrite = func() {
+		stdOut.stopped = true
+		stdErr.stopped = true
+	}
+	proxy.Stdout = stdOut
+	proxy.Stderr = stdErr
 
 	err := proxy.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketMetaStart})
 	if err != nil {
@@ -216,9 +227,11 @@ func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecuti
 	select {
 	case exitInfo = <-exit:
 		cancelInputLoop()
+		wp.cancelWebSocketWrite()
 		log.Info("Execution returned")
 	case <-wp.userExit:
 		cancelInputLoop()
+		wp.cancelWebSocketWrite()
 		cancelExecution()
 		log.Info("Client closed the connection")
 		return
@@ -265,8 +278,8 @@ func (wp *webSocketProxy) sendToClient(message dto.WebSocketMessage) error {
 	}
 	err = wp.writeMessage(websocket.TextMessage, encodedMessage)
 	if err != nil {
-		errorMessage := "Error writing the exit message"
-		log.WithError(err).Warn(errorMessage)
+		errorMessage := "Error writing the message"
+		log.WithField("message", message).WithError(err).Warn(errorMessage)
 		wp.closeWithError(errorMessage)
 		return fmt.Errorf("error writing WebSocket message: %w", err)
 	}

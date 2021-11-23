@@ -224,10 +224,14 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 	// (tty has to be true) and converted to a SIGQUIT signal sent to the foreground process attached to the tty.
 	// By default, SIGQUIT causes the process to terminate and produces a core dump. Processes can catch this signal
 	// and ignore it, which is why we destroy the runner if the process does not terminate after a grace period.
-	n, err := stdin.Write([]byte{SIGQUIT})
-	if n != 1 {
-		log.WithField("runner", r.id).Warn("Could not send SIGQUIT because nothing was written")
-	}
+	_, err := stdin.Write([]byte{SIGQUIT})
+	// if n != 1 {
+	// The SIGQUIT is sent and correctly processed by the allocation.  However, for an unknown
+	// reason, the number of bytes written is always zero even though the error is nil.
+	// Hence, we disabled this sanity check here. See the MR for more details:
+	// https://github.com/openHPI/poseidon/pull/45#discussion_r757029024
+	// log.WithField("runner", r.id).Warn("Could not send SIGQUIT because nothing was written")
+	// }
 	if err != nil {
 		log.WithField("runner", r.id).WithError(err).Warn("Could not send SIGQUIT due to error")
 	}

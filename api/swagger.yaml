@@ -106,6 +106,20 @@ paths:
         "204":
           description: Everything okay
 
+  /version:
+    get:
+      summary: Retrieve the version of Poseidon
+      description: Return hash-like release information.
+      tags:
+        - miscellaneous
+      responses:
+        "200":
+          description: The release information could be returned.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /runners:
     post:
       summary: Provide a runner

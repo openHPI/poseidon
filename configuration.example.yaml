@@ -53,3 +53,6 @@ sentry:
   dsn: https://example.io
   # The environment to be sent with events.
   # environment: staging
+  # This release information is used by Poseidon to provide the version route.
+  # Normally it is set by the deployment process.
+  # release: this is replaced in the deployment process

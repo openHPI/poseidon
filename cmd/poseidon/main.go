@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/getsentry/sentry-go"
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
@@ -20,6 +21,19 @@ var (
 	gracefulShutdownWait = 15 * time.Second
 	log                  = logging.GetLogger("main")
 )
+
+func initSentry(options *sentry.ClientOptions) {
+	if err := sentry.Init(*options); err != nil {
+		log.Errorf("sentry.Init: %s", err)
+	}
+}
+
+func shutdownSentry() {
+	if err := recover(); err != nil {
+		sentry.CurrentHub().Recover(err)
+		sentry.Flush(logging.GracefulSentryShutdown)
+	}
+}
 
 func runServer(server *http.Server) {
 	log.WithField("address", server.Addr).Info("Starting server")
@@ -87,6 +101,8 @@ func main() {
 		log.WithError(err).Warn("Could not initialize configuration")
 	}
 	logging.InitializeLogging(config.Config.Logger.Level)
+	initSentry(&config.Config.Sentry)
+	defer shutdownSentry()
 
 	server := initServer()
 	go runServer(server)

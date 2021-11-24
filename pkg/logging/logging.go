@@ -3,6 +3,7 @@ package logging
 import (
 	"bufio"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
@@ -21,6 +22,8 @@ var log = &logrus.Logger{
 	Level: logrus.InfoLevel,
 }
 
+const GracefulSentryShutdown = 5 * time.Second
+
 func InitializeLogging(loglevel string) {
 	level, err := logrus.ParseLevel(loglevel)
 	if err != nil {
@@ -28,6 +31,11 @@ func InitializeLogging(loglevel string) {
 		return
 	}
 	log.SetLevel(level)
+	log.AddHook(&SentryHook{})
+	log.ExitFunc = func(i int) {
+		sentry.Flush(GracefulSentryShutdown)
+		os.Exit(i)
+	}
 }
 
 func GetLogger(pkg string) *logrus.Entry {

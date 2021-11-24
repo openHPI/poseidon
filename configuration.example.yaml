@@ -45,3 +45,11 @@ nomad:
 logger:
   # Log level that is used after reading the config (INFO until then)
   level: DEBUG
+
+# Configuration of the sentry logging
+sentry:
+  # The DSN of the sentry endpoint to use.
+  # If the DSN is not set, the client is effectively disabled.
+  dsn: https://example.io
+  # The environment to be sent with events.
+  # environment: staging

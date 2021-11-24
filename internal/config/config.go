@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -45,6 +46,7 @@ var (
 		Logger: logger{
 			Level: "INFO",
 		},
+		Sentry: sentry.ClientOptions{},
 	}
 	configurationFilePath    = "./configuration.yaml"
 	configurationInitialized = false
@@ -104,6 +106,7 @@ type configuration struct {
 	Server server
 	Nomad  Nomad
 	Logger logger
+	Sentry sentry.ClientOptions
 }
 
 // InitConfig merges configuration options from environment variables and

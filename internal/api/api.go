@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/api/auth"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/logging"
@@ -14,6 +15,7 @@ var log = logging.GetLogger("api")
 const (
 	BasePath         = "/api/v1"
 	HealthPath       = "/health"
+	VersionPath      = "/version"
 	RunnersPath      = "/runners"
 	EnvironmentsPath = "/execution-environments"
 )
@@ -40,6 +42,7 @@ func configureV1Router(router *mux.Router, runnerManager runner.Manager, environ
 	})
 	v1 := router.PathPrefix(BasePath).Subrouter()
 	v1.HandleFunc(HealthPath, Health).Methods(http.MethodGet)
+	v1.HandleFunc(VersionPath, Version).Methods(http.MethodGet)
 
 	runnerController := &RunnerController{manager: runnerManager}
 	environmentController := &EnvironmentController{manager: environmentManager}
@@ -57,5 +60,16 @@ func configureV1Router(router *mux.Router, runnerManager runner.Manager, environ
 		configureRoutes(authenticatedV1Router)
 	} else {
 		configureRoutes(v1)
+	}
+}
+
+// Version handles the version route.
+// It responds the release information stored in the configuration.
+func Version(writer http.ResponseWriter, _ *http.Request) {
+	release := config.Config.Sentry.Release
+	if len(release) > 0 {
+		sendJSON(writer, release, http.StatusOK)
+	} else {
+		writer.WriteHeader(http.StatusNotFound)
 	}
 }

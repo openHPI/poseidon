@@ -28,7 +28,7 @@ func TestHTTPMiddlewareWarnsWhenInternalServerError(t *testing.T) {
 	HTTPLoggingMiddleware(mockHTTPStatusHandler(500)).ServeHTTP(recorder, request)
 
 	assert.Equal(t, 1, len(hook.Entries))
-	assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
+	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
 }
 
 func TestHTTPMiddlewareDebugsWhenStatusOK(t *testing.T) {

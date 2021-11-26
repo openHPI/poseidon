@@ -66,7 +66,7 @@ func (writer *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, erro
 	return conn, rw, nil
 }
 
-// HTTPLoggingMiddleware returns an http.Handler that logs different information about every request.
+// HTTPLoggingMiddleware returns a http.Handler that logs different information about every request.
 func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now().UTC()
@@ -84,7 +84,7 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 			"user_agent": r.UserAgent(),
 		})
 		if lrw.statusCode >= http.StatusInternalServerError {
-			logEntry.Warn()
+			logEntry.Error("Failing " + path)
 		} else {
 			logEntry.Debug()
 		}

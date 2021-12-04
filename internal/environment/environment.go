@@ -198,17 +198,17 @@ func (n *NomadEnvironment) Delete(apiClient nomad.ExecutorAPI) error {
 	return nil
 }
 
-func (n *NomadEnvironment) Scale(apiClient nomad.ExecutorAPI) error {
+func (n *NomadEnvironment) Scale(apiClient nomad.ExecutorAPI, forcePull bool) error {
 	required := int(n.PrewarmingPoolSize()) - n.idleRunners.Length()
 
 	if required > 0 {
-		return n.createRunners(apiClient, uint(required))
+		return n.createRunners(apiClient, uint(required), forcePull)
 	} else {
 		return n.removeRunners(apiClient, uint(-required))
 	}
 }
 
-func (n *NomadEnvironment) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error {
+func (n *NomadEnvironment) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI, forcePull bool) error {
 	runners, err := apiClient.LoadRunnerIDs(n.ID().ToString())
 	if err != nil {
 		return fmt.Errorf("update environment couldn't load runners: %w", err)
@@ -221,6 +221,7 @@ func (n *NomadEnvironment) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error 
 		updatedRunnerJob := n.DeepCopyJob()
 		updatedRunnerJob.ID = &runnerID
 		updatedRunnerJob.Name = &runnerID
+		nomad.SetForcePullFlag(updatedRunnerJob, forcePull)
 
 		err := apiClient.RegisterRunnerJob(updatedRunnerJob)
 		if err != nil {
@@ -237,7 +238,7 @@ func (n *NomadEnvironment) Sample(apiClient nomad.ExecutorAPI) (runner.Runner, b
 	r, ok := n.idleRunners.Sample()
 	if ok {
 		go func() {
-			err := n.createRunner(apiClient)
+			err := n.createRunner(apiClient, false)
 			if err != nil {
 				log.WithError(err).WithField("environmentID", n.ID()).Error("Couldn't create new runner for claimed one")
 			}
@@ -315,10 +316,10 @@ func parseJob(jobHCL string) (*nomadApi.Job, error) {
 	return job, nil
 }
 
-func (n *NomadEnvironment) createRunners(apiClient nomad.ExecutorAPI, count uint) error {
+func (n *NomadEnvironment) createRunners(apiClient nomad.ExecutorAPI, count uint, forcePull bool) error {
 	log.WithField("runnersRequired", count).WithField("id", n.ID()).Debug("Creating new runners")
 	for i := 0; i < int(count); i++ {
-		err := n.createRunner(apiClient)
+		err := n.createRunner(apiClient, forcePull)
 		if err != nil {
 			return fmt.Errorf("couldn't create new runner: %w", err)
 		}
@@ -326,7 +327,7 @@ func (n *NomadEnvironment) createRunners(apiClient nomad.ExecutorAPI, count uint
 	return nil
 }
 
-func (n *NomadEnvironment) createRunner(apiClient nomad.ExecutorAPI) error {
+func (n *NomadEnvironment) createRunner(apiClient nomad.ExecutorAPI, forcePull bool) error {
 	newUUID, err := uuid.NewUUID()
 	if err != nil {
 		return fmt.Errorf("failed generating runner id: %w", err)
@@ -336,6 +337,7 @@ func (n *NomadEnvironment) createRunner(apiClient nomad.ExecutorAPI) error {
 	template := n.DeepCopyJob()
 	template.ID = &newRunnerID
 	template.Name = &newRunnerID
+	nomad.SetForcePullFlag(template, forcePull)
 
 	err = apiClient.RegisterRunnerJob(template)
 	if err != nil {

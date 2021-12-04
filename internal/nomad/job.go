@@ -130,6 +130,13 @@ func FindOrCreateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	return task
 }
 
+// SetForcePullFlag sets the flag of a job if the image should be pulled again.
+func SetForcePullFlag(job *nomadApi.Job, value bool) {
+	taskGroup := FindOrCreateDefaultTaskGroup(job)
+	task := FindOrCreateDefaultTask(taskGroup)
+	task.Config["force_pull"] = value
+}
+
 // IsEnvironmentTemplateID checks if the passed job id belongs to a template job.
 func IsEnvironmentTemplateID(jobID string) bool {
 	parts := strings.Split(jobID, "-")

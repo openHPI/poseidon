@@ -183,3 +183,28 @@ func TestTwoSampleAddExactlyTwoRunners(t *testing.T) {
 	<-time.After(tests.ShortTimeout) // New Runners are requested asynchronously
 	apiMock.AssertNumberOfCalls(t, "RegisterRunnerJob", 2)
 }
+
+func TestSampleDoesNotSetForcePullFlag(t *testing.T) {
+	apiMock := &nomad.ExecutorAPIMock{}
+	call := apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job"))
+	call.Run(func(args mock.Arguments) {
+		job, ok := args.Get(0).(*nomadApi.Job)
+		assert.True(t, ok)
+
+		taskGroup := nomad.FindOrCreateDefaultTaskGroup(job)
+		task := nomad.FindOrCreateDefaultTask(taskGroup)
+		assert.False(t, task.Config["force_pull"].(bool))
+
+		call.ReturnArguments = mock.Arguments{nil}
+	})
+
+	_, job := helpers.CreateTemplateJob()
+	environment := &NomadEnvironment{templateEnvironmentJobHCL, job, runner.NewLocalRunnerStorage()}
+	runner1 := &runner.RunnerMock{}
+	runner1.On("ID").Return(tests.DefaultRunnerID)
+	environment.AddRunner(runner1)
+
+	_, ok := environment.Sample(apiMock)
+	require.True(t, ok)
+	<-time.After(tests.ShortTimeout) // New Runners are requested asynchronously
+}

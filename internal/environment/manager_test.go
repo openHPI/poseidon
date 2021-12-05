@@ -60,6 +60,33 @@ func (s *CreateOrUpdateTestSuite) TestReturnsErrorIfCreatesOrUpdateEnvironmentRe
 	s.ErrorIs(err, tests.ErrDefault)
 }
 
+func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
+	s.apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return("", nil)
+	s.runnerManagerMock.On("GetEnvironment", mock.AnythingOfType("dto.EnvironmentID")).Return(nil, false)
+	s.runnerManagerMock.On("SetEnvironment", mock.AnythingOfType("*environment.NomadEnvironment")).Return(true)
+	s.apiMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.Anything).Return(nil)
+	s.apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+	call := s.apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job"))
+	count := 0
+	call.Run(func(args mock.Arguments) {
+		count++
+		job, ok := args.Get(0).(*nomadApi.Job)
+		s.True(ok)
+
+		// The environment job itself has not the force_pull flag
+		if count > 1 {
+			taskGroup := nomad.FindOrCreateDefaultTaskGroup(job)
+			task := nomad.FindOrCreateDefaultTask(taskGroup)
+			s.True(task.Config["force_pull"].(bool))
+		}
+
+		call.ReturnArguments = mock.Arguments{nil}
+	})
+	_, err := s.manager.CreateOrUpdate(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
+	s.NoError(err)
+	s.True(count > 1)
+}
+
 func TestNewNomadEnvironmentManager(t *testing.T) {
 	executorAPIMock := &nomad.ExecutorAPIMock{}
 	executorAPIMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)

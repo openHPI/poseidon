@@ -40,6 +40,22 @@ func (_m *ManagerMock) DeleteEnvironment(id dto.EnvironmentID) {
 	_m.Called(id)
 }
 
+// EnvironmentStatistics provides a mock function with given fields:
+func (_m *ManagerMock) EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
+	ret := _m.Called()
+
+	var r0 map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData
+	if rf, ok := ret.Get(0).(func() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData)
+		}
+	}
+
+	return r0
+}
+
 // Get provides a mock function with given fields: runnerID
 func (_m *ManagerMock) Get(runnerID string) (Runner, error) {
 	ret := _m.Called(runnerID)

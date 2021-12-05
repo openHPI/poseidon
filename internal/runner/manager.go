@@ -62,6 +62,8 @@ type ExecutionEnvironment interface {
 	AddRunner(r Runner)
 	// DeleteRunner removes an idle runner from the environment.
 	DeleteRunner(id string)
+	// IdleRunnerCount returns the number of idle runners of the environment.
+	IdleRunnerCount() int
 }
 
 // Manager keeps track of the used and unused runners of all execution environments in order to provide unused
@@ -81,6 +83,9 @@ type Manager interface {
 	// DeleteEnvironment removes the specified execution environment in Poseidons memory.
 	// It does nothing if the specified environment can not be found.
 	DeleteEnvironment(id dto.EnvironmentID)
+
+	// EnvironmentStatistics returns statistical data for each execution environment.
+	EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData
 
 	// Claim returns a new runner. The runner is deleted after duration seconds if duration is not 0.
 	// It makes sure that the runner is not in use yet and returns an error if no runner could be provided.
@@ -134,6 +139,27 @@ func (m *NomadRunnerManager) SetEnvironment(environment ExecutionEnvironment) bo
 
 func (m *NomadRunnerManager) DeleteEnvironment(id dto.EnvironmentID) {
 	m.environments.Delete(id)
+}
+
+func (m *NomadRunnerManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
+	environments := make(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData)
+	for _, e := range m.environments.List() {
+		environments[e.ID()] = &dto.StatisticalExecutionEnvironmentData{
+			ID:                 int(e.ID()),
+			PrewarmingPoolSize: e.PrewarmingPoolSize(),
+			IdleRunners:        uint(e.IdleRunnerCount()),
+			UsedRunners:        0,
+		}
+	}
+
+	for _, r := range m.usedRunners.List() {
+		id, err := nomad.EnvironmentIDFromRunnerID(r.ID())
+		if err != nil {
+			log.WithError(err).Error("Stored runners must have correct IDs")
+		}
+		environments[id].UsedRunners++
+	}
+	return environments
 }
 
 func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int) (Runner, error) {

@@ -254,6 +254,10 @@ func (n *NomadEnvironment) DeleteRunner(id string) {
 	n.idleRunners.Delete(id)
 }
 
+func (n *NomadEnvironment) IdleRunnerCount() int {
+	return n.idleRunners.Length()
+}
+
 // MarshalJSON implements the json.Marshaler interface.
 // This converts the NomadEnvironment into the expected schema for dto.ExecutionEnvironmentData.
 func (n *NomadEnvironment) MarshalJSON() (res []byte, err error) {

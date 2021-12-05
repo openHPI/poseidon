@@ -51,10 +51,10 @@ type ExecutionEnvironment interface {
 	// Delete removes this environment and all it's runner from the executor and Poseidon itself.
 	Delete(apiClient nomad.ExecutorAPI) error
 	// Scale manages if the executor has enough idle runner according to the PrewarmingPoolSize.
-	// With forcePull the current image is pulled again.
+	// With forcePull the current image is downloaded again from the registry.
 	Scale(apiClient nomad.ExecutorAPI, forcePull bool) error
 	// UpdateRunnerSpecs updates all Runner of the passed environment to have the same definition as the environment.
-	// With forcePull the current image is pulled again.
+	// With forcePull the current image is downloaded again from the registry.
 	UpdateRunnerSpecs(apiClient nomad.ExecutorAPI, forcePull bool) error
 
 	// Sample returns and removes an arbitrary available runner.

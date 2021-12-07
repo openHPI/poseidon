@@ -51,11 +51,9 @@ type ExecutionEnvironment interface {
 	// Delete removes this environment and all it's runner from the executor and Poseidon itself.
 	Delete(apiClient nomad.ExecutorAPI) error
 	// Scale manages if the executor has enough idle runner according to the PrewarmingPoolSize.
-	// With forcePull the current image is downloaded again from the registry.
-	Scale(apiClient nomad.ExecutorAPI, forcePull bool) error
+	Scale(apiClient nomad.ExecutorAPI) error
 	// UpdateRunnerSpecs updates all Runner of the passed environment to have the same definition as the environment.
-	// With forcePull the current image is downloaded again from the registry.
-	UpdateRunnerSpecs(apiClient nomad.ExecutorAPI, forcePull bool) error
+	UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error
 
 	// Sample returns and removes an arbitrary available runner.
 	// ok is true iff a runner was returned.
@@ -219,7 +217,7 @@ func (m *NomadRunnerManager) Load() {
 		for _, job := range runnerJobs {
 			m.loadSingleJob(job, environmentLogger, environment)
 		}
-		err = environment.Scale(m.apiClient, false)
+		err = environment.Scale(m.apiClient)
 		if err != nil {
 			environmentLogger.WithError(err).Error("Couldn't scale environment")
 		}

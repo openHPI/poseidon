@@ -9,7 +9,7 @@ client {
 plugin "docker" {
     config {
         gc {
-            image_delay = "1m"
+            image_delay = "0s"
         }
 
         # auth {

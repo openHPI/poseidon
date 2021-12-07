@@ -173,6 +173,7 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 // Register creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
 func (n *NomadEnvironment) Register(apiClient nomad.ExecutorAPI) error {
+	nomad.SetForcePullFlag(n.job, true) // This must be the default as otherwise new runners could have different images.
 	evalID, err := apiClient.RegisterNomadJob(n.job)
 	if err != nil {
 		return fmt.Errorf("couldn't register job: %w", err)
@@ -198,17 +199,17 @@ func (n *NomadEnvironment) Delete(apiClient nomad.ExecutorAPI) error {
 	return nil
 }
 
-func (n *NomadEnvironment) Scale(apiClient nomad.ExecutorAPI, forcePull bool) error {
+func (n *NomadEnvironment) Scale(apiClient nomad.ExecutorAPI) error {
 	required := int(n.PrewarmingPoolSize()) - n.idleRunners.Length()
 
 	if required > 0 {
-		return n.createRunners(apiClient, uint(required), forcePull)
+		return n.createRunners(apiClient, uint(required), true)
 	} else {
 		return n.removeRunners(apiClient, uint(-required))
 	}
 }
 
-func (n *NomadEnvironment) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI, forcePull bool) error {
+func (n *NomadEnvironment) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error {
 	runners, err := apiClient.LoadRunnerIDs(n.ID().ToString())
 	if err != nil {
 		return fmt.Errorf("update environment couldn't load runners: %w", err)
@@ -221,7 +222,7 @@ func (n *NomadEnvironment) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI, forceP
 		updatedRunnerJob := n.DeepCopyJob()
 		updatedRunnerJob.ID = &runnerID
 		updatedRunnerJob.Name = &runnerID
-		nomad.SetForcePullFlag(updatedRunnerJob, forcePull)
+		nomad.SetForcePullFlag(updatedRunnerJob, true)
 
 		err := apiClient.RegisterRunnerJob(updatedRunnerJob)
 		if err != nil {

@@ -205,13 +205,13 @@ func (_m *ExecutionEnvironmentMock) Sample(apiClient nomad.ExecutorAPI) (Runner,
 	return r0, r1
 }
 
-// Scale provides a mock function with given fields: apiClient, forcePull
-func (_m *ExecutionEnvironmentMock) Scale(apiClient nomad.ExecutorAPI, forcePull bool) error {
-	ret := _m.Called(apiClient, forcePull)
+// Scale provides a mock function with given fields: apiClient
+func (_m *ExecutionEnvironmentMock) Scale(apiClient nomad.ExecutorAPI) error {
+	ret := _m.Called(apiClient)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(nomad.ExecutorAPI, bool) error); ok {
-		r0 = rf(apiClient, forcePull)
+	if rf, ok := ret.Get(0).(func(nomad.ExecutorAPI) error); ok {
+		r0 = rf(apiClient)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -254,13 +254,13 @@ func (_m *ExecutionEnvironmentMock) SetPrewarmingPoolSize(count uint) {
 	_m.Called(count)
 }
 
-// UpdateRunnerSpecs provides a mock function with given fields: apiClient, forcePull
-func (_m *ExecutionEnvironmentMock) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI, forcePull bool) error {
-	ret := _m.Called(apiClient, forcePull)
+// UpdateRunnerSpecs provides a mock function with given fields: apiClient
+func (_m *ExecutionEnvironmentMock) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error {
+	ret := _m.Called(apiClient)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(nomad.ExecutorAPI, bool) error); ok {
-		r0 = rf(apiClient, forcePull)
+	if rf, ok := ret.Get(0).(func(nomad.ExecutorAPI) error); ok {
+		r0 = rf(apiClient)
 	} else {
 		r0 = ret.Error(0)
 	}

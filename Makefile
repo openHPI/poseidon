@@ -1,12 +1,15 @@
 PROJECT_NAME := "poseidon"
-PKG := "github.com/openHPI/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)"
+REPOSITORY_OWNER = "openHPI"
+PKG := "github.com/$(REPOSITORY_OWNER)/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)"
 UNIT_TESTS = $(shell go list ./... | grep -v /e2e)
 
 DOCKER_E2E_CONTAINER_NAME := "$(PROJECT_NAME)-e2e-tests"
 DOCKER_TAG := "poseidon:latest"
 DOCKER_OPTS := -v $(shell pwd)/configuration.yaml:/configuration.yaml
-# don't use :latest to prevent Nomad from trying to pull the image automatically
-E2E_TEST_DOCKER_IMAGE = "poseidon/e2e-docker-image:ci"
+LOWER_REPOSITORY_OWNER = $(shell echo $(REPOSITORY_OWNER) | tr A-Z a-z)
+REGISTRY = "ghcr.io"
+TAG = ":main"
+E2E_TEST_DOCKER_IMAGE = "$(REGISTRY)/$(LOWER_REPOSITORY_OWNER)/$(DOCKER_E2E_CONTAINER_NAME)$(TAG)"
 
 default: help
 
@@ -89,12 +92,13 @@ coverage: deps ## Generate code coverage report
 coverhtml: coverage ## Generate HTML coverage report
 	@go tool cover -html=coverage_cleaned.cov -o coverage_unit.html
 
-.PHONY: e2e-test-docker-image ## Build Docker image used in e2e tests
+.PHONY: e2e-test-docker-image ## Build Docker image that is pushed to a registry and used in e2e tests
 e2e-test-docker-image: deploy/e2e-test-image/Dockerfile
 	@docker build -t $(E2E_TEST_DOCKER_IMAGE) deploy/e2e-test-image
 
 .PHONY: e2e-test
-e2e-test: deps e2e-test-docker-image ## Run e2e tests
+e2e-test: deps ## Run e2e tests
+	@docker pull $(E2E_TEST_DOCKER_IMAGE)
 	@go test -count=1 ./tests/e2e -v -args -dockerImage="$(E2E_TEST_DOCKER_IMAGE)"
 
 .PHONY: e2e-docker

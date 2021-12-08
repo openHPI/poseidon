@@ -76,7 +76,11 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 		case <-readMessage:
 		}
 
-		if err != nil {
+		if err != nil && websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+			log.Debug("ReadInputLoop: The client closed the connection!")
+			// The close handler will do something soon.
+			return
+		} else if err != nil {
 			log.WithField("remote", cr.connection.(*websocket.Conn).UnderlyingConn().RemoteAddr()).
 				WithError(err).Warn("Error reading client message")
 			return

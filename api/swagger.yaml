@@ -214,6 +214,7 @@ paths:
                           description: The port inside the container.
                           type: integer
                           minimum: 0
+                          maximum: 65535
                           example: 80
                         hostAddress:
                           description: The address which can be contacted to reach the mapped port.

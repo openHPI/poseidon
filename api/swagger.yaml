@@ -120,6 +120,51 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /statistics/execution-environments:
+    get:
+      summary: Retrieve the statistics about the execution environments of Poseidon
+      description: Return Return the current availability and usage of runners.
+      tags:
+        - miscellaneous
+      responses:
+        "200":
+          description: Success. Returns all execution environments
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    id:
+                      description: The id of the execution environment.
+                      type: integer
+                    prewarmingPoolSize:
+                      description: Number of runners with this configuration to prewarm.
+                      type: integer
+                      example: 50
+                    idleRunners:
+                      description: Number of runners currently prewarmed.
+                      type: number
+                      example: 45
+                    usedRunners:
+                      description: Number of runners currently in use.
+                      type: number
+                      example: 20
+                example:
+                  21:
+                    id: 21
+                    prewarmingPoolSize: 50
+                    idleRunners: 45
+                    usedRunners: 20
+                  42:
+                    id: 42
+                    prewarmingPoolSize: 50
+                    idleRunners: 45
+                    usedRunners: 20
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /runners:
     post:
       summary: Provide a runner
@@ -144,7 +189,7 @@ paths:
                   type: integer
                   example: 6
               required:
-                - executionEnvironment
+                - executionEnvironmentId
               additionalProperties: false
       responses:
         "200":
@@ -167,7 +212,9 @@ paths:
                       properties:
                         exposedPort:
                           description: The port inside the container.
-                          type: uint
+                          type: integer
+                          minimum: 0
+                          maximum: 65535
                           example: 80
                         hostAddress:
                           description: The address which can be contacted to reach the mapped port.

@@ -66,6 +66,20 @@ func (_m *ExecutionEnvironmentMock) ID() dto.EnvironmentID {
 	return r0
 }
 
+// IdleRunnerCount provides a mock function with given fields:
+func (_m *ExecutionEnvironmentMock) IdleRunnerCount() int {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
 // Image provides a mock function with given fields:
 func (_m *ExecutionEnvironmentMock) Image() string {
 	ret := _m.Called()

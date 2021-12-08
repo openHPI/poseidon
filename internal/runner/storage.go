@@ -6,6 +6,9 @@ import (
 
 // Storage is an interface for storing runners.
 type Storage interface {
+	// List returns all runners from the storage.
+	List() []Runner
+
 	// Add adds a runner to the storage.
 	// It overwrites the old runner if one with the same id was already stored.
 	Add(Runner)
@@ -39,6 +42,15 @@ func NewLocalRunnerStorage() *localRunnerStorage {
 	return &localRunnerStorage{
 		runners: make(map[string]Runner),
 	}
+}
+
+func (s *localRunnerStorage) List() (r []Runner) {
+	s.RLock()
+	defer s.RUnlock()
+	for _, value := range s.runners {
+		r = append(r, value)
+	}
+	return r
 }
 
 func (s *localRunnerStorage) Add(r Runner) {

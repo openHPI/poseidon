@@ -44,6 +44,9 @@ type Manager interface {
 	// Delete removes the specified execution environment.
 	// Iff the specified environment could not be found Delete returns false.
 	Delete(id dto.EnvironmentID) (bool, error)
+
+	// Statistics returns statistical data for each execution environment.
+	Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData
 }
 
 type NomadEnvironmentManager struct {
@@ -154,6 +157,10 @@ func (m *NomadEnvironmentManager) Delete(id dto.EnvironmentID) (bool, error) {
 		return true, fmt.Errorf("could not delete environment: %w", err)
 	}
 	return true, nil
+}
+
+func (m *NomadEnvironmentManager) Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
+	return m.runnerManager.EnvironmentStatistics()
 }
 
 func (m *NomadEnvironmentManager) Load() error {

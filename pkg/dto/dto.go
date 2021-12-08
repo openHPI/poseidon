@@ -53,6 +53,15 @@ type ExecutionEnvironmentData struct {
 	ID int `json:"id"`
 }
 
+// StatisticalExecutionEnvironmentData is the expected json structure of the response body
+// for routes returning statistics about execution environments.
+type StatisticalExecutionEnvironmentData struct {
+	ID                 int  `json:"id"`
+	PrewarmingPoolSize uint `json:"prewarmingPoolSize"`
+	IdleRunners        uint `json:"idleRunners"`
+	UsedRunners        uint `json:"usedRunners"`
+}
+
 // ExecutionEnvironmentRequest is the expected json structure of the request body
 // for the create execution environment function.
 type ExecutionEnvironmentRequest struct {

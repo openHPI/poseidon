@@ -6,6 +6,7 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"net/http"
 )
@@ -18,6 +19,7 @@ const (
 	VersionPath      = "/version"
 	RunnersPath      = "/runners"
 	EnvironmentsPath = "/execution-environments"
+	StatisticsPath   = "/statistics"
 )
 
 // NewRouter returns a *mux.Router which can be
@@ -46,10 +48,14 @@ func configureV1Router(router *mux.Router, runnerManager runner.Manager, environ
 
 	runnerController := &RunnerController{manager: runnerManager}
 	environmentController := &EnvironmentController{manager: environmentManager}
-
 	configureRoutes := func(router *mux.Router) {
 		runnerController.ConfigureRoutes(router)
 		environmentController.ConfigureRoutes(router)
+
+		// May add a statistics controller if another route joins
+		statisticsRouter := router.PathPrefix(StatisticsPath).Subrouter()
+		statisticsRouter.
+			HandleFunc(EnvironmentsPath, StatisticsExecutionEnvironments(environmentManager)).Methods(http.MethodGet)
 	}
 
 	if auth.InitializeAuthentication() {
@@ -71,5 +77,18 @@ func Version(writer http.ResponseWriter, _ *http.Request) {
 		sendJSON(writer, release, http.StatusOK)
 	} else {
 		writer.WriteHeader(http.StatusNotFound)
+	}
+}
+
+// StatisticsExecutionEnvironments handles the route for statistics about execution environments.
+// It responds the prewarming pool size and the number of idle runners and used runners.
+func StatisticsExecutionEnvironments(manager environment.Manager) http.HandlerFunc {
+	return func(writer http.ResponseWriter, _ *http.Request) {
+		result := make(map[string]*dto.StatisticalExecutionEnvironmentData)
+		environmentsData := manager.Statistics()
+		for id, data := range environmentsData {
+			result[id.ToString()] = data
+		}
+		sendJSON(writer, result, http.StatusOK)
 	}
 }

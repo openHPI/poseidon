@@ -115,3 +115,19 @@ func (_m *ManagerMock) Load() error {
 
 	return r0
 }
+
+// Statistics provides a mock function with given fields:
+func (_m *ManagerMock) Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
+	ret := _m.Called()
+
+	var r0 map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData
+	if rf, ok := ret.Get(0).(func() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData)
+		}
+	}
+
+	return r0
+}

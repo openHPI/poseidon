@@ -98,6 +98,7 @@ e2e-test-docker-image: deploy/e2e-test-image/Dockerfile
 
 .PHONY: e2e-test
 e2e-test: deps ## Run e2e tests
+	@docker pull $(E2E_TEST_DOCKER_IMAGE)
 	@go test -count=1 ./tests/e2e -v -args -dockerImage="$(E2E_TEST_DOCKER_IMAGE)"
 
 .PHONY: e2e-docker

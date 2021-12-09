@@ -76,29 +76,40 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 		case <-readMessage:
 		}
 
-		if err != nil {
-			log.WithField("remote", cr.connection.(*websocket.Conn).UnderlyingConn().RemoteAddr()).
-				WithError(err).Warn("Error reading client message")
+		if handleInput(messageType, reader, err, cr.buffer, ctx) {
 			return
-		}
-		if messageType != websocket.TextMessage {
-			log.WithField("messageType", messageType).Warn("Received message of wrong type")
-			return
-		}
-
-		message, err := io.ReadAll(reader)
-		if err != nil {
-			log.WithError(err).Warn("error while reading WebSocket message")
-			return
-		}
-		for _, character := range message {
-			select {
-			case <-ctx.Done():
-				return
-			case cr.buffer <- character:
-			}
 		}
 	}
+}
+
+// handleInput receives a new message from the client and may forward it to the executor.
+func handleInput(messageType int, reader io.Reader, err error, buffer chan byte, ctx context.Context) (done bool) {
+	if err != nil && websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		log.Debug("ReadInputLoop: The client closed the connection!")
+		// The close handler will do something soon.
+		return true
+	} else if err != nil {
+		log.WithError(err).Warn("Error reading client message")
+		return true
+	}
+	if messageType != websocket.TextMessage {
+		log.WithField("messageType", messageType).Warn("Received message of wrong type")
+		return true
+	}
+
+	message, err := io.ReadAll(reader)
+	if err != nil {
+		log.WithError(err).Warn("error while reading WebSocket message")
+		return true
+	}
+	for _, character := range message {
+		select {
+		case <-ctx.Done():
+			return true
+		case buffer <- character:
+		}
+	}
+	return false
 }
 
 // startReadInputLoop start the read input loop asynchronously and returns a context.CancelFunc which can be used

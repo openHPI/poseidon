@@ -72,11 +72,10 @@ func initServer() *http.Server {
 	}
 
 	return &http.Server{
-		Addr:         config.Config.Server.URL().Host,
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
-		Handler:      api.NewRouter(runnerManager, environmentManager),
+		Addr:        config.Config.Server.URL().Host,
+		ReadTimeout: time.Second * 15,
+		IdleTimeout: time.Second * 60,
+		Handler:     api.NewRouter(runnerManager, environmentManager),
 	}
 }
 

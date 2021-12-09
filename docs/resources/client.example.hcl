@@ -6,10 +6,14 @@ client {
     ]
 }
 
-# plugin "docker" {
-#   config {
-#     auth {
-#       config = "/root/.docker/config.json"
-#     }
-#   }
-# }
+plugin "docker" {
+    config {
+        gc {
+            image_delay = "0s"
+        }
+
+        # auth {
+            # config = "/root/.docker/config.json"
+        # }
+    }
+}

@@ -175,10 +175,15 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
 		stdin, ok := args.Get(4).(io.Reader)
 		s.Require().True(ok)
-		buffer := make([]byte, 1)                                                  //nolint:makezero,lll // If the length is zero, the Read call never reads anything. gofmt want this alignment.
-		for n := 0; !(n == 1 && buffer[0] == SIGQUIT); n, _ = stdin.Read(buffer) { //nolint:errcheck,lll // Read returns EOF errors but that is expected. This nolint makes the line too long.
+		buffer := make([]byte, 1) //nolint:makezero,lll // If the length is zero, the Read call never reads anything. gofmt want this alignment.
+		for n := 0; !(n == 1 && buffer[0] == SIGQUIT); {
 			time.After(tests.ShortTimeout)
+			n, _ = stdin.Read(buffer) //nolint:errcheck,lll // Read returns EOF errors but that is expected. This nolint makes the line too long.
+			if n > 0 {
+				log.WithField("buffer", fmt.Sprintf("%x", buffer[0])).Info("Received Stdin")
+			}
 		}
+		log.Info("After loop")
 		close(quit)
 	}).Return(0, nil)
 	timeLimit := 1
@@ -186,10 +191,12 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil)
 	s.Require().NoError(err)
+	log.Info("Before waiting")
 	select {
 	case <-time.After(2 * (time.Duration(timeLimit) * time.Second)):
 		s.FailNow("The execution should receive a SIGQUIT after the timeout")
 	case <-quit:
+		log.Info("Received quit")
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gorilla/websocket"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/config"
@@ -353,10 +352,7 @@ func (a *APIClient) ExecuteCommand(allocationID string,
 		return a.executeCommandInteractivelyWithStderr(allocationID, ctx, command, stdin, stdout, stderr)
 	}
 	exitCode, err := a.apiQuerier.Execute(allocationID, ctx, command, tty, stdin, stdout, stderr)
-	if err != nil && websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		log.WithError(err).Info("The exit code could not be received.")
-		return 0, nil
-	} else if err != nil {
+	if err != nil {
 		return 1, fmt.Errorf("error executing command in API: %w", err)
 	}
 	return exitCode, nil

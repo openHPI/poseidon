@@ -63,9 +63,12 @@ func (s *E2ETestSuite) TestOutputToStdout() {
 	s.Require().Error(err)
 	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
 
-	s.Require().Equal(&dto.WebSocketMessage{Type: dto.WebSocketMetaStart}, messages[0])
-	s.Require().Equal(&dto.WebSocketMessage{Type: dto.WebSocketOutputStdout, Data: "Hello World\r\n"}, messages[1])
-	s.Require().Equal(&dto.WebSocketMessage{Type: dto.WebSocketExit}, messages[2])
+	controlMessages := helpers.WebSocketControlMessages(messages)
+	s.Require().Equal(&dto.WebSocketMessage{Type: dto.WebSocketMetaStart}, controlMessages[0])
+	s.Require().Equal(&dto.WebSocketMessage{Type: dto.WebSocketExit}, controlMessages[1])
+
+	stdout, _, _ := helpers.WebSocketOutputMessages(messages)
+	s.Require().Equal("Hello World\r\n", stdout)
 }
 
 func (s *E2ETestSuite) TestOutputToStderr() {

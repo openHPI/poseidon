@@ -30,13 +30,16 @@ type webSocketConnection interface {
 type WebSocketReader interface {
 	io.Reader
 	io.Writer
-	startReadInputLoop() context.CancelFunc
+	startReadInputLoop()
 }
 
 // codeOceanToRawReader is an io.Reader implementation that provides the content of the WebSocket connection
 // to CodeOcean. You have to start the Reader by calling readInputLoop. After that you can use the Read function.
 type codeOceanToRawReader struct {
 	connection webSocketConnection
+
+	// ctx is used to cancel the reading routine.
+	ctx context.Context
 
 	// A buffered channel of bytes is used to store data coming from CodeOcean via WebSocket
 	// and retrieve it when Read(..) is called. Since channels are thread-safe, we use one here
@@ -48,9 +51,10 @@ type codeOceanToRawReader struct {
 	priorityBuffer chan byte
 }
 
-func newCodeOceanToRawReader(connection webSocketConnection) *codeOceanToRawReader {
+func newCodeOceanToRawReader(connection webSocketConnection, ctx context.Context) *codeOceanToRawReader {
 	return &codeOceanToRawReader{
 		connection:     connection,
+		ctx:            ctx,
 		buffer:         make(chan byte, CodeOceanToRawReaderBufferSize),
 		priorityBuffer: make(chan byte, CodeOceanToRawReaderBufferSize),
 	}
@@ -59,12 +63,14 @@ func newCodeOceanToRawReader(connection webSocketConnection) *codeOceanToRawRead
 // readInputLoop reads from the WebSocket connection and buffers the user's input.
 // This is necessary because input must be read for the connection to handle special messages like close and call the
 // CloseHandler.
-func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
+func (cr *codeOceanToRawReader) readInputLoop() {
 	readMessage := make(chan bool)
-	readingContext, cancel := context.WithCancel(ctx)
-	defer cancel()
+	loopContext, cancelInputLoop := context.WithCancel(cr.ctx)
+	defer cancelInputLoop()
+	readingContext, cancelNextMessage := context.WithCancel(loopContext)
+	defer cancelNextMessage()
 
-	for ctx.Err() == nil {
+	for loopContext.Err() == nil {
 		var messageType int
 		var reader io.Reader
 		var err error
@@ -77,12 +83,12 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 			}
 		}()
 		select {
-		case <-ctx.Done():
+		case <-loopContext.Done():
 			return
 		case <-readMessage:
 		}
 
-		if handleInput(messageType, reader, err, cr.buffer, ctx) {
+		if handleInput(messageType, reader, err, cr.buffer, loopContext) {
 			return
 		}
 	}
@@ -118,12 +124,9 @@ func handleInput(messageType int, reader io.Reader, err error, buffer chan byte,
 	return false
 }
 
-// startReadInputLoop start the read input loop asynchronously and returns a context.CancelFunc which can be used
-// to cancel the read input loop.
-func (cr *codeOceanToRawReader) startReadInputLoop() context.CancelFunc {
-	ctx, cancel := context.WithCancel(context.Background())
-	go cr.readInputLoop(ctx)
-	return cancel
+// startReadInputLoop start the read input loop asynchronously.
+func (cr *codeOceanToRawReader) startReadInputLoop() {
+	go cr.readInputLoop()
 }
 
 // Read implements the io.Reader interface.
@@ -132,8 +135,11 @@ func (cr *codeOceanToRawReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
+
 	// Ensure to not return until at least one byte has been read to avoid busy waiting.
 	select {
+	case <-cr.ctx.Done():
+		return 0, io.EOF
 	case p[0] = <-cr.priorityBuffer:
 	case p[0] = <-cr.buffer:
 	}
@@ -168,13 +174,12 @@ func (cr *codeOceanToRawReader) Write(p []byte) (n int, err error) {
 type rawToCodeOceanWriter struct {
 	proxy      *webSocketProxy
 	outputType dto.WebSocketMessageType
-	stopped    bool
 }
 
 // Write implements the io.Writer interface.
 // The passed data is forwarded to the WebSocket to CodeOcean.
 func (rc *rawToCodeOceanWriter) Write(p []byte) (int, error) {
-	if rc.stopped {
+	if rc.proxy.webSocketCtx.Err() != nil {
 		return 0, nil
 	}
 	err := rc.proxy.sendToClient(dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
@@ -183,13 +188,13 @@ func (rc *rawToCodeOceanWriter) Write(p []byte) (int, error) {
 
 // webSocketProxy is an encapsulation of logic for forwarding between Runners and CodeOcean.
 type webSocketProxy struct {
-	userExit             chan bool
-	connection           webSocketConnection
-	connectionMu         sync.Mutex
-	Stdin                WebSocketReader
-	Stdout               io.Writer
-	Stderr               io.Writer
-	cancelWebSocketWrite func()
+	webSocketCtx    context.Context
+	cancelWebSocket context.CancelFunc
+	connection      webSocketConnection
+	connectionMu    sync.Mutex
+	Stdin           WebSocketReader
+	Stdout          io.Writer
+	Stderr          io.Writer
 }
 
 // upgradeConnection upgrades a connection to a websocket and returns a webSocketProxy for this connection.
@@ -205,24 +210,21 @@ func upgradeConnection(writer http.ResponseWriter, request *http.Request) (webSo
 
 // newWebSocketProxy returns a initiated and started webSocketProxy.
 // As this proxy is already started, a start message is send to the client.
-func newWebSocketProxy(connection webSocketConnection) (*webSocketProxy, error) {
-	stdin := newCodeOceanToRawReader(connection)
+func newWebSocketProxy(connection webSocketConnection, ctx context.Context) (*webSocketProxy, error) {
+	stdin := newCodeOceanToRawReader(connection, ctx)
+	inputCtx, inputCancel := context.WithCancel(ctx)
 	proxy := &webSocketProxy{
-		connection: connection,
-		Stdin:      stdin,
-		userExit:   make(chan bool),
+		connection:      connection,
+		Stdin:           stdin,
+		webSocketCtx:    inputCtx,
+		cancelWebSocket: inputCancel,
 	}
-	stdOut := &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStdout}
-	stdErr := &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStderr}
-	proxy.cancelWebSocketWrite = func() {
-		stdOut.stopped = true
-		stdErr.stopped = true
-	}
-	proxy.Stdout = stdOut
-	proxy.Stderr = stdErr
+	proxy.Stdout = &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStdout}
+	proxy.Stderr = &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStderr}
 
 	err := proxy.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketMetaStart})
 	if err != nil {
+		inputCancel()
 		return nil, err
 	}
 
@@ -230,7 +232,7 @@ func newWebSocketProxy(connection webSocketConnection) (*webSocketProxy, error) 
 	connection.SetCloseHandler(func(code int, text string) error {
 		//nolint:errcheck // The default close handler always returns nil, so the error can be safely ignored.
 		_ = closeHandler(code, text)
-		close(proxy.userExit)
+		inputCancel()
 		return nil
 	})
 	return proxy, nil
@@ -239,19 +241,19 @@ func newWebSocketProxy(connection webSocketConnection) (*webSocketProxy, error) 
 // waitForExit waits for an exit of either the runner (when the command terminates) or the client closing the WebSocket
 // and handles WebSocket exit messages.
 func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecution context.CancelFunc) {
-	cancelInputLoop := wp.Stdin.startReadInputLoop()
+	wp.Stdin.startReadInputLoop()
+
 	var exitInfo runner.ExitInfo
 	select {
-	case exitInfo = <-exit:
-		cancelInputLoop()
-		wp.cancelWebSocketWrite()
-		log.Info("Execution returned")
-	case <-wp.userExit:
-		cancelInputLoop()
-		wp.cancelWebSocketWrite()
-		cancelExecution()
+	case <-wp.webSocketCtx.Done():
 		log.Info("Client closed the connection")
+		cancelExecution()
+		<-exit // /internal/runner/runner.go handleExitOrContextDone does not require client connection anymore.
+		<-exit // The goroutine closes this channel indicating that it does not use the connection to the executor anymore.
 		return
+	case exitInfo = <-exit:
+		log.Info("Execution returned")
+		wp.cancelWebSocket()
 	}
 
 	if errors.Is(exitInfo.Err, context.DeadlineExceeded) || errors.Is(exitInfo.Err, runner.ErrorRunnerInactivityTimeout) {
@@ -339,7 +341,9 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
 	}
-	proxy, err := newWebSocketProxy(connection)
+	proxyCtx, cancelProxy := context.WithCancel(context.Background())
+	defer cancelProxy()
+	proxy, err := newWebSocketProxy(connection, proxyCtx)
 	if err != nil {
 		return
 	}

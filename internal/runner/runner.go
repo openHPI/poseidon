@@ -208,18 +208,19 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 	exitInternal <-chan ExitInfo, exit chan<- ExitInfo, stdin io.ReadWriter,
 ) {
 	defer cancelExecute()
+	defer close(exit) // When this function has finished the connection to the executor is closed.
+
 	select {
 	case exitInfo := <-exitInternal:
 		exit <- exitInfo
-		close(exit)
 		return
 	case <-ctx.Done():
-		// From this time on until the WebSocket connection to the client is closed in /internal/api/websocket.go
-		// waitForExit, output can still be forwarded to the client. We accept this race condition because adding
-		// a locking mechanism would complicate the interfaces used (currently io.Writer).
-		exit <- ExitInfo{255, ctx.Err()}
-		close(exit)
 	}
+
+	// From this time on the WebSocket connection to the client is closed in /internal/api/websocket.go
+	// waitForExit. Input can still be sent to the executor.
+	exit <- ExitInfo{255, ctx.Err()}
+
 	// This injects the SIGQUIT character into the stdin. This character is parsed by the tty line discipline
 	// (tty has to be true) and converted to a SIGQUIT signal sent to the foreground process attached to the tty.
 	// By default, SIGQUIT causes the process to terminate and produces a core dump. Processes can catch this signal

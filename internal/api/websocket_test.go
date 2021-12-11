@@ -293,7 +293,9 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 	connectionMock.On("CloseHandler").Return(nil)
 	connectionMock.On("SetCloseHandler", mock.Anything).Return()
 
-	proxy, err := newWebSocketProxy(connectionMock)
+	proxyCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	proxy, err := newWebSocketProxy(connectionMock, proxyCtx)
 	require.NoError(t, err)
 	writer := &rawToCodeOceanWriter{
 		proxy:      proxy,
@@ -312,7 +314,9 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 }
 
 func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead(t *testing.T) {
-	reader := newCodeOceanToRawReader(nil)
+	readingCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	reader := newCodeOceanToRawReader(nil, readingCtx)
 
 	read := make(chan bool)
 	go func() {
@@ -345,9 +349,10 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 		call.Return(websocket.TextMessage, <-messages, nil)
 	})
 
-	reader := newCodeOceanToRawReader(connection)
-	cancel := reader.startReadInputLoop()
+	readingCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	reader := newCodeOceanToRawReader(connection, readingCtx)
+	reader.startReadInputLoop()
 
 	read := make(chan bool)
 	//nolint:makezero // this is required here to make the Read call blocking

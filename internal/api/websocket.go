@@ -61,14 +61,20 @@ func newCodeOceanToRawReader(connection webSocketConnection) *codeOceanToRawRead
 // CloseHandler.
 func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 	readMessage := make(chan bool)
-	for {
+	readingContext, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for ctx.Err() == nil {
 		var messageType int
 		var reader io.Reader
 		var err error
 
 		go func() {
 			messageType, reader, err = cr.connection.NextReader()
-			readMessage <- true
+			select {
+			case <-readingContext.Done():
+			case readMessage <- true:
+			}
 		}()
 		select {
 		case <-ctx.Done():

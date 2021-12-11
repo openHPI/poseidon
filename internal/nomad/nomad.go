@@ -374,9 +374,12 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 
 	stderrExitChan := make(chan int)
 	go func() {
+		readingContext, cancel := context.WithCancel(ctx)
+		defer cancel()
+
 		// Catch stderr in separate execution.
 		exit, err := a.Execute(allocationID, ctx, stderrFifoCommand(currentNanoTime), true,
-			nullio.Reader{}, stderr, io.Discard)
+			nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
 		if err != nil {
 			log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
 		}

@@ -1,8 +1,9 @@
 package nullio
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"io"
 	"testing"
 	"time"
 )
@@ -10,12 +11,15 @@ import (
 const shortTimeout = 100 * time.Millisecond
 
 func TestReaderDoesNotReturnImmediately(t *testing.T) {
-	reader := &Reader{}
+	readingContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	reader := &Reader{readingContext}
 	readerReturned := make(chan bool)
 	go func() {
 		p := make([]byte, 0, 5)
 		_, err := reader.Read(p)
-		require.NoError(t, err)
+		assert.ErrorIs(t, io.EOF, err)
 		close(readerReturned)
 	}()
 

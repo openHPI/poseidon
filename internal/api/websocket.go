@@ -38,8 +38,10 @@ type WebSocketReader interface {
 type codeOceanToRawReader struct {
 	connection webSocketConnection
 
-	// ctx is used to cancel the reading routine.
-	ctx context.Context
+	// wsCtx is the context in that messages from CodeOcean are read.
+	wsCtx context.Context
+	// executorCtx is the context in that messages are forwarded to the executor.
+	executorCtx context.Context
 
 	// A buffered channel of bytes is used to store data coming from CodeOcean via WebSocket
 	// and retrieve it when Read(..) is called. Since channels are thread-safe, we use one here
@@ -51,10 +53,11 @@ type codeOceanToRawReader struct {
 	priorityBuffer chan byte
 }
 
-func newCodeOceanToRawReader(connection webSocketConnection, ctx context.Context) *codeOceanToRawReader {
+func newCodeOceanToRawReader(connection webSocketConnection, wsCtx, executorCtx context.Context) *codeOceanToRawReader {
 	return &codeOceanToRawReader{
 		connection:     connection,
-		ctx:            ctx,
+		wsCtx:          wsCtx,
+		executorCtx:    executorCtx,
 		buffer:         make(chan byte, CodeOceanToRawReaderBufferSize),
 		priorityBuffer: make(chan byte, CodeOceanToRawReaderBufferSize),
 	}
@@ -65,7 +68,7 @@ func newCodeOceanToRawReader(connection webSocketConnection, ctx context.Context
 // CloseHandler.
 func (cr *codeOceanToRawReader) readInputLoop() {
 	readMessage := make(chan bool)
-	loopContext, cancelInputLoop := context.WithCancel(cr.ctx)
+	loopContext, cancelInputLoop := context.WithCancel(cr.wsCtx)
 	defer cancelInputLoop()
 	readingContext, cancelNextMessage := context.WithCancel(loopContext)
 	defer cancelNextMessage()
@@ -138,7 +141,7 @@ func (cr *codeOceanToRawReader) Read(p []byte) (int, error) {
 
 	// Ensure to not return until at least one byte has been read to avoid busy waiting.
 	select {
-	case <-cr.ctx.Done():
+	case <-cr.executorCtx.Done():
 		return 0, io.EOF
 	case p[0] = <-cr.priorityBuffer:
 	case p[0] = <-cr.buffer:
@@ -208,23 +211,23 @@ func upgradeConnection(writer http.ResponseWriter, request *http.Request) (webSo
 	return connection, nil
 }
 
-// newWebSocketProxy returns a initiated and started webSocketProxy.
+// newWebSocketProxy returns an initiated and started webSocketProxy.
 // As this proxy is already started, a start message is send to the client.
-func newWebSocketProxy(connection webSocketConnection, ctx context.Context) (*webSocketProxy, error) {
-	stdin := newCodeOceanToRawReader(connection, ctx)
-	inputCtx, inputCancel := context.WithCancel(ctx)
+func newWebSocketProxy(connection webSocketConnection, proxyCtx context.Context) (*webSocketProxy, error) {
+	wsCtx, cancelWsCommunication := context.WithCancel(proxyCtx)
+	stdin := newCodeOceanToRawReader(connection, wsCtx, proxyCtx)
 	proxy := &webSocketProxy{
 		connection:      connection,
 		Stdin:           stdin,
-		webSocketCtx:    inputCtx,
-		cancelWebSocket: inputCancel,
+		webSocketCtx:    wsCtx,
+		cancelWebSocket: cancelWsCommunication,
 	}
 	proxy.Stdout = &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStdout}
 	proxy.Stderr = &rawToCodeOceanWriter{proxy: proxy, outputType: dto.WebSocketOutputStderr}
 
 	err := proxy.sendToClient(dto.WebSocketMessage{Type: dto.WebSocketMetaStart})
 	if err != nil {
-		inputCancel()
+		cancelWsCommunication()
 		return nil, err
 	}
 
@@ -232,7 +235,7 @@ func newWebSocketProxy(connection webSocketConnection, ctx context.Context) (*we
 	connection.SetCloseHandler(func(code int, text string) error {
 		//nolint:errcheck // The default close handler always returns nil, so the error can be safely ignored.
 		_ = closeHandler(code, text)
-		inputCancel()
+		cancelWsCommunication()
 		return nil
 	})
 	return proxy, nil

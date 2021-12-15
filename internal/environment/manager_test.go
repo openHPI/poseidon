@@ -261,7 +261,7 @@ func TestNomadEnvironmentManager_List(t *testing.T) {
 func mockWatchAllocations(apiMock *nomad.ExecutorAPIMock) {
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
 	call.Run(func(args mock.Arguments) {
-		<-time.After(10 * time.Minute) // 10 minutes is the default test timeout
+		<-time.After(tests.DefaultTestTimeout)
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 }

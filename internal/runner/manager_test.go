@@ -44,7 +44,7 @@ func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []strin
 	apiMock.ExpectedCalls = []*mock.Call{}
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
 	call.Run(func(args mock.Arguments) {
-		<-time.After(10 * time.Minute) // 10 minutes is the default test timeout
+		<-time.After(tests.DefaultTestTimeout)
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 	apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)

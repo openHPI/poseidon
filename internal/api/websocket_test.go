@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -44,7 +47,7 @@ func (s *WebSocketTestSuite) SetupTest() {
 	s.runner, s.apiMock = newNomadAllocationWithMockedAPIClient(runnerID)
 
 	// default execution
-	s.executionID = "execution-id"
+	s.executionID = tests.DefaultExecutionID
 	s.runner.StoreExecution(s.executionID, &executionRequestHead)
 	mockAPIExecuteHead(s.apiMock)
 
@@ -250,7 +253,7 @@ func TestWebsocketTLS(t *testing.T) {
 	runnerID := "runner-id"
 	r, apiMock := newNomadAllocationWithMockedAPIClient(runnerID)
 
-	executionID := "execution-id"
+	executionID := tests.DefaultExecutionID
 	r.StoreExecution(executionID, &executionRequestLs)
 	mockAPIExecuteLs(apiMock)
 
@@ -315,8 +318,9 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 
 func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead(t *testing.T) {
 	readingCtx, cancel := context.WithCancel(context.Background())
+	forwardingCtx := readingCtx
 	defer cancel()
-	reader := newCodeOceanToRawReader(nil, readingCtx)
+	reader := newCodeOceanToRawReader(nil, readingCtx, forwardingCtx)
 
 	read := make(chan bool)
 	go func() {
@@ -350,8 +354,9 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 	})
 
 	readingCtx, cancel := context.WithCancel(context.Background())
+	forwardingCtx := readingCtx
 	defer cancel()
-	reader := newCodeOceanToRawReader(connection, readingCtx)
+	reader := newCodeOceanToRawReader(connection, readingCtx, forwardingCtx)
 	reader.startReadInputLoop()
 
 	read := make(chan bool)
@@ -373,6 +378,32 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 	})
 }
 
+func TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt(t *testing.T) {
+	apiMock := &nomad.ExecutorAPIMock{}
+	executionID := tests.DefaultExecutionID
+	r, wsURL := newRunnerWithNotMockedRunnerManager(t, apiMock, executionID)
+
+	logger, hook := test.NewNullLogger()
+	log = logger.WithField("pkg", "api")
+
+	r.StoreExecution(executionID, &executionRequestHead)
+	mockAPIExecute(apiMock, &executionRequestHead,
+		func(_ string, ctx context.Context, _ []string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
+			return 0, nil
+		})
+	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	require.NoError(t, err)
+
+	_, err = helpers.ReceiveAllWebSocketMessages(connection)
+	require.Error(t, err)
+	assert.True(t, websocket.IsCloseError(err, websocket.CloseNormalClosure))
+	for _, logMsg := range hook.Entries {
+		if logMsg.Level < logrus.InfoLevel {
+			assert.Fail(t, logMsg.Message)
+		}
+	}
+}
+
 // --- Test suite specific test helpers ---
 
 func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nomad.ExecutorAPIMock) {
@@ -381,6 +412,39 @@ func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nom
 	manager.On("Return", mock.Anything).Return(nil)
 	r := runner.NewNomadJob(runnerID, nil, executorAPIMock, manager)
 	return r, executorAPIMock
+}
+
+func newRunnerWithNotMockedRunnerManager(t *testing.T, apiMock *nomad.ExecutorAPIMock, executionID string) (
+	r runner.Runner, wsURL *url.URL) {
+	t.Helper()
+	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
+	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
+	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
+	call.Run(func(args mock.Arguments) {
+		<-context.Background().Done()
+		call.ReturnArguments = mock.Arguments{nil}
+	})
+	runnerManager := runner.NewNomadRunnerManager(apiMock, context.Background())
+	router := NewRouter(runnerManager, nil)
+	server := httptest.NewServer(router)
+
+	runnerID := tests.DefaultRunnerID
+	runnerJob := runner.NewNomadJob(runnerID, nil, apiMock, runnerManager)
+	e, err := environment.NewNomadEnvironment("job \"template-0\" {}")
+	require.NoError(t, err)
+	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
+	require.NoError(t, err)
+	e.SetID(eID)
+	e.SetPrewarmingPoolSize(0)
+	runnerManager.SetEnvironment(e)
+	e.AddRunner(runnerJob)
+
+	r, err = runnerManager.Claim(e.ID(), int(tests.DefaultTestTimeout.Seconds()))
+	require.NoError(t, err)
+	wsURL, err = webSocketURL("ws", server, router, r.ID(), executionID)
+	require.NoError(t, err)
+	return r, wsURL
 }
 
 func webSocketURL(scheme string, server *httptest.Server, router *mux.Router,

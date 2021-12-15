@@ -26,6 +26,7 @@ const (
 	DefaultExecutionID            = "s0m3-3x3cu710n-1d"
 	DefaultMockID                 = "m0ck-1d"
 	ShortTimeout                  = 100 * time.Millisecond
+	DefaultTestTimeout            = 10 * time.Minute
 )
 
 var (

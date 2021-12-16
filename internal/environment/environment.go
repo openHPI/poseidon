@@ -3,7 +3,6 @@ package environment
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	nomadApi "github.com/hashicorp/nomad/api"
@@ -12,14 +11,11 @@ import (
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"strconv"
+	"sync"
 )
 
 const (
 	portNumberBase = 10
-)
-
-var (
-	ErrorUpdatingExecutionEnvironment = errors.New("errors occurred when updating environment")
 )
 
 type NomadEnvironment struct {
@@ -173,6 +169,11 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 // Register creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
 func (n *NomadEnvironment) Register(apiClient nomad.ExecutorAPI) error {
+	// To avoid docker image issues. See https://github.com/openHPI/poseidon/issues/69
+	if err := n.Delete(apiClient); err != nil {
+		return fmt.Errorf("failed to remove the environment: %w", err)
+	}
+
 	nomad.SetForcePullFlag(n.job, true) // This must be the default as otherwise new runners could have different images.
 	evalID, err := apiClient.RegisterNomadJob(n.job)
 	if err != nil {
@@ -188,7 +189,7 @@ func (n *NomadEnvironment) Register(apiClient nomad.ExecutorAPI) error {
 }
 
 func (n *NomadEnvironment) Delete(apiClient nomad.ExecutorAPI) error {
-	err := n.removeRunners(apiClient, uint(n.idleRunners.Length()))
+	err := n.removeRunners(apiClient)
 	if err != nil {
 		return err
 	}
@@ -205,34 +206,8 @@ func (n *NomadEnvironment) Scale(apiClient nomad.ExecutorAPI) error {
 	if required > 0 {
 		return n.createRunners(apiClient, uint(required), true)
 	} else {
-		return n.removeRunners(apiClient, uint(-required))
+		return n.removeIdleRunners(apiClient, uint(-required))
 	}
-}
-
-func (n *NomadEnvironment) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error {
-	runners, err := apiClient.LoadRunnerIDs(n.ID().ToString())
-	if err != nil {
-		return fmt.Errorf("update environment couldn't load runners: %w", err)
-	}
-
-	var occurredError error
-	for _, id := range runners {
-		// avoid taking the address of the loop variable
-		runnerID := id
-		updatedRunnerJob := n.DeepCopyJob()
-		updatedRunnerJob.ID = &runnerID
-		updatedRunnerJob.Name = &runnerID
-		nomad.SetForcePullFlag(updatedRunnerJob, true)
-
-		err := apiClient.RegisterRunnerJob(updatedRunnerJob)
-		if err != nil {
-			if occurredError == nil {
-				occurredError = ErrorUpdatingExecutionEnvironment
-			}
-			occurredError = fmt.Errorf("%w; new api error for runner %s - %v", occurredError, id, err)
-		}
-	}
-	return occurredError
 }
 
 func (n *NomadEnvironment) Sample(apiClient nomad.ExecutorAPI) (runner.Runner, bool) {
@@ -347,7 +322,7 @@ func (n *NomadEnvironment) createRunner(apiClient nomad.ExecutorAPI, forcePull b
 	return nil
 }
 
-func (n *NomadEnvironment) removeRunners(apiClient nomad.ExecutorAPI, count uint) error {
+func (n *NomadEnvironment) removeIdleRunners(apiClient nomad.ExecutorAPI, count uint) error {
 	log.WithField("runnersToDelete", count).WithField("id", n.ID()).Debug("Removing idle runners")
 	for i := 0; i < int(count); i++ {
 		r, ok := n.idleRunners.Sample()
@@ -360,4 +335,30 @@ func (n *NomadEnvironment) removeRunners(apiClient nomad.ExecutorAPI, count uint
 		}
 	}
 	return nil
+}
+
+func (n *NomadEnvironment) removeRunners(apiClient nomad.ExecutorAPI) error {
+	// Only to avoid timing issues as an idle runner is also removed when Nomad has deleted the allocation.
+	for _, r := range n.idleRunners.List() {
+		n.idleRunners.Delete(r.ID())
+	}
+
+	ids, err := apiClient.LoadRunnerIDs(nomad.RunnerJobID(n.ID(), ""))
+	if err != nil {
+		return fmt.Errorf("failed to load runner ids: %w", err)
+	}
+
+	var wg sync.WaitGroup
+	for _, id := range ids {
+		wg.Add(1)
+		go func(jobID string) {
+			defer wg.Done()
+			deleteErr := apiClient.DeleteJob(jobID)
+			if deleteErr != nil {
+				err = deleteErr
+			}
+		}(id)
+	}
+	wg.Wait()
+	return err
 }

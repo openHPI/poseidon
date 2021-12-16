@@ -134,10 +134,6 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request d
 	if err != nil {
 		return false, fmt.Errorf("error registering template job in API: %w", err)
 	}
-	err = environment.UpdateRunnerSpecs(m.api)
-	if err != nil {
-		return false, fmt.Errorf("error updating runner jobs in API: %w", err)
-	}
 	err = environment.Scale(m.api)
 	if err != nil {
 		return false, fmt.Errorf("error scaling template job in API: %w", err)

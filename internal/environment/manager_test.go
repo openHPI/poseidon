@@ -54,6 +54,8 @@ func (s *CreateOrUpdateTestSuite) SetupTest() {
 
 func (s *CreateOrUpdateTestSuite) TestReturnsErrorIfCreatesOrUpdateEnvironmentReturnsError() {
 	s.apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return("", tests.ErrDefault)
+	s.apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.runnerManagerMock.On("GetEnvironment", mock.AnythingOfType("dto.EnvironmentID")).Return(nil, false)
 	s.runnerManagerMock.On("SetEnvironment", mock.AnythingOfType("*environment.NomadEnvironment")).Return(true)
 	_, err := s.manager.CreateOrUpdate(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
@@ -62,6 +64,8 @@ func (s *CreateOrUpdateTestSuite) TestReturnsErrorIfCreatesOrUpdateEnvironmentRe
 
 func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 	s.apiMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return("", nil)
+	s.apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.runnerManagerMock.On("GetEnvironment", mock.AnythingOfType("dto.EnvironmentID")).Return(nil, false)
 	s.runnerManagerMock.On("SetEnvironment", mock.AnythingOfType("*environment.NomadEnvironment")).Return(true)
 	s.apiMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.Anything).Return(nil)
@@ -131,6 +135,8 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 func TestNomadEnvironmentManager_Get(t *testing.T) {
 	apiMock := &nomad.ExecutorAPIMock{}
 	mockWatchAllocations(apiMock)
+	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	call := apiMock.On("LoadEnvironmentJobs")
 	call.Run(func(args mock.Arguments) {
 		call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{}, nil}

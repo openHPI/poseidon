@@ -52,8 +52,6 @@ type ExecutionEnvironment interface {
 	Delete(apiClient nomad.ExecutorAPI) error
 	// Scale manages if the executor has enough idle runner according to the PrewarmingPoolSize.
 	Scale(apiClient nomad.ExecutorAPI) error
-	// UpdateRunnerSpecs updates all Runner of the passed environment to have the same definition as the environment.
-	UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error
 
 	// Sample returns and removes an arbitrary available runner.
 	// ok is true iff a runner was returned.

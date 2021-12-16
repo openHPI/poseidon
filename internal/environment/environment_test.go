@@ -110,8 +110,10 @@ func TestRegisterFailsWhenNomadJobRegistrationFails(t *testing.T) {
 	expectedErr := tests.ErrDefault
 
 	apiClientMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return("", expectedErr)
+	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{"", &nomadApi.Job{}, nil}
+	environment := &NomadEnvironment{"", &nomadApi.Job{}, runner.NewLocalRunnerStorage()}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register(apiClientMock)
 
@@ -125,8 +127,10 @@ func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.
 
 	apiClientMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
 	apiClientMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.Anything).Return(nil)
+	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{"", &nomadApi.Job{}, nil}
+	environment := &NomadEnvironment{"", &nomadApi.Job{}, runner.NewLocalRunnerStorage()}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register(apiClientMock)
 
@@ -139,8 +143,10 @@ func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing
 
 	apiClientMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
 	apiClientMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.Anything).Return(tests.ErrDefault)
+	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{"", &nomadApi.Job{}, nil}
+	environment := &NomadEnvironment{"", &nomadApi.Job{}, runner.NewLocalRunnerStorage()}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register(apiClientMock)
 

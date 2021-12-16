@@ -17,6 +17,8 @@ import (
 	"testing"
 )
 
+const invalidID = "some-invalid-runner-id"
+
 type MiddlewareTestSuite struct {
 	suite.Suite
 	manager        *runner.ManagerMock
@@ -67,13 +69,28 @@ func (s *MiddlewareTestSuite) TestFindRunnerMiddlewareIfRunnerExists() {
 }
 
 func (s *MiddlewareTestSuite) TestFindRunnerMiddlewareIfRunnerDoesNotExist() {
-	invalidID := "some-invalid-runner-id"
 	s.manager.On("Get", invalidID).Return(nil, runner.ErrRunnerNotFound)
 
 	recorder := httptest.NewRecorder()
 	s.router.ServeHTTP(recorder, s.runnerRequest(invalidID))
 
 	s.Equal(http.StatusNotFound, recorder.Code)
+}
+
+func (s *MiddlewareTestSuite) TestFindRunnerMiddlewareDoesNotEarlyRespond() {
+	body := strings.NewReader(strings.Repeat("A", 798968))
+
+	path, err := s.router.Get("test-runner-id").URL(RunnerIDKey, invalidID)
+	s.Require().NoError(err)
+	request, err := http.NewRequest(http.MethodPost, path.String(), body)
+	s.Require().NoError(err)
+
+	s.manager.On("Get", mock.AnythingOfType("string")).Return(nil, runner.ErrRunnerNotFound)
+	recorder := httptest.NewRecorder()
+	s.router.ServeHTTP(recorder, request)
+
+	s.Equal(http.StatusNotFound, recorder.Code)
+	s.Equal(0, body.Len()) // No data should be unread
 }
 
 func TestRunnerRouteTestSuite(t *testing.T) {
@@ -261,7 +278,6 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsBadRequestOn
 }
 
 func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemToNonExistingRunnerReturnsNotFound() {
-	invalidID := "some-invalid-runner-id"
 	s.runnerManager.On("Get", invalidID).Return(nil, runner.ErrRunnerNotFound)
 	path, err := s.router.Get(UpdateFileSystemPath).URL(RunnerIDKey, invalidID)
 	s.Require().NoError(err)

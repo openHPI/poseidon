@@ -8,6 +8,7 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -131,6 +132,12 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 		runnerID := mux.Vars(request)[RunnerIDKey]
 		targetRunner, err := r.manager.Get(runnerID)
 		if err != nil {
+			// We discard the request body because an early write causes errors for some clients.
+			// See https://github.com/openHPI/poseidon/issues/54
+			_, readErr := io.ReadAll(request.Body)
+			if readErr != nil {
+				log.WithError(readErr).Warn("Failed to discard the request body")
+			}
 			writeNotFound(writer, err)
 			return
 		}

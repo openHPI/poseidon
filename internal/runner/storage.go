@@ -21,6 +21,9 @@ type Storage interface {
 	// It does nothing if no runner with the id is present in the store.
 	Delete(id string)
 
+	// Purge removes all runners from the storage.
+	Purge()
+
 	// Length returns the number of currently stored runners in the storage.
 	Length() int
 
@@ -70,6 +73,12 @@ func (s *localRunnerStorage) Delete(id string) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.runners, id)
+}
+
+func (s *localRunnerStorage) Purge() {
+	s.Lock()
+	defer s.Unlock()
+	s.runners = make(map[string]Runner)
 }
 
 func (s *localRunnerStorage) Sample() (Runner, bool) {

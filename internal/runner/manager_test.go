@@ -82,8 +82,7 @@ func mockIdleRunners(environmentMock *ExecutionEnvironmentMock) {
 
 func (s *ManagerTestSuite) setDefaultEnvironment() {
 	s.exerciseEnvironment.On("ID").Return(defaultEnvironmentID)
-	created := s.nomadRunnerManager.SetEnvironment(s.exerciseEnvironment)
-	s.Require().True(created)
+	s.nomadRunnerManager.StoreEnvironment(s.exerciseEnvironment)
 }
 
 func (s *ManagerTestSuite) waitForRunnerRefresh() {
@@ -93,8 +92,7 @@ func (s *ManagerTestSuite) waitForRunnerRefresh() {
 func (s *ManagerTestSuite) TestSetEnvironmentAddsNewEnvironment() {
 	anotherEnvironment := &ExecutionEnvironmentMock{}
 	anotherEnvironment.On("ID").Return(anotherEnvironmentID)
-	created := s.nomadRunnerManager.SetEnvironment(anotherEnvironment)
-	s.Require().True(created)
+	s.nomadRunnerManager.StoreEnvironment(anotherEnvironment)
 
 	job, ok := s.nomadRunnerManager.environments.Get(anotherEnvironmentID)
 	s.True(ok)

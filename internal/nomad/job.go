@@ -99,7 +99,11 @@ func FindOrCreateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	if task.Config == nil {
 		task.Config = make(map[string]interface{})
 	}
-	task.Config["command"] = ConfigTaskCommand
+	// This function should allow concurrency in the "Find" case.
+	// Therefore, this condition is necessary to remove concurrent writes in the "Find" case.
+	if v, ok := task.Config["command"]; !(ok && v == ConfigTaskCommand) {
+		task.Config["command"] = ConfigTaskCommand
+	}
 	return task
 }
 
@@ -125,8 +129,14 @@ func FindOrCreateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	if task.Config == nil {
 		task.Config = make(map[string]interface{})
 	}
-	task.Config["command"] = TaskCommand
-	task.Config["args"] = TaskArgs
+	// This function should allow concurrency in the "Find" case.
+	if v, ok := task.Config["command"]; !(ok && v == TaskCommand) {
+		task.Config["command"] = TaskCommand
+	}
+	v, ok := task.Config["args"]
+	if args, isStringArray := v.([]string); !(ok && isStringArray && len(args) == 1 && args[0] == TaskArgs[0]) {
+		task.Config["args"] = TaskArgs
+	}
 	return task
 }
 

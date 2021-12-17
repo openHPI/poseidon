@@ -137,16 +137,7 @@ func (_m *ManagerMock) Return(r Runner) error {
 	return r0
 }
 
-// SetEnvironment provides a mock function with given fields: environment
-func (_m *ManagerMock) SetEnvironment(environment ExecutionEnvironment) bool {
-	ret := _m.Called(environment)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(ExecutionEnvironment) bool); ok {
-		r0 = rf(environment)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
+// StoreEnvironment provides a mock function with given fields: environment
+func (_m *ManagerMock) StoreEnvironment(environment ExecutionEnvironment) {
+	_m.Called(environment)
 }

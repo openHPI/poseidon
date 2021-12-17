@@ -437,7 +437,7 @@ func newRunnerWithNotMockedRunnerManager(t *testing.T, apiMock *nomad.ExecutorAP
 	require.NoError(t, err)
 	e.SetID(eID)
 	e.SetPrewarmingPoolSize(0)
-	runnerManager.SetEnvironment(e)
+	runnerManager.StoreEnvironment(e)
 	e.AddRunner(runnerJob)
 
 	r, err = runnerManager.Claim(e.ID(), int(tests.DefaultTestTimeout.Seconds()))

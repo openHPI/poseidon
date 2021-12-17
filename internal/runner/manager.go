@@ -31,6 +31,8 @@ type ExecutionEnvironment interface {
 	// PrewarmingPoolSize sets the number of idle runner of this environment that should be prewarmed.
 	PrewarmingPoolSize() uint
 	SetPrewarmingPoolSize(count uint)
+	// ApplyPrewarmingPoolSize creates idle runners according to the PrewarmingPoolSize.
+	ApplyPrewarmingPoolSize(apiClient nomad.ExecutorAPI) error
 	// CPULimit sets the share of cpu that a runner should receive at minimum.
 	CPULimit() uint
 	SetCPULimit(limit uint)
@@ -50,8 +52,6 @@ type ExecutionEnvironment interface {
 	Register(apiClient nomad.ExecutorAPI) error
 	// Delete removes this environment and all it's runner from the executor and Poseidon itself.
 	Delete(apiClient nomad.ExecutorAPI) error
-	// Scale manages if the executor has enough idle runner according to the PrewarmingPoolSize.
-	Scale(apiClient nomad.ExecutorAPI) error
 
 	// Sample returns and removes an arbitrary available runner.
 	// ok is true iff a runner was returned.
@@ -74,9 +74,8 @@ type Manager interface {
 	// Iff the requested environment is not stored it returns false.
 	GetEnvironment(id dto.EnvironmentID) (ExecutionEnvironment, bool)
 
-	// SetEnvironment stores the environment in Poseidons memory.
-	// It returns true iff a new environment is stored and false iff an existing environment was updated.
-	SetEnvironment(environment ExecutionEnvironment) bool
+	// StoreEnvironment stores the environment in Poseidons memory.
+	StoreEnvironment(environment ExecutionEnvironment)
 
 	// DeleteEnvironment removes the specified execution environment in Poseidons memory.
 	// It does nothing if the specified environment can not be found.
@@ -129,10 +128,8 @@ func (m *NomadRunnerManager) GetEnvironment(id dto.EnvironmentID) (ExecutionEnvi
 	return m.environments.Get(id)
 }
 
-func (m *NomadRunnerManager) SetEnvironment(environment ExecutionEnvironment) bool {
-	_, ok := m.environments.Get(environment.ID())
+func (m *NomadRunnerManager) StoreEnvironment(environment ExecutionEnvironment) {
 	m.environments.Add(environment)
-	return !ok
 }
 
 func (m *NomadRunnerManager) DeleteEnvironment(id dto.EnvironmentID) {
@@ -215,7 +212,7 @@ func (m *NomadRunnerManager) Load() {
 		for _, job := range runnerJobs {
 			m.loadSingleJob(job, environmentLogger, environment)
 		}
-		err = environment.Scale(m.apiClient)
+		err = environment.ApplyPrewarmingPoolSize(m.apiClient)
 		if err != nil {
 			environmentLogger.WithError(err).Error("Couldn't scale environment")
 		}

@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	nomadApi "github.com/hashicorp/nomad/api"
@@ -18,6 +19,8 @@ const (
 	portNumberBase = 10
 )
 
+var ErrScaleDown = errors.New("cannot scale down the environment")
+
 type NomadEnvironment struct {
 	jobHCL      string
 	job         *nomadApi.Job
@@ -31,6 +34,23 @@ func NewNomadEnvironment(jobHCL string) (*NomadEnvironment, error) {
 	}
 
 	return &NomadEnvironment{jobHCL, job, runner.NewLocalRunnerStorage()}, nil
+}
+
+func NewNomadEnvironmentFromRequest(jobHCL string, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
+	*NomadEnvironment, error) {
+	environment, err := NewNomadEnvironment(jobHCL)
+	if err != nil {
+		return nil, err
+	}
+	environment.SetID(id)
+
+	// Set options according to request
+	environment.SetPrewarmingPoolSize(request.PrewarmingPoolSize)
+	environment.SetCPULimit(request.CPULimit)
+	environment.SetMemoryLimit(request.MemoryLimit)
+	environment.SetImage(request.Image)
+	environment.SetNetworkAccess(request.NetworkAccess, request.ExposedPorts)
+	return environment, nil
 }
 
 func (n *NomadEnvironment) ID() dto.EnvironmentID {
@@ -169,11 +189,6 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 // Register creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
 func (n *NomadEnvironment) Register(apiClient nomad.ExecutorAPI) error {
-	// To avoid docker image issues. See https://github.com/openHPI/poseidon/issues/69
-	if err := n.Delete(apiClient); err != nil {
-		return fmt.Errorf("failed to remove the environment: %w", err)
-	}
-
 	nomad.SetForcePullFlag(n.job, true) // This must be the default as otherwise new runners could have different images.
 	evalID, err := apiClient.RegisterNomadJob(n.job)
 	if err != nil {
@@ -200,14 +215,13 @@ func (n *NomadEnvironment) Delete(apiClient nomad.ExecutorAPI) error {
 	return nil
 }
 
-func (n *NomadEnvironment) Scale(apiClient nomad.ExecutorAPI) error {
+func (n *NomadEnvironment) ApplyPrewarmingPoolSize(apiClient nomad.ExecutorAPI) error {
 	required := int(n.PrewarmingPoolSize()) - n.idleRunners.Length()
 
-	if required > 0 {
-		return n.createRunners(apiClient, uint(required), true)
-	} else {
-		return n.removeIdleRunners(apiClient, uint(-required))
+	if required < 0 {
+		return fmt.Errorf("%w. Runners to remove: %d", ErrScaleDown, -required)
 	}
+	return n.createRunners(apiClient, uint(required), true)
 }
 
 func (n *NomadEnvironment) Sample(apiClient nomad.ExecutorAPI) (runner.Runner, bool) {
@@ -322,32 +336,18 @@ func (n *NomadEnvironment) createRunner(apiClient nomad.ExecutorAPI, forcePull b
 	return nil
 }
 
-func (n *NomadEnvironment) removeIdleRunners(apiClient nomad.ExecutorAPI, count uint) error {
-	log.WithField("runnersToDelete", count).WithField("id", n.ID()).Debug("Removing idle runners")
-	for i := 0; i < int(count); i++ {
-		r, ok := n.idleRunners.Sample()
-		if !ok {
-			return fmt.Errorf("could not delete expected idle runner: %w", runner.ErrRunnerNotFound)
-		}
-		err := apiClient.DeleteJob(r.ID())
-		if err != nil {
-			return fmt.Errorf("could not delete expected Nomad idle runner: %w", err)
-		}
-	}
-	return nil
-}
-
+// removeRunners removes all (idle and used) runners for the given environment n.
 func (n *NomadEnvironment) removeRunners(apiClient nomad.ExecutorAPI) error {
-	// Only to avoid timing issues as an idle runner is also removed when Nomad has deleted the allocation.
-	for _, r := range n.idleRunners.List() {
-		n.idleRunners.Delete(r.ID())
-	}
+	// This prevents a race condition where the number of required runners is miscalculated in the up-scaling process
+	// based on the number of allocation that has been stopped at the moment of the scaling.
+	n.idleRunners.Purge()
 
 	ids, err := apiClient.LoadRunnerIDs(nomad.RunnerJobID(n.ID(), ""))
 	if err != nil {
 		return fmt.Errorf("failed to load runner ids: %w", err)
 	}
 
+	// Block execution until Nomad confirmed all deletion requests.
 	var wg sync.WaitGroup
 	for _, id := range ids {
 		wg.Add(1)

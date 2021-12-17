@@ -19,6 +19,20 @@ func (_m *ExecutionEnvironmentMock) AddRunner(r Runner) {
 	_m.Called(r)
 }
 
+// ApplyPrewarmingPoolSize provides a mock function with given fields: apiClient
+func (_m *ExecutionEnvironmentMock) ApplyPrewarmingPoolSize(apiClient nomad.ExecutorAPI) error {
+	ret := _m.Called(apiClient)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(nomad.ExecutorAPI) error); ok {
+		r0 = rf(apiClient)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CPULimit provides a mock function with given fields:
 func (_m *ExecutionEnvironmentMock) CPULimit() uint {
 	ret := _m.Called()
@@ -205,20 +219,6 @@ func (_m *ExecutionEnvironmentMock) Sample(apiClient nomad.ExecutorAPI) (Runner,
 	return r0, r1
 }
 
-// Scale provides a mock function with given fields: apiClient
-func (_m *ExecutionEnvironmentMock) Scale(apiClient nomad.ExecutorAPI) error {
-	ret := _m.Called(apiClient)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(nomad.ExecutorAPI) error); ok {
-		r0 = rf(apiClient)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // SetCPULimit provides a mock function with given fields: limit
 func (_m *ExecutionEnvironmentMock) SetCPULimit(limit uint) {
 	_m.Called(limit)
@@ -252,18 +252,4 @@ func (_m *ExecutionEnvironmentMock) SetNetworkAccess(allow bool, ports []uint16)
 // SetPrewarmingPoolSize provides a mock function with given fields: count
 func (_m *ExecutionEnvironmentMock) SetPrewarmingPoolSize(count uint) {
 	_m.Called(count)
-}
-
-// UpdateRunnerSpecs provides a mock function with given fields: apiClient
-func (_m *ExecutionEnvironmentMock) UpdateRunnerSpecs(apiClient nomad.ExecutorAPI) error {
-	ret := _m.Called(apiClient)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(nomad.ExecutorAPI) error); ok {
-		r0 = rf(apiClient)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }

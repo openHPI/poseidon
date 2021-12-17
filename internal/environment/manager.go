@@ -88,7 +88,7 @@ func (m *NomadEnvironmentManager) Get(id dto.EnvironmentID, fetch bool) (
 			}
 			ok = false
 		case !ok:
-			m.runnerManager.SetEnvironment(fetchedEnvironment)
+			m.runnerManager.StoreEnvironment(fetchedEnvironment)
 			executionEnvironment = fetchedEnvironment
 			ok = true
 		default:
@@ -114,32 +114,39 @@ func (m *NomadEnvironmentManager) List(fetch bool) ([]runner.ExecutionEnvironmen
 
 func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
 	created bool, err error) {
-	environment, ok := m.runnerManager.GetEnvironment(id)
-	if !ok {
-		environment, err = NewNomadEnvironment(m.templateEnvironmentHCL)
+	// Check if execution environment is already existing (in the local memory).
+	environment, isExistingEnvironment := m.runnerManager.GetEnvironment(id)
+	if isExistingEnvironment {
+		// Remove existing environment to force downloading the newest Docker image.
+		// See https://github.com/openHPI/poseidon/issues/69
+		err = environment.Delete(m.api)
 		if err != nil {
-			return false, fmt.Errorf("error creating Nomad environment: %w", err)
+			return false, fmt.Errorf("failed to remove the environment: %w", err)
 		}
-		environment.SetID(id)
 	}
 
-	environment.SetPrewarmingPoolSize(request.PrewarmingPoolSize)
-	environment.SetCPULimit(request.CPULimit)
-	environment.SetMemoryLimit(request.MemoryLimit)
-	environment.SetImage(request.Image)
-	environment.SetNetworkAccess(request.NetworkAccess, request.ExposedPorts)
-	created = m.runnerManager.SetEnvironment(environment)
+	// Create a new environment with the given request options.
+	environment, err = NewNomadEnvironmentFromRequest(m.templateEnvironmentHCL, id, request)
+	if err != nil {
+		return false, fmt.Errorf("error creating Nomad environment: %w", err)
+	}
 
+	// Keep a copy of environment specification in memory.
+	m.runnerManager.StoreEnvironment(environment)
+
+	// Register template Job with Nomad.
 	err = environment.Register(m.api)
 	if err != nil {
 		return false, fmt.Errorf("error registering template job in API: %w", err)
 	}
-	err = environment.Scale(m.api)
+
+	// Launch idle runners based on the template job.
+	err = environment.ApplyPrewarmingPoolSize(m.api)
 	if err != nil {
 		return false, fmt.Errorf("error scaling template job in API: %w", err)
 	}
 
-	return created, nil
+	return !isExistingEnvironment, nil
 }
 
 func (m *NomadEnvironmentManager) Delete(id dto.EnvironmentID) (bool, error) {
@@ -181,7 +188,7 @@ func (m *NomadEnvironmentManager) Load() error {
 			job:         job,
 			idleRunners: runner.NewLocalRunnerStorage(),
 		}
-		m.runnerManager.SetEnvironment(environment)
+		m.runnerManager.StoreEnvironment(environment)
 		jobLogger.Info("Successfully recovered environment")
 	}
 	return nil

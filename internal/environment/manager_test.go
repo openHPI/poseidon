@@ -57,7 +57,7 @@ func (s *CreateOrUpdateTestSuite) TestReturnsErrorIfCreatesOrUpdateEnvironmentRe
 	s.apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.runnerManagerMock.On("GetEnvironment", mock.AnythingOfType("dto.EnvironmentID")).Return(nil, false)
-	s.runnerManagerMock.On("SetEnvironment", mock.AnythingOfType("*environment.NomadEnvironment")).Return(true)
+	s.runnerManagerMock.On("StoreEnvironment", mock.AnythingOfType("*environment.NomadEnvironment")).Return(true)
 	_, err := s.manager.CreateOrUpdate(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
 	s.ErrorIs(err, tests.ErrDefault)
 }
@@ -67,7 +67,7 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 	s.apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.runnerManagerMock.On("GetEnvironment", mock.AnythingOfType("dto.EnvironmentID")).Return(nil, false)
-	s.runnerManagerMock.On("SetEnvironment", mock.AnythingOfType("*environment.NomadEnvironment")).Return(true)
+	s.runnerManagerMock.On("StoreEnvironment", mock.AnythingOfType("*environment.NomadEnvironment")).Return(true)
 	s.apiMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.Anything).Return(nil)
 	s.apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	call := s.apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job"))
@@ -155,7 +155,7 @@ func TestNomadEnvironmentManager_Get(t *testing.T) {
 		expectedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
 		expectedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		require.NoError(t, err)
-		runnerManager.SetEnvironment(expectedEnvironment)
+		runnerManager.StoreEnvironment(expectedEnvironment)
 
 		environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
 		assert.NoError(t, err)
@@ -181,7 +181,7 @@ func TestNomadEnvironmentManager_Get(t *testing.T) {
 			localEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
 			require.NoError(t, err)
 			localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
-			runnerManager.SetEnvironment(localEnvironment)
+			runnerManager.StoreEnvironment(localEnvironment)
 
 			environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
 			assert.NoError(t, err)
@@ -234,7 +234,7 @@ func TestNomadEnvironmentManager_List(t *testing.T) {
 		localEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
 		require.NoError(t, err)
 		localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
-		runnerManager.SetEnvironment(localEnvironment)
+		runnerManager.StoreEnvironment(localEnvironment)
 
 		environments, err := m.List(false)
 		assert.NoError(t, err)

@@ -51,3 +51,13 @@ limits {
     http_max_conns_per_client = 0
 }
 ```
+
+### Enable Networking Support in Nomad
+
+In order to allow full networking support in Nomad, the `containernetworking-plugins` are required on the host. They can be either installed manually or through a package manager. In the latter case, the installation path might differ. Hence, add the following line to the `client` directive of the Nomad configuration in `/etc/nomad.d/client.hcl`:
+
+```hcl
+    cni_path = "/usr/lib/cni"
+```
+
+If the path is not set up correctly or the dependency is missing, the following error will be shown in Nomad: `failed to find plugin "bridge" in path [/opt/cni/bin]`

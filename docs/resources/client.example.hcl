@@ -4,6 +4,7 @@ client {
         "server domain 1",
         "server domain 2"
     ]
+    cni_path = "/usr/lib/cni"
 }
 
 plugin "docker" {

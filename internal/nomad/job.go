@@ -37,7 +37,7 @@ var (
 )
 
 func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
-	taskGroup := FindOrCreateConfigTaskGroup(template)
+	taskGroup := FindAndValidateConfigTaskGroup(template)
 
 	taskGroup.Meta = make(map[string]string)
 	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
@@ -61,28 +61,29 @@ func FindTaskGroup(job *nomadApi.Job, name string) *nomadApi.TaskGroup {
 	return nil
 }
 
-func FindOrCreateDefaultTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
+func FindAndValidateDefaultTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 	taskGroup := FindTaskGroup(job, TaskGroupName)
 	if taskGroup == nil {
 		taskGroup = nomadApi.NewTaskGroup(TaskGroupName, TaskCount)
 		job.AddTaskGroup(taskGroup)
 	}
-	FindOrCreateDefaultTask(taskGroup)
+	FindAndValidateDefaultTask(taskGroup)
 	return taskGroup
 }
 
-func FindOrCreateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
+func FindAndValidateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 	taskGroup := FindTaskGroup(job, ConfigTaskGroupName)
 	if taskGroup == nil {
 		taskGroup = nomadApi.NewTaskGroup(ConfigTaskGroupName, 0)
 		job.AddTaskGroup(taskGroup)
 	}
-	FindOrCreateConfigTask(taskGroup)
+	FindAndValidateConfigTask(taskGroup)
 	return taskGroup
 }
 
-// FindOrCreateConfigTask ensures that a dummy task is in the task group so that the group is accepted by Nomad.
-func FindOrCreateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
+// FindAndValidateConfigTask returns the config task and
+// ensures that a dummy task is in the task group so that the group is accepted by Nomad. It might modify the task.
+func FindAndValidateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	var task *nomadApi.Task
 	for _, t := range taskGroup.Tasks {
 		if t.Name == ConfigTaskName {
@@ -107,8 +108,9 @@ func FindOrCreateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	return task
 }
 
-// FindOrCreateDefaultTask ensures that a default task is in the task group in that the executions are made.
-func FindOrCreateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
+// FindAndValidateDefaultTask returns the default task and
+// ensures that a default task is in the task group in that the executions are made. It might modify the task.
+func FindAndValidateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	var task *nomadApi.Task
 	for _, t := range taskGroup.Tasks {
 		if t.Name == TaskName {
@@ -142,8 +144,8 @@ func FindOrCreateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 
 // SetForcePullFlag sets the flag of a job if the image should be pulled again.
 func SetForcePullFlag(job *nomadApi.Job, value bool) {
-	taskGroup := FindOrCreateDefaultTaskGroup(job)
-	task := FindOrCreateDefaultTask(taskGroup)
+	taskGroup := FindAndValidateDefaultTaskGroup(job)
+	task := FindAndValidateDefaultTask(taskGroup)
 	task.Config["force_pull"] = value
 }
 

@@ -16,7 +16,7 @@ import (
 
 func TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists(t *testing.T) {
 	_, job := helpers.CreateTemplateJob()
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(job)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 	environment := &NomadEnvironment{"", job, nil}
 
 	if assert.Equal(t, 0, len(defaultTaskGroup.Networks)) {
@@ -28,7 +28,7 @@ func TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists(t *testing.T) {
 
 func TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkExists(t *testing.T) {
 	_, job := helpers.CreateTemplateJob()
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(job)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 	environment := &NomadEnvironment{"", job, nil}
 
 	networkResource := &nomadApi.NetworkResource{Mode: "bridge"}
@@ -44,8 +44,8 @@ func TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkExists(t *testing.T) 
 
 func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 	_, job := helpers.CreateTemplateJob()
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
 	mode, ok := defaultTask.Config["network_mode"]
 	assert.True(t, ok)
@@ -56,8 +56,8 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 	t.Run("with no network access", func(t *testing.T) {
 		for _, ports := range exposedPortsTests {
 			_, testJob := helpers.CreateTemplateJob()
-			testTaskGroup := nomad.FindOrCreateDefaultTaskGroup(testJob)
-			testTask := nomad.FindOrCreateDefaultTask(testTaskGroup)
+			testTaskGroup := nomad.FindAndValidateDefaultTaskGroup(testJob)
+			testTask := nomad.FindAndValidateDefaultTask(testTaskGroup)
 			testEnvironment := &NomadEnvironment{"", job, nil}
 
 			testEnvironment.SetNetworkAccess(false, ports)
@@ -71,8 +71,8 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 	t.Run("with network access", func(t *testing.T) {
 		for _, ports := range exposedPortsTests {
 			_, testJob := helpers.CreateTemplateJob()
-			testTaskGroup := nomad.FindOrCreateDefaultTaskGroup(testJob)
-			testTask := nomad.FindOrCreateDefaultTask(testTaskGroup)
+			testTaskGroup := nomad.FindAndValidateDefaultTaskGroup(testJob)
+			testTask := nomad.FindAndValidateDefaultTask(testTaskGroup)
 			testEnvironment := &NomadEnvironment{"", testJob, nil}
 
 			testEnvironment.SetNetworkAccess(true, ports)
@@ -197,8 +197,8 @@ func TestSampleDoesNotSetForcePullFlag(t *testing.T) {
 		job, ok := args.Get(0).(*nomadApi.Job)
 		assert.True(t, ok)
 
-		taskGroup := nomad.FindOrCreateDefaultTaskGroup(job)
-		task := nomad.FindOrCreateDefaultTask(taskGroup)
+		taskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
+		task := nomad.FindAndValidateDefaultTask(taskGroup)
 		assert.False(t, task.Config["force_pull"].(bool))
 
 		call.ReturnArguments = mock.Arguments{nil}

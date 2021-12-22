@@ -68,7 +68,7 @@ func (n *NomadEnvironment) SetID(id dto.EnvironmentID) {
 }
 
 func (n *NomadEnvironment) PrewarmingPoolSize() uint {
-	configTaskGroup := nomad.FindOrCreateConfigTaskGroup(n.job)
+	configTaskGroup := nomad.FindAndValidateConfigTaskGroup(n.job)
 	count, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaPoolSizeKey])
 	if err != nil {
 		log.WithError(err).Error("Prewarming pool size can not be parsed from Job")
@@ -77,7 +77,7 @@ func (n *NomadEnvironment) PrewarmingPoolSize() uint {
 }
 
 func (n *NomadEnvironment) SetPrewarmingPoolSize(count uint) {
-	taskGroup := nomad.FindOrCreateConfigTaskGroup(n.job)
+	taskGroup := nomad.FindAndValidateConfigTaskGroup(n.job)
 
 	if taskGroup.Meta == nil {
 		taskGroup.Meta = make(map[string]string)
@@ -86,36 +86,36 @@ func (n *NomadEnvironment) SetPrewarmingPoolSize(count uint) {
 }
 
 func (n *NomadEnvironment) CPULimit() uint {
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 	return uint(*defaultTask.Resources.CPU)
 }
 
 func (n *NomadEnvironment) SetCPULimit(limit uint) {
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
 	integerCPULimit := int(limit)
 	defaultTask.Resources.CPU = &integerCPULimit
 }
 
 func (n *NomadEnvironment) MemoryLimit() uint {
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 	return uint(*defaultTask.Resources.MemoryMB)
 }
 
 func (n *NomadEnvironment) SetMemoryLimit(limit uint) {
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
 	integerMemoryLimit := int(limit)
 	defaultTask.Resources.MemoryMB = &integerMemoryLimit
 }
 
 func (n *NomadEnvironment) Image() string {
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 	image, ok := defaultTask.Config["image"].(string)
 	if !ok {
 		image = ""
@@ -124,14 +124,14 @@ func (n *NomadEnvironment) Image() string {
 }
 
 func (n *NomadEnvironment) SetImage(image string) {
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 	defaultTask.Config["image"] = image
 }
 
 func (n *NomadEnvironment) NetworkAccess() (allowed bool, ports []uint16) {
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
 	allowed = defaultTask.Config["network_mode"] != "none"
 	if len(defaultTaskGroup.Networks) > 0 {
@@ -144,8 +144,8 @@ func (n *NomadEnvironment) NetworkAccess() (allowed bool, ports []uint16) {
 }
 
 func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
-	defaultTaskGroup := nomad.FindOrCreateDefaultTaskGroup(n.job)
-	defaultTask := nomad.FindOrCreateDefaultTask(defaultTaskGroup)
+	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
 	if len(defaultTaskGroup.Tasks) == 0 {
 		// This function is only used internally and must be called as last step when configuring the task.
@@ -284,6 +284,9 @@ func (n *NomadEnvironment) DeepCopyJob() *nomadApi.Job {
 	return copyEnvironment.job
 }
 
+// SetConfigFrom gets the options from the environment job and saves it into another temporary job.
+// IMPROVE: The getters use a validation function that theoretically could edit the environment job.
+// But this modification might never been saved to Nomad.
 func (n *NomadEnvironment) SetConfigFrom(environment runner.ExecutionEnvironment) {
 	n.SetID(environment.ID())
 	n.SetPrewarmingPoolSize(environment.PrewarmingPoolSize())

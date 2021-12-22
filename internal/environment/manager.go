@@ -178,7 +178,7 @@ func (m *NomadEnvironmentManager) Load() error {
 			jobLogger.Info("Job not running, skipping ...")
 			continue
 		}
-		configTaskGroup := nomad.FindOrCreateConfigTaskGroup(job)
+		configTaskGroup := nomad.FindAndValidateConfigTaskGroup(job)
 		if configTaskGroup == nil {
 			jobLogger.Info("Couldn't find config task group in job, skipping ...")
 			continue

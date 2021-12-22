@@ -29,7 +29,7 @@ job "template-0" {
       kill_signal = "SIGKILL"
 
       config {
-        image = "drp.codemoon.xopic.de/openhpi/co_execenv_python:3.8"
+        image = "openhpi/docker_exec_phusion"
         command = "sleep"
         args = ["infinity"]
         network_mode = "none"

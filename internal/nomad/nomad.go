@@ -238,6 +238,10 @@ func handleEvaluationEvent(evaluations map[string]chan error, event *nomadApi.Ev
 			case <-time.After(resultChannelWriteTimeout):
 				log.WithField("eval", eval).Error("Full evaluation channel")
 			}
+		} else if eval.TriggeredBy == "alloc-failure" {
+			log.WithField("job", eval.JobID).
+				WithField("eval", eval).
+				Warn("Allocation failure")
 		}
 	}
 	return nil

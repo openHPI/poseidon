@@ -86,13 +86,14 @@ func (s *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
 	s.Equal(s.availableRunner.ID, returnedIds[0])
 }
 
-func (s *LoadRunnersTestSuite) TestPendingRunnerIsNotReturned() {
+func (s *LoadRunnersTestSuite) TestPendingRunnerIsReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.pendingRunner}, nil)
 
 	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
 	s.Require().NoError(err)
-	s.Empty(returnedIds)
+	s.Len(returnedIds, 1)
+	s.Equal(s.pendingRunner.ID, returnedIds[0])
 }
 
 func (s *LoadRunnersTestSuite) TestDeadRunnerIsNotReturned() {
@@ -116,9 +117,11 @@ func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 
 	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
 	s.Require().NoError(err)
-	s.Len(returnedIds, 2)
+	s.Len(returnedIds, 3)
 	s.Contains(returnedIds, s.availableRunner.ID)
 	s.Contains(returnedIds, s.anotherAvailableRunner.ID)
+	s.Contains(returnedIds, s.pendingRunner.ID)
+	s.NotContains(returnedIds, s.deadRunner.ID)
 }
 
 const TestNamespace = "unit-tests"

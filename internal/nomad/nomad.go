@@ -39,7 +39,7 @@ type ExecutorAPI interface {
 	// LoadRunnerJobs loads all runner jobs specific for the environment.
 	LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi.Job, error)
 
-	// LoadRunnerIDs returns the IDs of all runners with the specified id prefix which are running and not about to
+	// LoadRunnerIDs returns the IDs of all runners with the specified id prefix which are not about to
 	// get stopped.
 	LoadRunnerIDs(prefix string) (runnerIds []string, err error)
 
@@ -101,8 +101,8 @@ func (a *APIClient) LoadRunnerIDs(prefix string) (runnerIDs []string, err error)
 		return nil, err
 	}
 	for _, jobListStub := range list {
-		allocationRunning := jobListStub.JobSummary.Summary[TaskGroupName].Running > 0
-		if jobListStub.Status == structs.JobStatusRunning && allocationRunning {
+		// Filter out dead ("complete", "failed" or "lost") jobs
+		if jobListStub.Status != structs.JobStatusDead {
 			runnerIDs = append(runnerIDs, jobListStub.ID)
 		}
 	}

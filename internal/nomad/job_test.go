@@ -24,7 +24,7 @@ func TestFindTaskGroup(t *testing.T) {
 func TestFindOrCreateDefaultTask(t *testing.T) {
 	t.Run("Adds default task group when not set", func(t *testing.T) {
 		job := &nomadApi.Job{}
-		group := FindOrCreateDefaultTaskGroup(job)
+		group := FindAndValidateDefaultTaskGroup(job)
 		assert.NotNil(t, group)
 		assert.Equal(t, TaskGroupName, *group.Name)
 		assert.Equal(t, 1, len(job.TaskGroups))
@@ -38,7 +38,7 @@ func TestFindOrCreateDefaultTask(t *testing.T) {
 		expectedGroup := &nomadApi.TaskGroup{Name: &groupName}
 		job.TaskGroups = []*nomadApi.TaskGroup{expectedGroup}
 
-		group := FindOrCreateDefaultTaskGroup(job)
+		group := FindAndValidateDefaultTaskGroup(job)
 		assert.NotNil(t, group)
 		assert.Equal(t, 1, len(job.TaskGroups))
 		assert.Equal(t, expectedGroup, group)
@@ -48,7 +48,7 @@ func TestFindOrCreateDefaultTask(t *testing.T) {
 func TestFindOrCreateConfigTaskGroup(t *testing.T) {
 	t.Run("Adds config task group when not set", func(t *testing.T) {
 		job := &nomadApi.Job{}
-		group := FindOrCreateConfigTaskGroup(job)
+		group := FindAndValidateConfigTaskGroup(job)
 		assert.NotNil(t, group)
 		assert.Equal(t, group, job.TaskGroups[0])
 		assert.Equal(t, 1, len(job.TaskGroups))
@@ -63,7 +63,7 @@ func TestFindOrCreateConfigTaskGroup(t *testing.T) {
 		expectedGroup := &nomadApi.TaskGroup{Name: &groupName}
 		job.TaskGroups = []*nomadApi.TaskGroup{expectedGroup}
 
-		group := FindOrCreateConfigTaskGroup(job)
+		group := FindAndValidateConfigTaskGroup(job)
 		assert.NotNil(t, group)
 		assert.Equal(t, 1, len(job.TaskGroups))
 		assert.Equal(t, expectedGroup, group)
@@ -77,7 +77,7 @@ func TestFindOrCreateTask(t *testing.T) {
 		expectedTask := &nomadApi.Task{Name: TaskName}
 		group.Tasks = []*nomadApi.Task{expectedTask}
 
-		task := FindOrCreateDefaultTask(group)
+		task := FindAndValidateDefaultTask(group)
 		assert.NotNil(t, task)
 		assert.Equal(t, 1, len(group.Tasks))
 		assert.Equal(t, expectedTask, task)
@@ -89,7 +89,7 @@ func TestFindOrCreateTask(t *testing.T) {
 		expectedTask := &nomadApi.Task{Name: ConfigTaskName}
 		group.Tasks = []*nomadApi.Task{expectedTask}
 
-		task := FindOrCreateConfigTask(group)
+		task := FindAndValidateConfigTask(group)
 		assert.NotNil(t, task)
 		assert.Equal(t, 1, len(group.Tasks))
 		assert.Equal(t, expectedTask, task)

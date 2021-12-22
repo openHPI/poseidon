@@ -79,8 +79,8 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 
 		// The environment job itself has not the force_pull flag
 		if count > 1 {
-			taskGroup := nomad.FindOrCreateDefaultTaskGroup(job)
-			task := nomad.FindOrCreateDefaultTask(taskGroup)
+			taskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
+			task := nomad.FindAndValidateDefaultTask(taskGroup)
 			s.True(task.Config["force_pull"].(bool))
 		}
 

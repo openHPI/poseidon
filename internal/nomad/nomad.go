@@ -311,7 +311,7 @@ func (a *APIClient) MarkRunnerAsUsed(runnerID string, duration int) error {
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve job info: %w", err)
 	}
-	configTaskGroup := FindOrCreateConfigTaskGroup(job)
+	configTaskGroup := FindAndValidateConfigTaskGroup(job)
 	configTaskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUsedValue
 	configTaskGroup.Meta[ConfigMetaTimeoutKey] = strconv.Itoa(duration)
 

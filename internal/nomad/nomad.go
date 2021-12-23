@@ -238,10 +238,6 @@ func handleEvaluationEvent(evaluations map[string]chan error, event *nomadApi.Ev
 			case <-time.After(resultChannelWriteTimeout):
 				log.WithField("eval", eval).Error("Full evaluation channel")
 			}
-		} else if eval.TriggeredBy == "alloc-failure" {
-			log.WithField("job", eval.JobID).
-				WithField("eval", eval).
-				Warn("Allocation failure")
 		}
 	}
 	return nil
@@ -270,25 +266,61 @@ func handleAllocationEvent(startTime int64, pendingAllocations map[string]bool, 
 		return nil
 	}
 
-	if alloc.ClientStatus == structs.AllocClientStatusRunning {
-		switch alloc.DesiredStatus {
-		case structs.AllocDesiredStatusStop:
-			onDeletedAllocation(alloc)
-		case structs.AllocDesiredStatusRun:
-			// is first event that marks the transition between pending and running?
-			_, ok := pendingAllocations[alloc.ID]
-			if ok {
-				onNewAllocation(alloc)
-				delete(pendingAllocations, alloc.ID)
-			}
-		}
+	switch alloc.ClientStatus {
+	case structs.AllocClientStatusPending:
+		handlePendingAllocationEvent(alloc, pendingAllocations)
+	case structs.AllocClientStatusRunning:
+		handleRunningAllocationEvent(alloc, pendingAllocations, onNewAllocation, onDeletedAllocation)
+	case structs.AllocClientStatusFailed:
+		handleFailedAllocationEvent(alloc)
 	}
+	return nil
+}
 
-	if alloc.ClientStatus == structs.AllocClientStatusPending && alloc.DesiredStatus == structs.AllocDesiredStatusRun {
+// handlePendingAllocationEvent sets flag in pendingAllocations that can be used to filter following events.
+func handlePendingAllocationEvent(alloc *nomadApi.Allocation, pendingAllocations map[string]bool) {
+	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		// allocation is started, wait until it runs and add to our list afterwards
 		pendingAllocations[alloc.ID] = true
 	}
-	return nil
+}
+
+// handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
+func handleRunningAllocationEvent(alloc *nomadApi.Allocation,
+	pendingAllocations map[string]bool, onNewAllocation, onDeletedAllocation AllocationProcessor) {
+	switch alloc.DesiredStatus {
+	case structs.AllocDesiredStatusStop:
+		onDeletedAllocation(alloc)
+	case structs.AllocDesiredStatusRun:
+		// is first event that marks the transition between pending and running?
+		_, ok := pendingAllocations[alloc.ID]
+		if ok {
+			onNewAllocation(alloc)
+			delete(pendingAllocations, alloc.ID)
+		}
+	}
+}
+
+// handleFailedAllocationEvent logs only the first of the multiple failure events.
+func handleFailedAllocationEvent(alloc *nomadApi.Allocation) {
+	if alloc.FollowupEvalID == "" && alloc.PreviousAllocation == "" {
+		log.WithField("job", alloc.JobID).
+			WithField("reason", failureDisplayMessage(alloc)).
+			WithField("alloc", alloc).
+			Warn("Allocation failure")
+	}
+}
+
+// failureDisplayMessage parses the DisplayMessage of a failed allocation.
+func failureDisplayMessage(alloc *nomadApi.Allocation) (msg string) {
+	for _, state := range alloc.TaskStates {
+		for _, event := range state.Events {
+			if event.FailsTask {
+				return event.DisplayMessage
+			}
+		}
+	}
+	return ""
 }
 
 // checkEvaluation checks whether the given evaluation failed.

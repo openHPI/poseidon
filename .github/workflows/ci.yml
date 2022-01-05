@@ -34,6 +34,7 @@ jobs:
         # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.
         # More details: https://github.com/golang/go/blob/d60ad1e068263832c711aaf17b6ccb1b7f71b000/src/cmd/go/internal/cache/cache.go#L255-L326
         run: date +%s > ~/.cache/go-build/trim.txt
+        continue-on-error: true
       - name: Build
         run: make build
       - name: Upload Poseidon binary
@@ -74,6 +75,7 @@ jobs:
         # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.
         # More details: https://github.com/golang/go/blob/d60ad1e068263832c711aaf17b6ccb1b7f71b000/src/cmd/go/internal/cache/cache.go#L255-L326
         run: date +%s > ~/.cache/go-build/trim.txt
+        continue-on-error: true
       - name: Run tests
         run: make coverhtml
       - name: Upload coverage report
@@ -125,6 +127,7 @@ jobs:
         # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.
         # More details: https://github.com/golang/go/blob/d60ad1e068263832c711aaf17b6ccb1b7f71b000/src/cmd/go/internal/cache/cache.go#L255-L326
         run: date +%s > ~/.cache/go-build/trim.txt
+        continue-on-error: true
       - name: Cache Nomad binary
         uses: actions/cache@v2
         with:

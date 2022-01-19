@@ -27,7 +27,7 @@ const (
 // always returns a router for the newest version of our API. We
 // use gorilla/mux because it is more convenient than net/http, e.g.
 // when extracting path parameters.
-func NewRouter(runnerManager runner.Manager, environmentManager environment.Manager) *mux.Router {
+func NewRouter(runnerManager runner.Manager, environmentManager environment.ManagerHandler) *mux.Router {
 	router := mux.NewRouter()
 	// this can later be restricted to a specific host with
 	// `router.Host(...)` and to HTTPS with `router.Schemes("https")`
@@ -37,7 +37,8 @@ func NewRouter(runnerManager runner.Manager, environmentManager environment.Mana
 }
 
 // configureV1Router configures a given router with the routes of version 1 of the Poseidon API.
-func configureV1Router(router *mux.Router, runnerManager runner.Manager, environmentManager environment.Manager) {
+func configureV1Router(router *mux.Router,
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
 	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.WithField("request", r).Debug("Not Found Handler")
 		w.WriteHeader(http.StatusNotFound)

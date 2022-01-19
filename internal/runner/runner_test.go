@@ -390,6 +390,6 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 }
 
 // NewRunner creates a new runner with the provided id and manager.
-func NewRunner(id string, manager Manager) Runner {
+func NewRunner(id string, manager Accessor) Runner {
 	return NewNomadJob(id, nil, nil, manager)
 }

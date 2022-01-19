@@ -57,25 +57,43 @@ func runServer(server *http.Server) {
 	}
 }
 
-func initServer() *http.Server {
+func createNomadManager() (runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
 	// API initialization
 	nomadAPIClient, err := nomad.NewExecutorAPI(&config.Config.Nomad)
 	if err != nil {
 		log.WithError(err).WithField("nomad config", config.Config.Nomad).Fatal("Error creating Nomad API client")
 	}
 
-	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
-	environmentManager, err := environment.
+	runnerManager = runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
+	environmentManager, err = environment.
 		NewNomadEnvironmentManager(runnerManager, nomadAPIClient, config.Config.Server.TemplateJobFile)
 	if err != nil {
 		log.WithError(err).Fatal("Error initializing environment manager")
 	}
+	return runnerManager, environmentManager
+}
+
+func createAWSManager(nextRunnerManager runner.Manager, nextEnvironmentManager environment.ManagerHandler) (
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+	runnerManager = runner.NewAWSRunnerManager()
+	runnerManager.SetNextHandler(nextRunnerManager)
+
+	environmentManager = environment.NewAWSEnvironmentManager(runnerManager)
+	environmentManager.SetNextHandler(nextEnvironmentManager)
+
+	return runnerManager, environmentManager
+}
+
+// initServer builds the http server and configures it with the chain of responsibility for multiple managers.
+func initServer() *http.Server {
+	nomadRunnerManager, nomadEnvironmentManager := createNomadManager()
+	awsRunnerManager, awsEnvironmentManager := createAWSManager(nomadRunnerManager, nomadEnvironmentManager)
 
 	return &http.Server{
 		Addr:        config.Config.Server.URL().Host,
 		ReadTimeout: time.Second * 15,
 		IdleTimeout: time.Second * 60,
-		Handler:     api.NewRouter(runnerManager, environmentManager),
+		Handler:     api.NewRouter(awsRunnerManager, awsEnvironmentManager),
 	}
 }
 

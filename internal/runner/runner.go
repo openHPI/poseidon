@@ -79,12 +79,12 @@ type NomadJob struct {
 	id           string
 	portMappings []nomadApi.PortMapping
 	api          nomad.ExecutorAPI
-	manager      Manager
+	manager      Accessor
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.
 func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
-	apiClient nomad.ExecutorAPI, manager Manager,
+	apiClient nomad.ExecutorAPI, manager Accessor,
 ) *NomadJob {
 	job := &NomadJob{
 		id:           id,

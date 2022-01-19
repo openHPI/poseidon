@@ -24,7 +24,7 @@ const (
 )
 
 type RunnerController struct {
-	manager      runner.Manager
+	manager      runner.Accessor
 	runnerRouter *mux.Router
 }
 
@@ -52,10 +52,10 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
 	nextRunner, err := r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
 	if err != nil {
-		switch err {
-		case runner.ErrUnknownExecutionEnvironment:
+		switch {
+		case errors.Is(err, runner.ErrUnknownExecutionEnvironment):
 			writeNotFound(writer, err)
-		case runner.ErrNoRunnersAvailable:
+		case errors.Is(err, runner.ErrNoRunnersAvailable):
 			log.WithField("environment", environmentID).Warn("No runners available")
 			writeInternalServerError(writer, err, dto.ErrorNomadOverload)
 		default:

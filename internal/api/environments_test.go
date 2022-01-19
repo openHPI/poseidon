@@ -21,7 +21,7 @@ import (
 
 type EnvironmentControllerTestSuite struct {
 	suite.Suite
-	manager *environment.ManagerMock
+	manager *environment.ManagerHandlerMock
 	router  *mux.Router
 }
 
@@ -30,7 +30,7 @@ func TestEnvironmentControllerTestSuite(t *testing.T) {
 }
 
 func (s *EnvironmentControllerTestSuite) SetupTest() {
-	s.manager = &environment.ManagerMock{}
+	s.manager = &environment.ManagerHandlerMock{}
 	s.router = NewRouter(nil, s.manager)
 }
 

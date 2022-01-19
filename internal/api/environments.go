@@ -24,7 +24,7 @@ const (
 var ErrMissingURLParameter = errors.New("url parameter missing")
 
 type EnvironmentController struct {
-	manager environment.Manager
+	manager environment.ManagerHandler
 }
 
 type ExecutionEnvironmentsResponse struct {

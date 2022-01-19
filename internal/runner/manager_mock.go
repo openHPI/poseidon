@@ -123,6 +123,22 @@ func (_m *ManagerMock) Load() {
 	_m.Called()
 }
 
+// NextHandler provides a mock function with given fields:
+func (_m *ManagerMock) NextHandler() AccessorHandler {
+	ret := _m.Called()
+
+	var r0 AccessorHandler
+	if rf, ok := ret.Get(0).(func() AccessorHandler); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(AccessorHandler)
+		}
+	}
+
+	return r0
+}
+
 // Return provides a mock function with given fields: r
 func (_m *ManagerMock) Return(r Runner) error {
 	ret := _m.Called(r)
@@ -135,6 +151,11 @@ func (_m *ManagerMock) Return(r Runner) error {
 	}
 
 	return r0
+}
+
+// SetNextHandler provides a mock function with given fields: m
+func (_m *ManagerMock) SetNextHandler(m AccessorHandler) {
+	_m.Called(m)
 }
 
 // StoreEnvironment provides a mock function with given fields: environment

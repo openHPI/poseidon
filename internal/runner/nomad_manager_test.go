@@ -227,7 +227,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 	allocation.JobID = environment.ID().ToString()
 	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
-	_, ok = environment.Sample(s.apiMock)
+	_, ok = environment.Sample()
 	s.Require().False(ok)
 
 	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
@@ -244,7 +244,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 	go s.nomadRunnerManager.keepRunnersSynced(ctx)
 	<-time.After(10 * time.Millisecond)
 
-	_, ok = environment.Sample(s.apiMock)
+	_, ok = environment.Sample()
 	s.True(ok)
 }
 
@@ -272,7 +272,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	go s.nomadRunnerManager.keepRunnersSynced(ctx)
 	<-time.After(10 * time.Millisecond)
 
-	_, ok = environment.Sample(s.apiMock)
+	_, ok = environment.Sample()
 	s.False(ok)
 	_, ok = s.nomadRunnerManager.usedRunners.Get(allocation.JobID)
 	s.False(ok)
@@ -295,7 +295,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 		alloc := &nomadApi.Allocation{JobID: nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)}
 		s.nomadRunnerManager.onAllocationAdded(alloc)
 
-		_, ok = environment.Sample(s.apiMock)
+		_, ok = environment.Sample()
 		s.False(ok)
 	})
 	s.Run("does not panic when environment id cannot be parsed", func() {
@@ -326,7 +326,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 			}
 			s.nomadRunnerManager.onAllocationAdded(alloc)
 
-			runner, ok := environment.Sample(s.apiMock)
+			runner, ok := environment.Sample()
 			s.True(ok)
 			nomadJob, ok := runner.(*NomadJob)
 			s.True(ok)
@@ -346,7 +346,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 			}
 			s.nomadRunnerManager.onAllocationAdded(alloc)
 
-			runner, ok := environment.Sample(s.apiMock)
+			runner, ok := environment.Sample()
 			s.True(ok)
 			nomadJob, ok := runner.(*NomadJob)
 			s.True(ok)

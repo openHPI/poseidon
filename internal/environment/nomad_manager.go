@@ -91,14 +91,14 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request d
 	if isExistingEnvironment {
 		// Remove existing environment to force downloading the newest Docker image.
 		// See https://github.com/openHPI/poseidon/issues/69
-		err = environment.Delete(m.api)
+		err = environment.Delete()
 		if err != nil {
 			return false, fmt.Errorf("failed to remove the environment: %w", err)
 		}
 	}
 
 	// Create a new environment with the given request options.
-	environment, err = NewNomadEnvironmentFromRequest(m.templateEnvironmentHCL, id, request)
+	environment, err = NewNomadEnvironmentFromRequest(m.api, m.templateEnvironmentHCL, id, request)
 	if err != nil {
 		return false, fmt.Errorf("error creating Nomad environment: %w", err)
 	}
@@ -107,13 +107,13 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request d
 	m.runnerManager.StoreEnvironment(environment)
 
 	// Register template Job with Nomad.
-	err = environment.Register(m.api)
+	err = environment.Register()
 	if err != nil {
 		return false, fmt.Errorf("error registering template job in API: %w", err)
 	}
 
 	// Launch idle runners based on the template job.
-	err = environment.ApplyPrewarmingPoolSize(m.api)
+	err = environment.ApplyPrewarmingPoolSize()
 	if err != nil {
 		return false, fmt.Errorf("error scaling template job in API: %w", err)
 	}
@@ -127,7 +127,7 @@ func (m *NomadEnvironmentManager) Delete(id dto.EnvironmentID) (bool, error) {
 		return false, nil
 	}
 	m.runnerManager.DeleteEnvironment(id)
-	err := executionEnvironment.Delete(m.api)
+	err := executionEnvironment.Delete()
 	if err != nil {
 		return true, fmt.Errorf("could not delete environment: %w", err)
 	}
@@ -159,6 +159,7 @@ func (m *NomadEnvironmentManager) Load() error {
 			jobHCL:      templateEnvironmentJobHCL,
 			job:         job,
 			idleRunners: runner.NewLocalRunnerStorage(),
+			apiClient:   m.api,
 		}
 		m.runnerManager.StoreEnvironment(environment)
 		jobLogger.Info("Successfully recovered environment")
@@ -197,6 +198,7 @@ func fetchEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner
 				jobHCL:      templateEnvironmentJobHCL,
 				job:         job,
 				idleRunners: runner.NewLocalRunnerStorage(),
+				apiClient:   apiClient,
 			}
 		}
 	}

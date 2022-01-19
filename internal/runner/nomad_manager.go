@@ -83,7 +83,7 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 	if !ok {
 		return nil, ErrUnknownExecutionEnvironment
 	}
-	runner, ok := environment.Sample(m.apiClient)
+	runner, ok := environment.Sample()
 	if !ok {
 		return nil, ErrNoRunnersAvailable
 	}
@@ -133,7 +133,7 @@ func (m *NomadRunnerManager) Load() {
 		for _, job := range runnerJobs {
 			m.loadSingleJob(job, environmentLogger, environment)
 		}
-		err = environment.ApplyPrewarmingPoolSize(m.apiClient)
+		err = environment.ApplyPrewarmingPoolSize()
 		if err != nil {
 			environmentLogger.WithError(err).Error("Couldn't scale environment")
 		}

@@ -87,11 +87,11 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 
 	s.Run("returns multiple environments", func() {
 		call.Run(func(args mock.Arguments) {
-			firstEnvironment, err := environment.NewNomadEnvironment(
-				"job \"" + nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger) + "\" {}")
+			firstEnvironment, err := environment.NewNomadEnvironment(nil,
+				"job \""+nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)+"\" {}")
 			s.Require().NoError(err)
-			secondEnvironment, err := environment.NewNomadEnvironment(
-				"job \"" + nomad.TemplateJobID(tests.AnotherEnvironmentIDAsInteger) + "\" {}")
+			secondEnvironment, err := environment.NewNomadEnvironment(nil,
+				"job \""+nomad.TemplateJobID(tests.AnotherEnvironmentIDAsInteger)+"\" {}")
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{firstEnvironment, secondEnvironment}, nil}
 		})
@@ -149,8 +149,8 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 
 	s.Run("returns environment", func() {
 		call.Run(func(args mock.Arguments) {
-			testEnvironment, err := environment.NewNomadEnvironment(
-				"job \"" + nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger) + "\" {}")
+			testEnvironment, err := environment.NewNomadEnvironment(nil,
+				"job \""+nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)+"\" {}")
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{testEnvironment, nil}
 		})

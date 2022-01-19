@@ -107,7 +107,7 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 
 	t.Run("loads template environment job from file", func(t *testing.T) {
 		templateJobHCL := "job \"test\" {}"
-		_, err := NewNomadEnvironment(templateJobHCL)
+		_, err := NewNomadEnvironment(nil, templateJobHCL)
 		require.NoError(t, err)
 		f := createTempFile(t, templateJobHCL)
 		defer os.Remove(f.Name())
@@ -125,7 +125,7 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 
 		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
 		require.NoError(t, err)
-		_, err = NewNomadEnvironment(m.templateEnvironmentHCL)
+		_, err = NewNomadEnvironment(nil, m.templateEnvironmentHCL)
 		assert.Error(t, err)
 	})
 
@@ -152,7 +152,7 @@ func TestNomadEnvironmentManager_Get(t *testing.T) {
 	})
 
 	t.Run("Returns environment when it was added before", func(t *testing.T) {
-		expectedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+		expectedEnvironment, err := NewNomadEnvironment(apiMock, templateEnvironmentJobHCL)
 		expectedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		require.NoError(t, err)
 		runnerManager.StoreEnvironment(expectedEnvironment)
@@ -170,7 +170,7 @@ func TestNomadEnvironmentManager_Get(t *testing.T) {
 		})
 
 		t.Run("Updates values when environment already known by Poseidon", func(t *testing.T) {
-			fetchedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+			fetchedEnvironment, err := NewNomadEnvironment(nil, templateEnvironmentJobHCL)
 			require.NoError(t, err)
 			fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 			fetchedEnvironment.SetImage("random docker image")
@@ -178,7 +178,7 @@ func TestNomadEnvironmentManager_Get(t *testing.T) {
 				call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
 			})
 
-			localEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+			localEnvironment, err := NewNomadEnvironment(nil, templateEnvironmentJobHCL)
 			require.NoError(t, err)
 			localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 			runnerManager.StoreEnvironment(localEnvironment)
@@ -194,7 +194,7 @@ func TestNomadEnvironmentManager_Get(t *testing.T) {
 		runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
 
 		t.Run("Adds environment when not already known by Poseidon", func(t *testing.T) {
-			fetchedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+			fetchedEnvironment, err := NewNomadEnvironment(nil, templateEnvironmentJobHCL)
 			require.NoError(t, err)
 			fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 			fetchedEnvironment.SetImage("random docker image")
@@ -231,7 +231,7 @@ func TestNomadEnvironmentManager_List(t *testing.T) {
 	})
 
 	t.Run("Returns added environment", func(t *testing.T) {
-		localEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+		localEnvironment, err := NewNomadEnvironment(apiMock, templateEnvironmentJobHCL)
 		require.NoError(t, err)
 		localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(localEnvironment)
@@ -244,7 +244,7 @@ func TestNomadEnvironmentManager_List(t *testing.T) {
 	runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
 
 	t.Run("Fetches new Runners via the api client", func(t *testing.T) {
-		fetchedEnvironment, err := NewNomadEnvironment(templateEnvironmentJobHCL)
+		fetchedEnvironment, err := NewNomadEnvironment(apiMock, templateEnvironmentJobHCL)
 		require.NoError(t, err)
 		fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		status := structs.JobStatusRunning

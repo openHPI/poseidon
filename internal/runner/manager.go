@@ -2,7 +2,6 @@ package runner
 
 import (
 	"encoding/json"
-	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 )
 
@@ -17,7 +16,7 @@ type ExecutionEnvironment interface {
 	PrewarmingPoolSize() uint
 	SetPrewarmingPoolSize(count uint)
 	// ApplyPrewarmingPoolSize creates idle runners according to the PrewarmingPoolSize.
-	ApplyPrewarmingPoolSize(apiClient nomad.ExecutorAPI) error
+	ApplyPrewarmingPoolSize() error
 	// CPULimit sets the share of cpu that a runner should receive at minimum.
 	CPULimit() uint
 	SetCPULimit(limit uint)
@@ -34,13 +33,13 @@ type ExecutionEnvironment interface {
 	SetConfigFrom(environment ExecutionEnvironment)
 
 	// Register saves this environment at the executor.
-	Register(apiClient nomad.ExecutorAPI) error
+	Register() error
 	// Delete removes this environment and all it's runner from the executor and Poseidon itself.
-	Delete(apiClient nomad.ExecutorAPI) error
+	Delete() error
 
 	// Sample returns and removes an arbitrary available runner.
 	// ok is true iff a runner was returned.
-	Sample(apiClient nomad.ExecutorAPI) (r Runner, ok bool)
+	Sample() (r Runner, ok bool)
 	// AddRunner adds an existing runner to the idle runners of the environment.
 	AddRunner(r Runner)
 	// DeleteRunner removes an idle runner from the environment.

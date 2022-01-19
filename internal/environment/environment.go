@@ -25,20 +25,22 @@ type NomadEnvironment struct {
 	jobHCL      string
 	job         *nomadApi.Job
 	idleRunners runner.Storage
+	apiClient   nomad.ExecutorAPI
 }
 
-func NewNomadEnvironment(jobHCL string) (*NomadEnvironment, error) {
+func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
 	job, err := parseJob(jobHCL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
 	}
 
-	return &NomadEnvironment{jobHCL, job, runner.NewLocalRunnerStorage()}, nil
+	return &NomadEnvironment{jobHCL, job, runner.NewLocalRunnerStorage(), apiClient}, nil
 }
 
-func NewNomadEnvironmentFromRequest(jobHCL string, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
+func NewNomadEnvironmentFromRequest(
+	apiClient nomad.ExecutorAPI, jobHCL string, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
 	*NomadEnvironment, error) {
-	environment, err := NewNomadEnvironment(jobHCL)
+	environment, err := NewNomadEnvironment(apiClient, jobHCL)
 	if err != nil {
 		return nil, err
 	}
@@ -188,47 +190,47 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 
 // Register creates a Nomad job based on the default job configuration and the given parameters.
 // It registers the job with Nomad and waits until the registration completes.
-func (n *NomadEnvironment) Register(apiClient nomad.ExecutorAPI) error {
+func (n *NomadEnvironment) Register() error {
 	nomad.SetForcePullFlag(n.job, true) // This must be the default as otherwise new runners could have different images.
-	evalID, err := apiClient.RegisterNomadJob(n.job)
+	evalID, err := n.apiClient.RegisterNomadJob(n.job)
 	if err != nil {
 		return fmt.Errorf("couldn't register job: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), nomad.RegisterTimeout)
 	defer cancel()
-	err = apiClient.MonitorEvaluation(evalID, ctx)
+	err = n.apiClient.MonitorEvaluation(evalID, ctx)
 	if err != nil {
 		return fmt.Errorf("error during the monitoring of the environment job: %w", err)
 	}
 	return nil
 }
 
-func (n *NomadEnvironment) Delete(apiClient nomad.ExecutorAPI) error {
-	err := n.removeRunners(apiClient)
+func (n *NomadEnvironment) Delete() error {
+	err := n.removeRunners()
 	if err != nil {
 		return err
 	}
-	err = apiClient.DeleteJob(*n.job.ID)
+	err = n.apiClient.DeleteJob(*n.job.ID)
 	if err != nil {
 		return fmt.Errorf("couldn't delete environment job: %w", err)
 	}
 	return nil
 }
 
-func (n *NomadEnvironment) ApplyPrewarmingPoolSize(apiClient nomad.ExecutorAPI) error {
+func (n *NomadEnvironment) ApplyPrewarmingPoolSize() error {
 	required := int(n.PrewarmingPoolSize()) - n.idleRunners.Length()
 
 	if required < 0 {
 		return fmt.Errorf("%w. Runners to remove: %d", ErrScaleDown, -required)
 	}
-	return n.createRunners(apiClient, uint(required), true)
+	return n.createRunners(uint(required), true)
 }
 
-func (n *NomadEnvironment) Sample(apiClient nomad.ExecutorAPI) (runner.Runner, bool) {
+func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 	r, ok := n.idleRunners.Sample()
 	if ok {
 		go func() {
-			err := n.createRunner(apiClient, false)
+			err := n.createRunner(false)
 			if err != nil {
 				log.WithError(err).WithField("environmentID", n.ID()).Error("Couldn't create new runner for claimed one")
 			}
@@ -309,10 +311,10 @@ func parseJob(jobHCL string) (*nomadApi.Job, error) {
 	return job, nil
 }
 
-func (n *NomadEnvironment) createRunners(apiClient nomad.ExecutorAPI, count uint, forcePull bool) error {
+func (n *NomadEnvironment) createRunners(count uint, forcePull bool) error {
 	log.WithField("runnersRequired", count).WithField("id", n.ID()).Debug("Creating new runners")
 	for i := 0; i < int(count); i++ {
-		err := n.createRunner(apiClient, forcePull)
+		err := n.createRunner(forcePull)
 		if err != nil {
 			return fmt.Errorf("couldn't create new runner: %w", err)
 		}
@@ -320,7 +322,7 @@ func (n *NomadEnvironment) createRunners(apiClient nomad.ExecutorAPI, count uint
 	return nil
 }
 
-func (n *NomadEnvironment) createRunner(apiClient nomad.ExecutorAPI, forcePull bool) error {
+func (n *NomadEnvironment) createRunner(forcePull bool) error {
 	newUUID, err := uuid.NewUUID()
 	if err != nil {
 		return fmt.Errorf("failed generating runner id: %w", err)
@@ -332,7 +334,7 @@ func (n *NomadEnvironment) createRunner(apiClient nomad.ExecutorAPI, forcePull b
 	template.Name = &newRunnerID
 	nomad.SetForcePullFlag(template, forcePull)
 
-	err = apiClient.RegisterRunnerJob(template)
+	err = n.apiClient.RegisterRunnerJob(template)
 	if err != nil {
 		return fmt.Errorf("error registering new runner job: %w", err)
 	}
@@ -340,12 +342,12 @@ func (n *NomadEnvironment) createRunner(apiClient nomad.ExecutorAPI, forcePull b
 }
 
 // removeRunners removes all (idle and used) runners for the given environment n.
-func (n *NomadEnvironment) removeRunners(apiClient nomad.ExecutorAPI) error {
+func (n *NomadEnvironment) removeRunners() error {
 	// This prevents a race condition where the number of required runners is miscalculated in the up-scaling process
 	// based on the number of allocation that has been stopped at the moment of the scaling.
 	n.idleRunners.Purge()
 
-	ids, err := apiClient.LoadRunnerIDs(nomad.RunnerJobID(n.ID(), ""))
+	ids, err := n.apiClient.LoadRunnerIDs(nomad.RunnerJobID(n.ID(), ""))
 	if err != nil {
 		return fmt.Errorf("failed to load runner ids: %w", err)
 	}
@@ -356,7 +358,7 @@ func (n *NomadEnvironment) removeRunners(apiClient nomad.ExecutorAPI) error {
 		wg.Add(1)
 		go func(jobID string) {
 			defer wg.Done()
-			deleteErr := apiClient.DeleteJob(jobID)
+			deleteErr := n.apiClient.DeleteJob(jobID)
 			if deleteErr != nil {
 				err = deleteErr
 			}

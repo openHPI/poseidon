@@ -33,19 +33,19 @@ const (
 var ErrorRunnerInactivityTimeout = errors.New("runner inactivity timeout exceeded")
 
 type InactivityTimerImplementation struct {
-	timer    *time.Timer
-	duration time.Duration
-	state    TimerState
-	runner   Runner
-	manager  Accessor
-	mu       sync.Mutex
+	timer     *time.Timer
+	duration  time.Duration
+	state     TimerState
+	runner    Runner
+	onDestroy destroyRunnerHandler
+	mu        sync.Mutex
 }
 
-func NewInactivityTimer(runner Runner, manager Accessor) InactivityTimer {
+func NewInactivityTimer(runner Runner, onDestroy destroyRunnerHandler) InactivityTimer {
 	return &InactivityTimerImplementation{
-		state:   TimerInactive,
-		runner:  runner,
-		manager: manager,
+		state:     TimerInactive,
+		runner:    runner,
+		onDestroy: onDestroy,
 	}
 }
 
@@ -68,7 +68,7 @@ func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
 		t.state = TimerExpired
 		// The timer must be unlocked here already in order to avoid a deadlock with the call to StopTimout in Manager.Return.
 		t.mu.Unlock()
-		err := t.manager.Return(t.runner)
+		err := t.onDestroy(t.runner)
 		if err != nil {
 			log.WithError(err).WithField("id", t.runner.ID()).Warn("Returning runner after inactivity caused an error")
 		} else {

@@ -22,39 +22,16 @@ var (
 
 type NomadRunnerManager struct {
 	*AbstractManager
-	apiClient    nomad.ExecutorAPI
-	environments EnvironmentStorage
-	usedRunners  Storage
+	apiClient nomad.ExecutorAPI
 }
 
 // NewNomadRunnerManager creates a new runner manager that keeps track of all runners.
 // It uses the apiClient for all requests and runs a background task to keep the runners in sync with Nomad.
 // If you cancel the context the background synchronization will be stopped.
 func NewNomadRunnerManager(apiClient nomad.ExecutorAPI, ctx context.Context) *NomadRunnerManager {
-	m := &NomadRunnerManager{
-		&AbstractManager{},
-		apiClient,
-		NewLocalEnvironmentStorage(),
-		NewLocalRunnerStorage(),
-	}
+	m := &NomadRunnerManager{NewAbstractManager(), apiClient}
 	go m.keepRunnersSynced(ctx)
 	return m
-}
-
-func (m *NomadRunnerManager) ListEnvironments() []ExecutionEnvironment {
-	return m.environments.List()
-}
-
-func (m *NomadRunnerManager) GetEnvironment(id dto.EnvironmentID) (ExecutionEnvironment, bool) {
-	return m.environments.Get(id)
-}
-
-func (m *NomadRunnerManager) StoreEnvironment(environment ExecutionEnvironment) {
-	m.environments.Add(environment)
-}
-
-func (m *NomadRunnerManager) DeleteEnvironment(id dto.EnvironmentID) {
-	m.environments.Delete(id)
 }
 
 func (m *NomadRunnerManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
@@ -103,14 +80,6 @@ func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int
 			log.WithError(err).WithField("runnerID", runner.ID()).Error("can't mark runner as used and can't return runner")
 		}
 	}
-}
-
-func (m *NomadRunnerManager) Get(runnerID string) (Runner, error) {
-	runner, ok := m.usedRunners.Get(runnerID)
-	if !ok {
-		return nil, ErrRunnerNotFound
-	}
-	return runner, nil
 }
 
 func (m *NomadRunnerManager) Return(r Runner) error {

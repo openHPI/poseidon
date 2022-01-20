@@ -57,6 +57,22 @@ func runServer(server *http.Server) {
 	}
 }
 
+type managerCreator func() (runnerManager runner.Manager, environmentManager environment.ManagerHandler)
+
+// createManagerHandler adds the managers of the passed managerCreator to the chain of responsibility.
+func createManagerHandler(handler managerCreator, enabled bool,
+	nextRunnerManager runner.Manager, nextEnvironmentManager environment.ManagerHandler) (
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+	if !enabled {
+		return nextRunnerManager, nextEnvironmentManager
+	}
+
+	runnerManager, environmentManager = handler()
+	runnerManager.SetNextHandler(nextRunnerManager)
+	environmentManager.SetNextHandler(nextEnvironmentManager)
+	return runnerManager, environmentManager
+}
+
 func createNomadManager() (runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
 	// API initialization
 	nomadAPIClient, err := nomad.NewExecutorAPI(&config.Config.Nomad)
@@ -73,31 +89,27 @@ func createNomadManager() (runnerManager runner.Manager, environmentManager envi
 	return runnerManager, environmentManager
 }
 
-func createAWSManager(nextRunnerManager runner.Manager, nextEnvironmentManager environment.ManagerHandler) (
-	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+func createAWSManager() (runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
 	runnerManager = runner.NewAWSRunnerManager()
-	runnerManager.SetNextHandler(nextRunnerManager)
-
-	environmentManager = environment.NewAWSEnvironmentManager(runnerManager)
-	environmentManager.SetNextHandler(nextEnvironmentManager)
-
-	return runnerManager, environmentManager
+	return runnerManager, environment.NewAWSEnvironmentManager(runnerManager)
 }
 
 // initServer builds the http server and configures it with the chain of responsibility for multiple managers.
 func initServer() *http.Server {
-	nomadRunnerManager, nomadEnvironmentManager := createNomadManager()
-	awsRunnerManager, awsEnvironmentManager := createAWSManager(nomadRunnerManager, nomadEnvironmentManager)
+	runnerManager, environmentManager := createManagerHandler(createNomadManager, config.Config.Nomad.Enabled,
+		runner.NewAbstractManager(), &environment.AbstractManager{})
+	runnerManager, environmentManager = createManagerHandler(createAWSManager, config.Config.AWS.Enabled,
+		runnerManager, environmentManager)
 
 	return &http.Server{
 		Addr:        config.Config.Server.URL().Host,
 		ReadTimeout: time.Second * 15,
 		IdleTimeout: time.Second * 60,
-		Handler:     api.NewRouter(awsRunnerManager, awsEnvironmentManager),
+		Handler:     api.NewRouter(runnerManager, environmentManager),
 	}
 }
 
-// shutdownOnOSSignal listens for a signal from the operation system
+// shutdownOnOSSignal listens for a signal from the operating system
 // When receiving a signal the server shuts down but waits up to 15 seconds to close remaining connections.
 func shutdownOnOSSignal(server *http.Server) {
 	// wait for SIGINT

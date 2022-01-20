@@ -32,6 +32,7 @@ var (
 			TemplateJobFile:   "",
 		},
 		Nomad: Nomad{
+			Enabled: true,
 			Address: "127.0.0.1",
 			Port:    4646,
 			Token:   "",
@@ -42,6 +43,10 @@ var (
 				KeyFile:  "",
 			},
 			Namespace: "default",
+		},
+		AWS: AWS{
+			Enabled:  false,
+			Endpoint: "",
 		},
 		Logger: logger{
 			Level: "INFO",
@@ -76,6 +81,7 @@ func (s *server) URL() *url.URL {
 
 // Nomad configures the used Nomad cluster.
 type Nomad struct {
+	Enabled   bool
 	Address   string
 	Port      int
 	Token     string
@@ -86,6 +92,12 @@ type Nomad struct {
 // URL returns the URL for the configured Nomad cluster.
 func (n *Nomad) URL() *url.URL {
 	return parseURL(n.Address, n.Port, n.TLS.Active)
+}
+
+// AWS configures the AWS Lambda usage.
+type AWS struct {
+	Enabled  bool
+	Endpoint string
 }
 
 // TLS configures TLS on a connection.
@@ -105,6 +117,7 @@ type logger struct {
 type configuration struct {
 	Server server
 	Nomad  Nomad
+	AWS    AWS
 	Logger logger
 	Sentry sentry.ClientOptions
 }

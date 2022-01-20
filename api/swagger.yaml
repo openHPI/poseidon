@@ -188,6 +188,10 @@ paths:
                   description: Specifies the execution environment of the runner
                   type: integer
                   example: 6
+                useAWS:
+                  description: Should Poseidon use AWS for the execution.
+                  type: boolean
+                  default: false
               required:
                 - executionEnvironmentId
               additionalProperties: false

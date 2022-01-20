@@ -1,12 +1,15 @@
 package environment
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 )
 
 type AWSEnvironment struct {
-	id dto.EnvironmentID
+	id          dto.EnvironmentID
+	awsEndpoint string
 }
 
 func NewAWSEnvironment() *AWSEnvironment {
@@ -14,7 +17,14 @@ func NewAWSEnvironment() *AWSEnvironment {
 }
 
 func (a *AWSEnvironment) MarshalJSON() ([]byte, error) {
-	panic("implement me")
+	res, err := json.Marshal(dto.ExecutionEnvironmentData{
+		ID:                          int(a.ID()),
+		ExecutionEnvironmentRequest: dto.ExecutionEnvironmentRequest{Image: a.Image()},
+	})
+	if err != nil {
+		return res, fmt.Errorf("couldn't marshal aws execution environment: %w", err)
+	}
+	return res, nil
 }
 
 func (a *AWSEnvironment) ID() dto.EnvironmentID {
@@ -26,24 +36,21 @@ func (a *AWSEnvironment) SetID(id dto.EnvironmentID) {
 }
 
 func (a *AWSEnvironment) PrewarmingPoolSize() uint {
-	panic("implement me")
+	return 0
 }
 
-func (a *AWSEnvironment) SetPrewarmingPoolSize(_ uint) {
-	panic("implement me")
-}
+func (a *AWSEnvironment) SetPrewarmingPoolSize(_ uint) {}
 
 func (a *AWSEnvironment) ApplyPrewarmingPoolSize() error {
-	panic("implement me")
+	return nil
 }
 
 func (a *AWSEnvironment) CPULimit() uint {
-	panic("implement me")
+	return 0
 }
 
-func (a *AWSEnvironment) SetCPULimit(_ uint) {
-	panic("implement me")
-}
+// SetCPULimit is disabled as one can only set the memory limit with AWS Lambda.
+func (a *AWSEnvironment) SetCPULimit(_ uint) {}
 
 func (a *AWSEnvironment) MemoryLimit() uint {
 	panic("implement me")
@@ -53,12 +60,13 @@ func (a *AWSEnvironment) SetMemoryLimit(_ uint) {
 	panic("implement me")
 }
 
+// Image is used to specify the AWS Endpoint Poseidon is connecting to.
 func (a *AWSEnvironment) Image() string {
-	panic("implement me")
+	return a.awsEndpoint
 }
 
-func (a *AWSEnvironment) SetImage(_ string) {
-	panic("implement me")
+func (a *AWSEnvironment) SetImage(awsEndpoint string) {
+	a.awsEndpoint = awsEndpoint
 }
 
 func (a *AWSEnvironment) NetworkAccess() (enabled bool, mappedPorts []uint16) {
@@ -82,7 +90,11 @@ func (a *AWSEnvironment) Delete() error {
 }
 
 func (a *AWSEnvironment) Sample() (r runner.Runner, ok bool) {
-	panic("implement me")
+	workload, err := runner.NewAWSFunctionWorkload(a, nil)
+	if err != nil {
+		return nil, false
+	}
+	return workload, true
 }
 
 func (a *AWSEnvironment) AddRunner(_ runner.Runner) {

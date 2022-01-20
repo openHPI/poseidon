@@ -45,3 +45,14 @@ type Runner interface {
 	// Destroy destroys the Runner in Nomad.
 	Destroy() error
 }
+
+// NewContext creates a context containing a runner.
+func NewContext(ctx context.Context, runner Runner) context.Context {
+	return context.WithValue(ctx, runnerContextKey, runner)
+}
+
+// FromContext returns a runner from a context.
+func FromContext(ctx context.Context) (Runner, bool) {
+	runner, ok := ctx.Value(runnerContextKey).(Runner)
+	return runner, ok
+}

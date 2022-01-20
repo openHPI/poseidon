@@ -16,7 +16,11 @@ func (n *AbstractManager) SetNextHandler(next ManagerHandler) {
 }
 
 func (n *AbstractManager) NextHandler() ManagerHandler {
-	return n.nextHandler
+	if n.nextHandler != nil {
+		return n.nextHandler
+	} else {
+		return &AbstractManager{}
+	}
 }
 
 func (n *AbstractManager) List(_ bool) ([]runner.ExecutionEnvironment, error) {
@@ -24,7 +28,7 @@ func (n *AbstractManager) List(_ bool) ([]runner.ExecutionEnvironment, error) {
 }
 
 func (n *AbstractManager) Get(_ dto.EnvironmentID, _ bool) (runner.ExecutionEnvironment, error) {
-	return nil, runner.ErrNullObject
+	return nil, runner.ErrRunnerNotFound
 }
 
 func (n *AbstractManager) CreateOrUpdate(_ dto.EnvironmentID, _ dto.ExecutionEnvironmentRequest) (bool, error) {

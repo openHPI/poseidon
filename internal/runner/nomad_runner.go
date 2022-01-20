@@ -41,12 +41,12 @@ type NomadJob struct {
 	id           string
 	portMappings []nomadApi.PortMapping
 	api          nomad.ExecutorAPI
-	onDestroy    func(r Runner) error
+	onDestroy    destroyRunnerHandler
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.
 func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
-	apiClient nomad.ExecutorAPI, onDestroy func(r Runner) error,
+	apiClient nomad.ExecutorAPI, onDestroy destroyRunnerHandler,
 ) *NomadJob {
 	job := &NomadJob{
 		id:           id,
@@ -279,15 +279,4 @@ func (r *NomadJob) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("error marshaling Nomad job: %w", err)
 	}
 	return res, nil
-}
-
-// NewContext creates a context containing a runner.
-func NewContext(ctx context.Context, runner Runner) context.Context {
-	return context.WithValue(ctx, runnerContextKey, runner)
-}
-
-// FromContext returns a runner from a context.
-func FromContext(ctx context.Context) (Runner, bool) {
-	runner, ok := ctx.Value(runnerContextKey).(Runner)
-	return runner, ok
 }

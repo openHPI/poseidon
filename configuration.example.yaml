@@ -22,6 +22,8 @@ server:
 
 # Configuration of the used Nomad cluster
 nomad:
+  # Specifies whether Nomad should be used as executor.
+  enabled: true
   # IP address / domain of the Nomad server
   address: 127.0.0.1
   # Port of the Nomad server
@@ -40,6 +42,12 @@ nomad:
     keyfile: ./poseidon.key
   # Nomad namespace to use. If unset, 'default' is used
   namespace: poseidon
+
+aws:
+  # Specifies whether AWS should be used as executor.
+  enabled: false
+  # The enpoint of the WebSocket API
+  endpoint: wss://abcdef1234.execute-api.eu-central-1.amazonaws.com/production
 
 # Configuration of the logger
 logger:

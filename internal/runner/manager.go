@@ -81,6 +81,7 @@ type AccessorHandler interface {
 	Accessor
 	SetNextHandler(m AccessorHandler)
 	NextHandler() AccessorHandler
+	HasNextHandler() bool
 }
 
 // Accessor manages the lifecycle of Runner.

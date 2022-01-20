@@ -252,7 +252,7 @@ func (n *NomadEnvironment) IdleRunnerCount() int {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-// This converts the NomadEnvironment into the expected schema for dto.ExecutionEnvironmentData.
+// This converts the AWSEnvironment into the expected schema for dto.ExecutionEnvironmentData.
 func (n *NomadEnvironment) MarshalJSON() (res []byte, err error) {
 	networkAccess, exposedPorts := n.NetworkAccess()
 

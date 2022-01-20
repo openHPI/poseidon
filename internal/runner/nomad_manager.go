@@ -153,7 +153,7 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 		environmentLogger.WithError(err).Warn("Error loading runner portMappings")
 		return
 	}
-	newJob := NewNomadJob(*job.ID, portMappings, m.apiClient, m)
+	newJob := NewNomadJob(*job.ID, portMappings, m.apiClient, m.Return)
 	if isUsed {
 		m.usedRunners.Add(newJob)
 		timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])
@@ -196,7 +196,7 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation) {
 		if alloc.AllocatedResources != nil {
 			mappedPorts = alloc.AllocatedResources.Shared.Ports
 		}
-		environment.AddRunner(NewNomadJob(alloc.JobID, mappedPorts, m.apiClient, m))
+		environment.AddRunner(NewNomadJob(alloc.JobID, mappedPorts, m.apiClient, m.Return))
 	}
 }
 

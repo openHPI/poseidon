@@ -125,7 +125,7 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 		InactivityTimer: s.timer,
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,
-		manager:         s.manager,
+		onDestroy:       s.manager.Return,
 	}
 }
 
@@ -391,5 +391,11 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 
 // NewRunner creates a new runner with the provided id and manager.
 func NewRunner(id string, manager Accessor) Runner {
-	return NewNomadJob(id, nil, nil, manager)
+	var handler destroyRunnerHandler
+	if manager != nil {
+		handler = manager.Return
+	} else {
+		handler = func(_ Runner) error { return nil }
+	}
+	return NewNomadJob(id, nil, nil, handler)
 }

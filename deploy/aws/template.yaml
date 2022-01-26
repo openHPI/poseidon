@@ -3,7 +3,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   PoseidonExecutors
 
-  Execute untrusted code in a AWS functions.
+  Execute untrusted code in AWS functions.
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -64,9 +64,6 @@ Resources:
       Architectures:
         - arm64
       MemorySize: 2048
-      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
-        Variables:
-          PARAM1: VALUE
       Policies:
         - Statement:
             - Effect: Allow

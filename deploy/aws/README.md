@@ -40,3 +40,5 @@ So for example:
   }
 }
 ```
+
+The messages sent by the function use the [WebSocket Schema](../../api/websocket.schema.json).

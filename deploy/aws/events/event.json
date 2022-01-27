@@ -1,0 +1,22 @@
+{
+  "headers": {
+    "disableOutput": "True"
+  },
+  "requestContext": {
+    "stage": "production",
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "apiId": "1234567890",
+    "connectedAt": 1641993862426,
+    "connectionId": "L1Z1Cc7iFiACEKQ=",
+    "domainName": "abcdef1234.execute-api.eu-central-1.amazonaws.com",
+    "eventType": "MESSAGE",
+    "extendedRequestId": "L1Z1CH3rliAFRhg=",
+    "messageDirection": "IN",
+    "messageId": "MUBfpelRFiACF9g=",
+    "requestTime": "12/Jan/2022:13:24:22 +0000",
+    "requestTimeEpoch": 1641993862426,
+    "routeKey": "java11Exec"
+  },
+  "body": "{\n    \"action\": \"java11Exec\",\n    \"cmd\": [\n        \"sh\",\n        \"-c\",\n        \"javac org/example/RecursiveMath.java && java org/example/RecursiveMath\"\n    ],\n    \"files\": {\n        \"org/example/RecursiveMath.java\": \"cGFja2FnZSBvcmcuZXhhbXBsZTsKCnB1YmxpYyBjbGFzcyBSZWN1cnNpdmVNYXRoIHsKCiAgICBwdWJsaWMgc3RhdGljIHZvaWQgbWFpbihTdHJpbmdbXSBhcmdzKSB7CiAgICAgICAgU3lzdGVtLm91dC5wcmludGxuKCJNZWluIFRleHQiKTsKICAgIH0KCiAgICBwdWJsaWMgc3RhdGljIGRvdWJsZSBwb3dlcihpbnQgYmFzZSwgaW50IGV4cG9uZW50KSB7CiAgICAgICAgcmV0dXJuIDQyOwogICAgfQp9Cgo=\"\n    }\n}",
+  "isBase64Encoded": false
+}

@@ -15,7 +15,7 @@ public class AppTest {
     App app = new App();
     APIGatewayV2WebSocketEvent input = new APIGatewayV2WebSocketEvent();
     APIGatewayV2WebSocketEvent.RequestContext ctx = new APIGatewayV2WebSocketEvent.RequestContext();
-    ctx.setDomainName("domain.eu");
+    ctx.setDomainName("abcdef1234.execute-api.eu-central-1.amazonaws.com");
     ctx.setConnectionId("myUUID");
     input.setRequestContext(ctx);
     Map<String, String> headers = new HashMap<>();

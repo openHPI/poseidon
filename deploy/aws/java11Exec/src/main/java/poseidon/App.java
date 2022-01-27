@@ -66,8 +66,10 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
 
     public APIGatewayProxyResponseEvent handleRequest(final APIGatewayV2WebSocketEvent input, final Context context) {
         APIGatewayV2WebSocketEvent.RequestContext ctx = input.getRequestContext();
+        String[] domains = ctx.getDomainName().split("\\.");
+        String region = domains[domains.length-3];
         this.gwClient = AmazonApiGatewayManagementApiClientBuilder.standard()
-                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("https://" + ctx.getDomainName() + "/" + ctx.getStage(), Regions.EU_CENTRAL_1.getName()))
+                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("https://" + ctx.getDomainName() + "/" + ctx.getStage(), region))
                 .build();
         this.connectionID = ctx.getConnectionId();
         this.disableOutput = input.getHeaders() != null && input.getHeaders().containsKey(disableOutputHeaderKey) && Boolean.parseBoolean(input.getHeaders().get(disableOutputHeaderKey));

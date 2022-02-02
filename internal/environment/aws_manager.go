@@ -2,8 +2,10 @@ package environment
 
 import (
 	"fmt"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"strings"
 )
 
 // AWSEnvironmentManager contains no functionality at the moment.
@@ -16,7 +18,6 @@ type AWSEnvironmentManager struct {
 func NewAWSEnvironmentManager(runnerManager runner.Manager) *AWSEnvironmentManager {
 	m := &AWSEnvironmentManager{&AbstractManager{nil}, runnerManager}
 	runnerManager.Load()
-	m.Load()
 	return m
 }
 
@@ -43,7 +44,7 @@ func (a *AWSEnvironmentManager) Get(id dto.EnvironmentID, fetch bool) (runner.Ex
 
 func (a *AWSEnvironmentManager) CreateOrUpdate(
 	id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (bool, error) {
-	if id != runner.AwsJavaEnvironmentID {
+	if !isAWSEnvironment(request) {
 		isCreated, err := a.NextHandler().CreateOrUpdate(id, request)
 		if err != nil {
 			return false, fmt.Errorf("aws wrapped: %w", err)
@@ -57,6 +58,15 @@ func (a *AWSEnvironmentManager) CreateOrUpdate(
 	e.SetImage(request.Image)
 	a.runnerManager.StoreEnvironment(e)
 	return !ok, nil
+}
+
+func isAWSEnvironment(request dto.ExecutionEnvironmentRequest) bool {
+	for _, function := range strings.Fields(config.Config.AWS.Functions) {
+		if request.Image == function {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *AWSEnvironmentManager) Delete(id dto.EnvironmentID) (bool, error) {
@@ -78,12 +88,4 @@ func (a *AWSEnvironmentManager) Delete(id dto.EnvironmentID) (bool, error) {
 
 func (a *AWSEnvironmentManager) Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
 	return a.NextHandler().Statistics()
-}
-
-// Load fetches all remote environments in the local storage. ToDo: Fetch dynamically.
-func (a *AWSEnvironmentManager) Load() {
-	_, err := a.CreateOrUpdate(runner.AwsJavaEnvironmentID, dto.ExecutionEnvironmentRequest{Image: "java11Exec"})
-	if err != nil {
-		log.WithError(err).Warn("Could not load aws environment.")
-	}
 }

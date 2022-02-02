@@ -10,8 +10,6 @@ type AWSRunnerManager struct {
 	*AbstractManager
 }
 
-const AwsJavaEnvironmentID = 2142
-
 // NewAWSRunnerManager creates a new runner manager that keeps track of all runners at AWS.
 func NewAWSRunnerManager() *AWSRunnerManager {
 	return &AWSRunnerManager{NewAbstractManager()}

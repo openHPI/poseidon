@@ -78,7 +78,7 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
         try {
             File workingDirectory = this.writeFS(execution.files);
 
-            ProcessBuilder pb = new ProcessBuilder(execution.cmd).redirectErrorStream(true);
+            ProcessBuilder pb = new ProcessBuilder(execution.cmd);
             pb.directory(workingDirectory);
             Process p = pb.start();
             InputStream stdout = p.getInputStream(), stderr = p.getErrorStream();
@@ -95,19 +95,27 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
     private File writeFS(Map<String, String> files) throws IOException {
         File workspace = Files.createTempDirectory("workspace").toFile();
         for (Map.Entry<String, String> entry : files.entrySet()) {
-            File f = new File(workspace, entry.getKey());
+            try {
+                File f = new File(entry.getKey());
 
-            f.getParentFile().mkdirs();
-            if (!f.getParentFile().exists()) {
-                throw new IOException("Cannot create parent directories.");
+                if (!f.isAbsolute()) {
+                    f = new File(workspace, entry.getKey());
+                }
+
+                f.getParentFile().mkdirs();
+                if (!f.getParentFile().exists()) {
+                    throw new IOException("Cannot create parent directories.");
+                }
+
+                f.createNewFile();
+                if (!f.exists()) {
+                    throw new IOException("Cannot create file.");
+                }
+
+                Files.write(f.toPath(), Base64.getDecoder().decode(entry.getValue()));
+            } catch (IOException e) {
+                this.sendMessage(WebSocketMessageType.WebSocketOutputError, e.toString(), null);
             }
-
-            f.createNewFile();
-            if (!f.exists()) {
-                throw new IOException("Cannot create file.");
-            }
-
-            Files.write(f.toPath(), Base64.getDecoder().decode(entry.getValue()));
         }
         return workspace;
     }

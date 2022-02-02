@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
@@ -13,15 +14,16 @@ import (
 func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
 	runnerManager := runner.NewAWSRunnerManager()
 	m := NewAWSEnvironmentManager(runnerManager)
-	uniqueImage := "random image string"
+	uniqueImage := "java11Exec"
 
 	t.Run("can create default Java environment", func(t *testing.T) {
-		_, err := m.CreateOrUpdate(runner.AwsJavaEnvironmentID, dto.ExecutionEnvironmentRequest{Image: uniqueImage})
+		config.Config.AWS.Functions = uniqueImage
+		_, err := m.CreateOrUpdate(tests.AnotherEnvironmentIDAsInteger, dto.ExecutionEnvironmentRequest{Image: uniqueImage})
 		assert.NoError(t, err)
 	})
 
 	t.Run("can retrieve added environment", func(t *testing.T) {
-		environment, err := m.Get(runner.AwsJavaEnvironmentID, false)
+		environment, err := m.Get(tests.AnotherEnvironmentIDAsInteger, false)
 		assert.NoError(t, err)
 		assert.Equal(t, environment.Image(), uniqueImage)
 	})
@@ -78,13 +80,6 @@ func TestAWSEnvironmentManager_List(t *testing.T) {
 	runnerManager := runner.NewAWSRunnerManager()
 	m := NewAWSEnvironmentManager(runnerManager)
 
-	t.Run("contains the \"Load\"-ed environments", func(t *testing.T) {
-		environments, err := m.List(false)
-		assert.NoError(t, err)
-		require.Len(t, environments, 1)
-		assert.Equal(t, environments[0].ID(), dto.EnvironmentID(runner.AwsJavaEnvironmentID))
-	})
-
 	t.Run("returs also environments of the rest of the manager chain", func(t *testing.T) {
 		nextHandler := &ManagerHandlerMock{}
 		existingEnvironment := NewAWSEnvironment()
@@ -94,7 +89,7 @@ func TestAWSEnvironmentManager_List(t *testing.T) {
 
 		environments, err := m.List(false)
 		assert.NoError(t, err)
-		require.Len(t, environments, 2)
+		require.Len(t, environments, 1)
 		assert.Contains(t, environments, existingEnvironment)
 	})
 	m.SetNextHandler(nil)
@@ -106,7 +101,7 @@ func TestAWSEnvironmentManager_List(t *testing.T) {
 
 		environments, err := m.List(false)
 		assert.NoError(t, err)
-		assert.Len(t, environments, 2)
+		assert.Len(t, environments, 1)
 		assert.Contains(t, environments, localEnvironment)
 	})
 }

@@ -45,8 +45,9 @@ var (
 			Namespace: "default",
 		},
 		AWS: AWS{
-			Enabled:  false,
-			Endpoint: "",
+			Enabled:   false,
+			Endpoint:  "",
+			Functions: "",
 		},
 		Logger: logger{
 			Level: "INFO",
@@ -96,8 +97,9 @@ func (n *Nomad) URL() *url.URL {
 
 // AWS configures the AWS Lambda usage.
 type AWS struct {
-	Enabled  bool
-	Endpoint string
+	Enabled   bool
+	Endpoint  string
+	Functions string
 }
 
 // TLS configures TLS on a connection.

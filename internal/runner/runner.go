@@ -144,6 +144,7 @@ func (r *NomadJob) ExecuteInteractively(
 }
 
 func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) error {
+	log.Debug("Before UpdateFileSystem")
 	r.ResetTimeout()
 
 	var tarBuffer bytes.Buffer
@@ -156,8 +157,10 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) er
 	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
 	stdOut := bytes.Buffer{}
 	stdErr := bytes.Buffer{}
+	log.Debug("Before ExecuteCommand")
 	exitCode, err := r.api.ExecuteCommand(r.id, context.Background(), updateFileCommand, false,
 		&tarBuffer, &stdOut, &stdErr)
+	log.Debug("After ExecuteCommand")
 
 	if err != nil {
 		return fmt.Errorf(

@@ -11,7 +11,7 @@ type ExitInfo struct {
 	Err  error
 }
 
-type destroyRunnerHandler = func(r Runner) error
+type DestroyRunnerHandler = func(r Runner) error
 
 type Runner interface {
 	InactivityTimer

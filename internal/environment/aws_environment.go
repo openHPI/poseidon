@@ -8,12 +8,13 @@ import (
 )
 
 type AWSEnvironment struct {
-	id          dto.EnvironmentID
-	awsEndpoint string
+	id              dto.EnvironmentID
+	awsEndpoint     string
+	onDestroyRunner runner.DestroyRunnerHandler
 }
 
-func NewAWSEnvironment() *AWSEnvironment {
-	return &AWSEnvironment{}
+func NewAWSEnvironment(onDestroyRunner runner.DestroyRunnerHandler) *AWSEnvironment {
+	return &AWSEnvironment{onDestroyRunner: onDestroyRunner}
 }
 
 func (a *AWSEnvironment) MarshalJSON() ([]byte, error) {
@@ -86,11 +87,11 @@ func (a *AWSEnvironment) Register() error {
 }
 
 func (a *AWSEnvironment) Delete() error {
-	panic("implement me")
+	return nil
 }
 
 func (a *AWSEnvironment) Sample() (r runner.Runner, ok bool) {
-	workload, err := runner.NewAWSFunctionWorkload(a, nil)
+	workload, err := runner.NewAWSFunctionWorkload(a, a.onDestroyRunner)
 	if err != nil {
 		return nil, false
 	}

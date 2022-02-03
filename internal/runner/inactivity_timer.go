@@ -37,11 +37,11 @@ type InactivityTimerImplementation struct {
 	duration  time.Duration
 	state     TimerState
 	runner    Runner
-	onDestroy destroyRunnerHandler
+	onDestroy DestroyRunnerHandler
 	mu        sync.Mutex
 }
 
-func NewInactivityTimer(runner Runner, onDestroy destroyRunnerHandler) InactivityTimer {
+func NewInactivityTimer(runner Runner, onDestroy DestroyRunnerHandler) InactivityTimer {
 	return &InactivityTimerImplementation{
 		state:     TimerInactive,
 		runner:    runner,

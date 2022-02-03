@@ -24,29 +24,33 @@ type awsFunctionRequest struct {
 // AWSFunctionWorkload is an abstraction to build a request to an AWS Lambda Function.
 type AWSFunctionWorkload struct {
 	InactivityTimer
-	id          string
-	fs          map[dto.FilePath][]byte
-	executions  execution.Storer
-	onDestroy   destroyRunnerHandler
-	environment ExecutionEnvironment
+	id                string
+	fs                map[dto.FilePath][]byte
+	executions        execution.Storer
+	runningExecutions map[execution.ID]context.CancelFunc
+	onDestroy         DestroyRunnerHandler
+	environment       ExecutionEnvironment
 }
 
 // NewAWSFunctionWorkload creates a new AWSFunctionWorkload with the provided id.
 func NewAWSFunctionWorkload(
-	environment ExecutionEnvironment, onDestroy destroyRunnerHandler) (*AWSFunctionWorkload, error) {
+	environment ExecutionEnvironment, onDestroy DestroyRunnerHandler) (*AWSFunctionWorkload, error) {
 	newUUID, err := uuid.NewUUID()
 	if err != nil {
 		return nil, fmt.Errorf("failed generating runner id: %w", err)
 	}
 
 	workload := &AWSFunctionWorkload{
-		id:          newUUID.String(),
-		fs:          make(map[dto.FilePath][]byte),
-		executions:  execution.NewLocalStorage(),
-		onDestroy:   onDestroy,
-		environment: environment,
+		id:                newUUID.String(),
+		fs:                make(map[dto.FilePath][]byte),
+		executions:        execution.NewLocalStorage(),
+		runningExecutions: make(map[execution.ID]context.CancelFunc),
+		onDestroy:         onDestroy,
+		environment:       environment,
 	}
-	workload.InactivityTimer = NewInactivityTimer(workload, onDestroy)
+	workload.InactivityTimer = NewInactivityTimer(workload, func(_ Runner) error {
+		return workload.Destroy()
+	})
 	return workload, nil
 }
 
@@ -73,16 +77,21 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, s
 	if !ok {
 		return nil, nil, ErrorUnknownExecution
 	}
-
 	command, ctx, cancel := prepareExecution(request)
+	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)
-	go w.executeCommand(ctx, command, stdout, stderr, exit)
+
+	go w.executeCommand(ctx, command, stdout, stderr, exitInternal)
+	go w.handleRunnerTimeout(ctx, exitInternal, exit, execution.ID(id))
+
 	return exit, cancel, nil
 }
 
 // UpdateFileSystem copies Files into the executor.
-// ToDo: Currently, file deletion is not supported (but it could be).
 func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequest) error {
+	for _, path := range request.Delete {
+		delete(w.fs, path)
+	}
 	for _, file := range request.Copy {
 		w.fs[file.Path] = file.Content
 	}
@@ -90,6 +99,9 @@ func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequ
 }
 
 func (w *AWSFunctionWorkload) Destroy() error {
+	for _, cancel := range w.runningExecutions {
+		cancel()
+	}
 	if err := w.onDestroy(w); err != nil {
 		return fmt.Errorf("error while destroying aws runner: %w", err)
 	}
@@ -99,6 +111,7 @@ func (w *AWSFunctionWorkload) Destroy() error {
 func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []string,
 	stdout, stderr io.Writer, exit chan<- ExitInfo,
 ) {
+	defer close(exit)
 	data := &awsFunctionRequest{
 		Action: w.environment.Image(),
 		Cmd:    command,
@@ -128,7 +141,6 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 		err = ErrorRunnerInactivityTimeout
 	}
 	exit <- ExitInfo{exitCode, err}
-	close(exit)
 }
 
 func (w *AWSFunctionWorkload) receiveOutput(
@@ -157,7 +169,7 @@ func (w *AWSFunctionWorkload) receiveOutput(
 		case dto.WebSocketOutputStdout:
 			// We do not check the written bytes as the rawToCodeOceanWriter receives everything or nothing.
 			_, err = stdout.Write([]byte(wsMessage.Data))
-		case dto.WebSocketOutputStderr:
+		case dto.WebSocketOutputStderr, dto.WebSocketOutputError:
 			_, err = stderr.Write([]byte(wsMessage.Data))
 		}
 		if err != nil {
@@ -165,4 +177,21 @@ func (w *AWSFunctionWorkload) receiveOutput(
 		}
 	}
 	return 1, fmt.Errorf("receiveOutput stpped by context: %w", ctx.Err())
+}
+
+// handleRunnerTimeout listens for a runner timeout and aborts the execution in that case.
+// It listens via a context in runningExecutions that is canceled on the timeout event.
+func (w *AWSFunctionWorkload) handleRunnerTimeout(ctx context.Context,
+	exitInternal <-chan ExitInfo, exit chan<- ExitInfo, id execution.ID) {
+	executionCtx, cancelExecution := context.WithCancel(ctx)
+	w.runningExecutions[id] = cancelExecution
+	defer delete(w.runningExecutions, id)
+	defer close(exit)
+
+	select {
+	case exitInfo := <-exitInternal:
+		exit <- exitInfo
+	case <-executionCtx.Done():
+		exit <- ExitInfo{255, ErrorRunnerInactivityTimeout}
+	}
 }

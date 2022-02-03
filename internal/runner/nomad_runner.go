@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -216,14 +217,16 @@ func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer) error {
 		if err := tarWriter.WriteHeader(tarHeader(file)); err != nil {
 			err := fmt.Errorf("error writing tar file header: %w", err)
 			log.
-				WithField("file", file).
+				WithField("path", base64.StdEncoding.EncodeToString([]byte(file.Path))).
+				WithField("content", base64.StdEncoding.EncodeToString(file.Content)).
 				Error(err)
 			return err
 		}
 		if _, err := tarWriter.Write(file.ByteContent()); err != nil {
 			err := fmt.Errorf("error writing tar file content: %w", err)
 			log.
-				WithField("file", file).
+				WithField("path", base64.StdEncoding.EncodeToString([]byte(file.Path))).
+				WithField("content", base64.StdEncoding.EncodeToString(file.Content)).
 				Error(err)
 			return err
 		}

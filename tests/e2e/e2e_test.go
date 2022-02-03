@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -27,6 +28,7 @@ var (
 	testDockerImage = flag.String("dockerImage", "", "Docker image to use in E2E tests")
 	nomadClient     *nomadApi.Client
 	nomadNamespace  string
+	environmentIDs  []dto.EnvironmentID
 )
 
 type E2ETestSuite struct {
@@ -45,11 +47,42 @@ func TestE2ETestSuite(t *testing.T) {
 // Overwrite TestMain for custom setup.
 func TestMain(m *testing.M) {
 	log.Info("Test Setup")
-	err := config.InitConfig()
-	if err != nil {
+	if err := config.InitConfig(); err != nil {
 		log.WithError(err).Fatal("Could not initialize configuration")
 	}
+	initNomad()
+	initAWS()
+
+	// wait for environment to become ready
+	<-time.After(10 * time.Second)
+	log.Info("Test Run")
+	code := m.Run()
+
+	deleteE2EEnvironments()
+	cleanupJobsForEnvironment(&testing.T{}, tests.DefaultEnvironmentIDAsString)
+	os.Exit(code)
+}
+
+func initAWS() {
+	for i, function := range strings.Fields(config.Config.AWS.Functions) {
+		id := dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger + i + 1)
+		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, id.ToString())
+		request := dto.ExecutionEnvironmentRequest{Image: function}
+		resp, err := helpers.HTTPPutJSON(path, request)
+		if err != nil || resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
+			log.WithField("function", function).WithError(err).Fatal("Couldn't create default environment for e2e tests")
+		}
+		environmentIDs = append(environmentIDs, id)
+		err = resp.Body.Close()
+		if err != nil {
+			log.Fatal("Failed closing body")
+		}
+	}
+}
+
+func initNomad() {
 	nomadNamespace = config.Config.Nomad.Namespace
+	var err error
 	nomadClient, err = nomadApi.NewClient(&nomadApi.Config{
 		Address:   config.Config.Nomad.URL().String(),
 		TLSConfig: &nomadApi.TLSConfig{},
@@ -57,16 +90,9 @@ func TestMain(m *testing.M) {
 	})
 	if err != nil {
 		log.WithError(err).Fatal("Could not create Nomad client")
+		return
 	}
-	log.Info("Test Run")
 	createDefaultEnvironment()
-
-	// wait for environment to become ready
-	<-time.After(10 * time.Second)
-
-	code := m.Run()
-	cleanupJobsForEnvironment(&testing.T{}, tests.DefaultEnvironmentIDAsString)
-	os.Exit(code)
 }
 
 func createDefaultEnvironment() {
@@ -89,8 +115,15 @@ func createDefaultEnvironment() {
 	if err != nil || resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
 		log.WithError(err).Fatal("Couldn't create default environment for e2e tests")
 	}
+	environmentIDs = append(environmentIDs, tests.DefaultEnvironmentIDAsInteger)
 	err = resp.Body.Close()
 	if err != nil {
 		log.Fatal("Failed closing body")
+	}
+}
+
+func deleteE2EEnvironments() {
+	for _, id := range environmentIDs {
+		deleteEnvironment(&testing.T{}, id.ToString())
 	}
 }

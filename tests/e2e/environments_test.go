@@ -2,8 +2,10 @@ package e2e
 
 import (
 	"encoding/json"
+	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/api"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
@@ -16,6 +18,8 @@ import (
 	"testing"
 	"time"
 )
+
+var isAWSEnvironment = []bool{false, true}
 
 func TestCreateOrUpdateEnvironment(t *testing.T) {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
@@ -73,13 +77,13 @@ func TestCreateOrUpdateEnvironment(t *testing.T) {
 func TestListEnvironments(t *testing.T) {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath)
 
-	t.Run("returns list with one element", func(t *testing.T) {
+	t.Run("returns list with all static and the e2e environment", func(t *testing.T) {
 		response, err := http.Get(path) //nolint:gosec // because we build this path right above
 		require.NoError(t, err)
 
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		environmentsArray := assertEnvironmentArrayInResponse(t, response)
-		assert.Equal(t, 1, len(environmentsArray))
+		assert.Equal(t, len(environmentIDs), len(environmentsArray))
 	})
 
 	t.Run("returns list including the default environment", func(t *testing.T) {
@@ -88,24 +92,28 @@ func TestListEnvironments(t *testing.T) {
 		require.Equal(t, http.StatusOK, response.StatusCode)
 
 		environmentsArray := assertEnvironmentArrayInResponse(t, response)
-		require.Equal(t, 1, len(environmentsArray))
-
-		assertEnvironment(t, environmentsArray[0], tests.DefaultEnvironmentIDAsInteger)
-	})
-
-	t.Run("Added environments can be retrieved without fetch", func(t *testing.T) {
-		createEnvironment(t, tests.AnotherEnvironmentIDAsString)
-
-		response, err := http.Get(path) //nolint:gosec // because we build this path right above
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, response.StatusCode)
-
-		environmentsArray := assertEnvironmentArrayInResponse(t, response)
-		require.Equal(t, 2, len(environmentsArray))
+		require.Equal(t, len(environmentIDs), len(environmentsArray))
 		foundIDs := parseIDsFromEnvironments(t, environmentsArray)
-		assert.Contains(t, foundIDs, dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger))
+		assert.Contains(t, foundIDs, dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	})
-	deleteEnvironment(t, tests.AnotherEnvironmentIDAsString)
+
+	for _, useAWS := range isAWSEnvironment {
+		t.Run(fmt.Sprintf("AWS-%t", useAWS), func(t *testing.T) {
+			t.Run("Added environments can be retrieved without fetch", func(t *testing.T) {
+				createEnvironment(t, tests.AnotherEnvironmentIDAsString, useAWS)
+
+				response, err := http.Get(path) //nolint:gosec // because we build this path right above
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, response.StatusCode)
+
+				environmentsArray := assertEnvironmentArrayInResponse(t, response)
+				require.Equal(t, len(environmentIDs)+1, len(environmentsArray))
+				foundIDs := parseIDsFromEnvironments(t, environmentsArray)
+				assert.Contains(t, foundIDs, dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger))
+			})
+			deleteEnvironment(t, tests.AnotherEnvironmentIDAsString)
+		})
+	}
 
 	t.Run("Added environments can be retrieved with fetch", func(t *testing.T) {
 		// Add environment without Poseidon
@@ -122,16 +130,17 @@ func TestListEnvironments(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, response.StatusCode)
 		environmentsArray := assertEnvironmentArrayInResponse(t, response)
-		require.Equal(t, 1, len(environmentsArray))
-		assertEnvironment(t, environmentsArray[0], tests.DefaultEnvironmentIDAsInteger)
+		require.Equal(t, len(environmentIDs), len(environmentsArray))
+		foundIDs := parseIDsFromEnvironments(t, environmentsArray)
+		assert.Contains(t, foundIDs, dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 
 		// List with fetch should include the added environment
 		response, err = http.Get(path + "?fetch=true") //nolint:gosec // because we build this path right above
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, response.StatusCode)
 		environmentsArray = assertEnvironmentArrayInResponse(t, response)
-		require.Equal(t, 2, len(environmentsArray))
-		foundIDs := parseIDsFromEnvironments(t, environmentsArray)
+		require.Equal(t, len(environmentIDs)+1, len(environmentsArray))
+		foundIDs = parseIDsFromEnvironments(t, environmentsArray)
 		assert.Contains(t, foundIDs, dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger))
 	})
 	deleteEnvironment(t, tests.AnotherEnvironmentIDAsString)
@@ -148,18 +157,22 @@ func TestGetEnvironment(t *testing.T) {
 		assertEnvironment(t, environment, tests.DefaultEnvironmentIDAsInteger)
 	})
 
-	t.Run("Added environments can be retrieved without fetch", func(t *testing.T) {
-		createEnvironment(t, tests.AnotherEnvironmentIDAsString)
+	for _, useAWS := range isAWSEnvironment {
+		t.Run(fmt.Sprintf("AWS-%t", useAWS), func(t *testing.T) {
+			t.Run("Added environments can be retrieved without fetch", func(t *testing.T) {
+				createEnvironment(t, tests.AnotherEnvironmentIDAsString, useAWS)
 
-		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
-		response, err := http.Get(path) //nolint:gosec // because we build this path right above
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, response.StatusCode)
+				path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
+				response, err := http.Get(path) //nolint:gosec // because we build this path right above
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, response.StatusCode)
 
-		environment := getEnvironmentFromResponse(t, response)
-		assertEnvironment(t, environment, tests.AnotherEnvironmentIDAsInteger)
-	})
-	deleteEnvironment(t, tests.AnotherEnvironmentIDAsString)
+				environment := getEnvironmentFromResponse(t, response)
+				assertEnvironment(t, environment, tests.AnotherEnvironmentIDAsInteger)
+			})
+			deleteEnvironment(t, tests.AnotherEnvironmentIDAsString)
+		})
+	}
 
 	t.Run("Added environments can be retrieved with fetch", func(t *testing.T) {
 		// Add environment without Poseidon
@@ -188,17 +201,21 @@ func TestGetEnvironment(t *testing.T) {
 }
 
 func TestDeleteEnvironment(t *testing.T) {
-	t.Run("Removes added environment", func(t *testing.T) {
-		createEnvironment(t, tests.AnotherEnvironmentIDAsString)
+	for _, useAWS := range isAWSEnvironment {
+		t.Run(fmt.Sprintf("AWS-%t", useAWS), func(t *testing.T) {
+			t.Run("Removes added environment", func(t *testing.T) {
+				createEnvironment(t, tests.AnotherEnvironmentIDAsString, useAWS)
 
-		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
-		response, err := helpers.HTTPDelete(path, nil)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusNoContent, response.StatusCode)
-	})
+				path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
+				response, err := helpers.HTTPDelete(path, nil)
+				assert.NoError(t, err)
+				assert.Equal(t, http.StatusNoContent, response.StatusCode)
+			})
+		})
+	}
 
 	t.Run("Removes Nomad Job", func(t *testing.T) {
-		createEnvironment(t, tests.AnotherEnvironmentIDAsString)
+		createEnvironment(t, tests.AnotherEnvironmentIDAsString, false)
 
 		// Expect created Nomad job
 		jobID := nomad.TemplateJobID(tests.AnotherEnvironmentIDAsInteger)
@@ -295,16 +312,22 @@ func cleanupJobsForEnvironment(t *testing.T, environmentID string) {
 }
 
 //nolint:unparam // Because its more clear if the environment id is written in the real test
-func createEnvironment(t *testing.T, environmentID string) {
+func createEnvironment(t *testing.T, environmentID string, aws bool) {
 	t.Helper()
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, environmentID)
 	request := dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: 1,
 		CPULimit:           100,
 		MemoryLimit:        100,
-		Image:              *testDockerImage,
 		NetworkAccess:      false,
 		ExposedPorts:       nil,
+	}
+	if aws {
+		functions := strings.Fields(config.Config.AWS.Functions)
+		require.NotZero(t, len(functions))
+		request.Image = functions[0]
+	} else {
+		request.Image = *testDockerImage
 	}
 	assertPutReturnsStatusAndZeroContent(t, path, request, http.StatusCreated)
 }

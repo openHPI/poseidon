@@ -53,7 +53,7 @@ func (a *AWSEnvironmentManager) CreateOrUpdate(
 	}
 
 	_, ok := a.runnerManager.GetEnvironment(id)
-	e := NewAWSEnvironment()
+	e := NewAWSEnvironment(a.runnerManager.Return)
 	e.SetID(id)
 	e.SetImage(request.Image)
 	a.runnerManager.StoreEnvironment(e)

@@ -391,7 +391,7 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 
 // NewRunner creates a new runner with the provided id and manager.
 func NewRunner(id string, manager Accessor) Runner {
-	var handler destroyRunnerHandler
+	var handler DestroyRunnerHandler
 	if manager != nil {
 		handler = manager.Return
 	} else {

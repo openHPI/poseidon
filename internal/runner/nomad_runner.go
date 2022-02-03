@@ -41,12 +41,12 @@ type NomadJob struct {
 	id           string
 	portMappings []nomadApi.PortMapping
 	api          nomad.ExecutorAPI
-	onDestroy    destroyRunnerHandler
+	onDestroy    DestroyRunnerHandler
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.
 func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
-	apiClient nomad.ExecutorAPI, onDestroy destroyRunnerHandler,
+	apiClient nomad.ExecutorAPI, onDestroy DestroyRunnerHandler,
 ) *NomadJob {
 	job := &NomadJob{
 		id:           id,

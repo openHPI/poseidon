@@ -66,7 +66,7 @@ func TestAWSEnvironmentManager_Get(t *testing.T) {
 	})
 
 	t.Run("Returns environment when it was added before", func(t *testing.T) {
-		expectedEnvironment := NewAWSEnvironment()
+		expectedEnvironment := NewAWSEnvironment(nil)
 		expectedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(expectedEnvironment)
 
@@ -82,7 +82,7 @@ func TestAWSEnvironmentManager_List(t *testing.T) {
 
 	t.Run("returs also environments of the rest of the manager chain", func(t *testing.T) {
 		nextHandler := &ManagerHandlerMock{}
-		existingEnvironment := NewAWSEnvironment()
+		existingEnvironment := NewAWSEnvironment(nil)
 		nextHandler.On("List", mock.AnythingOfType("bool")).
 			Return([]runner.ExecutionEnvironment{existingEnvironment}, nil)
 		m.SetNextHandler(nextHandler)
@@ -95,7 +95,7 @@ func TestAWSEnvironmentManager_List(t *testing.T) {
 	m.SetNextHandler(nil)
 
 	t.Run("Returns added environment", func(t *testing.T) {
-		localEnvironment := NewAWSEnvironment()
+		localEnvironment := NewAWSEnvironment(nil)
 		localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(localEnvironment)
 

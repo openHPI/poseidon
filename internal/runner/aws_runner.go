@@ -13,7 +13,7 @@ import (
 	"io"
 )
 
-var ErrWrongMessageType = errors.New("received message that is not a text messages")
+var ErrWrongMessageType = errors.New("received message that is not a text message")
 
 type awsFunctionRequest struct {
 	Action string                  `json:"action"`
@@ -22,6 +22,9 @@ type awsFunctionRequest struct {
 }
 
 // AWSFunctionWorkload is an abstraction to build a request to an AWS Lambda Function.
+// It is not persisted on a Poseidon restart.
+// The InactivityTimer is used actively. It stops listening to the Lambda function.
+// AWS terminates the Lambda Function after the [Globals.Function.Timeout](deploy/aws/template.yaml).
 type AWSFunctionWorkload struct {
 	InactivityTimer
 	id                string
@@ -88,6 +91,9 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, s
 }
 
 // UpdateFileSystem copies Files into the executor.
+// Current limitation: No files can be deleted apart from the previously added files.
+// Future Work: Deduplication of the file systems, as the largest workload is likely to be used by additional
+// CSV files or similar, which are the same for many executions.
 func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequest) error {
 	for _, path := range request.Delete {
 		delete(w.fs, path)
@@ -136,7 +142,9 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 		return
 	}
 
+	// receiveOutput listens for the execution timeout (or the exit code).
 	exitCode, err := w.receiveOutput(wsConn, stdout, stderr, ctx)
+	// TimeoutPassed checks the runner timeout
 	if w.TimeoutPassed() {
 		err = ErrorRunnerInactivityTimeout
 	}

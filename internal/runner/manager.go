@@ -75,7 +75,7 @@ type EnvironmentAccessor interface {
 	EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData
 }
 
-// AccessorHandler is one handler in te chain of responsibility of runner accessors.
+// AccessorHandler is one handler in the chain of responsibility of runner accessors.
 // Each runner accessor can handle different requests.
 type AccessorHandler interface {
 	Accessor

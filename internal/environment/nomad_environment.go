@@ -22,10 +22,10 @@ const (
 var ErrScaleDown = errors.New("cannot scale down the environment")
 
 type NomadEnvironment struct {
+	apiClient   nomad.ExecutorAPI
 	jobHCL      string
 	job         *nomadApi.Job
 	idleRunners runner.Storage
-	apiClient   nomad.ExecutorAPI
 }
 
 func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
@@ -34,7 +34,7 @@ func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvi
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
 	}
 
-	return &NomadEnvironment{jobHCL, job, runner.NewLocalRunnerStorage(), apiClient}, nil
+	return &NomadEnvironment{apiClient, jobHCL, job, runner.NewLocalRunnerStorage()}, nil
 }
 
 func NewNomadEnvironmentFromRequest(
@@ -252,7 +252,7 @@ func (n *NomadEnvironment) IdleRunnerCount() int {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-// This converts the AWSEnvironment into the expected schema for dto.ExecutionEnvironmentData.
+// This converts the NomadEnvironment into the expected schema for dto.ExecutionEnvironmentData.
 func (n *NomadEnvironment) MarshalJSON() (res []byte, err error) {
 	networkAccess, exposedPorts := n.NetworkAccess()
 

@@ -28,7 +28,7 @@ func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
 		assert.Equal(t, environment.Image(), uniqueImage)
 	})
 
-	t.Run("non handleable requests are forwarded to the next manager", func(t *testing.T) {
+	t.Run("non-handleable requests are forwarded to the next manager", func(t *testing.T) {
 		nextHandler := &ManagerHandlerMock{}
 		nextHandler.On("CreateOrUpdate", mock.AnythingOfType("dto.EnvironmentID"),
 			mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).Return(true, nil)
@@ -58,7 +58,7 @@ func TestAWSEnvironmentManager_Get(t *testing.T) {
 	})
 
 	t.Run("Returns error when not found", func(t *testing.T) {
-		nextHandler := &AbstractManager{nil}
+		nextHandler := &AbstractManager{nil, nil}
 		m.SetNextHandler(nextHandler)
 
 		_, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
@@ -80,7 +80,7 @@ func TestAWSEnvironmentManager_List(t *testing.T) {
 	runnerManager := runner.NewAWSRunnerManager()
 	m := NewAWSEnvironmentManager(runnerManager)
 
-	t.Run("returs also environments of the rest of the manager chain", func(t *testing.T) {
+	t.Run("also returns environments of the rest of the manager chain", func(t *testing.T) {
 		nextHandler := &ManagerHandlerMock{}
 		existingEnvironment := NewAWSEnvironment(nil)
 		nextHandler.On("List", mock.AnythingOfType("bool")).

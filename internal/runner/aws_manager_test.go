@@ -45,7 +45,7 @@ func TestAWSRunnerManager_Claim(t *testing.T) {
 		assert.NotNil(t, r)
 	})
 
-	t.Run("forwards request for non AWS environments", func(t *testing.T) {
+	t.Run("forwards request for non-AWS environments", func(t *testing.T) {
 		nextHandler := &ManagerMock{}
 		nextHandler.On("Claim", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("int")).
 			Return(nil, nil)
@@ -74,7 +74,7 @@ func TestAWSRunnerManager_Return(t *testing.T) {
 		assert.NotContains(t, m.usedRunners.List(), r)
 	})
 
-	t.Run("calls nextHandler for non AWS runner", func(t *testing.T) {
+	t.Run("calls nextHandler for non-AWS runner", func(t *testing.T) {
 		nextHandler := &ManagerMock{}
 		nextHandler.On("Return", mock.AnythingOfType("*runner.NomadJob")).Return(nil)
 		m.SetNextHandler(nextHandler)

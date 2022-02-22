@@ -12,11 +12,10 @@ import (
 // IMPROVE: Create Lambda functions dynamically.
 type AWSEnvironmentManager struct {
 	*AbstractManager
-	runnerManager runner.Manager
 }
 
 func NewAWSEnvironmentManager(runnerManager runner.Manager) *AWSEnvironmentManager {
-	m := &AWSEnvironmentManager{&AbstractManager{nil}, runnerManager}
+	m := &AWSEnvironmentManager{&AbstractManager{nil, runnerManager}}
 	runnerManager.Load()
 	return m
 }
@@ -67,23 +66,6 @@ func isAWSEnvironment(request dto.ExecutionEnvironmentRequest) bool {
 		}
 	}
 	return false
-}
-
-func (a *AWSEnvironmentManager) Delete(id dto.EnvironmentID) (bool, error) {
-	e, ok := a.runnerManager.GetEnvironment(id)
-	if !ok {
-		isFound, err := a.NextHandler().Delete(id)
-		if err != nil {
-			return false, fmt.Errorf("aws wrapped: %w", err)
-		}
-		return isFound, nil
-	}
-
-	a.runnerManager.DeleteEnvironment(id)
-	if err := e.Delete(); err != nil {
-		return true, fmt.Errorf("could not delete environment: %w", err)
-	}
-	return true, nil
 }
 
 func (a *AWSEnvironmentManager) Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {

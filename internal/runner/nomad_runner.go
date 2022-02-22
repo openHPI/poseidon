@@ -46,6 +46,8 @@ type NomadJob struct {
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.
+// The InactivityTimer is used actively. It executes onDestroy when it has expired.
+// The InactivityTimer is persisted in Nomad by the runner manager's Claim Function.
 func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 	apiClient nomad.ExecutorAPI, onDestroy DestroyRunnerHandler,
 ) *NomadJob {

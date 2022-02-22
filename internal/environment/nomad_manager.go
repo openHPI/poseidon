@@ -21,7 +21,6 @@ var log = logging.GetLogger("environment")
 
 type NomadEnvironmentManager struct {
 	*AbstractManager
-	runnerManager          runner.Manager
 	api                    nomad.ExecutorAPI
 	templateEnvironmentHCL string
 }
@@ -35,7 +34,7 @@ func NewNomadEnvironmentManager(
 		return nil, err
 	}
 
-	m := &NomadEnvironmentManager{&AbstractManager{nil}, runnerManager,
+	m := &NomadEnvironmentManager{&AbstractManager{nil, runnerManager},
 		apiClient, templateEnvironmentJobHCL}
 	if err := m.Load(); err != nil {
 		log.WithError(err).Error("Error recovering the execution environments")
@@ -121,19 +120,6 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request d
 	return !isExistingEnvironment, nil
 }
 
-func (m *NomadEnvironmentManager) Delete(id dto.EnvironmentID) (bool, error) {
-	executionEnvironment, ok := m.runnerManager.GetEnvironment(id)
-	if !ok {
-		return false, nil
-	}
-	m.runnerManager.DeleteEnvironment(id)
-	err := executionEnvironment.Delete()
-	if err != nil {
-		return true, fmt.Errorf("could not delete environment: %w", err)
-	}
-	return true, nil
-}
-
 func (m *NomadEnvironmentManager) Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
 	return m.runnerManager.EnvironmentStatistics()
 }
@@ -156,10 +142,10 @@ func (m *NomadEnvironmentManager) Load() error {
 			continue
 		}
 		environment := &NomadEnvironment{
+			apiClient:   m.api,
 			jobHCL:      templateEnvironmentJobHCL,
 			job:         job,
 			idleRunners: runner.NewLocalRunnerStorage(),
-			apiClient:   m.api,
 		}
 		m.runnerManager.StoreEnvironment(environment)
 		jobLogger.Info("Successfully recovered environment")
@@ -195,10 +181,10 @@ func fetchEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner
 		}
 		if id == environmentID {
 			fetchedEnvironment = &NomadEnvironment{
+				apiClient:   apiClient,
 				jobHCL:      templateEnvironmentJobHCL,
 				job:         job,
 				idleRunners: runner.NewLocalRunnerStorage(),
-				apiClient:   apiClient,
 			}
 		}
 	}

@@ -44,7 +44,7 @@ func (s *CreateOrUpdateTestSuite) SetupTest() {
 	}
 
 	s.manager = &NomadEnvironmentManager{
-		runnerManager:          &s.runnerManagerMock,
+		AbstractManager:        &AbstractManager{runnerManager: &s.runnerManagerMock},
 		api:                    &s.apiMock,
 		templateEnvironmentHCL: templateEnvironmentJobHCL,
 	}

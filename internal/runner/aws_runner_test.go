@@ -67,7 +67,7 @@ func TestAWSFunctionWorkload_ExecuteInteractively(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(awsMock.handler))
 
 	t.Run("establishes WebSocket connection to AWS endpoint", func(t *testing.T) {
-		// Convert http://127.0.0.1 to ws://127.0.0.
+		// Convert http://127.0.0.1 to ws://127.0.0.1
 		config.Config.AWS.Endpoint = "ws" + strings.TrimPrefix(s.URL, "http")
 		awsMock.ctx, cancel = context.WithCancel(context.Background())
 		cancel()
@@ -107,7 +107,7 @@ func TestAWSFunctionWorkload_UpdateFileSystem(t *testing.T) {
 	awsMock := &awsEndpointMock{}
 	s := httptest.NewServer(http.HandlerFunc(awsMock.handler))
 
-	// Convert http://127.0.0.1 to ws://127.0.0.
+	// Convert http://127.0.0.1 to ws://127.0.0.1
 	config.Config.AWS.Endpoint = "ws" + strings.TrimPrefix(s.URL, "http")
 	awsMock.ctx, cancel = context.WithTimeout(context.Background(), tests.ShortTimeout)
 	defer cancel()

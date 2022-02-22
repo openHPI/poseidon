@@ -36,31 +36,6 @@ func (a *AWSEnvironment) SetID(id dto.EnvironmentID) {
 	a.id = id
 }
 
-func (a *AWSEnvironment) PrewarmingPoolSize() uint {
-	return 0
-}
-
-func (a *AWSEnvironment) SetPrewarmingPoolSize(_ uint) {}
-
-func (a *AWSEnvironment) ApplyPrewarmingPoolSize() error {
-	return nil
-}
-
-func (a *AWSEnvironment) CPULimit() uint {
-	return 0
-}
-
-// SetCPULimit is disabled as one can only set the memory limit with AWS Lambda.
-func (a *AWSEnvironment) SetCPULimit(_ uint) {}
-
-func (a *AWSEnvironment) MemoryLimit() uint {
-	panic("implement me")
-}
-
-func (a *AWSEnvironment) SetMemoryLimit(_ uint) {
-	panic("implement me")
-}
-
 // Image is used to specify the AWS Endpoint Poseidon is connecting to.
 func (a *AWSEnvironment) Image() string {
 	return a.awsEndpoint
@@ -68,22 +43,6 @@ func (a *AWSEnvironment) Image() string {
 
 func (a *AWSEnvironment) SetImage(awsEndpoint string) {
 	a.awsEndpoint = awsEndpoint
-}
-
-func (a *AWSEnvironment) NetworkAccess() (enabled bool, mappedPorts []uint16) {
-	panic("implement me")
-}
-
-func (a *AWSEnvironment) SetNetworkAccess(_ bool, _ []uint16) {
-	panic("implement me")
-}
-
-func (a *AWSEnvironment) SetConfigFrom(_ runner.ExecutionEnvironment) {
-	panic("implement me")
-}
-
-func (a *AWSEnvironment) Register() error {
-	panic("implement me")
 }
 
 func (a *AWSEnvironment) Delete() error {
@@ -98,14 +57,61 @@ func (a *AWSEnvironment) Sample() (r runner.Runner, ok bool) {
 	return workload, true
 }
 
+// The following methods are not supported at this moment.
+
+// PrewarmingPoolSize is neither supported nor required. It is handled transparently by AWS.
+func (a *AWSEnvironment) PrewarmingPoolSize() uint {
+	return 0
+}
+
+// SetPrewarmingPoolSize is neither supported nor required. It is handled transparently by AWS.
+func (a *AWSEnvironment) SetPrewarmingPoolSize(_ uint) {}
+
+// ApplyPrewarmingPoolSize is neither supported nor required. It is handled transparently by AWS.
+func (a *AWSEnvironment) ApplyPrewarmingPoolSize() error {
+	return nil
+}
+
+// CPULimit is disabled as one can only set the memory limit with AWS Lambda.
+func (a *AWSEnvironment) CPULimit() uint {
+	return 0
+}
+
+// SetCPULimit is disabled as one can only set the memory limit with AWS Lambda.
+func (a *AWSEnvironment) SetCPULimit(_ uint) {}
+
+func (a *AWSEnvironment) MemoryLimit() uint {
+	panic("not supported")
+}
+
+func (a *AWSEnvironment) SetMemoryLimit(_ uint) {
+	panic("not supported")
+}
+
+func (a *AWSEnvironment) NetworkAccess() (enabled bool, mappedPorts []uint16) {
+	panic("not supported")
+}
+
+func (a *AWSEnvironment) SetNetworkAccess(_ bool, _ []uint16) {
+	panic("not supported")
+}
+
+func (a *AWSEnvironment) SetConfigFrom(_ runner.ExecutionEnvironment) {
+	panic("not supported")
+}
+
+func (a *AWSEnvironment) Register() error {
+	panic("not supported")
+}
+
 func (a *AWSEnvironment) AddRunner(_ runner.Runner) {
-	panic("implement me")
+	panic("not supported")
 }
 
 func (a *AWSEnvironment) DeleteRunner(_ string) {
-	panic("implement me")
+	panic("not supported")
 }
 
 func (a *AWSEnvironment) IdleRunnerCount() int {
-	panic("implement me")
+	panic("not supported")
 }

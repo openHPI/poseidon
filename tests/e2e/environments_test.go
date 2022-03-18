@@ -364,7 +364,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 
 	task := taskGroup.Tasks[0]
 	assertEqualValueIntPointer(t, int(expected.CPULimit), task.Resources.CPU)
-	assertEqualValueIntPointer(t, int(expected.MemoryLimit), task.Resources.MemoryMB)
+	assertEqualValueIntPointer(t, int(expected.MemoryLimit), task.Resources.MemoryMaxMB)
 	assert.Equal(t, expected.Image, task.Config["image"])
 
 	if expected.NetworkAccess {

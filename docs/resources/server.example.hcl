@@ -10,5 +10,6 @@ server {
     # https://www.nomadproject.io/docs/configuration/server
     default_scheduler_config {
         scheduler_algorithm = "spread"
+        memory_oversubscription_enabled = true
     }
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/suite"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -173,6 +174,28 @@ func (s *E2ETestSuite) TestEchoEnvironment() {
 			s.Equal("world", stdout)
 		})
 	}
+}
+
+func (s *E2ETestSuite) TestMemoryMaxLimit_Nomad() {
+	maxMemoryLimit := defaultNomadEnvironment.MemoryLimit
+	// The operating system is in charge to kill the process and sometimes tolerates small exceeding of the limit.
+	maxMemoryLimit = uint(1.1 * float64(maxMemoryLimit))
+	connection, err := ProvideWebSocketConnection(&s.Suite, tests.DefaultEnvironmentIDAsInteger, &dto.ExecutionRequest{
+		// This shell line tries to load maxMemoryLimit Bytes into the memory.
+		Command: "</dev/zero head -c " + strconv.Itoa(int(maxMemoryLimit)) + "MB | tail > /dev/null",
+	})
+	s.Require().NoError(err)
+
+	startMessage, err := helpers.ReceiveNextWebSocketMessage(connection)
+	s.Require().NoError(err)
+	s.Equal(dto.WebSocketMetaStart, startMessage.Type)
+
+	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
+	s.Require().Error(err)
+	s.Equal(err, &websocket.CloseError{Code: websocket.CloseNormalClosure})
+	stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
+	s.Empty(stdout)
+	s.Contains(stderr, "Killed")
 }
 
 func (s *E2ETestSuite) TestNomadStderrFifoIsRemoved() {

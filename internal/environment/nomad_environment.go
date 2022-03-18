@@ -104,15 +104,20 @@ func (n *NomadEnvironment) SetCPULimit(limit uint) {
 func (n *NomadEnvironment) MemoryLimit() uint {
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
-	return uint(*defaultTask.Resources.MemoryMB)
+	maxMemoryLimit := defaultTask.Resources.MemoryMaxMB
+	if maxMemoryLimit != nil {
+		return uint(*maxMemoryLimit)
+	} else {
+		return 0
+	}
 }
 
 func (n *NomadEnvironment) SetMemoryLimit(limit uint) {
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
-	integerMemoryLimit := int(limit)
-	defaultTask.Resources.MemoryMB = &integerMemoryLimit
+	integerMemoryMaxLimit := int(limit)
+	defaultTask.Resources.MemoryMaxMB = &integerMemoryMaxLimit
 }
 
 func (n *NomadEnvironment) Image() string {

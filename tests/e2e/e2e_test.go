@@ -24,11 +24,12 @@ import (
  */
 
 var (
-	log             = logging.GetLogger("e2e")
-	testDockerImage = flag.String("dockerImage", "", "Docker image to use in E2E tests")
-	nomadClient     *nomadApi.Client
-	nomadNamespace  string
-	environmentIDs  []dto.EnvironmentID
+	log                     = logging.GetLogger("e2e")
+	testDockerImage         = flag.String("dockerImage", "", "Docker image to use in E2E tests")
+	nomadClient             *nomadApi.Client
+	nomadNamespace          string
+	environmentIDs          []dto.EnvironmentID
+	defaultNomadEnvironment dto.ExecutionEnvironmentRequest
 )
 
 type E2ETestSuite struct {
@@ -102,7 +103,7 @@ func createDefaultEnvironment() {
 
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.DefaultEnvironmentIDAsString)
 
-	request := dto.ExecutionEnvironmentRequest{
+	defaultNomadEnvironment = dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: 10,
 		CPULimit:           100,
 		MemoryLimit:        100,
@@ -111,7 +112,7 @@ func createDefaultEnvironment() {
 		ExposedPorts:       nil,
 	}
 
-	resp, err := helpers.HTTPPutJSON(path, request)
+	resp, err := helpers.HTTPPutJSON(path, defaultNomadEnvironment)
 	if err != nil || resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
 		log.WithError(err).Fatal("Couldn't create default environment for e2e tests")
 	}

@@ -146,13 +146,15 @@ jobs:
           wget -q "https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS"
           grep "nomad_${NOMAD_VERSION}_linux_amd64.zip" nomad_${NOMAD_VERSION}_SHA256SUMS | sha256sum -c -
           unzip nomad_${NOMAD_VERSION}_linux_amd64.zip
+      - name: Set Nomad Config
+        run: echo "server { default_scheduler_config { memory_oversubscription_enabled = true } }" > e2e-config.hcl
       - name: Download Poseidon binary
         uses: actions/download-artifact@v2
         with:
           name: poseidon
       - name: Run e2e tests
         run: |
-          sudo ./nomad agent -dev -log-level=WARN &
+          sudo ./nomad agent -dev -log-level=WARN -config e2e-config.hcl &
           until curl -s --fail http://localhost:4646/v1/agent/health ; do sleep 1; done
           chmod +x ./poseidon
           ./poseidon &

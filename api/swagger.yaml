@@ -27,7 +27,7 @@ components:
           type: number
           example: 100
         memoryLimit:
-          description: Memory limit for one runner in MB
+          description: Memory limit for one runner in MB. Exceeding the limit may result in termination of the runner.
           type: integer
           example: 256
         networkAccess:

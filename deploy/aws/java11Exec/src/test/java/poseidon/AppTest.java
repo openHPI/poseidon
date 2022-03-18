@@ -28,25 +28,6 @@ public class AppTest {
           "    }\n" +
           "}").getBytes(StandardCharsets.UTF_8));
 
-  static final String SuccessfulMakefile = Base64.getEncoder().encodeToString(
-          ("run:\n" +
-                  "\tjavac org/example/RecursiveMath.java\n" +
-                  "\tjava org/example/RecursiveMath\n" +
-                  "\n" +
-          "test:\n" +
-                  "\techo Hi\n"
-          ).getBytes(StandardCharsets.UTF_8));
-
-  static final String NotSupportedMakefile = Base64.getEncoder().encodeToString(
-          ("run: test\n" +
-                  "\tjavac org/example/RecursiveMath.java\n" +
-                  "\tjava org/example/RecursiveMath\n" +
-                  "\n" +
-          "test:\n" +
-                  "\techo Hi\n"
-          ).getBytes(StandardCharsets.UTF_8));
-
-
   @Test
   public void successfulResponse() {
     App app = new App();
@@ -62,43 +43,5 @@ public class AppTest {
             "\"files\":{\"org/example/RecursiveMath.java\":\"" + RecursiveMathContent + "\"}}");
     APIGatewayProxyResponseEvent result = app.handleRequest(input, null);
     assertEquals(200, result.getStatusCode().intValue());
-  }
-
-  @Test
-  public void sucessfullMake() {
-    Map<String, String> files = new HashMap<>();
-    files.put("Makefile", SuccessfulMakefile);
-    files.put("org/example/RecursiveMath.java", RecursiveMathContent);
-
-    App app = new App();
-    String replacedCommand = app.simpleMakefileReplacement("make run", files);
-
-    assertEquals("javac org/example/RecursiveMath.java && java org/example/RecursiveMath", replacedCommand);
-  }
-
-  @Test
-  public void withoutMake() {
-    Map<String, String> files = new HashMap<>();
-    files.put("Makefile", SuccessfulMakefile);
-    files.put("org/example/RecursiveMath.java", RecursiveMathContent);
-
-    App app = new App();
-    String command = "javac org/example/RecursiveMath.java";
-    String replacedCommand = app.simpleMakefileReplacement(command, files);
-
-    assertEquals(command, replacedCommand);
-  }
-
-  @Test
-  public void withNotSupportedMakefile() {
-    Map<String, String> files = new HashMap<>();
-    files.put("Makefile", NotSupportedMakefile);
-    files.put("org/example/RecursiveMath.java", RecursiveMathContent);
-
-    App app = new App();
-    String command = "make run";
-    String replacedCommand = app.simpleMakefileReplacement(command, files);
-
-    assertEquals(command, replacedCommand);
   }
 }

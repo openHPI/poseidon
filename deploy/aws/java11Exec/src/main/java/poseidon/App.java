@@ -1,16 +1,5 @@
 package poseidon;
 
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.apigatewaymanagementapi.AmazonApiGatewayManagementApi;
 import com.amazonaws.services.apigatewaymanagementapi.AmazonApiGatewayManagementApiClientBuilder;
@@ -21,6 +10,16 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2WebSocketEvent;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Scanner;
 
 // AwsFunctionRequest contains the java files that needs to be executed.
 class AwsFunctionRequest {
@@ -80,7 +79,13 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
         try {
             File workingDirectory = this.writeFS(execution.files);
 
-            ProcessBuilder pb = new ProcessBuilder(prepareCommand(execution));
+            String[] cmd = execution.cmd;
+            try {
+                SimpleMakefile make = new SimpleMakefile(execution.cmd, execution.files);
+                cmd = make.getCommand();
+            } catch (NoMakefileFoundException | NoMakeCommandException | InvalidMakefileException ignored) {}
+
+            ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.directory(workingDirectory);
             Process p = pb.start();
             InputStream stdout = p.getInputStream(), stderr = p.getErrorStream();
@@ -120,53 +125,6 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
             }
         }
         return workspace;
-    }
-
-    private String[] prepareCommand(AwsFunctionRequest execution) {
-        String[] cmd = execution.cmd;
-        String innerCommand = cmd[cmd.length - 1]; // We expect a "sh -c" wrapped command.
-        String replacedInnerCommand = simpleMakefileReplacement(innerCommand, execution.files);
-        cmd[cmd.length - 1] = replacedInnerCommand;
-        return cmd;
-    }
-
-    protected String simpleMakefileReplacement(String command, Map<String, String> files) {
-        Pattern isMakeCommand = Pattern.compile("^make\\s?(\\w*)?$");
-        Matcher makeCommand = isMakeCommand.matcher(command);
-
-        if (!makeCommand.find() || !(files.containsKey("Makefile") || files.containsKey("makefile"))) {
-            return command;
-        }
-        String startRule = makeCommand.group(1);
-
-        String makefileB64 = files.get("Makefile");
-        String makefile = new String(Base64.getDecoder().decode(makefileB64), StandardCharsets.UTF_8);
-        Pattern makeRules = Pattern.compile("(.*):\\n((\\t.*\\n)*)");
-        Matcher makeRuleMatcher = makeRules.matcher(makefile);
-
-        Map<String, String[]> rules = new HashMap<>();
-        String firstRule = null;
-        while (makeRuleMatcher.find()) {
-            String ruleName = makeRuleMatcher.group(1);
-            if (firstRule == null) {
-                firstRule = ruleName;
-            }
-
-            String[] ruleCommands = makeRuleMatcher.group(2).split("\n");
-            String[] trimmedCommands = new String[ruleCommands.length];
-            for (int i = 0; i < ruleCommands.length; i++) {
-                trimmedCommands[i] = ruleCommands[i].trim();
-            }
-
-            rules.put(ruleName, trimmedCommands);
-        }
-
-        String ruleToExecute = (startRule.isEmpty()) ? firstRule : startRule;
-        if ((firstRule == null) || !rules.containsKey(ruleToExecute)) {
-            return command;
-        }
-
-        return String.join(" && ", rules.get(ruleToExecute));
     }
 
     // forwardOutput sends the output of the process to the WebSocket connection.

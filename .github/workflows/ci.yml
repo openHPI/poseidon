@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: 1.17
-  NOMAD_VERSION: 1.2.3
+  GO_VERSION: 1.18
+  NOMAD_VERSION: 1.2.6
 
 jobs:
   compile:

@@ -65,6 +65,16 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
     // disableOutput: If set to true, no output will be sent over the WebSocket connection.
     private boolean disableOutput = false;
 
+    // Unwrapps the passed command. We expect a "sh -c" wrapped command.
+    public static String unwrapCommand(String[] cmd) {
+        return cmd[cmd.length - 1];
+    }
+
+    // Wrapps the passed command with "sh -c".
+    public static String[] wrapCommand(String cmd) {
+        return new String[]{"sh", "-c", cmd};
+    }
+
     public APIGatewayProxyResponseEvent handleRequest(final APIGatewayV2WebSocketEvent input, final Context context) {
         APIGatewayV2WebSocketEvent.RequestContext ctx = input.getRequestContext();
         String[] domains = ctx.getDomainName().split("\\.");
@@ -81,8 +91,8 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
 
             String[] cmd = execution.cmd;
             try {
-                SimpleMakefile make = new SimpleMakefile(execution.cmd, execution.files);
-                cmd = make.getCommand();
+                SimpleMakefile make = new SimpleMakefile(execution.files);
+                cmd = wrapCommand(make.parseCommand(unwrapCommand(execution.cmd)));
             } catch (NoMakefileFoundException | NoMakeCommandException | InvalidMakefileException ignored) {}
 
             ProcessBuilder pb = new ProcessBuilder(cmd);

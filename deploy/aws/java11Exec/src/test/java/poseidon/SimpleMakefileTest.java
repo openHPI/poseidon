@@ -39,10 +39,10 @@ public class SimpleMakefileTest {
 
     try {
       String command = "make run";
-      SimpleMakefile makefile = new SimpleMakefile(SimpleMakefile.wrapCommand(command), files);
-      String[] cmd = makefile.getCommand();
+      SimpleMakefile makefile = new SimpleMakefile(files);
+      String cmd = makefile.parseCommand(command);
 
-      assertEquals("javac org/example/RecursiveMath.java && java org/example/RecursiveMath", SimpleMakefile.unwrapCommand(cmd));
+      assertEquals("javac org/example/RecursiveMath.java && java org/example/RecursiveMath", cmd);
     } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
       fail();
     }
@@ -56,9 +56,10 @@ public class SimpleMakefileTest {
 
     try {
       String command = "javac org/example/RecursiveMath.java";
-      new SimpleMakefile(SimpleMakefile.wrapCommand(command), files);
+      SimpleMakefile make = new SimpleMakefile(files);
+      make.parseCommand(command);
       fail();
-    } catch (NoMakefileFoundException ignored) {
+    } catch (NoMakefileFoundException | InvalidMakefileException ignored) {
       fail();
     } catch (NoMakeCommandException ignored) {}
   }
@@ -71,8 +72,8 @@ public class SimpleMakefileTest {
 
     try {
       String command = "make run";
-      SimpleMakefile makefile = new SimpleMakefile(SimpleMakefile.wrapCommand(command), files);
-      makefile.getCommand();
+      SimpleMakefile makefile = new SimpleMakefile(files);
+      makefile.parseCommand(command);
       fail();
     } catch (NoMakefileFoundException | NoMakeCommandException ignored) {
       fail();

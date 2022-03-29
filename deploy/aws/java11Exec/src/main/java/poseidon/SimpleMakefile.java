@@ -1,6 +1,7 @@
 package poseidon;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,21 +26,15 @@ class SimpleMakefile {
     // This pattern identifies the rules in a makefile.
     private static final Pattern makeRules = Pattern.compile("(?<name>.*):\\n(?<commands>(?:\\t.+\\n?)*)");
 
-    // The make rule that will get executed.
-    private String startRule = null;
+    // The first rule of the makefile.
+    private String firstRule = null;
 
     // The rules included in the makefile.
     private final Map<String, String[]> rules = new HashMap<>();
 
 
-    // Unwrapps the passed command. We expect a "sh -c" wrapped command.
-    public static String unwrapCommand(String[] cmd) {
-        return cmd[cmd.length - 1];
-    }
-
-    // Wrapps the passed command with "sh -c".
-    public static String[] wrapCommand(String cmd) {
-        return new String[]{"sh", "-c", cmd};
+    private static String concatCommands(String[] commands) {
+        return String.join(" && ", commands);
     }
 
     // getMakefile returns the makefile out of the passed files map.
@@ -56,17 +51,7 @@ class SimpleMakefile {
         return new String(Base64.getDecoder().decode(makefileB64), StandardCharsets.UTF_8);
     }
 
-    public SimpleMakefile(String[] cmd, Map<String, String> files) throws NoMakeCommandException, NoMakefileFoundException {
-        String makeCommand = unwrapCommand(cmd);
-        Matcher makeCommandMatcher = isMakeCommand.matcher(makeCommand);
-        if (!makeCommandMatcher.find()) {
-            throw new NoMakeCommandException();
-        }
-        String ruleArgument = makeCommandMatcher.group("startRule");
-        if (!ruleArgument.isEmpty()) {
-            this.startRule = ruleArgument;
-        }
-
+    public SimpleMakefile(Map<String, String> files) throws NoMakefileFoundException {
         this.parseRules(getMakefile(files));
     }
 
@@ -75,27 +60,42 @@ class SimpleMakefile {
         Matcher makeRuleMatcher = makeRules.matcher(makefile);
         while (makeRuleMatcher.find()) {
             String ruleName = makeRuleMatcher.group("name");
-            if (startRule == null) {
-                startRule = ruleName;
+            if (firstRule == null) {
+                firstRule = ruleName;
             }
 
             String[] ruleCommands = makeRuleMatcher.group("commands").split("\n");
-            String[] trimmedCommands = new String[ruleCommands.length];
-            for (int i = 0; i < ruleCommands.length; i++) {
-                trimmedCommands[i] = ruleCommands[i].trim();
-            }
+            String[] trimmedCommands = Arrays.stream(ruleCommands).map(String::trim).toArray(String[]::new);
 
             rules.put(ruleName, trimmedCommands);
         }
     }
 
-    // getCommand returns a bash line of commands that would be executed by the makefile.
-    public String[] getCommand() throws InvalidMakefileException {
-        if ((this.startRule == null) || !rules.containsKey(this.startRule)) {
+    // getCommand returns a bash line of commands that would be executed by the passed rule.
+    public String getCommand(String rule) {
+        if (rule == null || rule.isEmpty()) {
+            rule = this.firstRule;
+        }
+
+        return concatCommands(rules.get(rule));
+    }
+
+    // parseCommand returns a bash line of commands that would be executed by the passed command.
+    public String parseCommand(String shellCommand) throws InvalidMakefileException, NoMakeCommandException {
+        Matcher makeCommandMatcher = isMakeCommand.matcher(shellCommand);
+        if (!makeCommandMatcher.find()) {
+            throw new NoMakeCommandException();
+        }
+
+        String ruleArgument = makeCommandMatcher.group("startRule");
+        if (ruleArgument.isEmpty()) {
+            ruleArgument = this.firstRule;
+        }
+
+        if ((this.firstRule == null) || !rules.containsKey(ruleArgument)) {
             throw new InvalidMakefileException();
         }
 
-        String makeCommand = String.join(" && ", rules.get(this.startRule));
-        return wrapCommand(makeCommand);
+        return getCommand(ruleArgument);
     }
 }

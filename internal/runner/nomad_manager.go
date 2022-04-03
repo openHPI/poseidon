@@ -35,15 +35,7 @@ func NewNomadRunnerManager(apiClient nomad.ExecutorAPI, ctx context.Context) *No
 }
 
 func (m *NomadRunnerManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
-	environments := make(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData)
-	for _, e := range m.environments.List() {
-		environments[e.ID()] = &dto.StatisticalExecutionEnvironmentData{
-			ID:                 int(e.ID()),
-			PrewarmingPoolSize: e.PrewarmingPoolSize(),
-			IdleRunners:        uint(e.IdleRunnerCount()),
-			UsedRunners:        0,
-		}
-	}
+	environments := m.AbstractManager.EnvironmentStatistics()
 
 	for _, r := range m.usedRunners.List() {
 		id, err := nomad.EnvironmentIDFromRunnerID(r.ID())

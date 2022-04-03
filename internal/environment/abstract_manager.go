@@ -59,5 +59,13 @@ func (n *AbstractManager) Delete(id dto.EnvironmentID) (bool, error) {
 }
 
 func (n *AbstractManager) Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
-	return map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData{}
+	if n.runnerManager == nil {
+		return map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData{}
+	}
+
+	statistics := n.NextHandler().Statistics()
+	for k, v := range n.runnerManager.EnvironmentStatistics() {
+		statistics[k] = v
+	}
+	return statistics
 }

@@ -67,7 +67,3 @@ func isAWSEnvironment(request dto.ExecutionEnvironmentRequest) bool {
 	}
 	return false
 }
-
-func (a *AWSEnvironmentManager) Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
-	return a.NextHandler().Statistics()
-}

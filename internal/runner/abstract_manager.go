@@ -58,7 +58,17 @@ func (n *AbstractManager) DeleteEnvironment(id dto.EnvironmentID) {
 }
 
 func (n *AbstractManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
-	return map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData{}
+	environments := make(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData)
+	for _, e := range n.environments.List() {
+		environments[e.ID()] = &dto.StatisticalExecutionEnvironmentData{
+			ID:                 int(e.ID()),
+			PrewarmingPoolSize: e.PrewarmingPoolSize(),
+			IdleRunners:        uint(e.IdleRunnerCount()),
+			UsedRunners:        0,
+		}
+	}
+
+	return environments
 }
 
 func (n *AbstractManager) Claim(_ dto.EnvironmentID, _ int) (Runner, error) {

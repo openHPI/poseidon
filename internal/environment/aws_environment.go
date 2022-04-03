@@ -59,6 +59,11 @@ func (a *AWSEnvironment) Sample() (r runner.Runner, ok bool) {
 
 // The following methods are not supported at this moment.
 
+// IdleRunnerCount is not supported as we have no information about the AWS managed prewarming pool.
+func (a *AWSEnvironment) IdleRunnerCount() int {
+	return 0
+}
+
 // PrewarmingPoolSize is neither supported nor required. It is handled transparently by AWS.
 func (a *AWSEnvironment) PrewarmingPoolSize() uint {
 	return 0
@@ -109,9 +114,5 @@ func (a *AWSEnvironment) AddRunner(_ runner.Runner) {
 }
 
 func (a *AWSEnvironment) DeleteRunner(_ string) {
-	panic("not supported")
-}
-
-func (a *AWSEnvironment) IdleRunnerCount() int {
 	panic("not supported")
 }

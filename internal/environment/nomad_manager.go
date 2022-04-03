@@ -120,10 +120,6 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request d
 	return !isExistingEnvironment, nil
 }
 
-func (m *NomadEnvironmentManager) Statistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
-	return m.runnerManager.EnvironmentStatistics()
-}
-
 func (m *NomadEnvironmentManager) Load() error {
 	templateJobs, err := m.api.LoadEnvironmentJobs()
 	if err != nil {

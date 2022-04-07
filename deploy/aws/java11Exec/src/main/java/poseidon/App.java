@@ -1,15 +1,6 @@
 package poseidon;
 
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.Base64;
-import java.util.Map;
-import java.util.Scanner;
-
 import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.apigatewaymanagementapi.AmazonApiGatewayManagementApi;
 import com.amazonaws.services.apigatewaymanagementapi.AmazonApiGatewayManagementApiClientBuilder;
 import com.amazonaws.services.apigatewaymanagementapi.model.PostToConnectionRequest;
@@ -19,6 +10,16 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2WebSocketEvent;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Scanner;
 
 // AwsFunctionRequest contains the java files that needs to be executed.
 class AwsFunctionRequest {
@@ -64,6 +65,16 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
     // disableOutput: If set to true, no output will be sent over the WebSocket connection.
     private boolean disableOutput = false;
 
+    // Unwrapps the passed command. We expect a "sh -c" wrapped command.
+    public static String unwrapCommand(String[] cmd) {
+        return cmd[cmd.length - 1];
+    }
+
+    // Wrapps the passed command with "sh -c".
+    public static String[] wrapCommand(String cmd) {
+        return new String[]{"sh", "-c", cmd};
+    }
+
     public APIGatewayProxyResponseEvent handleRequest(final APIGatewayV2WebSocketEvent input, final Context context) {
         APIGatewayV2WebSocketEvent.RequestContext ctx = input.getRequestContext();
         String[] domains = ctx.getDomainName().split("\\.");
@@ -78,7 +89,13 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
         try {
             File workingDirectory = this.writeFS(execution.files);
 
-            ProcessBuilder pb = new ProcessBuilder(execution.cmd);
+            String[] cmd = execution.cmd;
+            try {
+                SimpleMakefile make = new SimpleMakefile(execution.files);
+                cmd = wrapCommand(make.parseCommand(unwrapCommand(execution.cmd)));
+            } catch (NoMakefileFoundException | NoMakeCommandException | InvalidMakefileException ignored) {}
+
+            ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.directory(workingDirectory);
             Process p = pb.start();
             InputStream stdout = p.getInputStream(), stderr = p.getErrorStream();

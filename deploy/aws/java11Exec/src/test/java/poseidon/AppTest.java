@@ -4,12 +4,30 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2WebSocketEvent;
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
+
 public class AppTest {
+
+  static final String RecursiveMathContent = Base64.getEncoder().encodeToString(
+          ("package org.example;\n" +
+          "\n" +
+          "public class RecursiveMath {\n" +
+          "\n" +
+          "    public static void main(String[] args) {\n" +
+          "        System.out.println(\"Mein Text\");\n" +
+          "    }\n" +
+          "\n" +
+          "    public static double power(int base, int exponent) {\n" +
+          "        return 42;\n" +
+          "    }\n" +
+          "}").getBytes(StandardCharsets.UTF_8));
+
   @Test
   public void successfulResponse() {
     App app = new App();
@@ -21,7 +39,8 @@ public class AppTest {
     Map<String, String> headers = new HashMap<>();
     headers.put(App.disableOutputHeaderKey, "True");
     input.setHeaders(headers);
-    input.setBody("{\n    \"action\": \"java11Exec\",\n    \"cmd\": [\n        \"sh\",\n        \"-c\",\n        \"javac org/example/RecursiveMath.java && java org/example/RecursiveMath\"\n    ],\n    \"files\": {\n        \"org/example/RecursiveMath.java\": \"cGFja2FnZSBvcmcuZXhhbXBsZTsKCnB1YmxpYyBjbGFzcyBSZWN1cnNpdmVNYXRoIHsKCiAgICBwdWJsaWMgc3RhdGljIHZvaWQgbWFpbihTdHJpbmdbXSBhcmdzKSB7CiAgICAgICAgU3lzdGVtLm91dC5wcmludGxuKCJNZWluIFRleHQiKTsKICAgIH0KCiAgICBwdWJsaWMgc3RhdGljIGRvdWJsZSBwb3dlcihpbnQgYmFzZSwgaW50IGV4cG9uZW50KSB7CiAgICAgICAgcmV0dXJuIDQyOwogICAgfQp9Cgo=\"\n    }\n}");
+    input.setBody("{\"action\":\"java11Exec\",\"cmd\":[\"sh\",\"-c\",\"javac org/example/RecursiveMath.java && java org/example/RecursiveMath\"]," +
+            "\"files\":{\"org/example/RecursiveMath.java\":\"" + RecursiveMathContent + "\"}}");
     APIGatewayProxyResponseEvent result = app.handleRequest(input, null);
     assertEquals(200, result.getStatusCode().intValue());
   }

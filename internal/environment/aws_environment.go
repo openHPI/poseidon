@@ -65,8 +65,9 @@ func (a *AWSEnvironment) IdleRunnerCount() int {
 }
 
 // PrewarmingPoolSize is neither supported nor required. It is handled transparently by AWS.
+// For easy compatibility with CodeOcean, 1 is the static value.
 func (a *AWSEnvironment) PrewarmingPoolSize() uint {
-	return 0
+	return 1
 }
 
 // SetPrewarmingPoolSize is neither supported nor required. It is handled transparently by AWS.

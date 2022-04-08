@@ -64,7 +64,7 @@ func (n *AbstractManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.Sta
 			ID:                 int(e.ID()),
 			PrewarmingPoolSize: e.PrewarmingPoolSize(),
 			IdleRunners:        uint(e.IdleRunnerCount()),
-			UsedRunners:        0,
+			UsedRunners:        0, // Adjusted later as the information is present in the specific runner manager.
 		}
 	}
 

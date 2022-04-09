@@ -107,7 +107,7 @@ type RunnerRouteTestSuite struct {
 
 func (s *RunnerRouteTestSuite) SetupTest() {
 	s.runnerManager = &runner.ManagerMock{}
-	s.router = NewRouter(s.runnerManager, nil)
+	s.router = NewRouter(s.runnerManager, nil, nil)
 	s.runner = runner.NewNomadJob("some-id", nil, nil, nil)
 	s.executionID = "execution"
 	s.runner.StoreExecution(s.executionID, &dto.ExecutionRequest{})
@@ -253,6 +253,7 @@ func (s *UpdateFileSystemRouteTestSuite) SetupTest() {
 	s.Require().NoError(err)
 	s.path = routeURL.String()
 	s.runnerMock = &runner.RunnerMock{}
+	s.runnerMock.On("ID").Return(tests.DefaultMockID)
 	s.runnerManager.On("Get", tests.DefaultMockID).Return(s.runnerMock, nil)
 	s.recorder = httptest.NewRecorder()
 }

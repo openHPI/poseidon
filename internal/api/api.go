@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/gorilla/mux"
+	influxdb2API "github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/openHPI/poseidon/internal/api/auth"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
@@ -27,12 +28,14 @@ const (
 // always returns a router for the newest version of our API. We
 // use gorilla/mux because it is more convenient than net/http, e.g.
 // when extracting path parameters.
-func NewRouter(runnerManager runner.Manager, environmentManager environment.ManagerHandler) *mux.Router {
+func NewRouter(runnerManager runner.Manager, environmentManager environment.ManagerHandler,
+	influxClient influxdb2API.WriteAPI) *mux.Router {
 	router := mux.NewRouter()
 	// this can later be restricted to a specific host with
 	// `router.Host(...)` and to HTTPS with `router.Schemes("https")`
 	configureV1Router(router, runnerManager, environmentManager)
 	router.Use(logging.HTTPLoggingMiddleware)
+	router.Use(logging.InfluxDB2Middleware(influxClient))
 	return router
 }
 

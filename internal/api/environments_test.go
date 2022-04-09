@@ -31,7 +31,7 @@ func TestEnvironmentControllerTestSuite(t *testing.T) {
 
 func (s *EnvironmentControllerTestSuite) SetupTest() {
 	s.manager = &environment.ManagerHandlerMock{}
-	s.router = NewRouter(nil, s.manager)
+	s.router = NewRouter(nil, s.manager, nil)
 }
 
 func (s *EnvironmentControllerTestSuite) TestList() {

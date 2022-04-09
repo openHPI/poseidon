@@ -8,6 +8,7 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"io"
 	"net/http"
 	"net/url"
@@ -50,6 +51,8 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
+	logging.AddEnvironmentID(request, environmentID)
+
 	nextRunner, err := r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
 	if err != nil {
 		switch {
@@ -63,18 +66,21 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		}
 		return
 	}
+	logging.AddRunnerID(request, nextRunner.ID())
 	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()}, http.StatusOK)
 }
 
 // updateFileSystem handles the files API route.
 // It takes an dto.UpdateFileSystemRequest and sends it to the runner for processing.
 func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request *http.Request) {
+	logging.AddRequestSize(request)
 	fileCopyRequest := new(dto.UpdateFileSystemRequest)
 	if err := parseJSONRequestBody(writer, request, fileCopyRequest); err != nil {
 		return
 	}
 
 	targetRunner, _ := runner.FromContext(request.Context())
+	logging.AddRunnerID(request, targetRunner.ID())
 	if err := targetRunner.UpdateFileSystem(fileCopyRequest); err != nil {
 		log.WithError(err).Error("Could not perform the requested updateFileSystem.")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
@@ -100,6 +106,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		scheme = "ws"
 	}
 	targetRunner, _ := runner.FromContext(request.Context())
+	logging.AddRunnerID(request, targetRunner.ID())
 
 	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIDKey, targetRunner.ID())
 	if err != nil {
@@ -151,6 +158,7 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 // It destroys the given runner on the executor and removes it from the used runners list.
 func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
+	logging.AddRunnerID(request, targetRunner.ID())
 
 	err := r.manager.Return(targetRunner)
 	if err != nil {

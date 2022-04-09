@@ -66,3 +66,15 @@ sentry:
   # This release information is used by Poseidon to provide the version route.
   # Normally it is set by the deployment process.
   # release: this is replaced in the deployment process
+
+# Configuration of the influxdb monitoring
+influxdb:
+  # The url of the influxdb endpoint.
+  # If the url is not set, the influxdb monitoring is disabled.
+  url: http://localhost:8086
+  # The token to secure the influxdb endpoint.
+  token: SecretBase64Token==
+  # The organisation set in your influxdb configuration.
+  organisation: PoseidonOrg
+  # The influxdb bucket to store the data in.
+  bucket: poseidon

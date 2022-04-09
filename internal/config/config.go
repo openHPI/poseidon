@@ -53,6 +53,12 @@ var (
 			Level: "INFO",
 		},
 		Sentry: sentry.ClientOptions{},
+		InfluxDB: InfluxDB{
+			Url:          "",
+			Token:        "",
+			Organization: "",
+			Bucket:       "",
+		},
 	}
 	configurationFilePath    = "./configuration.yaml"
 	configurationInitialized = false
@@ -115,13 +121,22 @@ type logger struct {
 	Level string
 }
 
+// InfluxDB configures the usage of an Influx db monitoring.
+type InfluxDB struct {
+	Url          string
+	Token        string
+	Organization string
+	Bucket       string
+}
+
 // configuration contains the complete configuration of Poseidon.
 type configuration struct {
-	Server server
-	Nomad  Nomad
-	AWS    AWS
-	Logger logger
-	Sentry sentry.ClientOptions
+	Server   server
+	Nomad    Nomad
+	AWS      AWS
+	Logger   logger
+	Sentry   sentry.ClientOptions
+	InfluxDB InfluxDB
 }
 
 // InitConfig merges configuration options from environment variables and

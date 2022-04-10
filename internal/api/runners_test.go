@@ -254,6 +254,7 @@ func (s *UpdateFileSystemRouteTestSuite) SetupTest() {
 	s.path = routeURL.String()
 	s.runnerMock = &runner.RunnerMock{}
 	s.runnerMock.On("ID").Return(tests.DefaultMockID)
+	s.runnerMock.On("Environment").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	s.runnerManager.On("Get", tests.DefaultMockID).Return(s.runnerMock, nil)
 	s.recorder = httptest.NewRecorder()
 }

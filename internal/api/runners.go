@@ -51,7 +51,6 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
-	logging.AddEnvironmentID(request, environmentID)
 
 	nextRunner, err := r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
 	if err != nil {
@@ -66,7 +65,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		}
 		return
 	}
-	logging.AddRunnerID(request, nextRunner.ID())
+	addMonitoringData(request, nextRunner)
 	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()}, http.StatusOK)
 }
 
@@ -80,7 +79,7 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	}
 
 	targetRunner, _ := runner.FromContext(request.Context())
-	logging.AddRunnerID(request, targetRunner.ID())
+	addMonitoringData(request, targetRunner)
 	if err := targetRunner.UpdateFileSystem(fileCopyRequest); err != nil {
 		log.WithError(err).Error("Could not perform the requested updateFileSystem.")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
@@ -106,7 +105,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		scheme = "ws"
 	}
 	targetRunner, _ := runner.FromContext(request.Context())
-	logging.AddRunnerID(request, targetRunner.ID())
+	addMonitoringData(request, targetRunner)
 
 	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIDKey, targetRunner.ID())
 	if err != nil {
@@ -158,7 +157,7 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 // It destroys the given runner on the executor and removes it from the used runners list.
 func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	logging.AddRunnerID(request, targetRunner.ID())
+	addMonitoringData(request, targetRunner)
 
 	err := r.manager.Return(targetRunner)
 	if err != nil {
@@ -171,4 +170,10 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 	}
 
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+// addMonitoringData adds the data of the runner and environment we want to monitor.
+func addMonitoringData(request *http.Request, r runner.Runner) {
+	logging.AddRunnerID(request, r.ID())
+	logging.AddEnvironmentID(request, r.Environment())
 }

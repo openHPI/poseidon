@@ -61,6 +61,10 @@ func (w *AWSFunctionWorkload) ID() string {
 	return w.id
 }
 
+func (w *AWSFunctionWorkload) Environment() dto.EnvironmentID {
+	return w.environment.ID()
+}
+
 func (w *AWSFunctionWorkload) MappedPorts() []*dto.MappedPort {
 	return []*dto.MappedPort{}
 }

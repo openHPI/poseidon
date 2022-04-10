@@ -19,6 +19,9 @@ type Runner interface {
 	// ID returns the id of the runner.
 	ID() string
 
+	// Environment returns the id of the Environment to which the Runner belongs.
+	Environment() dto.EnvironmentID
+
 	// MappedPorts returns the mapped ports of the runner.
 	MappedPorts() []*dto.MappedPort
 

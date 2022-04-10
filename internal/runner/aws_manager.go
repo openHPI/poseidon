@@ -45,22 +45,3 @@ func (a AWSRunnerManager) Return(r Runner) error {
 	}
 	return nil
 }
-
-// EnvironmentStatistics returns only the used runner for each environment as the prewarming is handled
-// by AWS transparently.
-func (a AWSRunnerManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
-	environments := a.AbstractManager.EnvironmentStatistics()
-
-	for _, r := range a.usedRunners.List() {
-		workload, isAWSRunner := r.(*AWSFunctionWorkload)
-		if !isAWSRunner {
-			log.WithField("workload", workload).Error("Stored runners must be AWS runner")
-			continue
-		}
-
-		environmentID := workload.environment.ID()
-		environments[environmentID].UsedRunners++
-	}
-
-	return environments
-}

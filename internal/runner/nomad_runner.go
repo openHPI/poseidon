@@ -66,6 +66,14 @@ func (r *NomadJob) ID() string {
 	return r.id
 }
 
+func (r *NomadJob) Environment() dto.EnvironmentID {
+	id, err := nomad.EnvironmentIDFromRunnerID(r.ID())
+	if err != nil {
+		log.WithError(err).Error("Runners must have correct IDs")
+	}
+	return id
+}
+
 func (r *NomadJob) MappedPorts() []*dto.MappedPort {
 	ports := make([]*dto.MappedPort, 0, len(r.portMappings))
 	for _, portMapping := range r.portMappings {

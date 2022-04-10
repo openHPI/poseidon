@@ -50,10 +50,28 @@ func AddEnvironmentID(r *http.Request, id dto.EnvironmentID) {
 	p.AddTag("environment_id", strconv.Itoa(int(id)))
 }
 
+// AddEnvironmentType adds the type of the used environment to the influxdb data point.
+func AddEnvironmentType(r *http.Request, t string) {
+	p := pointFromContext(r.Context())
+	p.AddTag("environment_type", t)
+}
+
 // AddRunnerID adds the runner id to the influx data point for the current request.
 func AddRunnerID(r *http.Request, id string) {
 	p := pointFromContext(r.Context())
 	p.AddTag("runner_id", id)
+}
+
+// AddIdleRunner adds the count of idle runners of the used environment to the influxdb data point.
+func AddIdleRunner(r *http.Request, count int) {
+	p := pointFromContext(r.Context())
+	p.AddField("idle_runner", strconv.Itoa(count))
+}
+
+// AddPrewarmingPoolSize adds the prewarming pool size of the used environment to the influxdb data point.
+func AddPrewarmingPoolSize(r *http.Request, count uint) {
+	p := pointFromContext(r.Context())
+	p.AddField("prewarming_pool_size", strconv.Itoa(int(count)))
 }
 
 // AddRequestSize adds the size of the request body to the influx data point for the current request.

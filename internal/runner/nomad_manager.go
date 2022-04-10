@@ -34,19 +34,6 @@ func NewNomadRunnerManager(apiClient nomad.ExecutorAPI, ctx context.Context) *No
 	return m
 }
 
-func (m *NomadRunnerManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
-	environments := m.AbstractManager.EnvironmentStatistics()
-
-	for _, r := range m.usedRunners.List() {
-		id, err := nomad.EnvironmentIDFromRunnerID(r.ID())
-		if err != nil {
-			log.WithError(err).Error("Stored runners must have correct IDs")
-		}
-		environments[id].UsedRunners++
-	}
-	return environments
-}
-
 func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int) (Runner, error) {
 	environment, ok := m.environments.Get(environmentID)
 	if !ok {

@@ -8,7 +8,7 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/pkg/logging"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"io"
 	"net/http"
 	"net/url"
@@ -65,21 +65,21 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		}
 		return
 	}
-	addMonitoringData(request, nextRunner)
+	monitoring.AddRunnerMonitoringData(request, nextRunner)
 	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()}, http.StatusOK)
 }
 
 // updateFileSystem handles the files API route.
 // It takes an dto.UpdateFileSystemRequest and sends it to the runner for processing.
 func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request *http.Request) {
-	logging.AddRequestSize(request)
+	monitoring.AddRequestSize(request)
 	fileCopyRequest := new(dto.UpdateFileSystemRequest)
 	if err := parseJSONRequestBody(writer, request, fileCopyRequest); err != nil {
 		return
 	}
 
 	targetRunner, _ := runner.FromContext(request.Context())
-	addMonitoringData(request, targetRunner)
+	monitoring.AddRunnerMonitoringData(request, targetRunner)
 	if err := targetRunner.UpdateFileSystem(fileCopyRequest); err != nil {
 		log.WithError(err).Error("Could not perform the requested updateFileSystem.")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
@@ -105,7 +105,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		scheme = "ws"
 	}
 	targetRunner, _ := runner.FromContext(request.Context())
-	addMonitoringData(request, targetRunner)
+	monitoring.AddRunnerMonitoringData(request, targetRunner)
 
 	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIDKey, targetRunner.ID())
 	if err != nil {
@@ -157,7 +157,7 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 // It destroys the given runner on the executor and removes it from the used runners list.
 func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	addMonitoringData(request, targetRunner)
+	monitoring.AddRunnerMonitoringData(request, targetRunner)
 
 	err := r.manager.Return(targetRunner)
 	if err != nil {
@@ -170,10 +170,4 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 	}
 
 	writer.WriteHeader(http.StatusNoContent)
-}
-
-// addMonitoringData adds the data of the runner and environment we want to monitor.
-func addMonitoringData(request *http.Request, r runner.Runner) {
-	logging.AddRunnerID(request, r.ID())
-	logging.AddEnvironmentID(request, r.Environment())
 }

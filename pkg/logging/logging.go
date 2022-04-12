@@ -46,7 +46,7 @@ func GetLogger(pkg string) *logrus.Entry {
 // that is written.
 type loggingResponseWriter struct {
 	http.ResponseWriter
-	statusCode int
+	StatusCode int
 }
 
 func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
@@ -54,7 +54,7 @@ func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
 }
 
 func (writer *loggingResponseWriter) WriteHeader(code int) {
-	writer.statusCode = code
+	writer.StatusCode = code
 	writer.ResponseWriter.WriteHeader(code)
 }
 
@@ -77,13 +77,13 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 
 		latency := time.Now().UTC().Sub(start)
 		logEntry := log.WithFields(logrus.Fields{
-			"code":       lrw.statusCode,
+			"code":       lrw.StatusCode,
 			"method":     r.Method,
 			"path":       path,
 			"duration":   latency,
 			"user_agent": r.UserAgent(),
 		})
-		if lrw.statusCode >= http.StatusInternalServerError {
+		if lrw.StatusCode >= http.StatusInternalServerError {
 			logEntry.Error("Failing " + path)
 		} else {
 			logEntry.Debug()

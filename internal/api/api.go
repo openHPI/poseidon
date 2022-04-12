@@ -9,6 +9,7 @@ import (
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"net/http"
 )
 
@@ -35,7 +36,7 @@ func NewRouter(runnerManager runner.Manager, environmentManager environment.Mana
 	// `router.Host(...)` and to HTTPS with `router.Schemes("https")`
 	configureV1Router(router, runnerManager, environmentManager)
 	router.Use(logging.HTTPLoggingMiddleware)
-	router.Use(logging.InfluxDB2Middleware(influxClient))
+	router.Use(monitoring.InfluxDB2Middleware(influxClient, environmentManager))
 	return router
 }
 

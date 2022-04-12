@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"io"
 	"net/http"
 	"sync"
@@ -333,7 +334,7 @@ func (wp *webSocketProxy) writeMessage(messageType int, data []byte) error {
 // connectToRunner is the endpoint for websocket connections.
 func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	addMonitoringData(request, targetRunner)
+	monitoring.AddRunnerMonitoringData(request, targetRunner)
 
 	executionID := request.URL.Query().Get(ExecutionIDKey)
 	if !targetRunner.ExecutionExists(executionID) {

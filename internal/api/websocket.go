@@ -117,6 +117,8 @@ func handleInput(messageType int, reader io.Reader, err error, buffer chan byte,
 		log.WithError(err).Warn("error while reading WebSocket message")
 		return true
 	}
+
+	log.WithField("message", string(message)).Trace("Received message from client")
 	for _, character := range message {
 		select {
 		case <-ctx.Done():
@@ -298,6 +300,7 @@ func (wp *webSocketProxy) sendToClient(message dto.WebSocketMessage) error {
 		wp.closeWithError("Error creating message")
 		return fmt.Errorf("error marshaling WebSocket message: %w", err)
 	}
+	log.WithField("message", message).Trace("Sending message to client")
 	err = wp.writeMessage(websocket.TextMessage, encodedMessage)
 	if err != nil {
 		errorMessage := "Error writing the message"

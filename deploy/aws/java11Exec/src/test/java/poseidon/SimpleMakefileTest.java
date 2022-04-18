@@ -22,6 +22,15 @@ public class SimpleMakefileTest {
                   "\techo Hi\n"
           ).getBytes(StandardCharsets.UTF_8));
 
+  static final String SuccessfulWindowsMakefile = Base64.getEncoder().encodeToString(
+          ("run:\r\n" +
+                  "\tjavac org/example/RecursiveMath.java\r\n" +
+                  "\tjava org/example/RecursiveMath\r\n" +
+                  "\r\n" +
+                  "test:\r\n" +
+                  "\techo Hi\r\n"
+          ).getBytes(StandardCharsets.UTF_8));
+
   static final String NotSupportedMakefile = Base64.getEncoder().encodeToString(
           ("run: test\n" +
                   "\tjavac org/example/RecursiveMath.java\n" +
@@ -35,6 +44,23 @@ public class SimpleMakefileTest {
   public void sucessfullMake() {
     Map<String, String> files = new HashMap<>();
     files.put("Makefile", SuccessfulMakefile);
+    files.put("org/example/RecursiveMath.java", RecursiveMathContent);
+
+    try {
+      String command = "make run";
+      SimpleMakefile makefile = new SimpleMakefile(files);
+      String cmd = makefile.parseCommand(command);
+
+      assertEquals("javac org/example/RecursiveMath.java && java org/example/RecursiveMath", cmd);
+    } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
+      fail();
+    }
+  }
+
+  @Test
+  public void sucessfullMakeWithCR() {
+    Map<String, String> files = new HashMap<>();
+    files.put("Makefile", SuccessfulWindowsMakefile);
     files.put("org/example/RecursiveMath.java", RecursiveMathContent);
 
     try {

@@ -24,7 +24,7 @@ class SimpleMakefile {
     private static final Pattern isMakeCommand = Pattern.compile("^make(?:\\s+(?<startRule>\\w*))?$");
 
     // This pattern identifies the rules in a makefile.
-    private static final Pattern makeRules = Pattern.compile("(?<name>.*):\\n(?<commands>(?:\\t.+\\n?)*)");
+    private static final Pattern makeRules = Pattern.compile("(?<name>.*):\\r?\\n(?<commands>(?:\\t.+\\r?\\n?)*)");
 
     // The first rule of the makefile.
     private String firstRule = null;

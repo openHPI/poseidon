@@ -74,7 +74,7 @@ influxdb:
   url: http://localhost:8086
   # The token to secure the influxdb endpoint.
   token: SecretBase64Token==
-  # The organisation set in your influxdb configuration.
+  # The organization set in your influxdb configuration.
   organization: PoseidonOrg
   # The influxdb bucket to store the data in.
   bucket: poseidon

@@ -75,6 +75,6 @@ influxdb:
   # The token to secure the influxdb endpoint.
   token: SecretBase64Token==
   # The organisation set in your influxdb configuration.
-  organisation: PoseidonOrg
+  organization: PoseidonOrg
   # The influxdb bucket to store the data in.
   bucket: poseidon

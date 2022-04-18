@@ -24,7 +24,12 @@ linters-settings:
     settings:
       mnd:
         # don't include "assign"
-        checks: argument,case,condition,operation,return
+        checks:
+        - argument
+        - case
+        - condition
+        - operation
+        - return
   importas:
     unaliased: false
   lll:
@@ -38,7 +43,7 @@ linters-settings:
   nakedret:
     max-func-lines: 5
   stylecheck:
-    go: "1.16"
+    go: "1.18"
 
 linters:
   disable-all: true

@@ -46,7 +46,7 @@ nomad:
 aws:
   # Specifies whether AWS should be used as executor.
   enabled: false
-  # The enpoint of the WebSocket API
+  # The endpoint of the WebSocket API
   endpoint: wss://abcdef1234.execute-api.eu-central-1.amazonaws.com/production
   # Currently, only static AWS environments are supported. You can list them here separated by spaces.
   functions: "java11Exec go118Exec"

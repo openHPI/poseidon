@@ -31,6 +31,12 @@ public class SimpleMakefileTest {
                   "\techo Hi\r\n"
           ).getBytes(StandardCharsets.UTF_8));
 
+  static final String SuccessfulMakefileWithAtSymbol = Base64.getEncoder().encodeToString(
+          ("run:\r\n" +
+                  "\t@javac org/example/RecursiveMath.java\r\n" +
+                  "\t@java org/example/RecursiveMath\r\n"
+          ).getBytes(StandardCharsets.UTF_8));
+
   static final String NotSupportedMakefile = Base64.getEncoder().encodeToString(
           ("run: test\n" +
                   "\tjavac org/example/RecursiveMath.java\n" +
@@ -42,25 +48,24 @@ public class SimpleMakefileTest {
 
   @Test
   public void sucessfullMake() {
-    Map<String, String> files = new HashMap<>();
-    files.put("Makefile", SuccessfulMakefile);
-    files.put("org/example/RecursiveMath.java", RecursiveMathContent);
-
-    try {
-      String command = "make run";
-      SimpleMakefile makefile = new SimpleMakefile(files);
-      String cmd = makefile.parseCommand(command);
-
-      assertEquals("javac org/example/RecursiveMath.java && java org/example/RecursiveMath", cmd);
-    } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
-      fail();
-    }
+    parseRunCommandOfMakefile(SuccessfulMakefile);
   }
 
   @Test
   public void sucessfullMakeWithCR() {
+    parseRunCommandOfMakefile(SuccessfulWindowsMakefile);
+  }
+
+  // We remove [the @ Symbol](https://www.gnu.org/software/make/manual/make.html#Echoing)
+  // as the command itself is never written to stdout with this implementation.
+  @Test
+  public void sucessfullMakeWithAtSymbol() {
+    parseRunCommandOfMakefile(SuccessfulMakefileWithAtSymbol);
+  }
+
+  private void parseRunCommandOfMakefile(String makefileB64) {
     Map<String, String> files = new HashMap<>();
-    files.put("Makefile", SuccessfulWindowsMakefile);
+    files.put("Makefile", makefileB64);
     files.put("org/example/RecursiveMath.java", RecursiveMathContent);
 
     try {

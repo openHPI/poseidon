@@ -65,7 +65,10 @@ class SimpleMakefile {
             }
 
             String[] ruleCommands = makeRuleMatcher.group("commands").split("\n");
-            String[] trimmedCommands = Arrays.stream(ruleCommands).map(String::trim).toArray(String[]::new);
+            String[] trimmedCommands = Arrays.stream(ruleCommands)
+                    .map(String::trim)
+                    .map(s -> s.startsWith("@") ? s.substring(1) : s)
+                    .toArray(String[]::new);
 
             rules.put(ruleName, trimmedCommands);
         }

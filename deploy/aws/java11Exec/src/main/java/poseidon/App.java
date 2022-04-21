@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 // AwsFunctionRequest contains the java files that needs to be executed.
@@ -153,15 +154,14 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
     private void scanForOutput(Process p, InputStream stream, WebSocketMessageType type) {
         Scanner outputScanner = new Scanner(stream);
         while (p.isAlive() || outputScanner.hasNextLine()) {
-            this.sendMessage(type, outputScanner.nextLine(), null);
+            try {
+                this.sendMessage(type, outputScanner.nextLine() + "\n", null);
+            } catch (NoSuchElementException ignored) {}
         }
     }
 
     // sendMessage sends WebSocketMessage objects back to the requester of this Lambda function.
     private void sendMessage(WebSocketMessageType type, String data, Integer exitCode) {
-        if (this.disableOutput) {
-            return;
-        }
         JsonObject msg = new JsonObject();
         msg.addProperty("type", type.toString());
         if (type == WebSocketMessageType.WebSocketExit) {
@@ -170,8 +170,12 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
             msg.addProperty("data", data);
         }
 
-        this.gwClient.postToConnection(new PostToConnectionRequest()
-                .withConnectionId(this.connectionID)
-                .withData(ByteBuffer.wrap(gson.toJson(msg).getBytes(StandardCharsets.UTF_8))));
+        if (this.disableOutput) {
+            System.out.println(gson.toJson(msg));
+        } else {
+            this.gwClient.postToConnection(new PostToConnectionRequest()
+                    .withConnectionId(this.connectionID)
+                    .withData(ByteBuffer.wrap(gson.toJson(msg).getBytes(StandardCharsets.UTF_8))));
+        }
     }
 }

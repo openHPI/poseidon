@@ -68,6 +68,8 @@ class SimpleMakefile {
             String[] trimmedCommands = Arrays.stream(ruleCommands)
                     .map(String::trim)
                     .map(s -> s.startsWith("@") ? s.substring(1) : s)
+                    .map(s -> s.contains("#") ? s.substring(0, s.indexOf("#")) : s)
+                    .filter(s -> !s.isEmpty())
                     .toArray(String[]::new);
 
             rules.put(ruleName, trimmedCommands);

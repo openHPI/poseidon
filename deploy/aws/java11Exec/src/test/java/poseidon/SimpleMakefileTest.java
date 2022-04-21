@@ -37,6 +37,13 @@ public class SimpleMakefileTest {
                   "\t@java org/example/RecursiveMath\r\n"
           ).getBytes(StandardCharsets.UTF_8));
 
+  static final String SuccessfulMakefileWithComment = Base64.getEncoder().encodeToString(
+          ("run:\r\n" +
+                  "\t@javac org/example/RecursiveMath.java\r\n" +
+                  "\t@java org/example/RecursiveMath\r\n" +
+                  "\t#exit\r\n"
+          ).getBytes(StandardCharsets.UTF_8));
+
   static final String NotSupportedMakefile = Base64.getEncoder().encodeToString(
           ("run: test\n" +
                   "\tjavac org/example/RecursiveMath.java\n" +
@@ -61,6 +68,13 @@ public class SimpleMakefileTest {
   @Test
   public void sucessfullMakeWithAtSymbol() {
     parseRunCommandOfMakefile(SuccessfulMakefileWithAtSymbol);
+  }
+
+  // We remove [any comments with #](https://www.gnu.org/software/make/manual/make.html#Recipe-Syntax)
+  // as they are normally ignored / echoed with most shells.
+  @Test
+  public void sucessfullMakeWithComment() {
+    parseRunCommandOfMakefile(SuccessfulMakefileWithComment);
   }
 
   private void parseRunCommandOfMakefile(String makefileB64) {

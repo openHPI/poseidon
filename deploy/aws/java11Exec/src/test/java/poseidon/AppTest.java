@@ -41,6 +41,16 @@ public class AppTest {
           "    }\n" +
           "}").getBytes(StandardCharsets.UTF_8));
 
+  static final String MathContentWithoutTrailingNewline = Base64.getEncoder().encodeToString(
+          ("package org.example;\n" +
+          "\n" +
+          "public class RecursiveMath {\n" +
+          "\n" +
+          "    public static void main(String[] args) {\n" +
+          "        System.out.print(\"Mein Text\");\n" +
+          "    }\n" +
+          "}").getBytes(StandardCharsets.UTF_8));
+
   @Test
   public void successfulResponse() {
     APIGatewayProxyResponseEvent result = getApiGatewayProxyResponse(RecursiveMathContent);
@@ -61,6 +71,20 @@ public class AppTest {
             "{\"type\":\"exit\",\"data\":0}\n";
     assertEquals(expectedOutput, out.toString());
   }
+
+  @Test
+  public void outputWithoutTrailingNewline() {
+    ByteArrayOutputStream out = setupStdOutLogs();
+    APIGatewayProxyResponseEvent result = getApiGatewayProxyResponse(MathContentWithoutTrailingNewline);
+    restoreStdOutLogs();
+
+    assertEquals(200, result.getStatusCode().intValue());
+    String expectedOutput =
+            "{\"type\":\"stdout\",\"data\":\"Mein Text\"}\n" +
+            "{\"type\":\"exit\",\"data\":0}\n";
+    assertEquals(expectedOutput, out.toString());
+  }
+
 
   private PrintStream originalOut;
   private ByteArrayOutputStream setupStdOutLogs() {

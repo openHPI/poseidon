@@ -11,16 +11,12 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2WebSocketEvent;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Scanner;
 
 // AwsFunctionRequest contains the java files that needs to be executed.
 class AwsFunctionRequest {
@@ -147,16 +143,29 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
 
         output.join();
         error.join();
-        this.sendMessage(WebSocketMessageType.WebSocketExit, null, p.exitValue());
+        this.sendMessage(WebSocketMessageType.WebSocketExit, null, p.waitFor());
     }
 
     // scanForOutput reads the passed stream and forwards it via the WebSocket connection.
     private void scanForOutput(Process p, InputStream stream, WebSocketMessageType type) {
-        Scanner outputScanner = new Scanner(stream);
-        while (p.isAlive() || outputScanner.hasNextLine()) {
-            try {
-                this.sendMessage(type, outputScanner.nextLine() + "\n", null);
-            } catch (NoSuchElementException ignored) {}
+        BufferedReader br = new BufferedReader(new InputStreamReader(stream));
+        StringBuilder s = new StringBuilder();
+        int nextByte;
+
+        try {
+            while ((nextByte = br.read()) != -1) {
+                char c = (char) nextByte;
+                s.append(c);
+
+                if (c == '\n') {
+                    this.sendMessage(type, s.toString(), null);
+                    s = new StringBuilder();
+                }
+            }
+        } catch (IOException ignored) {}
+
+        if (!s.toString().isEmpty()) {
+            this.sendMessage(type, s.toString(), null);
         }
     }
 

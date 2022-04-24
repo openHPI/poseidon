@@ -126,8 +126,8 @@ public class SimpleMakefileTest {
       SimpleMakefile make = new SimpleMakefile(files);
       String cmd = make.parseCommand(command);
 
-      assertEquals("javac -encoding utf8 -cp .:/usr/java/lib/hamcrest-core-1.3.jar:/usr/java/lib/junit-4.11.jar RecursiveMath-Test.java && " +
-              "java -Dfile.encoding=UTF8 -cp .:/usr/java/lib/hamcrest-core-1.3.jar:/usr/java/lib/junit-4.11.jar org.junit.runner.JUnitCore RecursiveMath", cmd);
+      assertEquals("javac -encoding utf8 -cp .:/var/task/lib/org.hamcrest.hamcrest-core-1.3.jar:/var/task/lib/junit.junit-4.11.jar RecursiveMath-Test.java && " +
+              "java -Dfile.encoding=UTF8 -cp .:/var/task/lib/org.hamcrest.hamcrest-core-1.3.jar:/var/task/lib/junit.junit-4.11.jar org.junit.runner.JUnitCore RecursiveMath", cmd);
     } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
       fail();
     }

@@ -37,6 +37,12 @@ public class SimpleMakefileTest {
                   "\t@java org/example/RecursiveMath\r\n"
           ).getBytes(StandardCharsets.UTF_8));
 
+  static final String SuccessfulMakefileWithAssignments = Base64.getEncoder().encodeToString(
+          ("test:\n" +
+                  "\tjavac -encoding utf8 -cp .:/usr/java/lib/hamcrest-core-1.3.jar:/usr/java/lib/junit-4.11.jar ${FILENAME}\n" +
+                  "\tjava -Dfile.encoding=UTF8 -cp .:/usr/java/lib/hamcrest-core-1.3.jar:/usr/java/lib/junit-4.11.jar org.junit.runner.JUnitCore ${CLASS_NAME}\n"
+          ).getBytes(StandardCharsets.UTF_8));
+
   static final String SuccessfulMakefileWithComment = Base64.getEncoder().encodeToString(
           ("run:\r\n" +
                   "\t@javac org/example/RecursiveMath.java\r\n" +
@@ -107,6 +113,24 @@ public class SimpleMakefileTest {
     } catch (NoMakefileFoundException | InvalidMakefileException ignored) {
       fail();
     } catch (NoMakeCommandException ignored) {}
+  }
+
+  @Test
+  public void sucessfullMakeWithAssignments() {
+    Map<String, String> files = new HashMap<>();
+    files.put("Makefile", SuccessfulMakefileWithAssignments);
+    files.put("org/example/RecursiveMath.java", RecursiveMathContent);
+
+    try {
+      String command = "make test CLASS_NAME=\"RecursiveMath\" FILENAME=\"RecursiveMath-Test.java\"";
+      SimpleMakefile make = new SimpleMakefile(files);
+      String cmd = make.parseCommand(command);
+
+      assertEquals("javac -encoding utf8 -cp .:/usr/java/lib/hamcrest-core-1.3.jar:/usr/java/lib/junit-4.11.jar RecursiveMath-Test.java && " +
+              "java -Dfile.encoding=UTF8 -cp .:/usr/java/lib/hamcrest-core-1.3.jar:/usr/java/lib/junit-4.11.jar org.junit.runner.JUnitCore RecursiveMath", cmd);
+    } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
+      fail();
+    }
   }
 
   @Test

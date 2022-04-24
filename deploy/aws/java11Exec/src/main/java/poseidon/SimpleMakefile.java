@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 // NoMakefileFoundException is thrown if no makefile could be found.
 class NoMakefileFoundException extends Exception {}
@@ -21,7 +22,7 @@ class InvalidMakefileException extends Exception {}
 class SimpleMakefile {
 
     // This pattern validates if a command is a make command.
-    private static final Pattern isMakeCommand = Pattern.compile("^make(?:\\s+(?<startRule>\\w*))?$");
+    private static final Pattern isMakeCommand = Pattern.compile("^make(?:\\s+(?<startRule>\\w*))?(?<assignments>(?:.*?=.*?)+)?$");
 
     // This pattern identifies the rules in a makefile.
     private static final Pattern makeRules = Pattern.compile("(?<name>.*):\\r?\\n(?<commands>(?:\\t.+\\r?\\n?)*)");
@@ -87,6 +88,31 @@ class SimpleMakefile {
         return concatCommands(rules.get(rule));
     }
 
+    // getAssignmentPart returns the key or value of the passed assignment depending on the flag firstPart.
+    private String getAssignmentPart(String assignment, boolean firstPart) {
+        String[] parts = assignment.split("=");
+
+        if (firstPart) {
+            return parts[0];
+        } else {
+            return parts[1].replaceAll("^\\\"|\\\"$", "");
+        }
+    }
+
+    // injectAssignments applies all set assignments in the command string.
+    private String injectAssignments(String command, String assignments) {
+        String result = command;
+        Map<String, String> map = Arrays.stream(assignments.split(" "))
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toMap(s -> getAssignmentPart(s, true), s -> getAssignmentPart(s, false)));
+
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            result = result.replaceAll("\\$\\{" + entry.getKey() + "\\}", entry.getValue());
+        }
+
+        return result;
+    }
+
     // parseCommand returns a bash line of commands that would be executed by the passed command.
     public String parseCommand(String shellCommand) throws InvalidMakefileException, NoMakeCommandException {
         Matcher makeCommandMatcher = isMakeCommand.matcher(shellCommand);
@@ -103,6 +129,8 @@ class SimpleMakefile {
             throw new InvalidMakefileException();
         }
 
-        return getCommand(ruleArgument);
+        String command = getCommand(ruleArgument);
+        String assignments = makeCommandMatcher.group("assignments");
+        return injectAssignments(command, (assignments != null) ? assignments : "");
     }
 }

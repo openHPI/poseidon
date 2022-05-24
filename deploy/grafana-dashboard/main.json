@@ -1,0 +1,991 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 13,
+  "iteration": 1653418538534,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 25,
+      "panels": [],
+      "title": "General",
+      "type": "row"
+    },
+    {
+      "cards": {},
+      "color": {
+        "cardColor": "#b4ff00",
+        "colorScale": "sqrt",
+        "colorScheme": "interpolateOranges",
+        "exponent": 0.5,
+        "mode": "spectrum"
+      },
+      "dataFormat": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "heatmap": {},
+      "hideZeroBuckets": false,
+      "highlightCards": true,
+      "id": 28,
+      "legend": {
+        "show": false
+      },
+      "pluginVersion": "8.4.6",
+      "reverseYBuckets": false,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean)\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Request Latency",
+      "tooltip": {
+        "show": true,
+        "showHistogram": false
+      },
+      "type": "heatmap",
+      "xAxis": {
+        "show": true
+      },
+      "yAxis": {
+        "decimals": 1,
+        "format": "ns",
+        "logBase": 1,
+        "show": true
+      },
+      "yBucketBound": "auto"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "log": 10,
+              "type": "log"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ns"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])\n  |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 10), fn: (tables=<-, column) => tables |> quantile(q: 0.999))\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Service time (99.9%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "log": 2,
+              "type": "log"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "all"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "import \"date\"\n\ndata = from(bucket: \"poseidon/autogen\")\n  |> range(start: date.truncate(t: v.timeRangeStart, unit: 1m), stop: date.truncate(t: v.timeRangeStop, unit: 1m))\n  |> filter(fn: (r) => r._field == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> keep(columns: [\"_time\", \"_value\", \"status\"])\n\nall = data |> set(key: \"status\", value: \"all\")\n\nunion(tables: [data, all])\n  |> aggregateWindow(every: 1m, fn: count, createEmpty: true)\n  |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 20), fn: mean, createEmpty: true) \n",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests per minute",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-green",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1000000000
+              },
+              {
+                "color": "yellow",
+                "value": 2000000000
+              },
+              {
+                "color": "#EF843C",
+                "value": 3000000000
+              },
+              {
+                "color": "light-red",
+                "value": 4000000000
+              },
+              {
+                "color": "dark-red",
+                "value": 5000000000
+              },
+              {
+                "color": "dark-purple",
+                "value": 10000000000
+              },
+              {
+                "color": "#000000",
+                "value": 20000000000
+              }
+            ]
+          },
+          "unit": "ns"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 8,
+        "x": 0,
+        "y": 10
+      },
+      "id": 20,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_/execute\" or r[\"_measurement\"] == \"poseidon_/files\" or r[\"_measurement\"] == \"poseidon_/websocket\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> filter(fn: (r) => exists r.environment_id)\n  |> drop(columns: [\"_field\", \"environment_type\", \"status\", \"_measurement\"])\n  |> group(columns: [\"environment_id\", \"runner_id\"])\n  |> mean()\n  |> group(columns: [\"environment_id\"])\n  |> mean()\n  |> map(fn: (r) => ({r with _value: r._value * 3.0})) // Each execution has three requests\n  |> rename(columns: {_value: \"env\"})\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Execution duration",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-RdYlGr"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 8,
+        "x": 8,
+        "y": 10
+      },
+      "id": 32,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> filter(fn: (r) => exists r.environment_id)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_/websocket\")\n  |> keep(columns: [\"_value\", \"environment_id\", \"runner_id\"])\n  |> count()\n  |> keep(columns: [\"_value\", \"environment_id\"])\n  |> mean()\n  |> rename(columns: {_value: \"env\"})\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Executions per runner",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 8,
+        "x": 16,
+        "y": 10
+      },
+      "id": 26,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_/execute\" or r[\"_measurement\"] == \"poseidon_/files\" or r[\"_measurement\"] == \"poseidon_/websocket\")\n  |> filter(fn: (r) => exists r.environment_id)\n  |> drop(columns: [\"_measurement\", \"_field\", \"environment_type\", \"runner_id\", \"status\"])\n  |> aggregateWindow(every: 1m, fn: count, createEmpty: true)\n  |> keep(columns: [\"_value\", \"environment_id\"])\n  |> mean()\n  |> map(fn: (r) => ({r with _value: r._value / 3.0})) // Each execution has three requests\n  |> rename(columns: {_value: \"env\"})\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Executions per minute",
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "id": 23,
+      "panels": [],
+      "title": "Runner Insights",
+      "type": "row"
+    },
+    {
+      "cards": {},
+      "color": {
+        "cardColor": "#b4ff00",
+        "colorScale": "sqrt",
+        "colorScheme": "interpolateOranges",
+        "exponent": 0.5,
+        "mode": "spectrum"
+      },
+      "dataFormat": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 0,
+        "y": 22
+      },
+      "heatmap": {},
+      "hideZeroBuckets": false,
+      "highlightCards": true,
+      "id": 29,
+      "legend": {
+        "show": false
+      },
+      "pluginVersion": "8.4.6",
+      "reverseYBuckets": false,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_/execute\" or r[\"_measurement\"] == \"poseidon_/files\" or r[\"_measurement\"] == \"poseidon_/websocket\")\n  |> filter(fn: (r) => exists r.environment_id)\n  |> keep(columns: [\"_time\", \"_start\", \"_stop\", \"_value\", \"environment_id\"])\n  |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 10), fn: mean)\n  |> map(fn: (r) => ({r with _value: r._value * 3.0})) // Each execution has three requests\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Execution duration",
+      "tooltip": {
+        "show": true,
+        "showHistogram": false
+      },
+      "type": "heatmap",
+      "xAxis": {
+        "show": true
+      },
+      "yAxis": {
+        "decimals": 1,
+        "format": "ns",
+        "logBase": 1,
+        "show": true
+      },
+      "yBucketBound": "auto"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 10,
+        "y": 22
+      },
+      "id": 18,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "import \"date\"\n\nresult = from(bucket: \"poseidon/autogen\")\n  |> range(start: date.truncate(t: v.timeRangeStart, unit: 1m), stop: date.truncate(t: v.timeRangeStop, unit: 1m))\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))  \n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_/websocket\")\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> aggregateWindow(every: 1m, fn: count, createEmpty: true)\n\nif int(v: v.windowPeriod) > int(v: 1m)\n  then result |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 10), fn: mean, createEmpty: true) \n  else result\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Executions per minute",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 14,
+        "y": 22
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "import \"date\"\n\ndata = from(bucket: \"poseidon/autogen\")\n  |> range(start: date.truncate(t: v.timeRangeStart, unit: 1m), stop: date.truncate(t: v.timeRangeStop, unit: 1m))\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_/websocket\")\n  |> keep(columns: [\"_time\", \"_value\", \"environment_id\"])\n\nall = data |> set(key: \"environment_id\", value: \"all\")\n\nunion(tables: [data, all])\n  |> aggregateWindow(every: 1m, fn: count, createEmpty: true)\n  |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 20), fn: mean, createEmpty: true) \n",
+          "refId": "A"
+        }
+      ],
+      "title": "Executions per minute",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ns"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 10,
+        "y": 29
+      },
+      "id": 31,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_/execute\" or r[\"_measurement\"] == \"poseidon_/files\" or r[\"_measurement\"] == \"poseidon_/websocket\")\n  |> filter(fn: (r) => exists r.environment_id)\n  |> keep(columns: [\"_value\", \"_time\"])\n  |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 10), fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({r with _value: r._value * 3.0})) // Each execution has three requests\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Execution duration",
+      "type": "gauge"
+    },
+    {
+      "cards": {},
+      "color": {
+        "cardColor": "#b4ff00",
+        "colorScale": "sqrt",
+        "colorScheme": "interpolateOranges",
+        "exponent": 0.5,
+        "mode": "spectrum"
+      },
+      "dataFormat": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 0,
+        "y": 32
+      },
+      "heatmap": {},
+      "hideZeroBuckets": false,
+      "highlightCards": true,
+      "id": 33,
+      "legend": {
+        "show": false
+      },
+      "pluginVersion": "8.4.6",
+      "reverseYBuckets": false,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "data = from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))\n\nrunner_deletions = data\n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_deleteRunner\")\n  |> keep(columns: [\"_time\", \"runner_id\"])\n\nexecutions = data\n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_/websocket\")\n  |> keep(columns: [\"_value\", \"environment_id\", \"runner_id\"])\n  |> count()\n\njoin(tables: {key1: executions, key2: runner_deletions}, on: [\"runner_id\"], method: \"inner\")\n  |> keep(columns: [\"_value\", \"_time\"])\n  |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 10), fn: mean)\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Executions per runner",
+      "tooltip": {
+        "show": true,
+        "showHistogram": false
+      },
+      "type": "heatmap",
+      "xAxis": {
+        "show": true
+      },
+      "yAxis": {
+        "format": "none",
+        "logBase": 1,
+        "show": true
+      },
+      "yBucketBound": "auto"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "cMBTRmQnz"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 14,
+        "y": 32
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "cMBTRmQnz"
+          },
+          "query": "import \"date\"\n\ndata = from(bucket: \"poseidon/autogen\")\n  |> range(start: date.truncate(t: v.timeRangeStart, unit: 1m), stop: date.truncate(t: v.timeRangeStop, unit: 1m))\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> filter(fn: (r) => contains(value: r[\"environment_id\"], set: ${environment_ids:json}))\n  |> filter(fn: (r) => contains(value: r[\"status\"], set: ${status_codes:json}))  \n  |> filter(fn: (r) => r[\"_measurement\"] == \"poseidon_provideRunner\")\n  |> keep(columns: [\"_time\", \"_value\", \"environment_id\"])\n\nall = data |> set(key: \"environment_id\", value: \"all\")\n\nunion(tables: [data, all])\n  |> aggregateWindow(every: 1m, fn: count, createEmpty: true)\n  |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 20), fn: mean, createEmpty: true) \n",
+          "refId": "A"
+        }
+      ],
+      "title": "Runner per minute",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 35,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": [
+            "10",
+            "32"
+          ],
+          "value": [
+            "10",
+            "32"
+          ]
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "cMBTRmQnz"
+        },
+        "definition": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> keep(columns: [\"environment_id\"])\n  |> distinct(column: \"environment_id\")\n  |> keep(columns: [\"_value\"])\n",
+        "description": "All environments currently tracked by Poseidon",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Environment IDs",
+        "multi": true,
+        "name": "environment_ids",
+        "options": [],
+        "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> keep(columns: [\"environment_id\"])\n  |> distinct(column: \"environment_id\")\n  |> keep(columns: [\"_value\"])\n",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "cMBTRmQnz"
+        },
+        "definition": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> keep(columns: [\"status\"])\n  |> distinct(column: \"status\")\n  |> keep(columns: [\"_value\"])\n",
+        "description": "The http status code of the Poseidon response.",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Status Code",
+        "multi": true,
+        "name": "status_codes",
+        "options": [],
+        "query": "from(bucket: \"poseidon/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_field\"] == \"duration\")\n  |> keep(columns: [\"status\"])\n  |> distinct(column: \"status\")\n  |> keep(columns: [\"_value\"])\n",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Poseidon",
+  "uid": "hQRzR1Qnz",
+  "version": 15,
+  "weekStart": ""
+}

@@ -54,7 +54,7 @@ var (
 		},
 		Sentry: sentry.ClientOptions{},
 		InfluxDB: InfluxDB{
-			Url:          "",
+			URL:          "",
 			Token:        "",
 			Organization: "",
 			Bucket:       "",
@@ -123,7 +123,7 @@ type logger struct {
 
 // InfluxDB configures the usage of an Influx db monitoring.
 type InfluxDB struct {
-	Url          string
+	URL          string
 	Token        string
 	Organization string
 	Bucket       string

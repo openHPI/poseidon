@@ -92,7 +92,8 @@ func TestAWSFunctionWorkload_ExecuteInteractively(t *testing.T) {
 		cancel()
 
 		expectedRequestData := "{\"action\":\"" + environment.Image() +
-			"\",\"cmd\":[\"env\",\"sh\",\"-c\",\"" + command + "\"],\"files\":{}}"
+			"\",\"cmd\":[\"env\",\"CODEOCEAN=true\",\"sh\",\"-c\",\"unset \\\"${!AWS@}\\\" \\u0026\\u0026 " + command +
+			"\"],\"files\":{}}"
 		assert.Equal(t, expectedRequestData, awsMock.receivedData)
 	})
 }
@@ -124,7 +125,7 @@ func TestAWSFunctionWorkload_UpdateFileSystem(t *testing.T) {
 	execCancel()
 
 	expectedRequestData := "{\"action\":\"" + environment.Image() +
-		"\",\"cmd\":[\"env\",\"sh\",\"-c\",\"" + command + "\"]," +
+		"\",\"cmd\":[\"env\",\"CODEOCEAN=true\",\"sh\",\"-c\",\"unset \\\"${!AWS@}\\\" \\u0026\\u0026 " + command + "\"]," +
 		"\"files\":{\"" + string(myFile.Path) + "\":\"" + base64.StdEncoding.EncodeToString(myFile.Content) + "\"}}"
 	assert.Equal(t, expectedRequestData, awsMock.receivedData)
 }

@@ -38,11 +38,11 @@ func shutdownSentry() {
 }
 
 func initInfluxDB(db *config.InfluxDB) (writeAPI influxdb2API.WriteAPI, cancel func()) {
-	if db.Url == "" {
+	if db.URL == "" {
 		return nil, func() {}
 	}
 
-	client := influxdb2.NewClient(db.Url, db.Token)
+	client := influxdb2.NewClient(db.URL, db.Token)
 	writeAPI = client.WriteAPI(db.Organization, db.Bucket)
 	cancel = func() {
 		writeAPI.Flush()

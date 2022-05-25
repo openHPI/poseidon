@@ -34,6 +34,17 @@ If a value is not specified, the value of the subsequent possibility is used.
 
 As a subsystem of Poseidon, Nomad can and should also be configured accordingly.
 
+### Memory Oversubscription
+
+Poseidon is using Nomad's feature of memory oversubscription. This way all Runner are allocated with just 16MB. The memory limit defined per execution environment is used as an upper bound for the memory oversubscription.  
+On the one hand, this feature allows Nomad to execute much more Runner in parallel but, on the other hand, it introduces a risk of overloading the Nomad host. Still, this feature is obligatory for Poseidon to work and therefore needs to be enabled. [Example Configuration](./resources/server.example.hcl)
+
+```hcl
+default_scheduler_config {
+    memory_oversubscription_enabled = true
+}
+```
+
 
 ### Scheduler
 

@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -65,7 +64,7 @@ func TestMain(m *testing.M) {
 }
 
 func initAWS() {
-	for i, function := range strings.Fields(config.Config.AWS.Functions) {
+	for i, function := range config.Config.AWS.Functions {
 		id := dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger + i + 1)
 		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, id.ToString())
 		request := dto.ExecutionEnvironmentRequest{Image: function}

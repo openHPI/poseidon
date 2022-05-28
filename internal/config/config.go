@@ -47,7 +47,7 @@ var (
 		AWS: AWS{
 			Enabled:   false,
 			Endpoint:  "",
-			Functions: "",
+			Functions: []string{},
 		},
 		Logger: logger{
 			Level: "INFO",
@@ -105,7 +105,7 @@ func (n *Nomad) URL() *url.URL {
 type AWS struct {
 	Enabled   bool
 	Endpoint  string
-	Functions string
+	Functions []string
 }
 
 // TLS configures TLS on a connection.
@@ -235,6 +235,12 @@ func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
 			return
 		}
 		value.SetBool(boolean)
+	case reflect.Slice:
+		if len(content) > 0 && content[0] == '"' && content[len(content)-1] == '"' {
+			content = content[1 : len(content)-1] // remove wrapping quotes
+		}
+		parts := strings.Fields(content)
+		value.Set(reflect.AppendSlice(value, reflect.ValueOf(parts)))
 	default:
 		// ignore this field
 		logEntry.WithField("type", value.Type().Name()).

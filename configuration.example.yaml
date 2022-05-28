@@ -48,8 +48,11 @@ aws:
   enabled: false
   # The endpoint of the WebSocket API
   endpoint: wss://abcdef1234.execute-api.eu-central-1.amazonaws.com/production
-  # Currently, only static AWS environments are supported. You can list them here separated by spaces.
-  functions: "java11Exec go118Exec"
+  # Currently, only static AWS environments are supported.
+  # For setting this via environment variables you have to use a string separated by spaces, like: POSEIDON_AWS_FUNCTIONS="java11Exec go118Exec".
+  functions:
+    - java11Exec
+    - go118Exec
 
 # Configuration of the logger
 logger:

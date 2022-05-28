@@ -17,7 +17,7 @@ func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
 	uniqueImage := "java11Exec"
 
 	t.Run("can create default Java environment", func(t *testing.T) {
-		config.Config.AWS.Functions = uniqueImage
+		config.Config.AWS.Functions = []string{uniqueImage}
 		_, err := m.CreateOrUpdate(tests.AnotherEnvironmentIDAsInteger, dto.ExecutionEnvironmentRequest{Image: uniqueImage})
 		assert.NoError(t, err)
 	})

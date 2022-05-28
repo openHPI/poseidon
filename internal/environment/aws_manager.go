@@ -5,7 +5,6 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"strings"
 )
 
 // AWSEnvironmentManager contains no functionality at the moment.
@@ -60,7 +59,7 @@ func (a *AWSEnvironmentManager) CreateOrUpdate(
 }
 
 func isAWSEnvironment(request dto.ExecutionEnvironmentRequest) bool {
-	for _, function := range strings.Fields(config.Config.AWS.Functions) {
+	for _, function := range config.Config.AWS.Functions {
 		if request.Image == function {
 			return true
 		}

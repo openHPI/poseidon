@@ -16,6 +16,7 @@ var (
 	getServerPort     = func(c *configuration) interface{} { return c.Server.Port }
 	getNomadToken     = func(c *configuration) interface{} { return c.Nomad.Token }
 	getNomadTLSActive = func(c *configuration) interface{} { return c.Nomad.TLS.Active }
+	getAWSFunctions   = func(c *configuration) interface{} { return c.AWS.Functions }
 )
 
 func newTestConfiguration() *configuration {
@@ -91,6 +92,7 @@ func TestReadEnvironmentVariables(t *testing.T) {
 		{"NOMAD_TOKEN", "ACCESS", "ACCESS", getNomadToken},
 		{"NOMAD_TLS_ACTIVE", "true", true, getNomadTLSActive},
 		{"NOMAD_TLS_ACTIVE", "hello", false, getNomadTLSActive},
+		{"AWS_FUNCTIONS", "java11Exec go118Exec", []string{"java11Exec", "go118Exec"}, getAWSFunctions},
 	}
 	prefix := "POSEIDON_TEST"
 	for _, testCase := range environmentTests {
@@ -136,6 +138,8 @@ func TestReadYamlConfigFile(t *testing.T) {
 		{[]byte("nomad:\n  tls:\n    active: true\n"), true, getNomadTLSActive},
 		{[]byte(""), false, getNomadTLSActive},
 		{[]byte("nomad:\n  token:\n"), "SECRET", getNomadToken},
+		{[]byte("aws:\n  functions:\n    - java11Exec\n    - go118Exec\n"),
+			[]string{"java11Exec", "go118Exec"}, getAWSFunctions},
 	}
 	for _, testCase := range yamlTests {
 		config := newTestConfiguration()

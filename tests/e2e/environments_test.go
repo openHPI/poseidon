@@ -323,7 +323,7 @@ func createEnvironment(t *testing.T, environmentID string, aws bool) {
 		ExposedPorts:       nil,
 	}
 	if aws {
-		functions := strings.Fields(config.Config.AWS.Functions)
+		functions := config.Config.AWS.Functions
 		require.NotZero(t, len(functions))
 		request.Image = functions[0]
 	} else {

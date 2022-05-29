@@ -1,6 +1,8 @@
 # Poseidon
 
 [![CI](https://github.com/openHPI/poseidon/actions/workflows/ci.yml/badge.svg)](https://github.com/openHPI/poseidon/actions/workflows/ci.yml)
+[![Maintainability](https://api.codeclimate.com/v1/badges/8a968383173ba81fca18/maintainability)](https://codeclimate.com/github/openHPI/poseidon/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/8a968383173ba81fca18/test_coverage)](https://codeclimate.com/github/openHPI/poseidon/test_coverage)
 
 <img src="assets/Poseidon.svg" alt="Poseidon logo" width="20%">
 

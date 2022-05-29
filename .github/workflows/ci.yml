@@ -79,6 +79,14 @@ jobs:
         continue-on-error: true
       - name: Run tests
         run: make coverhtml
+      - name: Publish code coverage
+        uses: paambaati/codeclimate-action@v3.0.0
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+        with:
+          prefix: github.com/openHPI/poseidon/
+          coverageLocations: |
+            ${{github.workspace}}/coverage_cleaned.cov:gocov
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
         with:

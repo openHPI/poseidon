@@ -113,7 +113,7 @@ func createAWSManager() (runnerManager runner.Manager, environmentManager enviro
 // initServer builds the http server and configures it with the chain of responsibility for multiple managers.
 func initServer(influxClient influxdb2API.WriteAPI) *http.Server {
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, config.Config.Nomad.Enabled,
-		runner.NewAbstractManager(), &environment.AbstractManager{})
+		nil, nil)
 	runnerManager, environmentManager = createManagerHandler(createAWSManager, config.Config.AWS.Enabled,
 		runnerManager, environmentManager)
 

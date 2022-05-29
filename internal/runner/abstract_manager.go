@@ -30,7 +30,7 @@ func (n *AbstractManager) SetNextHandler(next AccessorHandler) {
 }
 
 func (n *AbstractManager) NextHandler() AccessorHandler {
-	if n.nextHandler != nil {
+	if n.HasNextHandler() {
 		return n.nextHandler
 	} else {
 		return NewAbstractManager()

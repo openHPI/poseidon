@@ -11,6 +11,7 @@ type ManagerHandler interface {
 	Manager
 	SetNextHandler(next ManagerHandler)
 	NextHandler() ManagerHandler
+	HasNextHandler() bool
 }
 
 // Manager encapsulates API calls to the executor API for creation and deletion of execution environments.

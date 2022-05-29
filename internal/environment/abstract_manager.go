@@ -18,11 +18,15 @@ func (n *AbstractManager) SetNextHandler(next ManagerHandler) {
 }
 
 func (n *AbstractManager) NextHandler() ManagerHandler {
-	if n.nextHandler != nil {
+	if n.HasNextHandler() {
 		return n.nextHandler
 	} else {
 		return &AbstractManager{}
 	}
+}
+
+func (n *AbstractManager) HasNextHandler() bool {
+	return n.nextHandler != nil
 }
 
 func (n *AbstractManager) List(_ bool) ([]runner.ExecutionEnvironment, error) {
@@ -38,17 +42,17 @@ func (n *AbstractManager) CreateOrUpdate(_ dto.EnvironmentID, _ dto.ExecutionEnv
 }
 
 func (n *AbstractManager) Delete(id dto.EnvironmentID) (bool, error) {
+	if n.runnerManager == nil {
+		return false, nil
+	}
+
 	e, ok := n.runnerManager.GetEnvironment(id)
 	if !ok {
-		if n.nextHandler != nil {
-			isFound, err := n.NextHandler().Delete(id)
-			if err != nil {
-				return false, fmt.Errorf("aws wrapped: %w", err)
-			}
-			return isFound, nil
-		} else {
-			return false, nil
+		isFound, err := n.NextHandler().Delete(id)
+		if err != nil {
+			return false, fmt.Errorf("abstract wrapped: %w", err)
 		}
+		return isFound, nil
 	}
 
 	n.runnerManager.DeleteEnvironment(id)

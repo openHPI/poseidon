@@ -1,5 +1,13 @@
 version: "2"
 
+checks:
+  similar-code:
+    config:
+      threshold: 110 # Golang default: 100
+  identical-code:
+    config:
+      threshold: 110 # Golang default: 100
+
 plugins:
   golint:
     enabled: false

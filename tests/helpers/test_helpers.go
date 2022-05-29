@@ -117,12 +117,21 @@ func StartTLSServer(t *testing.T, router *mux.Router) (*httptest.Server, error) 
 	return server, nil
 }
 
-// HTTPDelete sends a Delete Http Request with body to the passed url.
-func HTTPDelete(url string, body io.Reader) (response *http.Response, err error) {
+// httpRequest deduplicates the comment and error message wrapping the http.NewRequest call.
+func httpRequest(method, url string, body io.Reader) (*http.Request, error) {
 	//nolint:noctx // we don't need a http.NewRequestWithContext in our tests
-	req, err := http.NewRequest(http.MethodDelete, url, body)
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+	return req, nil
+}
+
+// HTTPDelete sends a "Delete" Http Request with body to the passed url.
+func HTTPDelete(url string, body io.Reader) (response *http.Response, err error) {
+	req, err := httpRequest(http.MethodDelete, url, body)
+	if err != nil {
+		return nil, err
 	}
 	client := &http.Client{}
 	response, err = client.Do(req)
@@ -134,10 +143,9 @@ func HTTPDelete(url string, body io.Reader) (response *http.Response, err error)
 
 // HTTPPatch sends a Patch Http Request with body to the passed url.
 func HTTPPatch(url, contentType string, body io.Reader) (response *http.Response, err error) {
-	//nolint:noctx // we don't need a http.NewRequestWithContext in our tests
-	req, err := http.NewRequest(http.MethodPatch, url, body)
+	req, err := httpRequest(http.MethodPatch, url, body)
 	if err != nil {
-		return nil, fmt.Errorf("error creating new request: %w", err)
+		return nil, err
 	}
 	req.Header.Set("Content-Type", contentType)
 	client := &http.Client{}
@@ -149,10 +157,9 @@ func HTTPPatch(url, contentType string, body io.Reader) (response *http.Response
 }
 
 func HTTPPut(url string, body io.Reader) (response *http.Response, err error) {
-	//nolint:noctx // we don't need a http.NewRequestWithContext in our tests
-	req, err := http.NewRequest(http.MethodPut, url, body)
+	req, err := httpRequest(http.MethodPut, url, body)
 	if err != nil {
-		return nil, fmt.Errorf("error creating new request: %w", err)
+		return nil, err
 	}
 	client := &http.Client{}
 	resp, err := client.Do(req)

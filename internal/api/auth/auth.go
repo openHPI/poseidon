@@ -27,7 +27,8 @@ func HTTPAuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get(TokenHeader)
 		if subtle.ConstantTimeCompare([]byte(token), correctAuthenticationToken) == 0 {
-			log.WithField("token", token).Warn("Incorrect token")
+			log.WithField("token", logging.RemoveNewlineSymbol(token)).
+				Warn("Incorrect token")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

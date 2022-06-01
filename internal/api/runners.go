@@ -8,10 +8,12 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 const (
@@ -58,7 +60,8 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		case errors.Is(err, runner.ErrUnknownExecutionEnvironment):
 			writeNotFound(writer, err)
 		case errors.Is(err, runner.ErrNoRunnersAvailable):
-			log.WithField("environment", environmentID).Warn("No runners available")
+			log.WithField("environment", logging.RemoveNewlineSymbol(strconv.Itoa(int(environmentID)))).
+				Warn("No runners available")
 			writeInternalServerError(writer, err, dto.ErrorNomadOverload)
 		default:
 			writeInternalServerError(writer, err, dto.ErrorUnknown)

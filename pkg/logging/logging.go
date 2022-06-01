@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -70,7 +71,7 @@ func (writer *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, erro
 func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now().UTC()
-		path := r.URL.Path
+		path := RemoveNewlineSymbol(r.URL.Path)
 
 		lrw := NewLoggingResponseWriter(w)
 		next.ServeHTTP(lrw, r)
@@ -81,7 +82,7 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 			"method":     r.Method,
 			"path":       path,
 			"duration":   latency,
-			"user_agent": r.UserAgent(),
+			"user_agent": RemoveNewlineSymbol(r.UserAgent()),
 		})
 		if lrw.StatusCode >= http.StatusInternalServerError {
 			logEntry.Error("Failing " + path)
@@ -89,4 +90,11 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 			logEntry.Debug()
 		}
 	})
+}
+
+// RemoveNewlineSymbol GOOD: remove newlines from user controlled input before logging
+func RemoveNewlineSymbol(data string) string {
+	data = strings.ReplaceAll(data, "\r", "")
+	data = strings.ReplaceAll(data, "\n", "")
+	return data
 }

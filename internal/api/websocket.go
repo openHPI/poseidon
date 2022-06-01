@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"io"
 	"net/http"
@@ -357,7 +358,9 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 		return
 	}
 
-	log.WithField("runnerId", targetRunner.ID()).WithField("executionID", executionID).Info("Running execution")
+	log.WithField("runnerId", targetRunner.ID()).
+		WithField("executionID", logging.RemoveNewlineSymbol(executionID)).
+		Info("Running execution")
 	exit, cancel, err := targetRunner.ExecuteInteractively(executionID, proxy.Stdin, proxy.Stdout, proxy.Stderr)
 	if err != nil {
 		proxy.closeWithError(fmt.Sprintf("execution failed with: %v", err))

@@ -92,7 +92,7 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// RemoveNewlineSymbol GOOD: remove newlines from user controlled input before logging
+// RemoveNewlineSymbol GOOD: remove newlines from user controlled input before logging.
 func RemoveNewlineSymbol(data string) string {
 	data = strings.ReplaceAll(data, "\r", "")
 	data = strings.ReplaceAll(data, "\n", "")

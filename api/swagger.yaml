@@ -51,6 +51,26 @@ components:
         - networkAccess
         - exposedPorts
       additionalProperties: false
+    File:
+      type: object
+      properties:
+        name:
+          description: The path of the file.
+          type: string
+          example: ./logs/last.log
+        size:
+          description: The size of the file in bytes.
+          type: integer
+          example: 42
+        modificationTime:
+          description: The Unix Time Stamp of the last modification.
+          type: integer
+          example: 1654201799
+      required:
+        - name
+        - size
+        - modificationTime
+      additionalProperties: false
 
   responses:
     BadRequest:
@@ -254,19 +274,54 @@ paths:
           $ref: "#/components/responses/InternalServerError"
 
   /runners/{runnerId}/files:
+    parameters:
+      - name: runnerId
+        in: path
+        schema:
+          description: Runner on which the files should be placed
+          type: string
+          example: 123e4567-e89b-12d3-a456-426614174000
+        required: true
+    get:
+      summary: List filesystem.
+      description: List all files available in the runner.
+      tags:
+        - runner
+      parameters:
+        - name: recursive
+          in: query
+          description: Specify if the filesystem should be listed recursively.
+          schema:
+            type: boolean
+            default: true
+          required: false
+        - name: path
+          in: query
+          description: Specify the directory from where the filesystem is listed.
+          schema:
+            type: string
+            default: "./"
+          required: false
+      responses:
+        "200":
+          description: Success. Returns the listing of the runner's filesystem.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Files:
+                    description: A list of all Files
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/File"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     patch:
       summary: Manipulate runner file system
       description: Delete the files with the given paths from the file system of the specified runner. Afterwards, copy the enclosed files to the runner. Existing files get overwritten and results of previous file copy operations on the same runner are present when executing multiple requests.
       tags:
         - runner
-      parameters:
-        - name: runnerId
-          in: path
-          schema:
-            description: Runner on which the files should be placed
-            type: string
-            example: 123e4567-e89b-12d3-a456-426614174000
-          required: true
       requestBody:
         description: Files to copy or delete
         required: true
@@ -311,6 +366,40 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
+
+  /runners/{runnerId}/files/raw:
+    get:
+      summary: Download the file.
+      description: Download the specified file from the selected runner.
+      tags:
+        - runner
+      parameters:
+        - name: runnerId
+          description: Runner on which the command should be executed
+          in: path
+          schema:
+            type: string
+            example: 123e4567-e89b-12d3-a456-426614174000
+          required: true
+        - name: path
+          in: query
+          description: Specify the file that should be returned by its filename including its path and extension.
+          schema:
+            type: string
+            example: "./flag.txt"
+          required: true
+      responses:
+        "200":
+          description: Success. Returns the file.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /runners/{runnerId}/execute:
     post:

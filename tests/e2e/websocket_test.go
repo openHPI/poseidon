@@ -154,11 +154,11 @@ func (s *E2ETestSuite) TestCommandReturnsAfterTimeout() {
 	}
 }
 
-func (s *E2ETestSuite) TestEchoEnvironment() {
+func (s *E2ETestSuite) TestEnvironmentVariables() {
 	for _, environmentID := range environmentIDs {
 		s.Run(environmentID.ToString(), func() {
 			connection, err := ProvideWebSocketConnection(&s.Suite, environmentID, &dto.ExecutionRequest{
-				Command:     "echo -n $hello",
+				Command:     "env",
 				Environment: map[string]string{"hello": "world"},
 			})
 			s.Require().NoError(err)
@@ -171,7 +171,13 @@ func (s *E2ETestSuite) TestEchoEnvironment() {
 			s.Require().Error(err)
 			s.Equal(err, &websocket.CloseError{Code: websocket.CloseNormalClosure})
 			stdout, _, _ := helpers.WebSocketOutputMessages(messages)
-			s.Equal("world", stdout)
+
+			variables := strings.Split(strings.ReplaceAll(stdout, "\r\n", "\n"), "\n")
+			s.Contains(variables, "hello=world")
+			s.Contains(variables, "CODEOCEAN=true")
+			for _, envVar := range variables {
+				s.False(strings.HasPrefix(envVar, "AWS"))
+			}
 		})
 	}
 }

@@ -189,6 +189,7 @@ func (rc *rawToCodeOceanWriter) Write(p []byte) (int, error) {
 	if rc.proxy.webSocketCtx.Err() != nil {
 		return 0, nil
 	}
+	log.Info("Passed WriteToCodeOceanCheck")
 	err := rc.proxy.sendToClient(dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
 	return len(p), err
 }

@@ -186,12 +186,14 @@ type rawToCodeOceanWriter struct {
 // Write implements the io.Writer interface.
 // The passed data is forwarded to the WebSocket to CodeOcean.
 func (rc *rawToCodeOceanWriter) Write(p []byte) (int, error) {
-	if rc.proxy.webSocketCtx.Err() != nil {
+	select {
+	case <-rc.proxy.webSocketCtx.Done():
 		return 0, nil
+	default:
+		log.Info("Passed WriteToCodeOceanCheck")
+		err := rc.proxy.sendToClient(dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
+		return len(p), err
 	}
-	log.Info("Passed WriteToCodeOceanCheck")
-	err := rc.proxy.sendToClient(dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
-	return len(p), err
 }
 
 // webSocketProxy is an encapsulation of logic for forwarding between Runners and CodeOcean.
@@ -238,9 +240,11 @@ func newWebSocketProxy(connection webSocketConnection, proxyCtx context.Context)
 
 	closeHandler := connection.CloseHandler()
 	connection.SetCloseHandler(func(code int, text string) error {
+		log.Info("Before closing the connection via Handler")
+		cancelWsCommunication()
 		//nolint:errcheck // The default close handler always returns nil, so the error can be safely ignored.
 		_ = closeHandler(code, text)
-		cancelWsCommunication()
+		log.Info("After closing the connection via Handler")
 		return nil
 	})
 	return proxy, nil
@@ -323,11 +327,13 @@ func (wp *webSocketProxy) closeNormal() {
 }
 
 func (wp *webSocketProxy) close(message []byte) {
+	log.Info("Before closing the connection manually")
 	err := wp.writeMessage(websocket.CloseMessage, message)
 	_ = wp.connection.Close()
 	if err != nil {
 		log.WithError(err).Warn("Error during websocket close")
 	}
+	log.Info("After closing the connection manually")
 }
 
 func (wp *webSocketProxy) writeMessage(messageType int, data []byte) error {

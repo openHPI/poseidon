@@ -25,6 +25,12 @@ type ExecutionRequest struct {
 func (er *ExecutionRequest) FullCommand() []string {
 	command := make([]string, 0)
 	command = append(command, "env")
+
+	if er.Environment == nil {
+		er.Environment = make(map[string]string)
+	}
+	er.Environment["CODEOCEAN"] = "true"
+
 	for variable, value := range er.Environment {
 		command = append(command, fmt.Sprintf("%s=%s", variable, value))
 	}

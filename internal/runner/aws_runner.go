@@ -84,6 +84,7 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, s
 	if !ok {
 		return nil, nil, ErrorUnknownExecution
 	}
+	hideEnvironmentVariables(request, "AWS")
 	command, ctx, cancel := prepareExecution(request)
 	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)
@@ -207,4 +208,12 @@ func (w *AWSFunctionWorkload) handleRunnerTimeout(ctx context.Context,
 	case <-executionCtx.Done():
 		exit <- ExitInfo{255, ErrorRunnerInactivityTimeout}
 	}
+}
+
+// hideEnvironmentVariables sets the CODEOCEAN variable and unsets all variables starting with the passed prefix.
+func hideEnvironmentVariables(request *dto.ExecutionRequest, unsetPrefix string) {
+	if request.Environment == nil {
+		request.Environment = make(map[string]string)
+	}
+	request.Command = "unset \"${!" + unsetPrefix + "@}\" && " + request.Command
 }

@@ -253,11 +253,15 @@ func fileDeletionCommand(pathsToDelete []dto.FilePath) string {
 	}
 	command := "rm --recursive --force "
 	for _, filePath := range pathsToDelete {
-		// To avoid command injection, filenames need to be quoted.
-		// See https://unix.stackexchange.com/questions/347332/what-characters-need-to-be-escaped-in-files-without-quotes
-		// for details.
-		singleQuoteEscapedFileName := strings.ReplaceAll(filePath.Cleaned(), "'", "'\\''")
-		command += fmt.Sprintf("'%s' ", singleQuoteEscapedFileName)
+		if filePath == "./*" {
+			command += "./* "
+		} else {
+			// To avoid command injection, filenames need to be quoted.
+			// See https://unix.stackexchange.com/questions/347332/what-characters-need-to-be-escaped-in-files-without-quotes
+			// for details.
+			singleQuoteEscapedFileName := strings.ReplaceAll(filePath.Cleaned(), "'", "'\\''")
+			command += fmt.Sprintf("'%s' ", singleQuoteEscapedFileName)
+		}
 	}
 	command += ";"
 	return command

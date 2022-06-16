@@ -13,6 +13,7 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/suite"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -122,6 +123,40 @@ func (s *E2ETestSuite) TestCommandHead() {
 	s.Equal(err, &websocket.CloseError{Code: websocket.CloseNormalClosure})
 	stdout, _, _ := helpers.WebSocketOutputMessages(messages)
 	s.Contains(stdout, fmt.Sprintf("%s\r\n%s\r\n", hello, hello))
+}
+
+func (s *E2ETestSuite) TestCommandMake() {
+	for _, environmentID := range environmentIDs {
+		s.Run(environmentID.ToString(), func() {
+			runnerID, err := ProvideRunner(&dto.RunnerRequest{ExecutionEnvironmentID: int(environmentID)})
+			s.Require().NoError(err)
+
+			expectedOutput := "MeinText"
+			resp, err := CopyFiles(runnerID, &dto.UpdateFileSystemRequest{
+				Copy: []dto.File{
+					{Path: "Makefile", Content: []byte(
+						"run:\n\t@echo " + expectedOutput + "\n\n" +
+							"test:\n\t@echo Hi\n"),
+					},
+				},
+			})
+			s.Require().NoError(err)
+			s.Require().Equal(http.StatusNoContent, resp.StatusCode)
+
+			webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{Command: "make run"})
+			s.Require().NoError(err)
+			connection, err := ConnectToWebSocket(webSocketURL)
+			s.Require().NoError(err)
+
+			messages, err := helpers.ReceiveAllWebSocketMessages(connection)
+			s.Require().Error(err)
+			s.Equal(err, &websocket.CloseError{Code: websocket.CloseNormalClosure})
+			stdout, _, _ := helpers.WebSocketOutputMessages(messages)
+
+			stdout = regexp.MustCompile(`\r?\n$`).ReplaceAllString(stdout, "")
+			s.Equal(expectedOutput, stdout)
+		})
+	}
 }
 
 func (s *E2ETestSuite) TestCommandReturnsAfterTimeout() {

@@ -9,7 +9,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -78,6 +77,18 @@ func ProvideRunner(request *dto.RunnerRequest) (string, error) {
 	return runnerResponse.ID, nil
 }
 
+// CopyFiles sends the dto.UpdateFileSystemRequest to Poseidon.
+// It needs a running Poseidon instance to work.
+func CopyFiles(runnerID string, request *dto.UpdateFileSystemRequest) (*http.Response, error) {
+	data, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	r := bytes.NewReader(data)
+	return helpers.HTTPPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath),
+		"application/json", r)
+}
+
 func (s *E2ETestSuite) TestDeleteRunnerRoute() {
 	for _, environmentID := range environmentIDs {
 		s.Run(environmentID.ToString(), func() {
@@ -111,17 +122,13 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 		s.Run(environmentID.ToString(), func() {
 			runnerID, err := ProvideRunner(&dto.RunnerRequest{ExecutionEnvironmentID: int(environmentID)})
 			s.NoError(err)
-			copyFilesRequestByteString, err := json.Marshal(&dto.UpdateFileSystemRequest{
+
+			request := &dto.UpdateFileSystemRequest{
 				Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}},
-			})
-			s.Require().NoError(err)
-			sendCopyRequest := func(reader io.Reader) (*http.Response, error) {
-				return helpers.HTTPPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath),
-					"application/json", reader)
 			}
 
 			s.Run("File copy with valid payload succeeds", func() {
-				resp, err := sendCopyRequest(bytes.NewReader(copyFilesRequestByteString))
+				resp, err := CopyFiles(runnerID, request)
 				s.NoError(err)
 				s.Equal(http.StatusNoContent, resp.StatusCode)
 
@@ -135,15 +142,15 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 				relativeFileContent := "Relative file content"
 				absoluteFilePath := "/tmp/absolute/file/path.txt"
 				absoluteFileContent := "Absolute file content"
-				testFilePathsCopyRequestString, err := json.Marshal(&dto.UpdateFileSystemRequest{
+				request = &dto.UpdateFileSystemRequest{
 					Copy: []dto.File{
 						{Path: dto.FilePath(relativeFilePath), Content: []byte(relativeFileContent)},
 						{Path: dto.FilePath(absoluteFilePath), Content: []byte(absoluteFileContent)},
 					},
-				})
+				}
 				s.Require().NoError(err)
 
-				resp, err := sendCopyRequest(bytes.NewReader(testFilePathsCopyRequestString))
+				resp, err := CopyFiles(runnerID, request)
 				s.NoError(err)
 				s.Equal(http.StatusNoContent, resp.StatusCode)
 
@@ -158,12 +165,12 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 			})
 
 			s.Run("File deletion request deletes file on runner", func() {
-				copyFilesRequestByteString, err := json.Marshal(&dto.UpdateFileSystemRequest{
+				request = &dto.UpdateFileSystemRequest{
 					Delete: []dto.FilePath{tests.DefaultFileName},
-				})
+				}
 				s.Require().NoError(err)
 
-				resp, err := sendCopyRequest(bytes.NewReader(copyFilesRequestByteString))
+				resp, err := CopyFiles(runnerID, request)
 				s.NoError(err)
 				s.Equal(http.StatusNoContent, resp.StatusCode)
 
@@ -175,13 +182,13 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 			})
 
 			s.Run("File copy happens after file deletion", func() {
-				copyFilesRequestByteString, err := json.Marshal(&dto.UpdateFileSystemRequest{
+				request = &dto.UpdateFileSystemRequest{
 					Delete: []dto.FilePath{tests.DefaultFileName},
 					Copy:   []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}},
-				})
+				}
 				s.Require().NoError(err)
 
-				resp, err := sendCopyRequest(bytes.NewReader(copyFilesRequestByteString))
+				resp, err := CopyFiles(runnerID, request)
 				s.NoError(err)
 				s.Equal(http.StatusNoContent, resp.StatusCode)
 				_ = resp.Body.Close()
@@ -199,9 +206,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 			})
 
 			s.Run("Copying to non-existing runner returns NotFound", func() {
-				resp, err := helpers.HTTPPatch(
-					helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingStringID, api.UpdateFileSystemPath),
-					"application/json", bytes.NewReader(copyFilesRequestByteString))
+				resp, err := CopyFiles(tests.NonExistingStringID, request)
 				s.NoError(err)
 				s.Equal(http.StatusNotFound, resp.StatusCode)
 			})

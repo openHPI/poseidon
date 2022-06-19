@@ -186,14 +186,8 @@ type rawToCodeOceanWriter struct {
 // Write implements the io.Writer interface.
 // The passed data is forwarded to the WebSocket to CodeOcean.
 func (rc *rawToCodeOceanWriter) Write(p []byte) (int, error) {
-	select {
-	case <-rc.proxy.webSocketCtx.Done():
-		return 0, nil
-	default:
-		log.Info("Passed WriteToCodeOceanCheck")
-		err := rc.proxy.sendToClient(dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
-		return len(p), err
-	}
+	err := rc.proxy.sendToClient(dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
+	return len(p), err
 }
 
 // webSocketProxy is an encapsulation of logic for forwarding between Runners and CodeOcean.
@@ -308,12 +302,17 @@ func (wp *webSocketProxy) sendToClient(message dto.WebSocketMessage) error {
 		return fmt.Errorf("error marshaling WebSocket message: %w", err)
 	}
 	log.WithField("message", message).Trace("Sending message to client")
-	err = wp.writeMessage(websocket.TextMessage, encodedMessage)
-	if err != nil {
-		errorMessage := "Error writing the message"
-		log.WithField("message", message).WithError(err).Warn(errorMessage)
-		wp.closeWithError(errorMessage)
-		return fmt.Errorf("error writing WebSocket message: %w", err)
+	select {
+	case <-wp.webSocketCtx.Done():
+	default:
+		log.Info("Passed WriteToCodeOceanCheck")
+		err = wp.writeMessage(websocket.TextMessage, encodedMessage)
+		if err != nil {
+			errorMessage := "Error writing the message"
+			log.WithField("message", message).WithError(err).Warn(errorMessage)
+			wp.closeWithError(errorMessage)
+			return fmt.Errorf("error writing WebSocket message: %w", err)
+		}
 	}
 	return nil
 }

@@ -88,6 +88,23 @@ class SimpleMakefile {
         return concatCommands(rules.get(rule));
     }
 
+    // updateCommand injects the passed make assignments and before and after statements to the command.
+    private String updateCommand(Matcher makeCommandMatcher, String command) {
+        String assignments = makeCommandMatcher.group("assignments");
+        if (assignments != null) {
+            command = injectAssignments(command, assignments);
+        }
+
+        if (makeCommandMatcher.group("before") != null) {
+            command = makeCommandMatcher.group("before") + command;
+        }
+        if (makeCommandMatcher.group("after") != null) {
+            command = command + makeCommandMatcher.group("after");
+        }
+
+        return command;
+    }
+
     // getAssignmentPart returns the key or value of the passed assignment depending on the flag firstPart.
     private String getAssignmentPart(String assignment, boolean firstPart) {
         String[] parts = assignment.split("=");
@@ -130,16 +147,6 @@ class SimpleMakefile {
         }
 
         String command = getCommand(ruleArgument);
-        String assignments = makeCommandMatcher.group("assignments");
-        command = injectAssignments(command, (assignments != null) ? assignments : "");
-
-        if (makeCommandMatcher.group("before") != null) {
-            command = makeCommandMatcher.group("before") + command;
-        }
-        if (makeCommandMatcher.group("after") != null) {
-            command = command + makeCommandMatcher.group("after");
-        }
-
-        return  command;
+        return updateCommand(makeCommandMatcher, command);
     }
 }

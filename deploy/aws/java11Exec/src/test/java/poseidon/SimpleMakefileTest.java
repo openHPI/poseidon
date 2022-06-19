@@ -148,4 +148,20 @@ public class SimpleMakefileTest {
       fail();
     } catch (InvalidMakefileException ignored) {}
   }
+
+  @Test
+  public void withBeforeAndAfterStatements() {
+    Map<String, String> files = new HashMap<>();
+    files.put("Makefile", Base64.getEncoder().encodeToString(("run:\n\t@echo TRAAAIIN\n").getBytes(StandardCharsets.UTF_8)));
+
+    try {
+      String command = "echo \"Look it's a\" && sl && make run && echo WOW";
+      SimpleMakefile makefile = new SimpleMakefile(files);
+      String cmd = makefile.parseCommand(command);
+
+      assertEquals("echo \"Look it's a\" && sl && echo TRAAAIIN && echo WOW", cmd);
+    } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
+      fail();
+    }
+  }
 }

@@ -53,7 +53,7 @@ public class AppTest {
 
   @Test
   public void successfulResponse() {
-    APIGatewayProxyResponseEvent result = getApiGatewayProxyResponse(RecursiveMathContent);
+    APIGatewayProxyResponseEvent result = getApiGatewayProxyResponseRecursiveMath(RecursiveMathContent);
     assertEquals(200, result.getStatusCode().intValue());
   }
 
@@ -61,7 +61,7 @@ public class AppTest {
   @Test
   public void successfulMultilineResponse() {
     ByteArrayOutputStream out = setupStdOutLogs();
-    APIGatewayProxyResponseEvent result = getApiGatewayProxyResponse(MultilineMathContent);
+    APIGatewayProxyResponseEvent result = getApiGatewayProxyResponseRecursiveMath(MultilineMathContent);
     restoreStdOutLogs();
 
     assertEquals(200, result.getStatusCode().intValue());
@@ -75,13 +75,28 @@ public class AppTest {
   @Test
   public void outputWithoutTrailingNewline() {
     ByteArrayOutputStream out = setupStdOutLogs();
-    APIGatewayProxyResponseEvent result = getApiGatewayProxyResponse(MathContentWithoutTrailingNewline);
+    APIGatewayProxyResponseEvent result = getApiGatewayProxyResponseRecursiveMath(MathContentWithoutTrailingNewline);
     restoreStdOutLogs();
 
     assertEquals(200, result.getStatusCode().intValue());
     String expectedOutput =
             "{\"type\":\"stdout\",\"data\":\"Mein Text\"}\n" +
             "{\"type\":\"exit\",\"data\":0}\n";
+    assertEquals(expectedOutput, out.toString());
+  }
+
+  @Test
+  public void makefileJustReplacesShellCommand() {
+    ByteArrayOutputStream out = setupStdOutLogs();
+    APIGatewayProxyResponseEvent result = getApiGatewayProxyResponse("{\"action\":\"java11Exec\"," +
+            "\"cmd\":[\"env\", \"TEST_VAR=42\", \"sh\",\"-c\",\"make run\"]," +
+            "\"files\":{\"Makefile\":\"" + Base64.getEncoder().encodeToString(("run:\n\t@echo $TEST_VAR\n").getBytes(StandardCharsets.UTF_8)) + "\"}}");
+    restoreStdOutLogs();
+
+    assertEquals(200, result.getStatusCode().intValue());
+    String expectedOutput =
+            "{\"type\":\"stdout\",\"data\":\"42\\n\"}\n" +
+                    "{\"type\":\"exit\",\"data\":0}\n";
     assertEquals(expectedOutput, out.toString());
   }
 
@@ -98,7 +113,7 @@ public class AppTest {
     System.setOut(originalOut);
   }
 
-  private APIGatewayProxyResponseEvent getApiGatewayProxyResponse(String content) {
+  private APIGatewayProxyResponseEvent getApiGatewayProxyResponse(String body) {
     App app = new App();
     APIGatewayV2WebSocketEvent input = new APIGatewayV2WebSocketEvent();
     APIGatewayV2WebSocketEvent.RequestContext ctx = new APIGatewayV2WebSocketEvent.RequestContext();
@@ -108,8 +123,12 @@ public class AppTest {
     Map<String, String> headers = new HashMap<>();
     headers.put(App.disableOutputHeaderKey, "True");
     input.setHeaders(headers);
-    input.setBody("{\"action\":\"java11Exec\",\"cmd\":[\"sh\",\"-c\",\"javac org/example/RecursiveMath.java && java org/example/RecursiveMath\"]," +
-            "\"files\":{\"org/example/RecursiveMath.java\":\"" + content + "\"}}");
+    input.setBody(body);
     return app.handleRequest(input, null);
+  }
+
+  private APIGatewayProxyResponseEvent getApiGatewayProxyResponseRecursiveMath(String content) {
+    return getApiGatewayProxyResponse("{\"action\":\"java11Exec\",\"cmd\":[\"sh\",\"-c\",\"javac org/example/RecursiveMath.java && java org/example/RecursiveMath\"]," +
+            "\"files\":{\"org/example/RecursiveMath.java\":\"" + content + "\"}}");
   }
 }

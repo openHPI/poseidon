@@ -67,9 +67,10 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
         return cmd[cmd.length - 1];
     }
 
-    // Wrapps the passed command with "sh -c".
-    public static String[] wrapCommand(String cmd) {
-        return new String[]{"sh", "-c", cmd};
+    // Replaces the last element of the command with the new shell command.
+    public static String[] wrapCommand(String[] originalCommand, String shellCommand) {
+        originalCommand[originalCommand.length - 1] = shellCommand;
+        return originalCommand;
     }
 
     public APIGatewayProxyResponseEvent handleRequest(final APIGatewayV2WebSocketEvent input, final Context context) {
@@ -89,7 +90,7 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
             String[] cmd = execution.cmd;
             try {
                 SimpleMakefile make = new SimpleMakefile(execution.files);
-                cmd = wrapCommand(make.parseCommand(unwrapCommand(execution.cmd)));
+                cmd = wrapCommand(cmd, make.parseCommand(unwrapCommand(execution.cmd)));
             } catch (NoMakefileFoundException | NoMakeCommandException | InvalidMakefileException ignored) {}
 
             ProcessBuilder pb = new ProcessBuilder(cmd);

@@ -22,7 +22,7 @@ class InvalidMakefileException extends Exception {}
 class SimpleMakefile {
 
     // This pattern validates if a command is a make command.
-    private static final Pattern isMakeCommand = Pattern.compile("^(?:.* && )?make(?:\\s+(?<startRule>\\w*))?(?<assignments>(?:.*?=.*?)+)?(?: && .*)?$");
+    private static final Pattern isMakeCommand = Pattern.compile("^(?<before>.* && )?make(?:\\s+(?<startRule>\\w*))?(?<assignments>(?:.*?=.*?)+)?(?<after> && .*)?$");
 
     // This pattern identifies the rules in a makefile.
     private static final Pattern makeRules = Pattern.compile("(?<name>.*):\\r?\\n(?<commands>(?:\\t.+\\r?\\n?)*)");
@@ -131,6 +131,15 @@ class SimpleMakefile {
 
         String command = getCommand(ruleArgument);
         String assignments = makeCommandMatcher.group("assignments");
-        return injectAssignments(command, (assignments != null) ? assignments : "");
+        command = injectAssignments(command, (assignments != null) ? assignments : "");
+
+        if (makeCommandMatcher.group("before") != null) {
+            command = makeCommandMatcher.group("before") + command;
+        }
+        if (makeCommandMatcher.group("after") != null) {
+            command = command + makeCommandMatcher.group("after");
+        }
+
+        return  command;
     }
 }

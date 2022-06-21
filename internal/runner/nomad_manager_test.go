@@ -5,6 +5,7 @@ import (
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -57,13 +58,13 @@ func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []strin
 }
 
 func mockIdleRunners(environmentMock *ExecutionEnvironmentMock) {
-	idleRunner := NewLocalRunnerStorage()
+	idleRunner := storage.NewLocalStorage[Runner]()
 	environmentMock.On("AddRunner", mock.Anything).Run(func(args mock.Arguments) {
 		r, ok := args.Get(0).(Runner)
 		if !ok {
 			return
 		}
-		idleRunner.Add(r)
+		idleRunner.Add(r.ID(), r)
 	})
 	sampleCall := environmentMock.On("Sample", mock.Anything)
 	sampleCall.Run(func(args mock.Arguments) {
@@ -94,7 +95,7 @@ func (s *ManagerTestSuite) TestSetEnvironmentAddsNewEnvironment() {
 	anotherEnvironment.On("ID").Return(anotherEnvironmentID)
 	s.nomadRunnerManager.StoreEnvironment(anotherEnvironment)
 
-	job, ok := s.nomadRunnerManager.environments.Get(anotherEnvironmentID)
+	job, ok := s.nomadRunnerManager.environments.Get(anotherEnvironmentID.ToString())
 	s.True(ok)
 	s.NotNil(job)
 }
@@ -166,7 +167,7 @@ func (s *ManagerTestSuite) TestClaimRemovesRunnerWhenMarkAsUsedFails() {
 }
 
 func (s *ManagerTestSuite) TestGetReturnsRunnerIfRunnerIsUsed() {
-	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner)
+	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner.ID(), s.exerciseRunner)
 	savedRunner, err := s.nomadRunnerManager.Get(s.exerciseRunner.ID())
 	s.NoError(err)
 	s.Equal(savedRunner, s.exerciseRunner)
@@ -180,7 +181,7 @@ func (s *ManagerTestSuite) TestGetReturnsErrorIfRunnerNotFound() {
 
 func (s *ManagerTestSuite) TestReturnRemovesRunnerFromUsedRunners() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner)
+	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner.ID(), s.exerciseRunner)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Nil(err)
 	_, ok := s.nomadRunnerManager.usedRunners.Get(s.exerciseRunner.ID())
@@ -222,7 +223,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 
 func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 	allocation := &nomadApi.Allocation{ID: tests.DefaultRunnerID}
-	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
+	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID.ToString())
 	s.Require().True(ok)
 	allocation.JobID = environment.ID().ToString()
 	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
@@ -250,13 +251,13 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 
 func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	allocation := &nomadApi.Allocation{JobID: tests.DefaultRunnerID}
-	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID)
+	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID.ToString())
 	s.Require().True(ok)
 	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
 	testRunner := NewRunner(allocation.JobID, s.nomadRunnerManager)
 	environment.AddRunner(testRunner)
-	s.nomadRunnerManager.usedRunners.Add(testRunner)
+	s.nomadRunnerManager.usedRunners.Add(testRunner.ID(), testRunner)
 
 	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
@@ -288,7 +289,7 @@ func modifyMockedCall(apiMock *nomad.ExecutorAPIMock, method string, modifier fu
 
 func (s *ManagerTestSuite) TestOnAllocationAdded() {
 	s.Run("does not add environment template id job", func() {
-		environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsInteger)
+		environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 		s.True(ok)
 		mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
@@ -306,7 +307,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 	})
 	s.Run("does not panic when environment does not exist", func() {
 		nonExistentEnvironment := dto.EnvironmentID(1234)
-		_, ok := s.nomadRunnerManager.environments.Get(nonExistentEnvironment)
+		_, ok := s.nomadRunnerManager.environments.Get(nonExistentEnvironment.ToString())
 		s.Require().False(ok)
 
 		alloc := &nomadApi.Allocation{JobID: nomad.RunnerJobID(nonExistentEnvironment, "1-1-1-1")}
@@ -316,7 +317,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 	})
 	s.Run("adds correct job", func() {
 		s.Run("without allocated resources", func() {
-			environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsInteger)
+			environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 			s.True(ok)
 			mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
@@ -334,7 +335,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 			s.Empty(nomadJob.portMappings)
 		})
 		s.Run("with mapped ports", func() {
-			environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsInteger)
+			environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 			s.True(ok)
 			mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 

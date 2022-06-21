@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/storage"
 )
 
 var ErrNullObject = errors.New("functionality not available for the null object")
@@ -13,15 +14,15 @@ var ErrNullObject = errors.New("functionality not available for the null object"
 // Remember all functions that can call the NextHandler should call it (See AccessorHandler).
 type AbstractManager struct {
 	nextHandler  AccessorHandler
-	environments EnvironmentStorage
-	usedRunners  Storage
+	environments storage.Storage[ExecutionEnvironment]
+	usedRunners  storage.Storage[Runner]
 }
 
 // NewAbstractManager creates a new abstract runner manager that keeps track of all runners of one kind.
 func NewAbstractManager() *AbstractManager {
 	return &AbstractManager{
-		environments: NewLocalEnvironmentStorage(),
-		usedRunners:  NewLocalRunnerStorage(),
+		environments: storage.NewLocalStorage[ExecutionEnvironment](),
+		usedRunners:  storage.NewLocalStorage[Runner](),
 	}
 }
 
@@ -46,15 +47,15 @@ func (n *AbstractManager) ListEnvironments() []ExecutionEnvironment {
 }
 
 func (n *AbstractManager) GetEnvironment(id dto.EnvironmentID) (ExecutionEnvironment, bool) {
-	return n.environments.Get(id)
+	return n.environments.Get(id.ToString())
 }
 
 func (n *AbstractManager) StoreEnvironment(environment ExecutionEnvironment) {
-	n.environments.Add(environment)
+	n.environments.Add(environment.ID().ToString(), environment)
 }
 
 func (n *AbstractManager) DeleteEnvironment(id dto.EnvironmentID) {
-	n.environments.Delete(id)
+	n.environments.Delete(id.ToString())
 }
 
 func (n *AbstractManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData {
@@ -63,7 +64,7 @@ func (n *AbstractManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.Sta
 		environments[e.ID()] = &dto.StatisticalExecutionEnvironmentData{
 			ID:                 int(e.ID()),
 			PrewarmingPoolSize: e.PrewarmingPoolSize(),
-			IdleRunners:        uint(e.IdleRunnerCount()),
+			IdleRunners:        e.IdleRunnerCount(),
 			UsedRunners:        0, // Increased below.
 		}
 	}

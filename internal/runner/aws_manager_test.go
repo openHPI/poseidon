@@ -66,7 +66,7 @@ func TestAWSRunnerManager_Return(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("removes usedRunner", func(t *testing.T) {
-		m.usedRunners.Add(r)
+		m.usedRunners.Add(r.ID(), r)
 		assert.Contains(t, m.usedRunners.List(), r)
 
 		err := m.Return(r)

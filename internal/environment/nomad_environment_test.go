@@ -5,6 +5,7 @@ import (
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/assert"
@@ -113,7 +114,7 @@ func TestRegisterFailsWhenNomadJobRegistrationFails(t *testing.T) {
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, runner.NewLocalRunnerStorage()}
+	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, storage.NewLocalStorage[runner.Runner]()}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -130,7 +131,7 @@ func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, runner.NewLocalRunnerStorage()}
+	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, storage.NewLocalStorage[runner.Runner]()}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -146,7 +147,7 @@ func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, runner.NewLocalRunnerStorage()}
+	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, storage.NewLocalStorage[runner.Runner]()}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -172,7 +173,7 @@ func TestTwoSampleAddExactlyTwoRunners(t *testing.T) {
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 
 	_, job := helpers.CreateTemplateJob()
-	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job, runner.NewLocalRunnerStorage()}
+	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job, storage.NewLocalStorage[runner.Runner]()}
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
 	runner2 := &runner.RunnerMock{}
@@ -205,7 +206,7 @@ func TestSampleDoesNotSetForcePullFlag(t *testing.T) {
 	})
 
 	_, job := helpers.CreateTemplateJob()
-	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job, runner.NewLocalRunnerStorage()}
+	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job, storage.NewLocalStorage[runner.Runner]()}
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
 	environment.AddRunner(runner1)

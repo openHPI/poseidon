@@ -11,7 +11,7 @@ import (
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/pkg/execution"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
 	"strings"
 	"time"
@@ -38,7 +38,7 @@ var (
 // NomadJob is an abstraction to communicate with Nomad environments.
 type NomadJob struct {
 	InactivityTimer
-	executions   execution.Storer
+	executions   storage.Storage[*dto.ExecutionRequest]
 	id           string
 	portMappings []nomadApi.PortMapping
 	api          nomad.ExecutorAPI
@@ -55,7 +55,7 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 		id:           id,
 		portMappings: portMappings,
 		api:          apiClient,
-		executions:   execution.NewLocalStorage(),
+		executions:   storage.NewLocalStorage[*dto.ExecutionRequest](),
 		onDestroy:    onDestroy,
 	}
 	job.InactivityTimer = NewInactivityTimer(job, onDestroy)
@@ -86,11 +86,12 @@ func (r *NomadJob) MappedPorts() []*dto.MappedPort {
 }
 
 func (r *NomadJob) StoreExecution(id string, request *dto.ExecutionRequest) {
-	r.executions.Add(execution.ID(id), request)
+	r.executions.Add(id, request)
 }
 
 func (r *NomadJob) ExecutionExists(id string) bool {
-	return r.executions.Exists(execution.ID(id))
+	_, ok := r.executions.Get(id)
+	return ok
 }
 
 func (r *NomadJob) ExecuteInteractively(
@@ -98,7 +99,7 @@ func (r *NomadJob) ExecuteInteractively(
 	stdin io.ReadWriter,
 	stdout, stderr io.Writer,
 ) (<-chan ExitInfo, context.CancelFunc, error) {
-	request, ok := r.executions.Pop(execution.ID(id))
+	request, ok := r.executions.Pop(id)
 	if !ok {
 		return nil, nil, ErrorUnknownExecution
 	}

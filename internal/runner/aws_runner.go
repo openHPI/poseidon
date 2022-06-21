@@ -10,6 +10,7 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/execution"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
 )
 
@@ -29,7 +30,7 @@ type AWSFunctionWorkload struct {
 	InactivityTimer
 	id                string
 	fs                map[dto.FilePath][]byte
-	executions        execution.Storer
+	executions        storage.Storage[*dto.ExecutionRequest]
 	runningExecutions map[execution.ID]context.CancelFunc
 	onDestroy         DestroyRunnerHandler
 	environment       ExecutionEnvironment
@@ -46,7 +47,7 @@ func NewAWSFunctionWorkload(
 	workload := &AWSFunctionWorkload{
 		id:                newUUID.String(),
 		fs:                make(map[dto.FilePath][]byte),
-		executions:        execution.NewLocalStorage(),
+		executions:        storage.NewLocalStorage[*dto.ExecutionRequest](),
 		runningExecutions: make(map[execution.ID]context.CancelFunc),
 		onDestroy:         onDestroy,
 		environment:       environment,
@@ -70,17 +71,18 @@ func (w *AWSFunctionWorkload) MappedPorts() []*dto.MappedPort {
 }
 
 func (w *AWSFunctionWorkload) StoreExecution(id string, request *dto.ExecutionRequest) {
-	w.executions.Add(execution.ID(id), request)
+	w.executions.Add(id, request)
 }
 
 func (w *AWSFunctionWorkload) ExecutionExists(id string) bool {
-	return w.executions.Exists(execution.ID(id))
+	_, ok := w.executions.Get(id)
+	return ok
 }
 
 func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, stdout, stderr io.Writer) (
 	<-chan ExitInfo, context.CancelFunc, error) {
 	w.ResetTimeout()
-	request, ok := w.executions.Pop(execution.ID(id))
+	request, ok := w.executions.Pop(id)
 	if !ok {
 		return nil, nil, ErrorUnknownExecution
 	}

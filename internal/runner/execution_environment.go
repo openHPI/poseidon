@@ -45,5 +45,5 @@ type ExecutionEnvironment interface {
 	// DeleteRunner removes an idle runner from the environment.
 	DeleteRunner(id string)
 	// IdleRunnerCount returns the number of idle runners of the environment.
-	IdleRunnerCount() int
+	IdleRunnerCount() uint
 }

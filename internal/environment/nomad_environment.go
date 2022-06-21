@@ -11,6 +11,7 @@ import (
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"strconv"
 	"sync"
 )
@@ -25,7 +26,7 @@ type NomadEnvironment struct {
 	apiClient   nomad.ExecutorAPI
 	jobHCL      string
 	job         *nomadApi.Job
-	idleRunners runner.Storage
+	idleRunners storage.Storage[runner.Runner]
 }
 
 func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
@@ -34,7 +35,7 @@ func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvi
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
 	}
 
-	return &NomadEnvironment{apiClient, jobHCL, job, runner.NewLocalRunnerStorage()}, nil
+	return &NomadEnvironment{apiClient, jobHCL, job, storage.NewLocalStorage[runner.Runner]()}, nil
 }
 
 func NewNomadEnvironmentFromRequest(
@@ -223,7 +224,7 @@ func (n *NomadEnvironment) Delete() error {
 }
 
 func (n *NomadEnvironment) ApplyPrewarmingPoolSize() error {
-	required := int(n.PrewarmingPoolSize()) - n.idleRunners.Length()
+	required := int(n.PrewarmingPoolSize()) - int(n.idleRunners.Length())
 
 	if required < 0 {
 		return fmt.Errorf("%w. Runners to remove: %d", ErrScaleDown, -required)
@@ -245,14 +246,14 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 }
 
 func (n *NomadEnvironment) AddRunner(r runner.Runner) {
-	n.idleRunners.Add(r)
+	n.idleRunners.Add(r.ID(), r)
 }
 
 func (n *NomadEnvironment) DeleteRunner(id string) {
 	n.idleRunners.Delete(id)
 }
 
-func (n *NomadEnvironment) IdleRunnerCount() int {
+func (n *NomadEnvironment) IdleRunnerCount() uint {
 	return n.idleRunners.Length()
 }
 

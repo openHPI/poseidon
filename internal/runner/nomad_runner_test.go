@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/pkg/execution"
 	"github.com/openHPI/poseidon/pkg/nullio"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -53,7 +53,7 @@ func TestExecutionRequestIsStored(t *testing.T) {
 	}
 	id := "test-execution"
 	runner.StoreExecution(id, executionRequest)
-	storedExecutionRunner, ok := runner.executions.Pop(execution.ID(id))
+	storedExecutionRunner, ok := runner.executions.Pop(id)
 
 	assert.True(t, ok, "Getting an execution should not return ok false")
 	assert.Equal(t, executionRequest, storedExecutionRunner)
@@ -121,7 +121,7 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 	s.manager.On("Return", mock.Anything).Return(nil)
 
 	s.runner = &NomadJob{
-		executions:      execution.NewLocalStorage(),
+		executions:      storage.NewLocalStorage[*dto.ExecutionRequest](),
 		InactivityTimer: s.timer,
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,
@@ -251,7 +251,7 @@ func (s *UpdateFileSystemTestSuite) SetupTest() {
 	s.timer.On("ResetTimeout").Return()
 	s.timer.On("TimeoutPassed").Return(false)
 	s.runner = &NomadJob{
-		executions:      execution.NewLocalStorage(),
+		executions:      storage.NewLocalStorage[*dto.ExecutionRequest](),
 		InactivityTimer: s.timer,
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,

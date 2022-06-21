@@ -35,7 +35,7 @@ func NewNomadRunnerManager(apiClient nomad.ExecutorAPI, ctx context.Context) *No
 }
 
 func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int) (Runner, error) {
-	environment, ok := m.environments.Get(environmentID)
+	environment, ok := m.environments.Get(environmentID.ToString())
 	if !ok {
 		return nil, ErrUnknownExecutionEnvironment
 	}
@@ -44,7 +44,7 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 		return nil, ErrNoRunnersAvailable
 	}
 
-	m.usedRunners.Add(runner)
+	m.usedRunners.Add(runner.ID(), runner)
 	go m.markRunnerAsUsed(runner, duration)
 
 	runner.SetupTimeout(time.Duration(duration) * time.Second)
@@ -103,7 +103,7 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 	}
 	newJob := NewNomadJob(*job.ID, portMappings, m.apiClient, m.Return)
 	if isUsed {
-		m.usedRunners.Add(newJob)
+		m.usedRunners.Add(newJob.ID(), newJob)
 		timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])
 		if err != nil {
 			environmentLogger.WithError(err).Warn("Error loading timeout from meta values")
@@ -138,7 +138,7 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation) {
 		return
 	}
 
-	environment, ok := m.environments.Get(environmentID)
+	environment, ok := m.environments.Get(environmentID.ToString())
 	if ok {
 		var mappedPorts []nomadApi.PortMapping
 		if alloc.AllocatedResources != nil {
@@ -162,7 +162,7 @@ func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation) {
 	}
 
 	m.usedRunners.Delete(alloc.JobID)
-	environment, ok := m.environments.Get(environmentID)
+	environment, ok := m.environments.Get(environmentID.ToString())
 	if ok {
 		environment.DeleteRunner(alloc.JobID)
 	}

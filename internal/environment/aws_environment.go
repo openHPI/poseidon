@@ -60,7 +60,7 @@ func (a *AWSEnvironment) Sample() (r runner.Runner, ok bool) {
 // The following methods are not supported at this moment.
 
 // IdleRunnerCount is not supported as we have no information about the AWS managed prewarming pool.
-func (a *AWSEnvironment) IdleRunnerCount() int {
+func (a *AWSEnvironment) IdleRunnerCount() uint {
 	return 0
 }
 

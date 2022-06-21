@@ -16,7 +16,7 @@ func NewAWSRunnerManager() *AWSRunnerManager {
 }
 
 func (a AWSRunnerManager) Claim(id dto.EnvironmentID, duration int) (Runner, error) {
-	environment, ok := a.environments.Get(id)
+	environment, ok := a.environments.Get(id.ToString())
 	if !ok {
 		r, err := a.NextHandler().Claim(id, duration)
 		if err != nil {
@@ -31,7 +31,7 @@ func (a AWSRunnerManager) Claim(id dto.EnvironmentID, duration int) (Runner, err
 		return nil, ErrNoRunnersAvailable
 	}
 
-	a.usedRunners.Add(runner)
+	a.usedRunners.Add(runner.ID(), runner)
 	runner.SetupTimeout(time.Duration(duration) * time.Second)
 	return runner, nil
 }

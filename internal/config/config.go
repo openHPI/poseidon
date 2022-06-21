@@ -58,6 +58,7 @@ var (
 			Token:        "",
 			Organization: "",
 			Bucket:       "",
+			Stage:        "",
 		},
 	}
 	configurationFilePath    = "./configuration.yaml"
@@ -127,6 +128,7 @@ type InfluxDB struct {
 	Token        string
 	Organization string
 	Bucket       string
+	Stage        string
 }
 
 // configuration contains the complete configuration of Poseidon.

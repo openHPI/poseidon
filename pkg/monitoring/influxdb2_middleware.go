@@ -7,6 +7,7 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2API "github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
@@ -41,6 +42,7 @@ func InfluxDB2Middleware(influxClient influxdb2API.WriteAPI, manager environment
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			route := mux.CurrentRoute(r).GetName()
 			p := influxdb2.NewPointWithMeasurement(influxdbMeasurementPrefix + route)
+			p.AddTag("stage", config.Config.InfluxDB.Stage)
 
 			start := time.Now().UTC()
 			p.SetTime(time.Now())

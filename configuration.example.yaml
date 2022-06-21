@@ -81,3 +81,5 @@ influxdb:
   organization: PoseidonOrg
   # The influxdb bucket to store the data in.
   bucket: poseidon
+  # The stage to be sent with events.
+  # stage: staging

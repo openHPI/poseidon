@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -24,7 +23,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 )
@@ -100,7 +98,7 @@ func (s *WebSocketTestSuite) TestWebsocketConnection() {
 	})
 
 	s.Run("Executes the request in the runner", func() {
-		<-time.After(100 * time.Millisecond)
+		<-time.After(tests.ShortTimeout)
 		s.apiMock.AssertCalled(s.T(), "ExecuteCommand",
 			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
@@ -279,103 +277,6 @@ func TestWebsocketTLS(t *testing.T) {
 	_, err = helpers.ReceiveAllWebSocketMessages(connection)
 	require.Error(t, err)
 	assert.True(t, websocket.IsCloseError(err, websocket.CloseNormalClosure))
-}
-
-func TestRawToCodeOceanWriter(t *testing.T) {
-	testMessage := "test"
-	var message []byte
-
-	connectionMock := &webSocketConnectionMock{}
-	connectionMock.On("WriteMessage", mock.AnythingOfType("int"), mock.AnythingOfType("[]uint8")).
-		Run(func(args mock.Arguments) {
-			var ok bool
-			message, ok = args.Get(1).([]byte)
-			require.True(t, ok)
-		}).
-		Return(nil)
-	connectionMock.On("CloseHandler").Return(nil)
-	connectionMock.On("SetCloseHandler", mock.Anything).Return()
-
-	proxyCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	proxy, err := newWebSocketProxy(connectionMock, proxyCtx)
-	require.NoError(t, err)
-	writer := &rawToCodeOceanWriter{
-		proxy:      proxy,
-		outputType: dto.WebSocketOutputStdout,
-	}
-
-	_, err = writer.Write([]byte(testMessage))
-	require.NoError(t, err)
-
-	expected, err := json.Marshal(struct {
-		Type string `json:"type"`
-		Data string `json:"data"`
-	}{string(dto.WebSocketOutputStdout), testMessage})
-	require.NoError(t, err)
-	assert.Equal(t, expected, message)
-}
-
-func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead(t *testing.T) {
-	readingCtx, cancel := context.WithCancel(context.Background())
-	forwardingCtx := readingCtx
-	defer cancel()
-	reader := newCodeOceanToRawReader(nil, readingCtx, forwardingCtx)
-
-	read := make(chan bool)
-	go func() {
-		//nolint:makezero // we can't make zero initial length here as the reader otherwise doesn't block
-		p := make([]byte, 10)
-		_, err := reader.Read(p)
-		require.NoError(t, err)
-		read <- true
-	}()
-
-	t.Run("Does not return immediately when there is no data", func(t *testing.T) {
-		assert.False(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
-	})
-
-	t.Run("Returns when there is data available", func(t *testing.T) {
-		reader.buffer <- byte(42)
-		assert.True(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
-	})
-}
-
-func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *testing.T) {
-	messages := make(chan io.Reader)
-
-	connection := &webSocketConnectionMock{}
-	connection.On("WriteMessage", mock.AnythingOfType("int"), mock.AnythingOfType("[]uint8")).Return(nil)
-	connection.On("CloseHandler").Return(nil)
-	connection.On("SetCloseHandler", mock.Anything).Return()
-	call := connection.On("NextReader")
-	call.Run(func(_ mock.Arguments) {
-		call.Return(websocket.TextMessage, <-messages, nil)
-	})
-
-	readingCtx, cancel := context.WithCancel(context.Background())
-	forwardingCtx := readingCtx
-	defer cancel()
-	reader := newCodeOceanToRawReader(connection, readingCtx, forwardingCtx)
-	reader.startReadInputLoop()
-
-	read := make(chan bool)
-	//nolint:makezero // this is required here to make the Read call blocking
-	message := make([]byte, 10)
-	go func() {
-		_, err := reader.Read(message)
-		require.NoError(t, err)
-		read <- true
-	}()
-
-	t.Run("Does not return immediately when there is no data", func(t *testing.T) {
-		assert.False(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
-	})
-
-	t.Run("Returns when there is data available", func(t *testing.T) {
-		messages <- strings.NewReader("Hello")
-		assert.True(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
-	})
 }
 
 func TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt(t *testing.T) {

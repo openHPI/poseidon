@@ -32,7 +32,7 @@ type WebSocketWriter interface {
 }
 
 // codeOceanOutputWriter is a concrete WebSocketWriter implementation.
-// It forwards the data written to stdOut or stdIn (Nomad, AWS) to the WebSocket connection (CodeOcean).
+// It forwards the data written to stdOut or stdErr (Nomad, AWS) to the WebSocket connection (CodeOcean).
 type codeOceanOutputWriter struct {
 	connection Connection
 	stdOut     io.Writer

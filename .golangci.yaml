@@ -18,6 +18,10 @@ linters-settings:
       - style
     disabled-checks:
       - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - hugeParam        # No golang generic support. See https://github.com/golangci/golangci-lint/issues/2649
+      - rangeValCopy     # ^
+      - typeDefFirst     # |
+      - paramTypeCombine # |
   gocyclo:
     min-complexity: 15
   gomnd:

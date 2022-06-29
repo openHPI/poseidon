@@ -36,8 +36,8 @@ func (s *ManagerTestSuite) SetupTest() {
 	s.nomadRunnerManager = NewNomadRunnerManager(s.apiMock, ctx)
 
 	s.exerciseRunner = NewRunner(tests.DefaultRunnerID, s.nomadRunnerManager)
-	s.exerciseEnvironment = &ExecutionEnvironmentMock{}
-	s.setDefaultEnvironment()
+	s.exerciseEnvironment = createBasicEnvironmentMock(defaultEnvironmentID)
+	s.nomadRunnerManager.StoreEnvironment(s.exerciseEnvironment)
 }
 
 func mockRunnerQueries(apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []string) {
@@ -81,18 +81,12 @@ func mockIdleRunners(environmentMock *ExecutionEnvironmentMock) {
 	})
 }
 
-func (s *ManagerTestSuite) setDefaultEnvironment() {
-	s.exerciseEnvironment.On("ID").Return(defaultEnvironmentID)
-	s.nomadRunnerManager.StoreEnvironment(s.exerciseEnvironment)
-}
-
 func (s *ManagerTestSuite) waitForRunnerRefresh() {
 	<-time.After(100 * time.Millisecond)
 }
 
 func (s *ManagerTestSuite) TestSetEnvironmentAddsNewEnvironment() {
-	anotherEnvironment := &ExecutionEnvironmentMock{}
-	anotherEnvironment.On("ID").Return(anotherEnvironmentID)
+	anotherEnvironment := createBasicEnvironmentMock(anotherEnvironmentID)
 	s.nomadRunnerManager.StoreEnvironment(anotherEnvironment)
 
 	job, ok := s.nomadRunnerManager.environments.Get(anotherEnvironmentID.ToString())

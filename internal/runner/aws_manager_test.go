@@ -14,8 +14,7 @@ func TestAWSRunnerManager_EnvironmentAccessor(t *testing.T) {
 	environments := m.ListEnvironments()
 	assert.Empty(t, environments)
 
-	environment := &ExecutionEnvironmentMock{}
-	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+	environment := createBasicEnvironmentMock(defaultEnvironmentID)
 	m.StoreEnvironment(environment)
 
 	environments = m.ListEnvironments()
@@ -32,8 +31,7 @@ func TestAWSRunnerManager_EnvironmentAccessor(t *testing.T) {
 
 func TestAWSRunnerManager_Claim(t *testing.T) {
 	m := NewAWSRunnerManager()
-	environment := &ExecutionEnvironmentMock{}
-	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+	environment := createBasicEnvironmentMock(defaultEnvironmentID)
 	r, err := NewAWSFunctionWorkload(environment, nil)
 	assert.NoError(t, err)
 	environment.On("Sample").Return(r, true)
@@ -59,8 +57,7 @@ func TestAWSRunnerManager_Claim(t *testing.T) {
 
 func TestAWSRunnerManager_Return(t *testing.T) {
 	m := NewAWSRunnerManager()
-	environment := &ExecutionEnvironmentMock{}
-	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+	environment := createBasicEnvironmentMock(defaultEnvironmentID)
 	m.StoreEnvironment(environment)
 	r, err := NewAWSFunctionWorkload(environment, nil)
 	assert.NoError(t, err)
@@ -84,4 +81,14 @@ func TestAWSRunnerManager_Return(t *testing.T) {
 		assert.NoError(t, err)
 		nextHandler.AssertCalled(t, "Return", nonAWSRunner)
 	})
+}
+
+func createBasicEnvironmentMock(id dto.EnvironmentID) *ExecutionEnvironmentMock {
+	environment := &ExecutionEnvironmentMock{}
+	environment.On("ID").Return(id)
+	environment.On("Image").Return("")
+	environment.On("CPULimit").Return(uint(0))
+	environment.On("MemoryLimit").Return(uint(0))
+	environment.On("NetworkAccess").Return(false, nil)
+	return environment
 }

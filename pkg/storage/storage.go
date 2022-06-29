@@ -1,6 +1,10 @@
 package storage
 
 import (
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/openHPI/poseidon/pkg/monitoring"
+	"strconv"
 	"sync"
 )
 
@@ -36,10 +40,14 @@ type Storage[T any] interface {
 	Sample() (o T, ok bool)
 }
 
+type WriteCallback[T any] func(p *write.Point, object T, isDeletion bool)
+
 // localStorage stores objects in the local application memory.
 type localStorage[T any] struct {
 	sync.RWMutex
-	objects map[string]T
+	objects     map[string]T
+	measurement string
+	callback    WriteCallback[T]
 }
 
 // NewLocalStorage responds with a Storage implementation.
@@ -47,6 +55,17 @@ type localStorage[T any] struct {
 func NewLocalStorage[T any]() *localStorage[T] {
 	return &localStorage[T]{
 		objects: make(map[string]T),
+	}
+}
+
+// NewMonitoredLocalStorage responds with a Storage implementation.
+// All write operations are monitored in the passed measurement.
+// Iff callback is set, it will be called on a write operation.
+func NewMonitoredLocalStorage[T any](measurement string, callback WriteCallback[T]) *localStorage[T] {
+	return &localStorage[T]{
+		objects:     make(map[string]T),
+		measurement: measurement,
+		callback:    callback,
 	}
 }
 
@@ -63,6 +82,7 @@ func (s *localStorage[T]) Add(id string, o T) {
 	s.Lock()
 	defer s.Unlock()
 	s.objects[id] = o
+	s.sendMonitoringData(id, o, false)
 }
 
 func (s *localStorage[T]) Get(id string) (o T, ok bool) {
@@ -75,6 +95,7 @@ func (s *localStorage[T]) Get(id string) (o T, ok bool) {
 func (s *localStorage[T]) Delete(id string) {
 	s.Lock()
 	defer s.Unlock()
+	s.sendMonitoringData(id, s.objects[id], true)
 	delete(s.objects, id)
 }
 
@@ -87,6 +108,9 @@ func (s *localStorage[T]) Pop(id string) (T, bool) {
 func (s *localStorage[T]) Purge() {
 	s.Lock()
 	defer s.Unlock()
+	for key, object := range s.objects {
+		s.sendMonitoringData(key, object, true)
+	}
 	s.objects = make(map[string]T)
 }
 
@@ -94,6 +118,7 @@ func (s *localStorage[T]) Sample() (o T, ok bool) {
 	s.Lock()
 	defer s.Unlock()
 	for key, object := range s.objects {
+		s.sendMonitoringData(key, object, true)
 		delete(s.objects, key)
 		return object, true
 	}
@@ -104,4 +129,19 @@ func (s *localStorage[T]) Length() uint {
 	s.RLock()
 	defer s.RUnlock()
 	return uint(len(s.objects))
+}
+
+func (s *localStorage[T]) sendMonitoringData(id string, o T, isDeletion bool) {
+	if s.measurement != "" {
+		p := influxdb2.NewPointWithMeasurement(s.measurement)
+		p.AddTag("id", id)
+		p.AddTag("isDeletion", strconv.FormatBool(isDeletion))
+		p.AddField("count", 1)
+
+		if s.callback != nil {
+			s.callback(p, o, isDeletion)
+		}
+
+		monitoring.WriteInfluxPoint(p)
+	}
 }

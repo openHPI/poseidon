@@ -11,6 +11,7 @@ import (
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"strconv"
 	"sync"
@@ -35,7 +36,8 @@ func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvi
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
 	}
 
-	return &NomadEnvironment{apiClient, jobHCL, job, storage.NewLocalStorage[runner.Runner]()}, nil
+	return &NomadEnvironment{apiClient, jobHCL, job,
+		storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad, nil)}, nil
 }
 
 func NewNomadEnvironmentFromRequest(
@@ -80,6 +82,7 @@ func (n *NomadEnvironment) PrewarmingPoolSize() uint {
 }
 
 func (n *NomadEnvironment) SetPrewarmingPoolSize(count uint) {
+	monitoring.ChangedPrewarmingPoolSize(n.ID(), count)
 	taskGroup := nomad.FindAndValidateConfigTaskGroup(n.job)
 
 	if taskGroup.Meta == nil {

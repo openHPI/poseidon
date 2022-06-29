@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 )
 
@@ -21,8 +22,9 @@ type AbstractManager struct {
 // NewAbstractManager creates a new abstract runner manager that keeps track of all runners of one kind.
 func NewAbstractManager() *AbstractManager {
 	return &AbstractManager{
-		environments: storage.NewLocalStorage[ExecutionEnvironment](),
-		usedRunners:  storage.NewLocalStorage[Runner](),
+		environments: storage.NewMonitoredLocalStorage[ExecutionEnvironment](
+			monitoring.MeasurementEnvironments, monitorEnvironmentData),
+		usedRunners: storage.NewMonitoredLocalStorage[Runner](monitoring.MeasurementUsedRunner, nil),
 	}
 }
 

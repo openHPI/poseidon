@@ -10,6 +10,7 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/execution"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
 )
@@ -47,7 +48,7 @@ func NewAWSFunctionWorkload(
 	workload := &AWSFunctionWorkload{
 		id:                newUUID.String(),
 		fs:                make(map[dto.FilePath][]byte),
-		executions:        storage.NewLocalStorage[*dto.ExecutionRequest](),
+		executions:        storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](monitoring.MeasurementExecutionsAWS, nil),
 		runningExecutions: make(map[execution.ID]context.CancelFunc),
 		onDestroy:         onDestroy,
 		environment:       environment,

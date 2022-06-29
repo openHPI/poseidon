@@ -68,7 +68,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		}
 		return
 	}
-	monitoring.AddRunnerMonitoringData(request, nextRunner)
+	monitoring.AddRunnerMonitoringData(request, nextRunner.ID(), nextRunner.Environment())
 	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()}, http.StatusOK)
 }
 
@@ -82,7 +82,7 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	}
 
 	targetRunner, _ := runner.FromContext(request.Context())
-	monitoring.AddRunnerMonitoringData(request, targetRunner)
+	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 	if err := targetRunner.UpdateFileSystem(fileCopyRequest); err != nil {
 		log.WithError(err).Error("Could not perform the requested updateFileSystem.")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
@@ -108,7 +108,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		scheme = "ws"
 	}
 	targetRunner, _ := runner.FromContext(request.Context())
-	monitoring.AddRunnerMonitoringData(request, targetRunner)
+	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
 	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIDKey, targetRunner.ID())
 	if err != nil {
@@ -160,7 +160,7 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 // It destroys the given runner on the executor and removes it from the used runners list.
 func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	monitoring.AddRunnerMonitoringData(request, targetRunner)
+	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
 	err := r.manager.Return(targetRunner)
 	if err != nil {

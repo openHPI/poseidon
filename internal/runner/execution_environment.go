@@ -2,7 +2,9 @@ package runner
 
 import (
 	"encoding/json"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"strconv"
 )
 
 // ExecutionEnvironment are groups of runner that share the configuration stored in the environment.
@@ -46,4 +48,15 @@ type ExecutionEnvironment interface {
 	DeleteRunner(id string)
 	// IdleRunnerCount returns the number of idle runners of the environment.
 	IdleRunnerCount() uint
+}
+
+// monitorEnvironmentData passes the configuration of the environment e into the monitoring Point p.
+func monitorEnvironmentData(p *write.Point, e ExecutionEnvironment, isDeletion bool) {
+	if !isDeletion && e != nil {
+		p.AddTag("image", e.Image())
+		p.AddTag("cpu_limit", strconv.Itoa(int(e.CPULimit())))
+		p.AddTag("memory_limit", strconv.Itoa(int(e.MemoryLimit())))
+		hasNetworkAccess, _ := e.NetworkAccess()
+		p.AddTag("network_access", strconv.FormatBool(hasNetworkAccess))
+	}
 }

@@ -51,7 +51,7 @@ func (s *WebSocketTestSuite) SetupTest() {
 
 	runnerManager := &runner.ManagerMock{}
 	runnerManager.On("Get", s.runner.ID()).Return(s.runner, nil)
-	s.router = NewRouter(runnerManager, nil, nil)
+	s.router = NewRouter(runnerManager, nil)
 	s.server = httptest.NewServer(s.router)
 }
 
@@ -257,7 +257,7 @@ func TestWebsocketTLS(t *testing.T) {
 
 	runnerManager := &runner.ManagerMock{}
 	runnerManager.On("Get", r.ID()).Return(r, nil)
-	router := NewRouter(runnerManager, nil, nil)
+	router := NewRouter(runnerManager, nil)
 
 	server, err := helpers.StartTLSServer(t, router)
 	require.NoError(t, err)
@@ -327,7 +327,7 @@ func newRunnerWithNotMockedRunnerManager(t *testing.T, apiMock *nomad.ExecutorAP
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 	runnerManager := runner.NewNomadRunnerManager(apiMock, context.Background())
-	router := NewRouter(runnerManager, nil, nil)
+	router := NewRouter(runnerManager, nil)
 	server := httptest.NewServer(router)
 
 	runnerID := tests.DefaultRunnerID

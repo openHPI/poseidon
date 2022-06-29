@@ -8,6 +8,7 @@ import (
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"os"
 )
@@ -142,7 +143,7 @@ func (m *NomadEnvironmentManager) Load() error {
 			apiClient:   m.api,
 			jobHCL:      templateEnvironmentJobHCL,
 			job:         job,
-			idleRunners: storage.NewLocalStorage[runner.Runner](),
+			idleRunners: storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad, nil),
 		}
 		m.runnerManager.StoreEnvironment(environment)
 		jobLogger.Info("Successfully recovered environment")
@@ -181,7 +182,7 @@ func fetchEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner
 				apiClient:   apiClient,
 				jobHCL:      templateEnvironmentJobHCL,
 				job:         job,
-				idleRunners: storage.NewLocalStorage[runner.Runner](),
+				idleRunners: storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad, nil),
 			}
 		}
 	}

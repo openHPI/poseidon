@@ -136,6 +136,9 @@ func (f File) ByteContent() []byte {
 	}
 }
 
+// ContextKey is the type for keys in a request context that is used for passing data to the next handler.
+type ContextKey string
+
 // WebSocketMessageType is the type for the messages from Poseidon to the client.
 type WebSocketMessageType string
 

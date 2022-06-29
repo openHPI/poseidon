@@ -107,7 +107,7 @@ type RunnerRouteTestSuite struct {
 
 func (s *RunnerRouteTestSuite) SetupTest() {
 	s.runnerManager = &runner.ManagerMock{}
-	s.router = NewRouter(s.runnerManager, nil, nil)
+	s.router = NewRouter(s.runnerManager, nil)
 	s.runner = runner.NewNomadJob("some-id", nil, nil, nil)
 	s.executionID = "execution"
 	s.runner.StoreExecution(s.executionID, &dto.ExecutionRequest{})

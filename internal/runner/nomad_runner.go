@@ -11,18 +11,16 @@ import (
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
 	"strings"
 	"time"
 )
 
-// ContextKey is the type for keys in a request context.
-type ContextKey string
-
 const (
 	// runnerContextKey is the key used to store runners in context.Context.
-	runnerContextKey ContextKey = "runner"
+	runnerContextKey dto.ContextKey = "runner"
 	// SIGQUIT is the character that causes a tty to send the SIGQUIT signal to the controlled process.
 	SIGQUIT = 0x1c
 	// executionTimeoutGracePeriod is the time to wait after sending a SIGQUIT signal to a timed out execution.
@@ -55,7 +53,7 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 		id:           id,
 		portMappings: portMappings,
 		api:          apiClient,
-		executions:   storage.NewLocalStorage[*dto.ExecutionRequest](),
+		executions:   storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](monitoring.MeasurementExecutionsNomad, nil),
 		onDestroy:    onDestroy,
 	}
 	job.InactivityTimer = NewInactivityTimer(job, onDestroy)

@@ -87,7 +87,7 @@ func (a *AWSEnvironment) CPULimit() uint {
 func (a *AWSEnvironment) SetCPULimit(_ uint) {}
 
 func (a *AWSEnvironment) MemoryLimit() uint {
-	panic("not supported")
+	return 0
 }
 
 func (a *AWSEnvironment) SetMemoryLimit(_ uint) {
@@ -95,7 +95,7 @@ func (a *AWSEnvironment) SetMemoryLimit(_ uint) {
 }
 
 func (a *AWSEnvironment) NetworkAccess() (enabled bool, mappedPorts []uint16) {
-	panic("not supported")
+	return false, nil
 }
 
 func (a *AWSEnvironment) SetNetworkAccess(_ bool, _ []uint16) {

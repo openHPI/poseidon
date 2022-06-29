@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -25,6 +27,15 @@ func (s *ObjectPoolTestSuite) TestAddedObjectCanBeRetrieved() {
 	retrievedRunner, ok := s.objectStorage.Get("my_id")
 	s.True(ok, "A saved object should be retrievable")
 	s.Equal(s.object, retrievedRunner)
+}
+
+func (s *ObjectPoolTestSuite) TestLocalStorage_List() {
+	s.objectStorage.Add("my_id", s.object)
+	s.objectStorage.Add("my_id 2", 21)
+	retrievedRunners := s.objectStorage.List()
+	s.Len(retrievedRunners, 2)
+	s.Contains(retrievedRunners, s.object)
+	s.Contains(retrievedRunners, 21)
 }
 
 func (s *ObjectPoolTestSuite) TestObjectWithSameIdOverwritesOldOne() {
@@ -96,5 +107,66 @@ func (s *ObjectPoolTestSuite) TestLenChangesOnStoreContentChange() {
 	s.Run("len decreases when object is sampled", func() {
 		_, _ = s.objectStorage.Sample()
 		s.Equal(uint(0), s.objectStorage.Length())
+	})
+}
+
+func TestNewMonitoredLocalStorage_Callback(t *testing.T) {
+	callbackCalls := 0
+	callbackAdditions := 0
+	callbackDeletions := 0
+	os := NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, isDeletion bool) {
+		callbackCalls++
+		if isDeletion {
+			callbackDeletions++
+		} else {
+			callbackAdditions++
+		}
+	})
+
+	assertCallbackCounts := func(test func(), totalCalls, additions, deletions int) {
+		beforeTotal := callbackCalls
+		beforeAdditions := callbackAdditions
+		beforeDeletions := callbackDeletions
+		test()
+		assert.Equal(t, beforeTotal+totalCalls, callbackCalls)
+		assert.Equal(t, beforeAdditions+additions, callbackAdditions)
+		assert.Equal(t, beforeDeletions+deletions, callbackDeletions)
+	}
+
+	t.Run("Add", func(t *testing.T) {
+		assertCallbackCounts(func() {
+			os.Add("id 1", "object 1")
+		}, 1, 1, 0)
+	})
+
+	t.Run("Delete", func(t *testing.T) {
+		assertCallbackCounts(func() {
+			os.Delete("id 1")
+		}, 1, 0, 1)
+	})
+
+	t.Run("List", func(t *testing.T) {
+		assertCallbackCounts(func() {
+			os.List()
+		}, 0, 0, 0)
+	})
+
+	t.Run("Pop", func(t *testing.T) {
+		os.Add("id 1", "object 1")
+
+		assertCallbackCounts(func() {
+			o, ok := os.Pop("id 1")
+			assert.True(t, ok)
+			assert.Equal(t, "object 1", o)
+		}, 1, 0, 1)
+	})
+
+	t.Run("Purge", func(t *testing.T) {
+		os.Add("id 1", "object 1")
+		os.Add("id 2", "object 2")
+
+		assertCallbackCounts(func() {
+			os.Purge()
+		}, 2, 0, 2)
 	})
 }

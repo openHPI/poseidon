@@ -97,7 +97,7 @@ func (s *localStorage[T]) Sample() (o T, ok bool) {
 		delete(s.objects, key)
 		return object, true
 	}
-	return
+	return o, false
 }
 
 func (s *localStorage[T]) Length() uint {

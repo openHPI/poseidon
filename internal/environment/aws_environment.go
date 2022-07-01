@@ -87,7 +87,8 @@ func (a *AWSEnvironment) CPULimit() uint {
 func (a *AWSEnvironment) SetCPULimit(_ uint) {}
 
 func (a *AWSEnvironment) MemoryLimit() uint {
-	return 0
+	const memorySizeOfDeployedLambdaFunction = 2048 // configured /deploy/aws/template.yaml
+	return memorySizeOfDeployedLambdaFunction
 }
 
 func (a *AWSEnvironment) SetMemoryLimit(_ uint) {
@@ -95,7 +96,7 @@ func (a *AWSEnvironment) SetMemoryLimit(_ uint) {
 }
 
 func (a *AWSEnvironment) NetworkAccess() (enabled bool, mappedPorts []uint16) {
-	return false, nil
+	return true, nil
 }
 
 func (a *AWSEnvironment) SetNetworkAccess(_ bool, _ []uint16) {

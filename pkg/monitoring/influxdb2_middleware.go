@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2API "github.com/influxdata/influxdb-client-go/v2/api"
+	http2 "github.com/influxdata/influxdb-client-go/v2/api/http"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
@@ -47,6 +48,12 @@ func InitializeInfluxDB(db *config.InfluxDB) (cancel func()) {
 
 	client := influxdb2.NewClient(db.URL, db.Token)
 	influxClient = client.WriteAPI(db.Organization, db.Bucket)
+	influxClient.SetWriteFailedCallback(func(_ string, error http2.Error, retryAttempts uint) bool {
+		if retryAttempts == 0 {
+			log.WithError(&error).Warn("Could not write influx data.")
+		}
+		return true // Enable retry (default)
+	})
 	cancel = func() {
 		influxClient.Flush()
 		client.Close()

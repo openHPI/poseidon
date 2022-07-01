@@ -82,7 +82,7 @@ func (s *localStorage[T]) Add(id string, o T) {
 	s.Lock()
 	defer s.Unlock()
 	s.objects[id] = o
-	s.sendMonitoringData(id, o, false)
+	s.sendMonitoringData(id, o, false, s.unsafeLength())
 }
 
 func (s *localStorage[T]) Get(id string) (o T, ok bool) {
@@ -95,7 +95,7 @@ func (s *localStorage[T]) Get(id string) (o T, ok bool) {
 func (s *localStorage[T]) Delete(id string) {
 	s.Lock()
 	defer s.Unlock()
-	s.sendMonitoringData(id, s.objects[id], true)
+	s.sendMonitoringData(id, s.objects[id], true, s.unsafeLength()-1)
 	delete(s.objects, id)
 }
 
@@ -109,7 +109,7 @@ func (s *localStorage[T]) Purge() {
 	s.Lock()
 	defer s.Unlock()
 	for key, object := range s.objects {
-		s.sendMonitoringData(key, object, true)
+		s.sendMonitoringData(key, object, true, 0)
 	}
 	s.objects = make(map[string]T)
 }
@@ -118,7 +118,7 @@ func (s *localStorage[T]) Sample() (o T, ok bool) {
 	s.Lock()
 	defer s.Unlock()
 	for key, object := range s.objects {
-		s.sendMonitoringData(key, object, true)
+		s.sendMonitoringData(key, object, true, s.unsafeLength()-1)
 		delete(s.objects, key)
 		return object, true
 	}
@@ -128,15 +128,19 @@ func (s *localStorage[T]) Sample() (o T, ok bool) {
 func (s *localStorage[T]) Length() uint {
 	s.RLock()
 	defer s.RUnlock()
+	return s.unsafeLength()
+}
+
+func (s *localStorage[T]) unsafeLength() uint {
 	return uint(len(s.objects))
 }
 
-func (s *localStorage[T]) sendMonitoringData(id string, o T, isDeletion bool) {
+func (s *localStorage[T]) sendMonitoringData(id string, o T, isDeletion bool, count uint) {
 	if s.measurement != "" {
 		p := influxdb2.NewPointWithMeasurement(s.measurement)
 		p.AddTag("id", id)
 		p.AddTag("isDeletion", strconv.FormatBool(isDeletion))
-		p.AddField("count", 1)
+		p.AddField("count", count)
 
 		if s.callback != nil {
 			s.callback(p, o, isDeletion)

@@ -10,6 +10,16 @@ The project can be compiled using `make build`. This should create a binary whic
 
 Alternatively, the `go run ./cmd/poseidon` command can be used to automatically compile and run the project.
 
+### URLs
+
+Once you completed the project setup, you can check the availability using the following URL:
+
+```http request
+http://localhost:7200/api/v1/version
+```
+
+Using the prefix `/api/v1`, all routes as described in [API documentation](../api/swagger.yaml) are available and thus can be used in conjunction with [CodeOcean](https://github.com/openHPI/codeocean).
+
 ## Tests
 
 As testing framework we use the [testify](https://github.com/stretchr/testify) toolkit.

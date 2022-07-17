@@ -260,7 +260,9 @@ func TestNomadEnvironmentManager_List(t *testing.T) {
 		environments, err = m.List(true)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(environments))
-		assert.Equal(t, fetchedEnvironment, environments[0])
+		nomadEnvironment, ok := environments[0].(*NomadEnvironment)
+		assert.True(t, ok)
+		assert.Equal(t, fetchedEnvironment.job, nomadEnvironment.job)
 	})
 }
 

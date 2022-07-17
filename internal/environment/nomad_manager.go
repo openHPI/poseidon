@@ -3,6 +3,7 @@ package environment
 import (
 	_ "embed"
 	"fmt"
+	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -139,16 +140,22 @@ func (m *NomadEnvironmentManager) Load() error {
 			jobLogger.Info("Couldn't find config task group in job, skipping ...")
 			continue
 		}
-		environment := &NomadEnvironment{
-			apiClient:   m.api,
-			jobHCL:      templateEnvironmentJobHCL,
-			job:         job,
-			idleRunners: storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad, nil),
-		}
+		environment := newNomadEnvironmetFromJob(job, m.api)
 		m.runnerManager.StoreEnvironment(environment)
 		jobLogger.Info("Successfully recovered environment")
 	}
 	return nil
+}
+
+// newNomadEnvironmetFromJob creates a Nomad environment from the passed Nomad job definition.
+func newNomadEnvironmetFromJob(job *nomadApi.Job, apiClient nomad.ExecutorAPI) *NomadEnvironment {
+	return &NomadEnvironment{
+		apiClient: apiClient,
+		jobHCL:    templateEnvironmentJobHCL,
+		job:       job,
+		idleRunners: storage.NewMonitoredLocalStorage[runner.Runner](
+			monitoring.MeasurementIdleRunnerNomad, runner.MonitorRunnersEnvironmentID),
+	}
 }
 
 // loadTemplateEnvironmentJobHCL loads the template environment job HCL from the given path.
@@ -178,12 +185,7 @@ func fetchEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner
 			continue
 		}
 		if id == environmentID {
-			fetchedEnvironment = &NomadEnvironment{
-				apiClient:   apiClient,
-				jobHCL:      templateEnvironmentJobHCL,
-				job:         job,
-				idleRunners: storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad, nil),
-			}
+			fetchedEnvironment = newNomadEnvironmetFromJob(job, apiClient)
 		}
 	}
 	return fetchedEnvironment, nil

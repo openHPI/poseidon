@@ -48,11 +48,12 @@ func NewAWSFunctionWorkload(
 	workload := &AWSFunctionWorkload{
 		id:                newUUID.String(),
 		fs:                make(map[dto.FilePath][]byte),
-		executions:        storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](monitoring.MeasurementExecutionsAWS, nil),
 		runningExecutions: make(map[execution.ID]context.CancelFunc),
 		onDestroy:         onDestroy,
 		environment:       environment,
 	}
+	workload.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
+		monitoring.MeasurementExecutionsAWS, monitorExecutionsRunnerID(environment.ID(), workload.id))
 	workload.InactivityTimer = NewInactivityTimer(workload, func(_ Runner) error {
 		return workload.Destroy()
 	})

@@ -2,8 +2,12 @@ package runner
 
 import (
 	"context"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/monitoring"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
+	"strconv"
 )
 
 type ExitInfo struct {
@@ -58,4 +62,14 @@ func NewContext(ctx context.Context, runner Runner) context.Context {
 func FromContext(ctx context.Context) (Runner, bool) {
 	runner, ok := ctx.Value(runnerContextKey).(Runner)
 	return runner, ok
+}
+
+// monitorExecutionsRunnerID passes the id of the runner executing the execution into the monitoring Point p.
+func monitorExecutionsRunnerID(env dto.EnvironmentID, runnerID string) storage.WriteCallback[*dto.ExecutionRequest] {
+	return func(p *write.Point, e *dto.ExecutionRequest, isDeletion bool) {
+		if !isDeletion && e != nil {
+			p.AddTag(monitoring.InfluxKeyRunnerID, runnerID)
+			p.AddTag(monitoring.InfluxKeyEnvironmentID, strconv.Itoa(int(env)))
+		}
+	}
 }

@@ -18,16 +18,18 @@ import (
 )
 
 func TestAWSExecutionRequestIsStored(t *testing.T) {
-	r, err := NewAWSFunctionWorkload(nil, nil)
+	environment := &ExecutionEnvironmentMock{}
+	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+	r, err := NewAWSFunctionWorkload(environment, nil)
 	assert.NoError(t, err)
 	executionRequest := &dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,
 		Environment: nil,
 	}
-	r.StoreExecution(defaultExecutionID, executionRequest)
-	assert.True(t, r.ExecutionExists(defaultExecutionID))
-	storedExecutionRunner, ok := r.executions.Pop(defaultExecutionID)
+	r.StoreExecution(tests.DefaultEnvironmentIDAsString, executionRequest)
+	assert.True(t, r.ExecutionExists(tests.DefaultEnvironmentIDAsString))
+	storedExecutionRunner, ok := r.executions.Pop(tests.DefaultEnvironmentIDAsString)
 	assert.True(t, ok, "Getting an execution should not return ok false")
 	assert.Equal(t, executionRequest, storedExecutionRunner)
 }
@@ -58,6 +60,7 @@ func (a *awsEndpointMock) handler(w http.ResponseWriter, r *http.Request) {
 
 func TestAWSFunctionWorkload_ExecuteInteractively(t *testing.T) {
 	environment := &ExecutionEnvironmentMock{}
+	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	environment.On("Image").Return("testImage or AWS endpoint")
 	r, err := NewAWSFunctionWorkload(environment, nil)
 	require.NoError(t, err)
@@ -72,8 +75,8 @@ func TestAWSFunctionWorkload_ExecuteInteractively(t *testing.T) {
 		awsMock.ctx, cancel = context.WithCancel(context.Background())
 		cancel()
 
-		r.StoreExecution(defaultExecutionID, &dto.ExecutionRequest{})
-		exit, _, err := r.ExecuteInteractively(defaultExecutionID, nil, io.Discard, io.Discard)
+		r.StoreExecution(tests.DefaultEnvironmentIDAsString, &dto.ExecutionRequest{})
+		exit, _, err := r.ExecuteInteractively(tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
 		require.NoError(t, err)
 		<-exit
 		assert.True(t, awsMock.hasConnected)
@@ -84,9 +87,9 @@ func TestAWSFunctionWorkload_ExecuteInteractively(t *testing.T) {
 		defer cancel()
 		command := "sl"
 		request := &dto.ExecutionRequest{Command: command}
-		r.StoreExecution(defaultExecutionID, request)
+		r.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
 
-		_, cancel, err := r.ExecuteInteractively(defaultExecutionID, nil, io.Discard, io.Discard)
+		_, cancel, err := r.ExecuteInteractively(tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
 		require.NoError(t, err)
 		<-time.After(tests.ShortTimeout)
 		cancel()
@@ -100,6 +103,7 @@ func TestAWSFunctionWorkload_ExecuteInteractively(t *testing.T) {
 
 func TestAWSFunctionWorkload_UpdateFileSystem(t *testing.T) {
 	environment := &ExecutionEnvironmentMock{}
+	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	environment.On("Image").Return("testImage or AWS endpoint")
 	r, err := NewAWSFunctionWorkload(environment, nil)
 	require.NoError(t, err)
@@ -114,12 +118,12 @@ func TestAWSFunctionWorkload_UpdateFileSystem(t *testing.T) {
 	defer cancel()
 	command := "sl"
 	request := &dto.ExecutionRequest{Command: command}
-	r.StoreExecution(defaultExecutionID, request)
+	r.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
 	myFile := dto.File{Path: "myPath", Content: []byte("myContent")}
 
 	err = r.UpdateFileSystem(&dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}})
 	assert.NoError(t, err)
-	_, execCancel, err := r.ExecuteInteractively(defaultExecutionID, nil, io.Discard, io.Discard)
+	_, execCancel, err := r.ExecuteInteractively(tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
 	require.NoError(t, err)
 	<-time.After(tests.ShortTimeout)
 	execCancel()
@@ -131,8 +135,10 @@ func TestAWSFunctionWorkload_UpdateFileSystem(t *testing.T) {
 }
 
 func TestAWSFunctionWorkload_Destroy(t *testing.T) {
+	environment := &ExecutionEnvironmentMock{}
+	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	hasDestroyBeenCalled := false
-	r, err := NewAWSFunctionWorkload(nil, func(_ Runner) error {
+	r, err := NewAWSFunctionWorkload(environment, func(_ Runner) error {
 		hasDestroyBeenCalled = true
 		return nil
 	})

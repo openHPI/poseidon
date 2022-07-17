@@ -7,7 +7,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
-	"strconv"
 )
 
 var ErrNullObject = errors.New("functionality not available for the null object")
@@ -33,7 +32,7 @@ func NewAbstractManager() *AbstractManager {
 // MonitorRunnersEnvironmentID passes the id of the environment e into the monitoring Point p.
 func MonitorRunnersEnvironmentID(p *write.Point, e Runner, isDeletion bool) {
 	if !isDeletion && e != nil {
-		p.AddTag(monitoring.InfluxKeyEnvironmentID, strconv.Itoa(int(e.Environment())))
+		p.AddTag(monitoring.InfluxKeyEnvironmentID, e.Environment().ToString())
 	}
 }
 

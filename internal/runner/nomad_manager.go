@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"time"
@@ -118,15 +120,16 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
 	retries := 0
 	for ctx.Err() == nil {
-		err := m.apiClient.WatchEventStream(ctx, m.onAllocationAdded, m.onAllocationStopped)
+		err := m.apiClient.WatchEventStream(ctx,
+			&nomad.AllocationProcessoring{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
 		retries += 1
 		log.WithError(err).Errorf("Stopped updating the runners! Retry %v", retries)
 		<-time.After(time.Second)
 	}
 }
 
-func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation) {
-	log.WithField("id", alloc.JobID).Debug("Runner started")
+func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, startup time.Duration) {
+	log.WithField("id", alloc.JobID).WithField("startupDuration", startup).Debug("Runner started")
 
 	if nomad.IsEnvironmentTemplateID(alloc.JobID) {
 		return
@@ -145,7 +148,16 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation) {
 			mappedPorts = alloc.AllocatedResources.Shared.Ports
 		}
 		environment.AddRunner(NewNomadJob(alloc.JobID, mappedPorts, m.apiClient, m.Return))
+		monitorAllocationStartupDuration(startup, alloc.JobID, environmentID)
 	}
+}
+
+func monitorAllocationStartupDuration(startup time.Duration, runnerID string, environmentID dto.EnvironmentID) {
+	p := influxdb2.NewPointWithMeasurement(monitoring.MeasurementIdleRunnerNomad)
+	p.AddField(monitoring.InfluxKeyDuration, startup)
+	p.AddTag(monitoring.InfluxKeyEnvironmentID, environmentID.ToString())
+	p.AddTag(monitoring.InfluxKeyRunnerID, runnerID)
+	monitoring.WriteInfluxPoint(p)
 }
 
 func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation) {

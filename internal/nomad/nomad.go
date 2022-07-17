@@ -27,7 +27,13 @@ var (
 // resultChannelWriteTimeout is to detect the error when more element are written into a channel than expected.
 const resultChannelWriteTimeout = 10 * time.Millisecond
 
+// AllocationProcessoring includes the callbacks to interact with allcoation events.
+type AllocationProcessoring struct {
+	OnNew     AllocationProcessorMonitored
+	OnDeleted AllocationProcessor
+}
 type AllocationProcessor func(*nomadApi.Allocation)
+type AllocationProcessorMonitored func(*nomadApi.Allocation, time.Duration)
 
 // ExecutorAPI provides access to a container orchestration solution.
 type ExecutorAPI interface {
@@ -59,7 +65,7 @@ type ExecutorAPI interface {
 	// WatchEventStream listens on the Nomad event stream for allocation and evaluation events.
 	// Depending on the incoming event, any of the given function is executed.
 	// Do not run multiple times simultaneously.
-	WatchEventStream(ctx context.Context, onNewAllocation, onDeletedAllocation AllocationProcessor) error
+	WatchEventStream(ctx context.Context, callbacks *AllocationProcessoring) error
 
 	// ExecuteCommand executes the given command in the allocation with the given id.
 	// It writes the output of the command to stdout/stderr and reads input from stdin.
@@ -152,7 +158,10 @@ func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) 
 		defer cancel() // cancel the WatchEventStream when the evaluation result was read.
 
 		go func() {
-			err = a.WatchEventStream(ctx, func(_ *nomadApi.Allocation) {}, func(_ *nomadApi.Allocation) {})
+			err = a.WatchEventStream(ctx, &AllocationProcessoring{
+				OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
+				OnDeleted: func(_ *nomadApi.Allocation) {},
+			})
 			cancel() // cancel the waiting for an evaluation result if watching the event stream ends.
 		}()
 	}
@@ -166,21 +175,20 @@ func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) 
 	}
 }
 
-func (a *APIClient) WatchEventStream(ctx context.Context,
-	onNewAllocation, onDeletedAllocation AllocationProcessor) error {
+func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationProcessoring) error {
 	startTime := time.Now().UnixNano()
 	stream, err := a.EventStream(ctx)
 	if err != nil {
 		return fmt.Errorf("failed retrieving allocation stream: %w", err)
 	}
-	pendingAllocations := make(map[string]bool)
+	pendingAllocations := make(map[string]time.Time)
 
 	handler := func(event *nomadApi.Event) (bool, error) {
 		switch event.Topic {
 		case nomadApi.TopicEvaluation:
 			return false, handleEvaluationEvent(a.evaluations, event)
 		case nomadApi.TopicAllocation:
-			return false, handleAllocationEvent(startTime, pendingAllocations, event, onNewAllocation, onDeletedAllocation)
+			return false, handleAllocationEvent(startTime, pendingAllocations, event, callbacks)
 		default:
 			return false, nil
 		}
@@ -247,8 +255,8 @@ func handleEvaluationEvent(evaluations map[string]chan error, event *nomadApi.Ev
 // If a new allocation is received, onNewAllocation is called. If an allocation is deleted, onDeletedAllocation
 // is called. The pendingAllocations map is used to store allocations that are pending but not started yet. Using the
 // map the state is persisted between multiple calls of this function.
-func handleAllocationEvent(startTime int64, pendingAllocations map[string]bool, event *nomadApi.Event,
-	onNewAllocation, onDeletedAllocation AllocationProcessor) error {
+func handleAllocationEvent(startTime int64, pendingAllocations map[string]time.Time, event *nomadApi.Event,
+	callbacks *AllocationProcessoring) error {
 	if event.Type != structs.TypeAllocationUpdated {
 		return nil
 	}
@@ -270,7 +278,7 @@ func handleAllocationEvent(startTime int64, pendingAllocations map[string]bool, 
 	case structs.AllocClientStatusPending:
 		handlePendingAllocationEvent(alloc, pendingAllocations)
 	case structs.AllocClientStatusRunning:
-		handleRunningAllocationEvent(alloc, pendingAllocations, onNewAllocation, onDeletedAllocation)
+		handleRunningAllocationEvent(alloc, pendingAllocations, callbacks)
 	case structs.AllocClientStatusFailed:
 		handleFailedAllocationEvent(alloc)
 	}
@@ -278,24 +286,25 @@ func handleAllocationEvent(startTime int64, pendingAllocations map[string]bool, 
 }
 
 // handlePendingAllocationEvent sets flag in pendingAllocations that can be used to filter following events.
-func handlePendingAllocationEvent(alloc *nomadApi.Allocation, pendingAllocations map[string]bool) {
+func handlePendingAllocationEvent(alloc *nomadApi.Allocation, pendingAllocations map[string]time.Time) {
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		// allocation is started, wait until it runs and add to our list afterwards
-		pendingAllocations[alloc.ID] = true
+		pendingAllocations[alloc.ID] = time.Now()
 	}
 }
 
 // handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
-func handleRunningAllocationEvent(alloc *nomadApi.Allocation,
-	pendingAllocations map[string]bool, onNewAllocation, onDeletedAllocation AllocationProcessor) {
+func handleRunningAllocationEvent(alloc *nomadApi.Allocation, pendingAllocations map[string]time.Time,
+	callbacks *AllocationProcessoring) {
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusStop:
-		onDeletedAllocation(alloc)
+		callbacks.OnDeleted(alloc)
 	case structs.AllocDesiredStatusRun:
 		// is first event that marks the transition between pending and running?
-		_, ok := pendingAllocations[alloc.ID]
+		startedAt, ok := pendingAllocations[alloc.ID]
 		if ok {
-			onNewAllocation(alloc)
+			startupDuration := time.Since(startedAt)
+			callbacks.OnNew(alloc, startupDuration)
 			delete(pendingAllocations, alloc.ID)
 		}
 	}

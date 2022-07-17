@@ -7,7 +7,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
-	"strconv"
 )
 
 type ExitInfo struct {
@@ -69,7 +68,7 @@ func monitorExecutionsRunnerID(env dto.EnvironmentID, runnerID string) storage.W
 	return func(p *write.Point, e *dto.ExecutionRequest, isDeletion bool) {
 		if !isDeletion && e != nil {
 			p.AddTag(monitoring.InfluxKeyRunnerID, runnerID)
-			p.AddTag(monitoring.InfluxKeyEnvironmentID, strconv.Itoa(int(env)))
+			p.AddTag(monitoring.InfluxKeyEnvironmentID, env.ToString())
 		}
 	}
 }

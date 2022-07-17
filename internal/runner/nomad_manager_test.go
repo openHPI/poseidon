@@ -227,9 +227,9 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 
 	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
-			onCreate, ok := args.Get(1).(nomad.AllocationProcessor)
+			callbacks, ok := args.Get(1).(*nomad.AllocationProcessoring)
 			s.Require().True(ok)
-			onCreate(allocation)
+			callbacks.OnNew(allocation, 0)
 			call.ReturnArguments = mock.Arguments{nil}
 		})
 	})
@@ -255,9 +255,9 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 
 	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
-			onDelete, ok := args.Get(2).(nomad.AllocationProcessor)
+			callbacks, ok := args.Get(1).(*nomad.AllocationProcessoring)
 			s.Require().True(ok)
-			onDelete(allocation)
+			callbacks.OnDeleted(allocation)
 			call.ReturnArguments = mock.Arguments{nil}
 		})
 	})
@@ -288,7 +288,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 		mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
 		alloc := &nomadApi.Allocation{JobID: nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)}
-		s.nomadRunnerManager.onAllocationAdded(alloc)
+		s.nomadRunnerManager.onAllocationAdded(alloc, 0)
 
 		_, ok = environment.Sample()
 		s.False(ok)
@@ -296,7 +296,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 	s.Run("does not panic when environment id cannot be parsed", func() {
 		alloc := &nomadApi.Allocation{JobID: ""}
 		s.NotPanics(func() {
-			s.nomadRunnerManager.onAllocationAdded(alloc)
+			s.nomadRunnerManager.onAllocationAdded(alloc, 0)
 		})
 	})
 	s.Run("does not panic when environment does not exist", func() {
@@ -306,7 +306,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 
 		alloc := &nomadApi.Allocation{JobID: nomad.RunnerJobID(nonExistentEnvironment, "1-1-1-1")}
 		s.NotPanics(func() {
-			s.nomadRunnerManager.onAllocationAdded(alloc)
+			s.nomadRunnerManager.onAllocationAdded(alloc, 0)
 		})
 	})
 	s.Run("adds correct job", func() {
@@ -319,7 +319,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 				JobID:              tests.DefaultRunnerID,
 				AllocatedResources: nil,
 			}
-			s.nomadRunnerManager.onAllocationAdded(alloc)
+			s.nomadRunnerManager.onAllocationAdded(alloc, 0)
 
 			runner, ok := environment.Sample()
 			s.True(ok)
@@ -339,7 +339,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 					Shared: nomadApi.AllocatedSharedResources{Ports: tests.DefaultPortMappings},
 				},
 			}
-			s.nomadRunnerManager.onAllocationAdded(alloc)
+			s.nomadRunnerManager.onAllocationAdded(alloc, 0)
 
 			runner, ok := environment.Sample()
 			s.True(ok)

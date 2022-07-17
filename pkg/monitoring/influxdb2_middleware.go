@@ -33,6 +33,7 @@ const (
 
 	InfluxKeyRunnerID                      = "runner_id"
 	InfluxKeyEnvironmentID                 = "environment_id"
+	InfluxKeyDuration                      = "duration"
 	influxKeyEnvironmentPrewarmingPoolSize = "prewarming_pool_size"
 	influxKeyRequestSize                   = "request_size"
 )
@@ -76,7 +77,7 @@ func InfluxDB2Middleware(next http.Handler) http.Handler {
 		lrw := logging.NewLoggingResponseWriter(w)
 		next.ServeHTTP(lrw, requestWithPoint)
 
-		p.AddField("duration", time.Now().UTC().Sub(start).Nanoseconds())
+		p.AddField(InfluxKeyDuration, time.Now().UTC().Sub(start).Nanoseconds())
 		p.AddTag("status", strconv.Itoa(lrw.StatusCode))
 
 		WriteInfluxPoint(p)
@@ -96,7 +97,7 @@ func addRunnerID(r *http.Request, id string) {
 
 // addEnvironmentID adds the environment id to the influx data point for the current request.
 func addEnvironmentID(r *http.Request, id dto.EnvironmentID) {
-	addInfluxDBTag(r, InfluxKeyEnvironmentID, strconv.Itoa(int(id)))
+	addInfluxDBTag(r, InfluxKeyEnvironmentID, id.ToString())
 }
 
 // AddRequestSize adds the size of the request body to the influx data point for the current request.
@@ -118,7 +119,7 @@ func AddRequestSize(r *http.Request) {
 func ChangedPrewarmingPoolSize(id dto.EnvironmentID, count uint) {
 	p := influxdb2.NewPointWithMeasurement(measurementPoolSize)
 
-	p.AddTag(InfluxKeyEnvironmentID, strconv.Itoa(int(id)))
+	p.AddTag(InfluxKeyEnvironmentID, id.ToString())
 	p.AddField(influxKeyEnvironmentPrewarmingPoolSize, count)
 
 	WriteInfluxPoint(p)

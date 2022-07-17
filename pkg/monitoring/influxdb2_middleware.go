@@ -30,8 +30,9 @@ const (
 	MeasurementUsedRunner      = measurementPrefix + "used_runners"
 
 	// The keys for the monitored tags and fields.
-	influxKeyRunnerID                      = "runner_id"
-	influxKeyEnvironmentID                 = "environment_id"
+
+	InfluxKeyRunnerID                      = "runner_id"
+	InfluxKeyEnvironmentID                 = "environment_id"
 	influxKeyEnvironmentPrewarmingPoolSize = "prewarming_pool_size"
 	influxKeyRequestSize                   = "request_size"
 )
@@ -90,12 +91,12 @@ func AddRunnerMonitoringData(request *http.Request, runnerID string, environment
 
 // addRunnerID adds the runner id to the influx data point for the current request.
 func addRunnerID(r *http.Request, id string) {
-	addInfluxDBTag(r, influxKeyRunnerID, id)
+	addInfluxDBTag(r, InfluxKeyRunnerID, id)
 }
 
 // addEnvironmentID adds the environment id to the influx data point for the current request.
 func addEnvironmentID(r *http.Request, id dto.EnvironmentID) {
-	addInfluxDBTag(r, influxKeyEnvironmentID, strconv.Itoa(int(id)))
+	addInfluxDBTag(r, InfluxKeyEnvironmentID, strconv.Itoa(int(id)))
 }
 
 // AddRequestSize adds the size of the request body to the influx data point for the current request.
@@ -117,7 +118,7 @@ func AddRequestSize(r *http.Request) {
 func ChangedPrewarmingPoolSize(id dto.EnvironmentID, count uint) {
 	p := influxdb2.NewPointWithMeasurement(measurementPoolSize)
 
-	p.AddTag(influxKeyEnvironmentID, strconv.Itoa(int(id)))
+	p.AddTag(InfluxKeyEnvironmentID, strconv.Itoa(int(id)))
 	p.AddField(influxKeyEnvironmentPrewarmingPoolSize, count)
 
 	WriteInfluxPoint(p)

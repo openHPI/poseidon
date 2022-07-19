@@ -103,10 +103,14 @@ func initServer() *http.Server {
 		runnerManager, environmentManager)
 
 	return &http.Server{
-		Addr:        config.Config.Server.URL().Host,
-		ReadTimeout: time.Second * 15,
-		IdleTimeout: time.Second * 60,
-		Handler:     api.NewRouter(runnerManager, environmentManager),
+		Addr: config.Config.Server.URL().Host,
+		// A WriteTimeout would prohibit long-running requests such as creating an execution environment.
+		// See also https://github.com/openHPI/poseidon/pull/68.
+		// WriteTimeout: time.Second * 15,
+		ReadHeaderTimeout: time.Second * 15,
+		ReadTimeout:       time.Second * 15,
+		IdleTimeout:       time.Second * 60,
+		Handler:           api.NewRouter(runnerManager, environmentManager),
 	}
 }
 

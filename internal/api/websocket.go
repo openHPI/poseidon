@@ -36,7 +36,7 @@ func upgradeConnection(writer http.ResponseWriter, request *http.Request) (ws.Co
 
 // newWebSocketProxy returns an initiated and started webSocketProxy.
 // As this proxy is already started, a start message is send to the client.
-func newWebSocketProxy(connection ws.Connection, proxyCtx context.Context) (*webSocketProxy, error) {
+func newWebSocketProxy(connection ws.Connection, proxyCtx context.Context) *webSocketProxy {
 	wsCtx, cancelWsCommunication := context.WithCancel(proxyCtx)
 	proxy := &webSocketProxy{
 		ctx:    wsCtx,
@@ -50,7 +50,7 @@ func newWebSocketProxy(connection ws.Connection, proxyCtx context.Context) (*web
 		cancelWsCommunication()
 		return nil
 	})
-	return proxy, nil
+	return proxy
 }
 
 // waitForExit waits for an exit of either the runner (when the command terminates) or the client closing the WebSocket
@@ -91,10 +91,7 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 	}
 	proxyCtx, cancelProxy := context.WithCancel(context.Background())
 	defer cancelProxy()
-	proxy, err := newWebSocketProxy(connection, proxyCtx)
-	if err != nil {
-		return
-	}
+	proxy := newWebSocketProxy(connection, proxyCtx)
 
 	log.WithField("runnerId", targetRunner.ID()).
 		WithField("executionID", logging.RemoveNewlineSymbol(executionID)).

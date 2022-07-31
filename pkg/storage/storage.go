@@ -95,8 +95,11 @@ func (s *localStorage[T]) Get(id string) (o T, ok bool) {
 func (s *localStorage[T]) Delete(id string) {
 	s.Lock()
 	defer s.Unlock()
-	s.sendMonitoringData(id, s.objects[id], true, s.unsafeLength()-1)
-	delete(s.objects, id)
+	o, ok := s.objects[id]
+	if ok {
+		delete(s.objects, id)
+		s.sendMonitoringData(id, o, true, s.unsafeLength())
+	}
 }
 
 func (s *localStorage[T]) Pop(id string) (T, bool) {
@@ -118,8 +121,8 @@ func (s *localStorage[T]) Sample() (o T, ok bool) {
 	s.Lock()
 	defer s.Unlock()
 	for key, object := range s.objects {
-		s.sendMonitoringData(key, object, true, s.unsafeLength()-1)
 		delete(s.objects, key)
+		s.sendMonitoringData(key, object, true, s.unsafeLength())
 		return object, true
 	}
 	return o, false

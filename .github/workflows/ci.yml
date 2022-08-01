@@ -166,7 +166,6 @@ jobs:
           sudo ./nomad agent -dev -log-level=WARN -config e2e-config.hcl &
           until curl -s --fail http://localhost:4646/v1/agent/health ; do sleep 1; done
           chmod +x ./poseidon
-          echo $POSEIDON_AWS_FUNCTIONS
           ./poseidon &
           until curl -s --fail http://localhost:7200/api/v1/health ; do sleep 1; done
           make e2e-test

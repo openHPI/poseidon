@@ -65,6 +65,7 @@ func TestMain(m *testing.M) {
 
 func initAWS() {
 	for i, function := range config.Config.AWS.Functions {
+		log.WithField("function", function).Warn("Yes, we do have functions.")
 		id := dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger + i + 1)
 		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, id.ToString())
 		request := dto.ExecutionEnvironmentRequest{Image: function}

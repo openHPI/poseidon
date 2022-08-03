@@ -30,8 +30,8 @@ func NewAbstractManager() *AbstractManager {
 }
 
 // MonitorRunnersEnvironmentID passes the id of the environment e into the monitoring Point p.
-func MonitorRunnersEnvironmentID(p *write.Point, e Runner, isDeletion bool) {
-	if !isDeletion && e != nil {
+func MonitorRunnersEnvironmentID(p *write.Point, e Runner, _ bool) {
+	if e != nil {
 		p.AddTag(monitoring.InfluxKeyEnvironmentID, e.Environment().ToString())
 	}
 }

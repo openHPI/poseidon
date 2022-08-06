@@ -3,10 +3,13 @@ package storage
 import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"strconv"
 	"sync"
 )
+
+var log = logging.GetLogger("storage")
 
 // Storage is an interface for storing objects.
 type Storage[T any] interface {
@@ -135,7 +138,9 @@ func (s *localStorage[T]) Length() uint {
 }
 
 func (s *localStorage[T]) unsafeLength() uint {
-	return uint(len(s.objects))
+	length := len(s.objects)
+	log.WithField("length_int", length).WithField("length_uint", uint(length)).Debug("Storage info")
+	return uint(length)
 }
 
 func (s *localStorage[T]) sendMonitoringData(id string, o T, isDeletion bool, count uint) {

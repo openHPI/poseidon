@@ -9,7 +9,10 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -55,13 +58,13 @@ func (s *E2ETestSuite) TestProvideRunnerRoute() {
 // ProvideRunner creates a runner with the given RunnerRequest via an external request.
 // It needs a running Poseidon instance to work.
 func ProvideRunner(request *dto.RunnerRequest) (string, error) {
-	url := helpers.BuildURL(api.BasePath, api.RunnersPath)
+	runnerURL := helpers.BuildURL(api.BasePath, api.RunnersPath)
 	runnerRequestByteString, err := json.Marshal(request)
 	if err != nil {
 		return "", err
 	}
 	reader := strings.NewReader(string(runnerRequestByteString))
-	resp, err := http.Post(url, "application/json", reader) //nolint:gosec // url is not influenced by a user
+	resp, err := http.Post(runnerURL, "application/json", reader) //nolint:gosec // runnerURL is not influenced by a user
 	if err != nil {
 		return "", err
 	}
@@ -274,6 +277,41 @@ func (s *E2ETestSuite) TestCopyFilesRoute_PermissionDenied() {
 				s.Contains(stderr, "Exception")
 			})
 		}
+	})
+}
+
+func (s *E2ETestSuite) TestGetFileContent_Nomad() {
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
+	})
+	require.NoError(s.T(), err)
+
+	s.Run("Not Found", func() {
+		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.FileContentRawPath))
+		s.Require().NoError(err)
+		getFileURL.RawQuery = fmt.Sprintf("%s=%s", api.PathKey, tests.DefaultFileName)
+		response, err := http.Get(getFileURL.String())
+		s.Require().NoError(err)
+		s.Equal(http.StatusNotFound, response.StatusCode)
+	})
+
+	s.Run("Ok", func() {
+		newFileContent := []byte("New content")
+		resp, err := CopyFiles(runnerID, &dto.UpdateFileSystemRequest{
+			Copy: []dto.File{{Path: tests.DefaultFileName, Content: newFileContent}},
+		})
+		s.Require().NoError(err)
+		s.Equal(http.StatusNoContent, resp.StatusCode)
+
+		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.FileContentRawPath))
+		s.Require().NoError(err)
+		getFileURL.RawQuery = fmt.Sprintf("%s=%s", api.PathKey, tests.DefaultFileName)
+		response, err := http.Get(getFileURL.String())
+		s.Require().NoError(err)
+		s.Equal(http.StatusOK, response.StatusCode)
+		content, err := io.ReadAll(response.Body)
+		s.Require().NoError(err)
+		s.Equal(newFileContent, content)
 	})
 }
 

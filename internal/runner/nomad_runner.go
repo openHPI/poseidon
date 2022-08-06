@@ -12,6 +12,7 @@ import (
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/monitoring"
+	"github.com/openHPI/poseidon/pkg/nullio"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
 	"strings"
@@ -31,6 +32,7 @@ const (
 var (
 	ErrorUnknownExecution = errors.New("unknown execution")
 	ErrorFileCopyFailed   = errors.New("file copy failed")
+	ErrFileNotFound       = errors.New("file not found")
 )
 
 // NomadJob is an abstraction to communicate with Nomad environments.
@@ -145,6 +147,23 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) er
 			ErrorFileCopyFailed,
 			stdErr.String(),
 			stdOut.String())
+	}
+	return nil
+}
+
+func (r *NomadJob) GetFileContent(path string, content io.Writer, ctx context.Context) error {
+	r.ResetTimeout()
+
+	retrieveCommand := (&dto.ExecutionRequest{Command: fmt.Sprintf("cat %s", path)}).FullCommand()
+	// Improve: Instead of using io.Discard use a **fixed-sized** buffer. With that we could improve the error message.
+	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, &nullio.Reader{}, content, io.Discard)
+
+	if err != nil {
+		return fmt.Errorf("%w: nomad error during retrieve file content copy: %v",
+			nomad.ErrorExecutorCommunicationFailed, err)
+	}
+	if exitCode != 0 {
+		return ErrFileNotFound
 	}
 	return nil
 }

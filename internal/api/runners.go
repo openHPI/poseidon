@@ -20,9 +20,11 @@ const (
 	ExecutePath          = "/execute"
 	WebsocketPath        = "/websocket"
 	UpdateFileSystemPath = "/files"
+	FileContentRawPath   = UpdateFileSystemPath + "/raw"
 	DeleteRoute          = "deleteRunner"
 	RunnerIDKey          = "runnerId"
 	ExecutionIDKey       = "executionID"
+	PathKey              = "path"
 	ProvideRoute         = "provideRunner"
 )
 
@@ -39,6 +41,7 @@ func (r *RunnerController) ConfigureRoutes(router *mux.Router) {
 	r.runnerRouter.Use(r.findRunnerMiddleware)
 	r.runnerRouter.HandleFunc(UpdateFileSystemPath, r.updateFileSystem).Methods(http.MethodPatch).
 		Name(UpdateFileSystemPath)
+	r.runnerRouter.HandleFunc(FileContentRawPath, r.fileContent).Methods(http.MethodGet).Name(FileContentRawPath)
 	r.runnerRouter.HandleFunc(ExecutePath, r.execute).Methods(http.MethodPost).Name(ExecutePath)
 	r.runnerRouter.HandleFunc(WebsocketPath, r.connectToRunner).Methods(http.MethodGet).Name(WebsocketPath)
 	r.runnerRouter.HandleFunc("", r.delete).Methods(http.MethodDelete).Name(DeleteRoute)
@@ -90,6 +93,25 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	}
 
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http.Request) {
+	monitoring.AddRequestSize(request)
+	targetRunner, _ := runner.FromContext(request.Context())
+	path := request.URL.Query().Get(PathKey)
+
+	err := targetRunner.GetFileContent(path, writer, request.Context())
+	if errors.Is(err, runner.ErrFileNotFound) {
+		writeNotFound(writer, err)
+		return
+	} else if err != nil {
+		log.WithError(err).Error("Could not retrieve the requested file.")
+		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/octet-stream")
+	writer.WriteHeader(http.StatusOK)
 }
 
 // execute handles the execute API route.

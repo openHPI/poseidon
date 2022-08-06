@@ -48,6 +48,9 @@ type Runner interface {
 	// and then copying each given dto.File to the runner.
 	UpdateFileSystem(request *dto.UpdateFileSystemRequest) error
 
+	// GetFileContent streams the file content at the requested path into the Writer provided at content.
+	GetFileContent(path string, content io.Writer, ctx context.Context) error
+
 	// Destroy destroys the Runner in Nomad.
 	Destroy() error
 }

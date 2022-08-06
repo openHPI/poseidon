@@ -159,6 +159,7 @@ var (
 	ErrMissingType                 = errors.New("type is missing")
 	ErrMissingData                 = errors.New("data is missing")
 	ErrInvalidType                 = errors.New("invalid type")
+	ErrNotSupported                = errors.New("not supported")
 )
 
 // WebSocketMessage is the type for all messages send in the WebSocket to the client.

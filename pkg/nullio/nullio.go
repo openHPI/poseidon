@@ -20,7 +20,7 @@ type Reader struct {
 }
 
 func (r Reader) Read(_ []byte) (int, error) {
-	if r.Ctx.Err() != nil {
+	if r.Ctx == nil || r.Ctx.Err() != nil {
 		return 0, io.EOF
 	}
 

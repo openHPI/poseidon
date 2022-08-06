@@ -10,28 +10,38 @@ import (
 
 const shortTimeout = 100 * time.Millisecond
 
-func TestReaderDoesNotReturnImmediately(t *testing.T) {
-	readingContext, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	reader := &Reader{readingContext}
-	readerReturned := make(chan bool)
-	go func() {
+func TestReader_Read(t *testing.T) {
+	read := func(reader io.Reader, ret chan<- bool) {
 		p := make([]byte, 0, 5)
 		_, err := reader.Read(p)
 		assert.ErrorIs(t, io.EOF, err)
-		close(readerReturned)
-	}()
-
-	var received bool
-	select {
-	case <-readerReturned:
-		received = true
-	case <-time.After(shortTimeout):
-		received = false
+		close(ret)
 	}
 
-	assert.False(t, received)
+	t.Run("WithContext_DoesNotReturnImmediately", func(t *testing.T) {
+		readingContext, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		readerReturned := make(chan bool)
+		go read(&Reader{readingContext}, readerReturned)
+
+		select {
+		case <-readerReturned:
+			assert.Fail(t, "The reader returned before the timeout was reached")
+		case <-time.After(shortTimeout):
+		}
+	})
+
+	t.Run("WithoutContext_DoesReturnImmediately", func(t *testing.T) {
+		readerReturned := make(chan bool)
+		go read(&Reader{}, readerReturned)
+
+		select {
+		case <-readerReturned:
+		case <-time.After(shortTimeout):
+			assert.Fail(t, "The reader returned before the timeout was reached")
+		}
+	})
 }
 
 func TestReadWriterWritesEverything(t *testing.T) {

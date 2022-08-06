@@ -399,3 +399,10 @@ func NewRunner(id string, manager Accessor) Runner {
 	}
 	return NewNomadJob(id, nil, nil, handler)
 }
+
+func (s *UpdateFileSystemTestSuite) TestGetFileContentReturnsErrorIfExitCodeIsNotZero() {
+	s.mockedExecuteCommandCall.RunFn = nil
+	s.mockedExecuteCommandCall.Return(1, nil)
+	err := s.runner.GetFileContent("", &bytes.Buffer{}, context.Background())
+	s.ErrorIs(err, ErrFileNotFound)
+}

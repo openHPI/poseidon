@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
@@ -308,6 +309,39 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsInternalServ
 
 	s.router.ServeHTTP(s.recorder, request)
 	s.Equal(http.StatusInternalServerError, s.recorder.Code)
+}
+
+func (s *UpdateFileSystemRouteTestSuite) TestFileContent() {
+	routeURL, err := s.router.Get(FileContentRawPath).URL(RunnerIDKey, tests.DefaultMockID)
+	s.Require().NoError(err)
+	mockCall := s.runnerMock.
+		On("GetFileContent", mock.AnythingOfType("string"), mock.Anything, mock.Anything)
+
+	s.Run("Not Found", func() {
+		mockCall.Return(runner.ErrFileNotFound)
+		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
+		s.Require().NoError(err)
+		s.router.ServeHTTP(s.recorder, request)
+		s.Equal(http.StatusNotFound, s.recorder.Code)
+	})
+
+	s.recorder = httptest.NewRecorder()
+	s.Run("Unknown Error", func() {
+		mockCall.Return(nomad.ErrorExecutorCommunicationFailed)
+		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
+		s.Require().NoError(err)
+		s.router.ServeHTTP(s.recorder, request)
+		s.Equal(http.StatusInternalServerError, s.recorder.Code)
+	})
+
+	s.recorder = httptest.NewRecorder()
+	s.Run("No Error", func() {
+		mockCall.Return(nil)
+		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
+		s.Require().NoError(err)
+		s.router.ServeHTTP(s.recorder, request)
+		s.Equal(http.StatusOK, s.recorder.Code)
+	})
 }
 
 func TestDeleteRunnerRouteTestSuite(t *testing.T) {

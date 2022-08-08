@@ -17,6 +17,7 @@ import (
 // templateEnvironmentJobHCL holds our default job in HCL format.
 // The default job is used when creating new job and provides
 // common settings that all the jobs share.
+//
 //go:embed template-environment-job.hcl
 var templateEnvironmentJobHCL string
 

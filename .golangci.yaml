@@ -59,7 +59,6 @@ linters:
     - govet
     - ineffassign
     - staticcheck
-    - structcheck
     - typecheck
     - unused
     - varcheck
@@ -81,7 +80,6 @@ linters:
     - gomnd
     - goprintffuncname
     - gosec
-    - ifshort
     - importas
     - lll
     - makezero

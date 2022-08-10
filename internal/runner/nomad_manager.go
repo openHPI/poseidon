@@ -154,7 +154,7 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, start
 
 func monitorAllocationStartupDuration(startup time.Duration, runnerID string, environmentID dto.EnvironmentID) {
 	p := influxdb2.NewPointWithMeasurement(monitoring.MeasurementIdleRunnerNomad)
-	p.AddField(monitoring.InfluxKeyDuration, startup.Nanoseconds())
+	p.AddField(monitoring.InfluxKeyStartupDuration, startup.Nanoseconds())
 	p.AddTag(monitoring.InfluxKeyEnvironmentID, environmentID.ToString())
 	p.AddTag(monitoring.InfluxKeyRunnerID, runnerID)
 	monitoring.WriteInfluxPoint(p)

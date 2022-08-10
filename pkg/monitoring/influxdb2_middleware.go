@@ -34,6 +34,7 @@ const (
 	InfluxKeyRunnerID                      = "runner_id"
 	InfluxKeyEnvironmentID                 = "environment_id"
 	InfluxKeyDuration                      = "duration"
+	InfluxKeyStartupDuration               = "startup_" + InfluxKeyDuration
 	influxKeyEnvironmentPrewarmingPoolSize = "prewarming_pool_size"
 	influxKeyRequestSize                   = "request_size"
 )

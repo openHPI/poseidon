@@ -16,6 +16,13 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+replace (
+	// Consul is used by Nomad, but rather in an old version v1.7.8 with security issues.
+	github.com/hashicorp/consul => github.com/hashicorp/consul v1.13.1
+	// Nomad is not compatible with newer versions of HCLv2 yet.
+	github.com/hashicorp/hcl/v2 => github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
+)
+
 require (
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-cidr v1.1.0 // indirect
@@ -52,7 +59,7 @@ require (
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-3 // indirect
-	github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc // indirect
+	github.com/hashicorp/hcl/v2 v2.13.0 // indirect
 	github.com/hashicorp/raft v1.3.10 // indirect
 	github.com/hashicorp/serf v0.10.0 // indirect
 	github.com/hashicorp/vault/api v1.7.2 // indirect

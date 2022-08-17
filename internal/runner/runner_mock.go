@@ -120,6 +120,20 @@ func (_m *RunnerMock) ID() string {
 	return r0
 }
 
+// ListFileSystem provides a mock function with given fields: path, recursive, result, ctx
+func (_m *RunnerMock) ListFileSystem(path string, recursive bool, result io.Writer, ctx context.Context) error {
+	ret := _m.Called(path, recursive, result, ctx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, bool, io.Writer, context.Context) error); ok {
+		r0 = rf(path, recursive, result, ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // MappedPorts provides a mock function with given fields:
 func (_m *RunnerMock) MappedPorts() []*dto.MappedPort {
 	ret := _m.Called()

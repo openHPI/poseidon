@@ -100,6 +100,11 @@ type ExecutionResponse struct {
 	WebSocketURL string `json:"websocketUrl"`
 }
 
+// ListFileSystemResponse is the expected response when listing the file system.
+type ListFileSystemResponse struct {
+	Files []FileHeader `json:"files"`
+}
+
 // UpdateFileSystemRequest is the expected json structure of the request body for the update file system route.
 type UpdateFileSystemRequest struct {
 	Delete []FilePath `json:"delete"`
@@ -108,6 +113,14 @@ type UpdateFileSystemRequest struct {
 
 // FilePath specifies the path of a file and is part of the UpdateFileSystemRequest.
 type FilePath string
+
+// FileHeader specifies the information provided for listing a File.
+type FileHeader struct {
+	Name             FilePath `json:"name"`
+	ObjectType       string   `json:"objectType"`
+	Size             int      `json:"size"`
+	ModificationTime int      `json:"modificationTime"`
+}
 
 // File is a DTO for transmitting file contents. It is part of the UpdateFileSystemRequest.
 type File struct {

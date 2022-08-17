@@ -17,15 +17,17 @@ import (
 )
 
 const (
-	ExecutePath          = "/execute"
-	WebsocketPath        = "/websocket"
-	UpdateFileSystemPath = "/files"
-	FileContentRawPath   = UpdateFileSystemPath + "/raw"
-	DeleteRoute          = "deleteRunner"
-	RunnerIDKey          = "runnerId"
-	ExecutionIDKey       = "executionID"
-	PathKey              = "path"
-	ProvideRoute         = "provideRunner"
+	ExecutePath             = "/execute"
+	WebsocketPath           = "/websocket"
+	UpdateFileSystemPath    = "/files"
+	ListFileSystemRouteName = UpdateFileSystemPath + "_list"
+	FileContentRawPath      = UpdateFileSystemPath + "/raw"
+	ProvideRoute            = "provideRunner"
+	DeleteRoute             = "deleteRunner"
+	RunnerIDKey             = "runnerId"
+	ExecutionIDKey          = "executionID"
+	PathKey                 = "path"
+	RecursiveKey            = "recursive"
 )
 
 type RunnerController struct {
@@ -39,6 +41,8 @@ func (r *RunnerController) ConfigureRoutes(router *mux.Router) {
 	runnersRouter.HandleFunc("", r.provide).Methods(http.MethodPost).Name(ProvideRoute)
 	r.runnerRouter = runnersRouter.PathPrefix(fmt.Sprintf("/{%s}", RunnerIDKey)).Subrouter()
 	r.runnerRouter.Use(r.findRunnerMiddleware)
+	r.runnerRouter.HandleFunc(UpdateFileSystemPath, r.listFileSystem).Methods(http.MethodGet).
+		Name(ListFileSystemRouteName)
 	r.runnerRouter.HandleFunc(UpdateFileSystemPath, r.updateFileSystem).Methods(http.MethodPatch).
 		Name(UpdateFileSystemPath)
 	r.runnerRouter.HandleFunc(FileContentRawPath, r.fileContent).Methods(http.MethodGet).Name(FileContentRawPath)
@@ -75,6 +79,29 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()}, http.StatusOK)
 }
 
+// listFileSystem handles the files API route with the method GET.
+// It returns a listing of the file system of the provided runner.
+func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *http.Request) {
+	targetRunner, _ := runner.FromContext(request.Context())
+	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
+
+	recursiveRaw := request.URL.Query().Get(RecursiveKey)
+	recursive, err := strconv.ParseBool(recursiveRaw)
+	recursive = err != nil || recursive
+
+	path := request.URL.Query().Get(PathKey)
+	if path == "" {
+		path = "./"
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	if err := targetRunner.ListFileSystem(path, recursive, writer, request.Context()); err != nil {
+		log.WithError(err).Error("Could not perform the requested listFileSystem.")
+		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		return
+	}
+}
+
 // updateFileSystem handles the files API route.
 // It takes an dto.UpdateFileSystemRequest and sends it to the runner for processing.
 func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request *http.Request) {
@@ -96,7 +123,6 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 }
 
 func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http.Request) {
-	monitoring.AddRequestSize(request)
 	targetRunner, _ := runner.FromContext(request.Context())
 	path := request.URL.Query().Get(PathKey)
 

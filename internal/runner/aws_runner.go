@@ -101,6 +101,13 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, s
 	return exit, cancel, nil
 }
 
+// ListFileSystem is currently not supported with this aws serverless function.
+// This is because the function execution ends with the termination of the workload code.
+// So an on-demand file system listing after the termination is not possible. Also, we do not want to copy all files.
+func (w *AWSFunctionWorkload) ListFileSystem(_ string, _ bool, _ io.Writer, _ context.Context) error {
+	return dto.ErrNotSupported
+}
+
 // UpdateFileSystem copies Files into the executor.
 // Current limitation: No files can be deleted apart from the previously added files.
 // Future Work: Deduplication of the file systems, as the largest workload is likely to be used by additional

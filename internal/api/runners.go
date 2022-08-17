@@ -100,6 +100,7 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 	targetRunner, _ := runner.FromContext(request.Context())
 	path := request.URL.Query().Get(PathKey)
 
+	writer.Header().Set("Content-Type", "application/octet-stream")
 	err := targetRunner.GetFileContent(path, writer, request.Context())
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writeNotFound(writer, err)
@@ -109,9 +110,6 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
 	}
-
-	writer.Header().Set("Content-Type", "application/octet-stream")
-	writer.WriteHeader(http.StatusOK)
 }
 
 // execute handles the execute API route.

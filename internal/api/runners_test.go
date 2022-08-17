@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -309,6 +310,66 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsInternalServ
 
 	s.router.ServeHTTP(s.recorder, request)
 	s.Equal(http.StatusInternalServerError, s.recorder.Code)
+}
+
+func (s *UpdateFileSystemRouteTestSuite) TestListFileSystem() {
+	routeURL, err := s.router.Get(UpdateFileSystemPath).URL(RunnerIDKey, tests.DefaultMockID)
+	s.Require().NoError(err)
+	mockCall := s.runnerMock.On("ListFileSystem",
+		mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.Anything, mock.Anything)
+
+	s.Run("default parameters", func() {
+		mockCall.Run(func(args mock.Arguments) {
+			path, ok := args.Get(0).(string)
+			s.True(ok)
+			s.Equal("./", path)
+			recursive, ok := args.Get(1).(bool)
+			s.True(ok)
+			s.True(recursive)
+			mockCall.ReturnArguments = mock.Arguments{nil}
+		})
+		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
+		s.Require().NoError(err)
+		s.router.ServeHTTP(s.recorder, request)
+		s.Equal(http.StatusOK, s.recorder.Code)
+	})
+
+	s.recorder = httptest.NewRecorder()
+	s.Run("passed parameters", func() {
+		expectedPath := "/flag"
+
+		mockCall.Run(func(args mock.Arguments) {
+			path, ok := args.Get(0).(string)
+			s.True(ok)
+			s.Equal(expectedPath, path)
+			recursive, ok := args.Get(1).(bool)
+			s.True(ok)
+			s.False(recursive)
+			mockCall.ReturnArguments = mock.Arguments{nil}
+		})
+
+		query := routeURL.Query()
+		query.Set(PathKey, expectedPath)
+		query.Set(RecursiveKey, strconv.FormatBool(false))
+		routeURL.RawQuery = query.Encode()
+
+		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
+		s.Require().NoError(err)
+		s.router.ServeHTTP(s.recorder, request)
+		s.Equal(http.StatusOK, s.recorder.Code)
+	})
+
+	s.recorder = httptest.NewRecorder()
+	s.Run("Internal Server Error on failure", func() {
+		mockCall.Run(func(args mock.Arguments) {
+			mockCall.ReturnArguments = mock.Arguments{runner.ErrRunnerNotFound}
+		})
+
+		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
+		s.Require().NoError(err)
+		s.router.ServeHTTP(s.recorder, request)
+		s.Equal(http.StatusInternalServerError, s.recorder.Code)
+	})
 }
 
 func (s *UpdateFileSystemRouteTestSuite) TestFileContent() {

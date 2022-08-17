@@ -118,6 +118,27 @@ func (r *NomadJob) ExecuteInteractively(
 	return exit, cancel, nil
 }
 
+func (r *NomadJob) ListFileSystem(path string, recursive bool, content io.Writer, ctx context.Context) error {
+	r.ResetTimeout()
+	command := "ls -l --time-style=+%s -1 --literal"
+	if recursive {
+		command += " --recursive"
+	}
+
+	ls2json := &nullio.Ls2JsonWriter{Target: content}
+	defer ls2json.Close()
+	retrieveCommand := (&dto.ExecutionRequest{Command: fmt.Sprintf("%s %s", command, path)}).FullCommand()
+	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, &nullio.Reader{}, ls2json, io.Discard)
+	if err != nil {
+		return fmt.Errorf("%w: nomad error during retrieve file headers: %v",
+			nomad.ErrorExecutorCommunicationFailed, err)
+	}
+	if exitCode != 0 {
+		return ErrFileNotFound
+	}
+	return nil
+}
+
 func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) error {
 	r.ResetTimeout()
 

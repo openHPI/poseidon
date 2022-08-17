@@ -119,6 +119,47 @@ func (s *E2ETestSuite) TestDeleteRunnerRoute() {
 	}
 }
 
+func (s *E2ETestSuite) TestListFileSystem_Nomad() {
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{
+		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
+	})
+	require.NoError(s.T(), err)
+
+	s.Run("No files", func() {
+		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath))
+		s.Require().NoError(err)
+		response, err := http.Get(getFileURL.String())
+		s.Require().NoError(err)
+		s.Equal(http.StatusOK, response.StatusCode)
+		data, err := io.ReadAll(response.Body)
+		s.NoError(err)
+		s.Equal("{\"files\": []}", string(data))
+	})
+
+	s.Run("With file", func() {
+		resp, err := CopyFiles(runnerID, &dto.UpdateFileSystemRequest{
+			Copy: []dto.File{{Path: tests.DefaultFileName, Content: []byte{}}},
+		})
+		s.Require().NoError(err)
+		s.Equal(http.StatusNoContent, resp.StatusCode)
+
+		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath))
+		s.Require().NoError(err)
+		response, err := http.Get(getFileURL.String())
+		s.Require().NoError(err)
+		s.Equal(http.StatusOK, response.StatusCode)
+
+		listFilesResponse := new(dto.ListFileSystemResponse)
+		err = json.NewDecoder(response.Body).Decode(listFilesResponse)
+		s.Require().NoError(err)
+		s.Require().Equal(len(listFilesResponse.Files), 1)
+		fileHeader := listFilesResponse.Files[0]
+		s.Equal(dto.FilePath("./"+tests.DefaultFileName), fileHeader.Name)
+		s.Equal("-", fileHeader.ObjectType)
+		s.Equal(0, fileHeader.Size)
+	})
+}
+
 //nolint:funlen // there are a lot of tests for the files route, this function can be a little longer than 100 lines ;)
 func (s *E2ETestSuite) TestCopyFilesRoute() {
 	for _, environmentID := range environmentIDs {

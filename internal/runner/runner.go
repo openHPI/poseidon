@@ -44,11 +44,16 @@ type Runner interface {
 		stderr io.Writer,
 	) (exit <-chan ExitInfo, cancel context.CancelFunc, err error)
 
+	// ListFileSystem streams the listing of the file system of the requested directory into the Writer provided.
+	// The result is streamed via the io.Writer in order to not overload the memory with user input.
+	ListFileSystem(path string, recursive bool, result io.Writer, ctx context.Context) error
+
 	// UpdateFileSystem processes a dto.UpdateFileSystemRequest by first deleting each given dto.FilePath recursively
 	// and then copying each given dto.File to the runner.
 	UpdateFileSystem(request *dto.UpdateFileSystemRequest) error
 
 	// GetFileContent streams the file content at the requested path into the Writer provided at content.
+	// The result is streamed via the io.Writer in order to not overload the memory with user input.
 	GetFileContent(path string, content io.Writer, ctx context.Context) error
 
 	// Destroy destroys the Runner in Nomad.

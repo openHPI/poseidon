@@ -56,7 +56,7 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 		onDestroy:    onDestroy,
 	}
 	job.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
-		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), id))
+		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), id), time.Minute)
 	job.InactivityTimer = NewInactivityTimer(job, onDestroy)
 	return job
 }

@@ -2,9 +2,11 @@ package storage
 
 import (
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"testing"
+	"time"
 )
 
 func TestRunnerPoolTestSuite(t *testing.T) {
@@ -114,14 +116,14 @@ func TestNewMonitoredLocalStorage_Callback(t *testing.T) {
 	callbackCalls := 0
 	callbackAdditions := 0
 	callbackDeletions := 0
-	os := NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, isDeletion bool) {
+	os := NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, eventType EventType) {
 		callbackCalls++
-		if isDeletion {
+		if eventType == Deletion {
 			callbackDeletions++
-		} else {
+		} else if eventType == Creation {
 			callbackAdditions++
 		}
-	})
+	}, 0)
 
 	assertCallbackCounts := func(test func(), totalCalls, additions, deletions int) {
 		beforeTotal := callbackCalls
@@ -169,4 +171,17 @@ func TestNewMonitoredLocalStorage_Callback(t *testing.T) {
 			os.Purge()
 		}, 2, 0, 2)
 	})
+}
+
+func TestNewMonitoredLocalStorage_Periodically(t *testing.T) {
+	callbackCalls := 0
+	NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, eventType EventType) {
+		callbackCalls++
+		assert.Equal(t, Periodically, eventType)
+	}, 200*time.Millisecond)
+
+	time.Sleep(tests.ShortTimeout)
+	assert.Equal(t, 1, callbackCalls)
+	time.Sleep(200 * time.Millisecond)
+	assert.Equal(t, 2, callbackCalls)
 }

@@ -1,12 +1,13 @@
 package storage
 
 import (
+	"context"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
-	"strconv"
 	"sync"
+	"time"
 )
 
 var log = logging.GetLogger("storage")
@@ -43,7 +44,18 @@ type Storage[T any] interface {
 	Sample() (o T, ok bool)
 }
 
-type WriteCallback[T any] func(p *write.Point, object T, isDeletion bool)
+// EventType is an enum type to declare the different causes of a monitoring event.
+type EventType string
+
+const (
+	Creation     EventType = "creation"
+	Deletion     EventType = "deletion"
+	Periodically EventType = "periodically"
+)
+
+// WriteCallback is called before an event gets monitored.
+// Iff eventType is Periodically it is no object provided.
+type WriteCallback[T any] func(p *write.Point, object T, eventType EventType)
 
 // localStorage stores objects in the local application memory.
 type localStorage[T any] struct {
@@ -64,12 +76,18 @@ func NewLocalStorage[T any]() *localStorage[T] {
 // NewMonitoredLocalStorage responds with a Storage implementation.
 // All write operations are monitored in the passed measurement.
 // Iff callback is set, it will be called on a write operation.
-func NewMonitoredLocalStorage[T any](measurement string, callback WriteCallback[T]) *localStorage[T] {
-	return &localStorage[T]{
+// Iff additionalEvents not zero, the duration will be used to periodically send additional monitoring events.
+func NewMonitoredLocalStorage[T any](
+	measurement string, callback WriteCallback[T], additionalEvents time.Duration) *localStorage[T] {
+	s := &localStorage[T]{
 		objects:     make(map[string]T),
 		measurement: measurement,
 		callback:    callback,
 	}
+	if additionalEvents != 0 {
+		go s.periodicallySendMonitoringData(additionalEvents)
+	}
+	return s
 }
 
 func (s *localStorage[T]) List() (o []T) {
@@ -85,7 +103,7 @@ func (s *localStorage[T]) Add(id string, o T) {
 	s.Lock()
 	defer s.Unlock()
 	s.objects[id] = o
-	s.sendMonitoringData(id, o, false, s.unsafeLength())
+	s.sendMonitoringData(id, o, Creation, s.unsafeLength())
 }
 
 func (s *localStorage[T]) Get(id string) (o T, ok bool) {
@@ -101,7 +119,7 @@ func (s *localStorage[T]) Delete(id string) {
 	o, ok := s.objects[id]
 	if ok {
 		delete(s.objects, id)
-		s.sendMonitoringData(id, o, true, s.unsafeLength())
+		s.sendMonitoringData(id, o, Deletion, s.unsafeLength())
 	}
 }
 
@@ -115,7 +133,7 @@ func (s *localStorage[T]) Purge() {
 	s.Lock()
 	defer s.Unlock()
 	for key, object := range s.objects {
-		s.sendMonitoringData(key, object, true, 0)
+		s.sendMonitoringData(key, object, Deletion, 0)
 	}
 	s.objects = make(map[string]T)
 }
@@ -125,7 +143,7 @@ func (s *localStorage[T]) Sample() (o T, ok bool) {
 	defer s.Unlock()
 	for key, object := range s.objects {
 		delete(s.objects, key)
-		s.sendMonitoringData(key, object, true, s.unsafeLength())
+		s.sendMonitoringData(key, object, Deletion, s.unsafeLength())
 		return object, true
 	}
 	return o, false
@@ -143,17 +161,26 @@ func (s *localStorage[T]) unsafeLength() uint {
 	return uint(length)
 }
 
-func (s *localStorage[T]) sendMonitoringData(id string, o T, isDeletion bool, count uint) {
+func (s *localStorage[T]) sendMonitoringData(id string, o T, eventType EventType, count uint) {
 	if s.measurement != "" {
 		p := influxdb2.NewPointWithMeasurement(s.measurement)
 		p.AddTag("id", id)
-		p.AddTag("isDeletion", strconv.FormatBool(isDeletion))
+		p.AddTag("event_type", string(eventType))
 		p.AddField("count", count)
 
 		if s.callback != nil {
-			s.callback(p, o, isDeletion)
+			s.callback(p, o, eventType)
 		}
 
 		monitoring.WriteInfluxPoint(p)
+	}
+}
+
+func (s *localStorage[T]) periodicallySendMonitoringData(d time.Duration) {
+	ctx := context.Background()
+	for ctx.Err() == nil {
+		stub := new(T)
+		s.sendMonitoringData("", *stub, Periodically, s.Length())
+		<-time.After(d)
 	}
 }

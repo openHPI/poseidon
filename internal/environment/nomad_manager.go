@@ -12,6 +12,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"os"
+	"time"
 )
 
 // templateEnvironmentJobHCL holds our default job in HCL format.
@@ -155,7 +156,7 @@ func newNomadEnvironmetFromJob(job *nomadApi.Job, apiClient nomad.ExecutorAPI) *
 		jobHCL:    templateEnvironmentJobHCL,
 		job:       job,
 		idleRunners: storage.NewMonitoredLocalStorage[runner.Runner](
-			monitoring.MeasurementIdleRunnerNomad, runner.MonitorRunnersEnvironmentID),
+			monitoring.MeasurementIdleRunnerNomad, runner.MonitorRunnersEnvironmentID, time.Minute),
 	}
 }
 

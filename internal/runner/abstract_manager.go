@@ -7,6 +7,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
+	"time"
 )
 
 var ErrNullObject = errors.New("functionality not available for the null object")
@@ -24,13 +25,14 @@ type AbstractManager struct {
 func NewAbstractManager() *AbstractManager {
 	return &AbstractManager{
 		environments: storage.NewMonitoredLocalStorage[ExecutionEnvironment](
-			monitoring.MeasurementEnvironments, monitorEnvironmentData),
-		usedRunners: storage.NewMonitoredLocalStorage[Runner](monitoring.MeasurementUsedRunner, MonitorRunnersEnvironmentID),
+			monitoring.MeasurementEnvironments, monitorEnvironmentData, 0),
+		usedRunners: storage.NewMonitoredLocalStorage[Runner](
+			monitoring.MeasurementUsedRunner, MonitorRunnersEnvironmentID, time.Hour),
 	}
 }
 
 // MonitorRunnersEnvironmentID passes the id of the environment e into the monitoring Point p.
-func MonitorRunnersEnvironmentID(p *write.Point, e Runner, _ bool) {
+func MonitorRunnersEnvironmentID(p *write.Point, e Runner, _ storage.EventType) {
 	if e != nil {
 		p.AddTag(monitoring.InfluxKeyEnvironmentID, e.Environment().ToString())
 	}

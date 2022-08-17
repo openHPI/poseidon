@@ -15,6 +15,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/storage"
 	"strconv"
 	"sync"
+	"time"
 )
 
 const (
@@ -37,7 +38,7 @@ func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvi
 	}
 
 	return &NomadEnvironment{apiClient, jobHCL, job, storage.NewMonitoredLocalStorage[runner.Runner](
-		monitoring.MeasurementIdleRunnerNomad, runner.MonitorRunnersEnvironmentID)}, nil
+		monitoring.MeasurementIdleRunnerNomad, runner.MonitorRunnersEnvironmentID, time.Minute)}, nil
 }
 
 func NewNomadEnvironmentFromRequest(

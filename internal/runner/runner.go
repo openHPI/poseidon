@@ -65,8 +65,8 @@ func FromContext(ctx context.Context) (Runner, bool) {
 
 // monitorExecutionsRunnerID passes the id of the runner executing the execution into the monitoring Point p.
 func monitorExecutionsRunnerID(env dto.EnvironmentID, runnerID string) storage.WriteCallback[*dto.ExecutionRequest] {
-	return func(p *write.Point, e *dto.ExecutionRequest, isDeletion bool) {
-		if !isDeletion && e != nil {
+	return func(p *write.Point, e *dto.ExecutionRequest, eventType storage.EventType) {
+		if eventType == storage.Creation && e != nil {
 			p.AddTag(monitoring.InfluxKeyRunnerID, runnerID)
 			p.AddTag(monitoring.InfluxKeyEnvironmentID, env.ToString())
 		}

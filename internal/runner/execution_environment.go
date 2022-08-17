@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"strconv"
 )
 
@@ -51,8 +52,8 @@ type ExecutionEnvironment interface {
 }
 
 // monitorEnvironmentData passes the configuration of the environment e into the monitoring Point p.
-func monitorEnvironmentData(p *write.Point, e ExecutionEnvironment, isDeletion bool) {
-	if !isDeletion && e != nil {
+func monitorEnvironmentData(p *write.Point, e ExecutionEnvironment, eventType storage.EventType) {
+	if eventType == storage.Creation && e != nil {
 		p.AddTag("image", e.Image())
 		p.AddTag("cpu_limit", strconv.Itoa(int(e.CPULimit())))
 		p.AddTag("memory_limit", strconv.Itoa(int(e.MemoryLimit())))

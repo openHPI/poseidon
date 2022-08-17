@@ -13,6 +13,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
+	"time"
 )
 
 var ErrWrongMessageType = errors.New("received message that is not a text message")
@@ -53,7 +54,7 @@ func NewAWSFunctionWorkload(
 		environment:       environment,
 	}
 	workload.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
-		monitoring.MeasurementExecutionsAWS, monitorExecutionsRunnerID(environment.ID(), workload.id))
+		monitoring.MeasurementExecutionsAWS, monitorExecutionsRunnerID(environment.ID(), workload.id), time.Minute)
 	workload.InactivityTimer = NewInactivityTimer(workload, func(_ Runner) error {
 		return workload.Destroy()
 	})

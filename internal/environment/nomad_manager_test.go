@@ -106,7 +106,7 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 	})
 
 	t.Run("loads template environment job from file", func(t *testing.T) {
-		templateJobHCL := "job \"test\" {}"
+		templateJobHCL := "job \"" + tests.DefaultTemplateJobID + "\" {}"
 		_, err := NewNomadEnvironment(nil, templateJobHCL)
 		require.NoError(t, err)
 		f := createTempFile(t, templateJobHCL)

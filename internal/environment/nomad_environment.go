@@ -37,8 +37,10 @@ func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvi
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
 	}
 
-	return &NomadEnvironment{apiClient, jobHCL, job, storage.NewMonitoredLocalStorage[runner.Runner](
-		monitoring.MeasurementIdleRunnerNomad, runner.MonitorRunnersEnvironmentID, time.Minute)}, nil
+	e := &NomadEnvironment{apiClient, jobHCL, job, nil}
+	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
+		runner.MonitorEnvironmentID[runner.Runner](e.ID()), time.Minute)
+	return e, nil
 }
 
 func NewNomadEnvironmentFromRequest(

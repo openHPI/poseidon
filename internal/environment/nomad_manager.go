@@ -151,13 +151,14 @@ func (m *NomadEnvironmentManager) Load() error {
 
 // newNomadEnvironmetFromJob creates a Nomad environment from the passed Nomad job definition.
 func newNomadEnvironmetFromJob(job *nomadApi.Job, apiClient nomad.ExecutorAPI) *NomadEnvironment {
-	return &NomadEnvironment{
+	e := &NomadEnvironment{
 		apiClient: apiClient,
 		jobHCL:    templateEnvironmentJobHCL,
 		job:       job,
-		idleRunners: storage.NewMonitoredLocalStorage[runner.Runner](
-			monitoring.MeasurementIdleRunnerNomad, runner.MonitorRunnersEnvironmentID, time.Minute),
 	}
+	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
+		runner.MonitorEnvironmentID[runner.Runner](e.ID()), time.Minute)
+	return e
 }
 
 // loadTemplateEnvironmentJobHCL loads the template environment job HCL from the given path.

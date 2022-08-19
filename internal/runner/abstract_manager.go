@@ -31,6 +31,13 @@ func NewAbstractManager() *AbstractManager {
 	}
 }
 
+// MonitorEnvironmentID adds the passed environment id to the monitoring Point p.
+func MonitorEnvironmentID[T any](id dto.EnvironmentID) storage.WriteCallback[T] {
+	return func(p *write.Point, _ T, _ storage.EventType) {
+		p.AddTag(monitoring.InfluxKeyEnvironmentID, id.ToString())
+	}
+}
+
 // MonitorRunnersEnvironmentID passes the id of the environment e into the monitoring Point p.
 func MonitorRunnersEnvironmentID(p *write.Point, e Runner, _ storage.EventType) {
 	if e != nil {

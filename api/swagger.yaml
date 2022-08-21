@@ -324,6 +324,10 @@ paths:
                       $ref: "#/components/schemas/FileHeader"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
     patch:
       summary: Manipulate runner file system
       description: Delete the files with the given paths from the file system of the specified runner. Afterwards, copy the enclosed files to the runner. Existing files get overwritten and results of previous file copy operations on the same runner are present when executing multiple requests.

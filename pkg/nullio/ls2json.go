@@ -76,9 +76,11 @@ func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
 }
 
 func (w *Ls2JsonWriter) Close() {
-	count, err := w.Target.Write([]byte("]}"))
-	if count == 0 || err != nil {
-		log.WithError(err).Warn("Could not Close ls2json writer")
+	if w.jsonStartSend {
+		count, err := w.Target.Write([]byte("]}"))
+		if count == 0 || err != nil {
+			log.WithError(err).Warn("Could not Close ls2json writer")
+		}
 	}
 }
 

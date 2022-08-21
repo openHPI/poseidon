@@ -95,7 +95,11 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
-	if err := targetRunner.ListFileSystem(path, recursive, writer, request.Context()); err != nil {
+	err = targetRunner.ListFileSystem(path, recursive, writer, request.Context())
+	if errors.Is(err, runner.ErrFileNotFound) {
+		writeNotFound(writer, err)
+		return
+	} else if err != nil {
 		log.WithError(err).Error("Could not perform the requested listFileSystem.")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return

@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/nomad v1.3.3
 	github.com/hashicorp/nomad/api v0.0.0-20220816063426-c1abf47e16ec
-	github.com/influxdata/influxdb-client-go/v2 v2.9.2
+	github.com/influxdata/influxdb-client-go/v2 v2.10.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0

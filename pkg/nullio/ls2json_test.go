@@ -39,7 +39,8 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteFile() {
 	s.NoError(err)
 	s.writer.Close()
 
-	s.Equal("{\"files\": [{\"name\":\"flag\",\"objectType\":\"-\",\"size\":0,\"modificationTime\":1660763446}]}",
+	s.Equal("{\"files\": [{\"name\":\"flag\",\"entryType\":\"-\",\"size\":0,\"modificationTime\":1660763446"+
+		",\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"}]}",
 		s.buf.String())
 }
 
@@ -52,23 +53,40 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRecursive() {
 	s.NoError(err)
 	s.writer.Close()
 
-	s.Equal("{\"files\": [{\"name\":\"./dir\",\"objectType\":\"d\",\"size\":4096,\"modificationTime\":1660764411},"+
-		"{\"name\":\"./flag\",\"objectType\":\"-\",\"size\":0,\"modificationTime\":1660763446},"+
-		"{\"name\":\"./dir/another.txt\",\"objectType\":\"-\",\"size\":3,\"modificationTime\":1660764366}]}",
+	s.Equal("{\"files\": ["+
+		"{\"name\":\"./dir\",\"entryType\":\"d\",\"size\":4096,\"modificationTime\":1660764411,"+
+		"\"permissions\":\"rwxrwxr-x\",\"owner\":\"kali\",\"group\":\"kali\"},"+
+		"{\"name\":\"./flag\",\"entryType\":\"-\",\"size\":0,\"modificationTime\":1660763446,"+
+		"\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"},"+
+		"{\"name\":\"./dir/another.txt\",\"entryType\":\"-\",\"size\":3,\"modificationTime\":1660764366,"+
+		"\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"}"+
+		"]}",
 		s.buf.String())
 }
 
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRemaining() {
-	input1 := "total 4\n-rw-rw-r-- 1 kali kali 3 1660764366 another.txt\n-rw-rw-r-- 1 kal"
+	input1 := "total 4\n-rw-rw-r-- 1 kali kali 3 1660764366 an.txt\n-rw-rw-r-- 1 kal"
 	_, err := s.writer.Write([]byte(input1))
 	s.NoError(err)
-	s.Equal("{\"files\": [{\"name\":\"another.txt\",\"objectType\":\"-\",\"size\":3,\"modificationTime\":1660764366}",
-		s.buf.String())
+	s.Equal("{\"files\": [{\"name\":\"an.txt\",\"entryType\":\"-\",\"size\":3,\"modificationTime\":1660764366,"+
+		"\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"}", s.buf.String())
 
 	input2 := "i kali 0 1660763446 flag\n"
 	_, err = s.writer.Write([]byte(input2))
 	s.NoError(err)
 	s.writer.Close()
-	s.Equal("{\"files\": [{\"name\":\"another.txt\",\"objectType\":\"-\",\"size\":3,\"modificationTime\":1660764366},"+
-		"{\"name\":\"flag\",\"objectType\":\"-\",\"size\":0,\"modificationTime\":1660763446}]}", s.buf.String())
+	s.Equal("{\"files\": [{\"name\":\"an.txt\",\"entryType\":\"-\",\"size\":3,\"modificationTime\":1660764366,"+
+		"\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"},"+
+		"{\"name\":\"flag\",\"entryType\":\"-\",\"size\":0,\"modificationTime\":1660763446,"+
+		"\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"}]}", s.buf.String())
+}
+
+func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteLink() {
+	input1 := "total 4\nlrw-rw-r-- 1 kali kali 3 1660764366 another.txt -> /bin/bash\n"
+	_, err := s.writer.Write([]byte(input1))
+	s.NoError(err)
+	s.writer.Close()
+	s.Equal("{\"files\": [{\"name\":\"another.txt\",\"entryType\":\"l\",\"linkTarget\":\"/bin/bash\",\"size\":3,"+
+		"\"modificationTime\":1660764366,\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"}]}",
+		s.buf.String())
 }

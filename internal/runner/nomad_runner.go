@@ -32,7 +32,7 @@ const (
 var (
 	ErrorUnknownExecution = errors.New("unknown execution")
 	ErrorFileCopyFailed   = errors.New("file copy failed")
-	ErrFileNotFound       = errors.New("file not found")
+	ErrFileNotFound       = errors.New("file not found or insufficient permissions")
 )
 
 // NomadJob is an abstraction to communicate with Nomad environments.

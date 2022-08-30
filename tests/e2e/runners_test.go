@@ -104,16 +104,16 @@ func (s *E2ETestSuite) TestDeleteRunnerRoute() {
 				s.Equal(http.StatusNoContent, resp.StatusCode)
 			})
 
-			s.Run("Deleting it again returns NotFound", func() {
+			s.Run("Deleting it again returns Gone", func() {
 				resp, err := helpers.HTTPDelete(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID), nil)
 				s.NoError(err)
-				s.Equal(http.StatusNotFound, resp.StatusCode)
+				s.Equal(http.StatusGone, resp.StatusCode)
 			})
 
-			s.Run("Deleting non-existing runner returns NotFound", func() {
+			s.Run("Deleting non-existing runner returns Gone", func() {
 				resp, err := helpers.HTTPDelete(helpers.BuildURL(api.BasePath, api.RunnersPath, tests.NonExistingStringID), nil)
 				s.NoError(err)
-				s.Equal(http.StatusNotFound, resp.StatusCode)
+				s.Equal(http.StatusGone, resp.StatusCode)
 			})
 		})
 	}
@@ -249,10 +249,10 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 				s.Equal(http.StatusBadRequest, resp.StatusCode)
 			})
 
-			s.Run("Copying to non-existing runner returns NotFound", func() {
+			s.Run("Copying to non-existing runner returns Gone", func() {
 				resp, err := CopyFiles(tests.NonExistingStringID, request)
 				s.NoError(err)
-				s.Equal(http.StatusNotFound, resp.StatusCode)
+				s.Equal(http.StatusGone, resp.StatusCode)
 			})
 		})
 	}
@@ -333,7 +333,7 @@ func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 		getFileURL.RawQuery = fmt.Sprintf("%s=%s", api.PathKey, tests.DefaultFileName)
 		response, err := http.Get(getFileURL.String())
 		s.Require().NoError(err)
-		s.Equal(http.StatusNotFound, response.StatusCode)
+		s.Equal(http.StatusFailedDependency, response.StatusCode)
 	})
 
 	s.Run("Ok", func() {

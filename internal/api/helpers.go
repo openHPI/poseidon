@@ -11,12 +11,8 @@ func writeInternalServerError(writer http.ResponseWriter, err error, errorCode d
 	sendJSON(writer, &dto.InternalServerError{Message: err.Error(), ErrorCode: errorCode}, http.StatusInternalServerError)
 }
 
-func writeBadRequest(writer http.ResponseWriter, err error) {
-	sendJSON(writer, &dto.ClientError{Message: err.Error()}, http.StatusBadRequest)
-}
-
-func writeNotFound(writer http.ResponseWriter, err error) {
-	sendJSON(writer, &dto.ClientError{Message: err.Error()}, http.StatusNotFound)
+func writeClientError(writer http.ResponseWriter, err error, status uint16) {
+	sendJSON(writer, &dto.ClientError{Message: err.Error()}, int(status))
 }
 
 func sendJSON(writer http.ResponseWriter, content interface{}, httpStatusCode int) {
@@ -36,7 +32,7 @@ func sendJSON(writer http.ResponseWriter, content interface{}, httpStatusCode in
 
 func parseJSONRequestBody(writer http.ResponseWriter, request *http.Request, structure interface{}) error {
 	if err := json.NewDecoder(request.Body).Decode(structure); err != nil {
-		writeBadRequest(writer, err)
+		writeClientError(writer, err, http.StatusBadRequest)
 		return fmt.Errorf("error parsing JSON request body: %w", err)
 	}
 	return nil

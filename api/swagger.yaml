@@ -78,6 +78,16 @@ components:
         - size
         - modificationTime
       additionalProperties: false
+    ClientError:
+      type: object
+      properties:
+        message:
+          description: Explanation on why the request could not be handled
+          type: string
+          example: Nomad server unreachable
+      required:
+        - message
+      additionalProperties: false
 
   responses:
     BadRequest:
@@ -94,26 +104,36 @@ components:
       description: Client could not be authenticated
     NotFound:
       description: The entity with the given identifier does not exist.
+    RunnerGone:
+      description: The runner is not available any longer.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientError"
+    FailedFileDependency:
+      description: The file is not available.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientError"
     InternalServerError:
       description: Request could not be handled
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              message:
-                description: Explanation on why the request could not be handled
-                type: string
-                example: Nomad server unreachable
-              errorCode:
-                description: Machine readable error description
-                type: string
-                enum:
-                  - NOMAD_UNREACHABLE
-                  - NOMAD_OVERLOAD
-                  - NOMAD_INTERNAL_SERVER_ERROR
-                  - UNKNOWN
-                example: NOMAD_UNREACHABLE
+            allOf:
+              - $ref: "#/components/schemas/ClientError"
+              - type: object
+                properties:
+                  errorCode:
+                    description: Machine readable error description
+                    type: string
+                    enum:
+                      - NOMAD_UNREACHABLE
+                      - NOMAD_OVERLOAD
+                      - NOMAD_INTERNAL_SERVER_ERROR
+                      - UNKNOWN
+                    example: NOMAD_UNREACHABLE
 
 tags:
   - name: runner
@@ -275,8 +295,8 @@ paths:
           description: Success
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/RunnerGone"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -307,6 +327,7 @@ paths:
           description: Specify the directory from where the filesystem is listed.
           schema:
             type: string
+            format: pct-encoded # rfc 3986
             default: "./"
           required: false
       responses:
@@ -324,8 +345,10 @@ paths:
                       $ref: "#/components/schemas/FileHeader"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/RunnerGone"
+        "424":
+          $ref: "#/components/responses/FailedFileDependency"
         "500":
           $ref: "#/components/responses/InternalServerError"
     patch:
@@ -373,8 +396,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/RunnerGone"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -397,6 +420,7 @@ paths:
           description: Specify the file that should be returned by its filename including its path and extension.
           schema:
             type: string
+            format: pct-encoded # rfc 3986
             example: "./flag.txt"
           required: true
       responses:
@@ -409,8 +433,10 @@ paths:
                 format: binary
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/RunnerGone"
+        "424":
+          $ref: "#/components/responses/FailedFileDependency"
 
   /runners/{runnerId}/execute:
     post:
@@ -475,8 +501,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/RunnerGone"
         "500":
           $ref: "#/components/responses/InternalServerError"
 

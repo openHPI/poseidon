@@ -45,7 +45,7 @@ func (e *EnvironmentController) ConfigureRoutes(router *mux.Router) {
 func (e *EnvironmentController) list(writer http.ResponseWriter, request *http.Request) {
 	fetch, err := parseFetchParameter(request)
 	if err != nil {
-		writeBadRequest(writer, err)
+		writeClientError(writer, err, http.StatusBadRequest)
 		return
 	}
 
@@ -63,12 +63,12 @@ func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Re
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
 		// This case is never used as the router validates the id format
-		writeBadRequest(writer, err)
+		writeClientError(writer, err, http.StatusBadRequest)
 		return
 	}
 	fetch, err := parseFetchParameter(request)
 	if err != nil {
-		writeBadRequest(writer, err)
+		writeClientError(writer, err, http.StatusBadRequest)
 		return
 	}
 
@@ -89,7 +89,7 @@ func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
 		// This case is never used as the router validates the id format
-		writeBadRequest(writer, err)
+		writeClientError(writer, err, http.StatusBadRequest)
 		return
 	}
 
@@ -109,12 +109,12 @@ func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http
 func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, request *http.Request) {
 	req := new(dto.ExecutionEnvironmentRequest)
 	if err := json.NewDecoder(request.Body).Decode(req); err != nil {
-		writeBadRequest(writer, err)
+		writeClientError(writer, err, http.StatusBadRequest)
 		return
 	}
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
-		writeBadRequest(writer, err)
+		writeClientError(writer, err, http.StatusBadRequest)
 		return
 	}
 

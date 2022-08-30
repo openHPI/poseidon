@@ -76,7 +76,7 @@ func (s *MiddlewareTestSuite) TestFindRunnerMiddlewareIfRunnerDoesNotExist() {
 	recorder := httptest.NewRecorder()
 	s.router.ServeHTTP(recorder, s.runnerRequest(invalidID))
 
-	s.Equal(http.StatusNotFound, recorder.Code)
+	s.Equal(http.StatusGone, recorder.Code)
 }
 
 func (s *MiddlewareTestSuite) TestFindRunnerMiddlewareDoesNotEarlyRespond() {
@@ -91,7 +91,7 @@ func (s *MiddlewareTestSuite) TestFindRunnerMiddlewareDoesNotEarlyRespond() {
 	recorder := httptest.NewRecorder()
 	s.router.ServeHTTP(recorder, request)
 
-	s.Equal(http.StatusNotFound, recorder.Code)
+	s.Equal(http.StatusGone, recorder.Code)
 	s.Equal(0, body.Len()) // No data should be unread
 }
 
@@ -283,7 +283,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsBadRequestOn
 	s.Equal(http.StatusBadRequest, s.recorder.Code)
 }
 
-func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemToNonExistingRunnerReturnsNotFound() {
+func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemToNonExistingRunnerReturnsGone() {
 	s.runnerManager.On("Get", invalidID).Return(nil, runner.ErrRunnerNotFound)
 	path, err := s.router.Get(UpdateFileSystemPath).URL(RunnerIDKey, invalidID)
 	s.Require().NoError(err)
@@ -294,7 +294,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemToNonExistingRunner
 	s.Require().NoError(err)
 
 	s.router.ServeHTTP(s.recorder, request)
-	s.Equal(http.StatusNotFound, s.recorder.Code)
+	s.Equal(http.StatusGone, s.recorder.Code)
 }
 
 func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsInternalServerErrorWhenCopyFailed() {
@@ -383,7 +383,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestFileContent() {
 		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
 		s.Require().NoError(err)
 		s.router.ServeHTTP(s.recorder, request)
-		s.Equal(http.StatusNotFound, s.recorder.Code)
+		s.Equal(http.StatusFailedDependency, s.recorder.Code)
 	})
 
 	s.recorder = httptest.NewRecorder()
@@ -449,7 +449,7 @@ func (s *DeleteRunnerRouteTestSuite) TestReturnInternalServerErrorWhenApiCallToN
 	s.Equal(http.StatusInternalServerError, recorder.Code)
 }
 
-func (s *DeleteRunnerRouteTestSuite) TestDeleteInvalidRunnerIdReturnsNotFound() {
+func (s *DeleteRunnerRouteTestSuite) TestDeleteInvalidRunnerIdReturnsGone() {
 	s.runnerManager.On("Get", mock.AnythingOfType("string")).Return(nil, tests.ErrDefault)
 	deleteURL, err := s.router.Get(DeleteRoute).URL(RunnerIDKey, "1nv4l1dID")
 	s.Require().NoError(err)
@@ -461,5 +461,5 @@ func (s *DeleteRunnerRouteTestSuite) TestDeleteInvalidRunnerIdReturnsNotFound() 
 
 	s.router.ServeHTTP(recorder, request)
 
-	s.Equal(http.StatusNotFound, recorder.Code)
+	s.Equal(http.StatusGone, recorder.Code)
 }

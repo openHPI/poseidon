@@ -9,12 +9,13 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 var (
 	log             = logging.GetLogger("nullio")
 	pathLineRegex   = regexp.MustCompile(`(.*):$`)
-	headerLineRegex = regexp.MustCompile(`([dl-])[-rwxXsS]{9} \d* .*? .*? +(\d+) (\d+) (.*)$`)
+	headerLineRegex = regexp.MustCompile(`([-aAbcCdDlMnpPsw?])([-rwxXsStT]{9})([+ ])\d+ (.+?) (.+?) +(\d+) (\d+) (.*)$`)
 )
 
 // Ls2JsonWriter implements io.Writer.
@@ -93,20 +94,9 @@ func (w *Ls2JsonWriter) writeLine(line []byte) (count int, err error) {
 
 	matches = headerLineRegex.FindSubmatch(line)
 	if matches != nil {
-		size, err1 := strconv.Atoi(string(matches[2]))
-		timestamp, err2 := strconv.Atoi(string(matches[3]))
-		if err1 != nil || err2 != nil {
-			return 0, fmt.Errorf("could not parse file details: %w %+v", err1, err2)
-		}
-
-		response, err1 := json.Marshal(dto.FileHeader{
-			Name:             dto.FilePath(append(w.latestPath, matches[4]...)),
-			ObjectType:       string(matches[1][0]),
-			Size:             size,
-			ModificationTime: timestamp,
-		})
+		response, err1 := w.parseFileHeader(matches)
 		if err1 != nil {
-			return 0, fmt.Errorf("could not marshal file header: %w", err)
+			return 0, err1
 		}
 
 		// Skip the first leading comma
@@ -118,11 +108,56 @@ func (w *Ls2JsonWriter) writeLine(line []byte) (count int, err error) {
 
 		count, err1 = w.Target.Write(response)
 		if err1 != nil {
-			err = fmt.Errorf("could not write to target: %w", err)
+			err = fmt.Errorf("could not write to target: %w", err1)
 		} else if count == len(response) {
 			count = len(line)
 		}
 	}
 
 	return count, err
+}
+
+func (w *Ls2JsonWriter) parseFileHeader(matches [][]byte) ([]byte, error) {
+	entryType := dto.EntryType(matches[1][0])
+	permissions := string(matches[2])
+	acl := string(matches[3])
+	if acl == "+" {
+		permissions += "+"
+	}
+
+	owner := string(matches[4])
+	group := string(matches[5])
+	size, err1 := strconv.Atoi(string(matches[6]))
+	timestamp, err2 := strconv.Atoi(string(matches[7]))
+	if err1 != nil || err2 != nil {
+		return nil, fmt.Errorf("could not parse file details: %w %+v", err1, err2)
+	}
+
+	name := dto.FilePath(append(w.latestPath, matches[8]...))
+	linkTarget := dto.FilePath("")
+	if entryType == dto.EntryTypeLink {
+		parts := strings.Split(string(name), " -> ")
+		const NumberOfPartsInALink = 2
+		if len(parts) == NumberOfPartsInALink {
+			name = dto.FilePath(parts[0])
+			linkTarget = dto.FilePath(parts[1])
+		} else {
+			log.Error("could not split link into name and target")
+		}
+	}
+
+	response, err := json.Marshal(dto.FileHeader{
+		Name:             name,
+		EntryType:        entryType,
+		LinkTarget:       linkTarget,
+		Size:             size,
+		ModificationTime: timestamp,
+		Permissions:      permissions,
+		Owner:            owner,
+		Group:            group,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal file header: %w", err)
+	}
+	return response, nil
 }

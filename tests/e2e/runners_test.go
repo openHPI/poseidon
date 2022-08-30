@@ -155,8 +155,10 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		s.Require().Equal(len(listFilesResponse.Files), 1)
 		fileHeader := listFilesResponse.Files[0]
 		s.Equal(dto.FilePath("./"+tests.DefaultFileName), fileHeader.Name)
-		s.Equal("-", fileHeader.ObjectType)
-		s.Equal(0, fileHeader.Size)
+		s.Equal(dto.EntryTypeRegularFile, fileHeader.EntryType)
+		s.Equal("user", fileHeader.Owner)
+		s.Equal("user", fileHeader.Group)
+		s.Equal("rwxr--r--", fileHeader.Permissions)
 	})
 }
 

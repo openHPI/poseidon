@@ -114,12 +114,25 @@ type UpdateFileSystemRequest struct {
 // FilePath specifies the path of a file and is part of the UpdateFileSystemRequest.
 type FilePath string
 
+// EntryType specifies the type of the object (file/link/directory/..)
+type EntryType string
+
+// These are the common entry types. You find others in the man pages `info ls`.
+const (
+	EntryTypeRegularFile EntryType = "-"
+	EntryTypeLink        EntryType = "l"
+)
+
 // FileHeader specifies the information provided for listing a File.
 type FileHeader struct {
-	Name             FilePath `json:"name"`
-	ObjectType       string   `json:"objectType"`
-	Size             int      `json:"size"`
-	ModificationTime int      `json:"modificationTime"`
+	Name             FilePath  `json:"name"`
+	EntryType        EntryType `json:"entryType"`
+	LinkTarget       FilePath  `json:"linkTarget,omitempty"`
+	Size             int       `json:"size"`
+	ModificationTime int       `json:"modificationTime"`
+	Permissions      string    `json:"permissions"`
+	Owner            string    `json:"owner"`
+	Group            string    `json:"group"`
 }
 
 // File is a DTO for transmitting file contents. It is part of the UpdateFileSystemRequest.

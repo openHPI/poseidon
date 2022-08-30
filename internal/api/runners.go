@@ -65,7 +65,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	if err != nil {
 		switch {
 		case errors.Is(err, runner.ErrUnknownExecutionEnvironment):
-			writeNotFound(writer, err)
+			writeClientError(writer, err, http.StatusNotFound)
 		case errors.Is(err, runner.ErrNoRunnersAvailable):
 			log.WithField("environment", logging.RemoveNewlineSymbol(strconv.Itoa(int(environmentID)))).
 				Warn("No runners available")
@@ -97,7 +97,7 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	writer.Header().Set("Content-Type", "application/json")
 	err = targetRunner.ListFileSystem(path, recursive, writer, request.Context())
 	if errors.Is(err, runner.ErrFileNotFound) {
-		writeNotFound(writer, err)
+		writeClientError(writer, err, http.StatusFailedDependency)
 		return
 	} else if err != nil {
 		log.WithError(err).Error("Could not perform the requested listFileSystem.")
@@ -133,7 +133,7 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 	writer.Header().Set("Content-Type", "application/octet-stream")
 	err := targetRunner.GetFileContent(path, writer, request.Context())
 	if errors.Is(err, runner.ErrFileNotFound) {
-		writeNotFound(writer, err)
+		writeClientError(writer, err, http.StatusFailedDependency)
 		return
 	} else if err != nil {
 		log.WithError(err).Error("Could not retrieve the requested file.")
@@ -197,7 +197,7 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 			if readErr != nil {
 				log.WithError(readErr).Warn("Failed to discard the request body")
 			}
-			writeNotFound(writer, err)
+			writeClientError(writer, err, http.StatusGone)
 			return
 		}
 		ctx := runner.NewContext(request.Context(), targetRunner)
@@ -214,11 +214,7 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 
 	err := r.manager.Return(targetRunner)
 	if err != nil {
-		if errors.Is(err, runner.ErrUnknownExecutionEnvironment) {
-			writeNotFound(writer, err)
-		} else {
-			writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)
-		}
+		writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)
 		return
 	}
 

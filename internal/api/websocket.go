@@ -80,7 +80,7 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 
 	executionID := request.URL.Query().Get(ExecutionIDKey)
 	if !targetRunner.ExecutionExists(executionID) {
-		writeNotFound(writer, ErrUnknownExecutionID)
+		writeClientError(writer, ErrUnknownExecutionID, http.StatusNotFound)
 		return
 	}
 

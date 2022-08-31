@@ -506,6 +506,39 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /runners/{runnerId}/websocket:
+    get:
+      summary: Connect to an execution.
+      description: The url including all parameters will be generated and returned by the `execute` route. This is a WebSocket endpoint. The schema for the WS communication is described in `websocket.schema.json`.
+      tags:
+        - runner
+      parameters:
+        - name: runnerId
+          description: Runner on which the execution is created.
+          in: path
+          schema:
+            type: string
+            example: 123e4567-e89b-12d3-a456-426614174000
+          required: true
+        - name: executionID
+          description: The execution of the runner that you want to connect to.
+          in: query
+          schema:
+            type: string
+            example: 123e4567-e89b-12d3-a456-426614174000
+          required: true
+      responses:
+        "101":
+          description: Success. Switching protocols to WebSocket.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/RunnerGone"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /execution-environments:
     get:
       summary: List execution environments

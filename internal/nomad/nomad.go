@@ -211,11 +211,10 @@ type nomadAPIEventHandler func(event *nomadApi.Event) (done bool, err error)
 func receiveAndHandleNomadAPIEvents(stream <-chan *nomadApi.Events, handler nomadAPIEventHandler) error {
 	// If original context is canceled, the stream will be closed by Nomad and we exit the for loop.
 	for events := range stream {
-		if events.IsHeartbeat() {
-			continue
-		}
 		if err := events.Err; err != nil {
 			return fmt.Errorf("error receiving events: %w", err)
+		} else if events.IsHeartbeat() {
+			continue
 		}
 		for _, event := range events.Events {
 			// Don't take the address of the loop variable as the underlying value might change

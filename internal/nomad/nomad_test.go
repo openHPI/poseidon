@@ -3,6 +3,7 @@ package nomad
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,6 +27,7 @@ var (
 		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
 		OnDeleted: func(_ *nomadApi.Allocation) {},
 	}
+	ErrUnexpectedEOF = errors.New("unexpected EOF")
 )
 
 func TestLoadRunnersTestSuite(t *testing.T) {
@@ -538,6 +540,13 @@ func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWi
 	require.Error(t, err)
 
 	events := []*nomadApi.Events{{Events: []nomadApi.Event{event}}, {}}
+	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessoring)
+	assert.Error(t, err)
+	assert.Equal(t, 1, eventsProcessed)
+}
+
+func TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEOF(t *testing.T) {
+	events := []*nomadApi.Events{{Err: ErrUnexpectedEOF}, {}}
 	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessoring)
 	assert.Error(t, err)
 	assert.Equal(t, 1, eventsProcessed)

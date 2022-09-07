@@ -72,3 +72,7 @@ In order to allow full networking support in Nomad, the `containernetworking-plu
 ```
 
 If the path is not set up correctly or the dependency is missing, the following error will be shown in Nomad: `failed to find plugin "bridge" in path [/opt/cni/bin]`
+
+### Use gVisor as a sandbox
+
+We recommend using gVisor as a sandbox for the execution environments. First, [install gVisor following the official documentation](https://gvisor.dev/docs/user_guide/install/) and second, adapt the `/etc/docker/daemon.json` with reasonable defaults as shown in our [example configuration for Docker](./resources/docker.daemon.json).

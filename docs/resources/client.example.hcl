@@ -9,12 +9,9 @@ client {
 
 plugin "docker" {
     config {
+        allow_runtimes = ["runsc"]
         gc {
             image_delay = "0s"
         }
-
-        # auth {
-            # config = "/root/.docker/config.json"
-        # }
     }
 }

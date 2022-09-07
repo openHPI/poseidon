@@ -131,6 +131,18 @@ func WriteInfluxPoint(p *write.Point) {
 	if influxClient != nil {
 		p.AddTag("stage", config.Config.InfluxDB.Stage)
 		influxClient.WritePoint(p)
+	} else {
+		entry := log.WithField("name", p.Name())
+		for _, tag := range p.TagList() {
+			if tag.Key == "event_type" && tag.Value == "periodically" {
+				return
+			}
+			entry = entry.WithField(tag.Key, tag.Value)
+		}
+		for _, field := range p.FieldList() {
+			entry = entry.WithField(field.Key, field.Value)
+		}
+		entry.Debug("Influx data point")
 	}
 }
 

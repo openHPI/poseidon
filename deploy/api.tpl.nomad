@@ -26,7 +26,7 @@ job "${NOMAD_SLUG}" {
     }
 
     network {
-      mode = "bridge"
+      mode = "cni/secure-bridge"
 
       port "http" {
         to     = 7200

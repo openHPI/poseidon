@@ -32,7 +32,7 @@ func TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkExists(t *testing.T) 
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 	environment := &NomadEnvironment{nil, "", job, nil}
 
-	networkResource := &nomadApi.NetworkResource{Mode: "bridge"}
+	networkResource := &nomadApi.NetworkResource{Mode: "cni/secure-bridge"}
 	defaultTaskGroup.Networks = []*nomadApi.NetworkResource{networkResource}
 
 	if assert.Equal(t, 1, len(defaultTaskGroup.Networks)) {
@@ -80,7 +80,7 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 			require.Equal(t, 1, len(testTaskGroup.Networks))
 
 			networkResource := testTaskGroup.Networks[0]
-			assert.Equal(t, "bridge", networkResource.Mode)
+			assert.Equal(t, "cni/secure-bridge", networkResource.Mode)
 			require.Equal(t, len(ports), len(networkResource.DynamicPorts))
 
 			assertExpectedPorts(t, ports, networkResource)

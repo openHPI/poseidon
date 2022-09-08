@@ -177,7 +177,7 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 		}
 		// Prefer "bridge" network over "host" to have an isolated network namespace with bridged interface
 		// instead of joining the host network namespace.
-		networkResource.Mode = "bridge"
+		networkResource.Mode = "cni/secure-bridge"
 		for _, portNumber := range exposedPorts {
 			port := nomadApi.Port{
 				Label: strconv.FormatUint(uint64(portNumber), portNumberBase),

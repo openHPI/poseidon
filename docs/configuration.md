@@ -73,6 +73,14 @@ In order to allow full networking support in Nomad, the `containernetworking-plu
 
 If the path is not set up correctly or the dependency is missing, the following error will be shown in Nomad: `failed to find plugin "bridge" in path [/opt/cni/bin]`
 
+Additionally, we provide a [secure-bridge](./resources/secure-bridge.conflist) configuration for the `containernetworking-plugins`. We highly recommend to use this configuration, as it will automatically configure an appropriate firewall and isolate your local network. Store the [secure-bridge](./resources/secure-bridge.conflist) in an (otherwise) empty folder and specify that folder in `/etc/nomad.d/client.hcl`:
+
+```hcl
+    cni_config_dir = "<path to folder with *.conflist>"
+```
+
+If the path is not set up correctly or with a different name, the placement of allocations will fail in Nomad: `Constraint missing network filtered [all] nodes`. Be sure to set the "dns" and "dns-search" options in `/etc/docker/daemon.json` with reasonable defaults, for example with those shown in our [example configuration for Docker](./resources/docker.daemon.json).
+
 ### Use gVisor as a sandbox
 
 We recommend using gVisor as a sandbox for the execution environments. First, [install gVisor following the official documentation](https://gvisor.dev/docs/user_guide/install/) and second, adapt the `/etc/docker/daemon.json` with reasonable defaults as shown in our [example configuration for Docker](./resources/docker.daemon.json).

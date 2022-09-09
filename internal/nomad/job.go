@@ -17,7 +17,7 @@ const (
 	TaskName              = "default-task"
 	TaskCount             = 1
 	TaskDriver            = "docker"
-	TaskCommand           = "sleep"
+	TaskCommand           = "sh"
 	ConfigTaskGroupName   = "config"
 	ConfigTaskName        = "config"
 	ConfigTaskDriver      = "exec"
@@ -33,7 +33,7 @@ const (
 
 var (
 	ErrorInvalidJobID = errors.New("invalid job id")
-	TaskArgs          = []string{"infinity"}
+	TaskArgs          = []string{"-c","'sleep infinity'"}
 )
 
 func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {

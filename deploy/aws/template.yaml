@@ -21,7 +21,7 @@ Resources:
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
-      - java11ExecRoute
+      - java17ExecRoute
     Properties:
       ApiId: !Ref PoseidonExecWebSocket
 
@@ -33,37 +33,31 @@ Resources:
       DeploymentId: !Ref Deployment
       ApiId: !Ref PoseidonExecWebSocket
 
-  java11ExecRoute: # More info about Routes: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-apigatewayv2-route.html
+  java17ExecRoute: # More info about Routes: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-apigatewayv2-route.html
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref PoseidonExecWebSocket
-      RouteKey: java11Exec
+      RouteKey: java17Exec
       AuthorizationType: NONE
-      OperationName: java11ExecRoute
+      OperationName: java17ExecRoute
       Target: !Join
         - '/'
         - - 'integrations'
-          - !Ref java11ExecInteg
+          - !Ref java17ExecInteg
 
-  java11ExecInteg: # More info about Integrations: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
+  java17ExecInteg: # More info about Integrations: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
     Type: AWS::ApiGatewayV2::Integration
     Properties:
       ApiId: !Ref PoseidonExecWebSocket
-      Description: Java 11 Exec Integration
+      Description: Java 17 Exec Integration
       IntegrationType: AWS_PROXY
       IntegrationUri:
         Fn::Sub:
-          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${java11ExecFunction.Arn}/invocations
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${java17ExecFunction.Arn}/invocations
 
-  java11ExecFunction:
+  java17ExecFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: java11Exec/
-      Handler: poseidon.App::handleRequest
-      Runtime: java11
-      Architectures:
-        - arm64
-      MemorySize: 2048
       Policies:
         - Statement:
             - Effect: Allow
@@ -81,14 +75,22 @@ Resources:
                 - 'logs:PutLogEvents'
               Resource:
                 - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PoseidonExecWebSocket}:*'
+      PackageType: Image
+      Architectures:
+        - x86_64
+      MemorySize: 2048
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./java17Exec
 
-  java11ExecPermission:
+
+  java17ExecPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
       - PoseidonExecWebSocket
     Properties:
       Action: lambda:InvokeFunction
-      FunctionName: !Ref java11ExecFunction
+      FunctionName: !Ref java17ExecFunction
       Principal: apigateway.amazonaws.com
 
 Outputs:
@@ -96,10 +98,10 @@ Outputs:
     Description: "The WSS Protocol URI to connect to"
     Value: !Join [ '', [ 'wss://', !Ref PoseidonExecWebSocket, '.execute-api.',!Ref 'AWS::Region','.amazonaws.com/',!Ref 'Stage' ] ]
 
-  java11ExecFunctionArn:
+  java17ExecFunctionArn:
     Description: "Java 11 Execution Lambda Function ARN"
-    Value: !GetAtt java11ExecFunction.Arn
+    Value: !GetAtt java17ExecFunction.Arn
 
-  java11ExecFunctionIamRole:
+  java17ExecFunctionIamRole:
     Description: "Implicit IAM Role created for the Java 11 Execution function"
-    Value: !GetAtt java11ExecFunctionRole.Arn
+    Value: !GetAtt java17ExecFunctionRole.Arn

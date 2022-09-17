@@ -2,6 +2,7 @@ package nomad
 
 import (
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/assert"
@@ -93,6 +94,27 @@ func TestFindOrCreateTask(t *testing.T) {
 		assert.NotNil(t, task)
 		assert.Equal(t, 1, len(group.Tasks))
 		assert.Equal(t, expectedTask, task)
+	})
+}
+
+func TestSetForcePullFlag(t *testing.T) {
+	_, job := helpers.CreateTemplateJob()
+	taskGroup := FindAndValidateDefaultTaskGroup(job)
+	task := FindAndValidateDefaultTask(taskGroup)
+
+	t.Run("Ignoring passed value if DisableForcePull", func(t *testing.T) {
+		config.Config.Nomad.DisableForcePull = true
+		SetForcePullFlag(job, true)
+		assert.Equal(t, false, task.Config["force_pull"])
+	})
+
+	t.Run("Using passed value if not DisableForcePull", func(t *testing.T) {
+		config.Config.Nomad.DisableForcePull = false
+		SetForcePullFlag(job, true)
+		assert.Equal(t, true, task.Config["force_pull"])
+
+		SetForcePullFlag(job, false)
+		assert.Equal(t, false, task.Config["force_pull"])
 	})
 }
 

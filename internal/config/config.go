@@ -42,7 +42,8 @@ var (
 				CertFile: "",
 				KeyFile:  "",
 			},
-			Namespace: "default",
+			Namespace:        "default",
+			DisableForcePull: false,
 		},
 		AWS: AWS{
 			Enabled:   false,
@@ -88,12 +89,13 @@ func (s *server) URL() *url.URL {
 
 // Nomad configures the used Nomad cluster.
 type Nomad struct {
-	Enabled   bool
-	Address   string
-	Port      int
-	Token     string
-	TLS       TLS
-	Namespace string
+	Enabled          bool
+	Address          string
+	Port             int
+	Token            string
+	TLS              TLS
+	Namespace        string
+	DisableForcePull bool
 }
 
 // URL returns the URL for the configured Nomad cluster.

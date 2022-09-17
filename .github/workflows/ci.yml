@@ -120,6 +120,7 @@ jobs:
       POSEIDON_AWS_ENABLED: true
       POSEIDON_AWS_ENDPOINT: ${{ secrets.POSEIDON_AWS_ENDPOINT }}
       POSEIDON_AWS_FUNCTIONS: ${{ secrets.POSEIDON_AWS_FUNCTIONS }}
+      POSEIDON_NOMAD_DISABLEFORCEPULL: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2

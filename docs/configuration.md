@@ -84,3 +84,14 @@ If the path is not set up correctly or with a different name, the placement of a
 ### Use gVisor as a sandbox
 
 We recommend using gVisor as a sandbox for the execution environments. First, [install gVisor following the official documentation](https://gvisor.dev/docs/user_guide/install/) and second, adapt the `/etc/docker/daemon.json` with reasonable defaults as shown in our [example configuration for Docker](./resources/docker.daemon.json).
+
+## Supported Docker Images
+
+In general, any Docker image can be used as an execution environment. 
+
+### Users
+
+If the `privilegedExecution` flag is set to `true` during execution, no additional user is required. Otherwise, the following two requirements must be met:
+
+- A non-privileged user called `user` needs to be present in the image. This user is used to execute the code.
+- The Docker image needs to have a `/sbin/setuser` script allowing the execution of the user code as a non-root user, similar to `/usr/bin/su`.

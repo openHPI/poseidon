@@ -676,28 +676,31 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 	var calledStdoutCommand, calledStderrCommand []string
 
 	// mock regular call
-	s.mockExecute(s.testCommandArray, commandExitCode, nil, func(args mock.Arguments) {
+	call := s.mockExecute(mock.AnythingOfType("[]string"), 0, nil, func(_ mock.Arguments) {})
+	call.Run(func(args mock.Arguments) {
 		var ok bool
-		calledStdoutCommand, ok = args.Get(2).([]string)
+		calledCommand, ok := args.Get(2).([]string)
 		s.Require().True(ok)
 		writer, ok := args.Get(5).(io.Writer)
 		s.Require().True(ok)
-		_, err := writer.Write([]byte(s.expectedStdout))
+
+		s.Require().Equal(5, len(calledCommand))
+		isStderrCommand, err := regexp.MatchString("mkfifo.*", calledCommand[4])
 		s.Require().NoError(err)
-	})
-	// mock stderr call
-	s.mockExecute(mock.AnythingOfType("[]string"), stderrExitCode, nil, func(args mock.Arguments) {
-		var ok bool
-		calledStderrCommand, ok = args.Get(2).([]string)
-		s.Require().True(ok)
-		writer, ok := args.Get(5).(io.Writer)
-		s.Require().True(ok)
-		_, err := writer.Write([]byte(s.expectedStderr))
+		if isStderrCommand {
+			calledStderrCommand = calledCommand
+			_, err = writer.Write([]byte(s.expectedStderr))
+			call.ReturnArguments = mock.Arguments{stderrExitCode, nil}
+		} else {
+			calledStdoutCommand = calledCommand
+			_, err = writer.Write([]byte(s.expectedStdout))
+			call.ReturnArguments = mock.Arguments{commandExitCode, nil}
+		}
 		s.Require().NoError(err)
 	})
 
-	exitCode, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullio.Reader{}, &stdout, &stderr)
+	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY,
+		UnprivilegedExecution, nullio.Reader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
 	s.apiMock.AssertNumberOfCalls(s.T(), "Execute", 2)
@@ -725,10 +728,26 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 
 func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
 	config.Config.Server.InteractiveStderr = true
-	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
-	s.mockExecute(mock.AnythingOfType("[]string"), 1, nil, func(args mock.Arguments) {})
-	_, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullio.Reader{}, io.Discard, io.Discard)
+
+	call := s.mockExecute(mock.AnythingOfType("[]string"), 0, nil, func(_ mock.Arguments) {})
+	call.Run(func(args mock.Arguments) {
+		var ok bool
+		calledCommand, ok := args.Get(2).([]string)
+		s.Require().True(ok)
+
+		s.Require().Equal(5, len(calledCommand))
+		isStderrCommand, err := regexp.MatchString("mkfifo.*", calledCommand[4])
+		s.Require().NoError(err)
+		if isStderrCommand {
+			call.ReturnArguments = mock.Arguments{1, nil}
+		} else {
+			call.ReturnArguments = mock.Arguments{1, tests.ErrDefault}
+		}
+		s.Require().NoError(err)
+	})
+
+	_, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, UnprivilegedExecution,
+		nullio.Reader{}, io.Discard, io.Discard)
 	s.Equal(tests.ErrDefault, err)
 }
 
@@ -738,7 +757,8 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 	commandExitCode := 42
 
 	// mock regular call
-	s.mockExecute(s.testCommandArray, commandExitCode, nil, func(args mock.Arguments) {
+	expectedCommand := setUserCommand(s.testCommandArray, UnprivilegedExecution)
+	s.mockExecute(expectedCommand, commandExitCode, nil, func(args mock.Arguments) {
 		stdout, ok := args.Get(5).(io.Writer)
 		s.Require().True(ok)
 		_, err := stdout.Write([]byte(s.expectedStdout))
@@ -749,8 +769,8 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 		s.Require().NoError(err)
 	})
 
-	exitCode, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullio.Reader{}, &stdout, &stderr)
+	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY,
+		UnprivilegedExecution, nullio.Reader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
 	s.apiMock.AssertNumberOfCalls(s.T(), "Execute", 1)
@@ -761,15 +781,16 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 
 func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError() {
 	config.Config.Server.InteractiveStderr = false
-	s.mockExecute(s.testCommandArray, 1, tests.ErrDefault, func(args mock.Arguments) {})
-	_, err := s.nomadAPIClient.
-		ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, nullio.Reader{}, io.Discard, io.Discard)
+	expectedCommand := setUserCommand(s.testCommandArray, UnprivilegedExecution)
+	s.mockExecute(expectedCommand, 1, tests.ErrDefault, func(args mock.Arguments) {})
+	_, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, UnprivilegedExecution,
+		nullio.Reader{}, io.Discard, io.Discard)
 	s.ErrorIs(err, tests.ErrDefault)
 }
 
 func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
-	err error, runFunc func(arguments mock.Arguments)) {
-	s.apiMock.On("Execute", s.allocationID, s.ctx, command, withTTY,
+	err error, runFunc func(arguments mock.Arguments)) *mock.Call {
+	return s.apiMock.On("Execute", s.allocationID, s.ctx, command, withTTY,
 		mock.Anything, mock.Anything, mock.Anything).
 		Run(runFunc).
 		Return(exitCode, err)

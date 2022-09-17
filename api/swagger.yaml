@@ -338,6 +338,10 @@ paths:
                   description: The command to be executed. The working directory for this execution is the working directory of the image of the execution environment
                   type: string
                   example: python exercise.py
+                privilegedExecution:
+                  description: Specifies if the command should be executed as an privileged user.
+                  type: boolean
+                  default: false
                 environment:
                   description: Environment variables for this execution. The keys of this object are the variable names and the value of each key is the value of the variable with the same name. The environment variables of the system remain accessible.
                   type: object

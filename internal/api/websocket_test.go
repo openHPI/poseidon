@@ -100,7 +100,8 @@ func (s *WebSocketTestSuite) TestWebsocketConnection() {
 	s.Run("Executes the request in the runner", func() {
 		<-time.After(tests.ShortTimeout)
 		s.apiMock.AssertCalled(s.T(), "ExecuteCommand",
-			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("bool"),
+			mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	s.Run("Can send input", func() {
@@ -405,6 +406,7 @@ var executionRequestSleep = dto.ExecutionRequest{Command: "sleep infinity"}
 // until the execution receives a SIGQUIT.
 func mockAPIExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 	canceled := make(chan bool, 1)
+
 	mockAPIExecute(api, &executionRequestSleep,
 		func(_ string, ctx context.Context, _ []string, _ bool,
 			stdin io.Reader, stdout io.Writer, stderr io.Writer,
@@ -446,12 +448,12 @@ func mockAPIExecuteExitNonZero(api *nomad.ExecutorAPIMock) {
 // corresponding to the given ExecutionRequest is called.
 func mockAPIExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
 	run func(runnerId string, ctx context.Context, command []string, tty bool,
-		stdin io.Reader, stdout, stderr io.Writer) (int, error),
-) {
+		stdin io.Reader, stdout, stderr io.Writer) (int, error)) {
 	call := api.On("ExecuteCommand",
 		mock.AnythingOfType("string"),
 		mock.Anything,
 		request.FullCommand(),
+		mock.AnythingOfType("bool"),
 		mock.AnythingOfType("bool"),
 		mock.Anything,
 		mock.Anything,
@@ -461,9 +463,9 @@ func mockAPIExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
 			args.Get(1).(context.Context),
 			args.Get(2).([]string),
 			args.Get(3).(bool),
-			args.Get(4).(io.Reader),
-			args.Get(5).(io.Writer),
-			args.Get(6).(io.Writer))
+			args.Get(5).(io.Reader),
+			args.Get(6).(io.Writer),
+			args.Get(7).(io.Writer))
 		call.ReturnArguments = mock.Arguments{exit, err}
 	})
 }

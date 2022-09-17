@@ -224,7 +224,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_PermissionDenied() {
 		newFileContent := []byte("New content")
 		copyFilesRequestByteString, err := json.Marshal(&dto.UpdateFileSystemRequest{
 			Copy: []dto.File{
-				{Path: "/dev/sda", Content: []byte(tests.DefaultFileContent)},
+				{Path: "/proc/1/environ", Content: []byte(tests.DefaultFileContent)},
 				{Path: tests.DefaultFileName, Content: newFileContent},
 			},
 		})
@@ -237,7 +237,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_PermissionDenied() {
 		internalServerError := new(dto.InternalServerError)
 		err = json.NewDecoder(resp.Body).Decode(internalServerError)
 		s.NoError(err)
-		s.Contains(internalServerError.Message, "Cannot open: Permission denied")
+		s.Contains(internalServerError.Message, "Cannot open: ")
 		_ = resp.Body.Close()
 
 		s.Run("File content can be printed on runner", func() {
@@ -257,7 +257,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_PermissionDenied() {
 				newFileContent := []byte("New content")
 				copyFilesRequestByteString, err := json.Marshal(&dto.UpdateFileSystemRequest{
 					Copy: []dto.File{
-						{Path: "/dev/sda", Content: []byte(tests.DefaultFileContent)},
+						{Path: "/proc/1/environ", Content: []byte(tests.DefaultFileContent)},
 						{Path: tests.DefaultFileName, Content: newFileContent},
 					},
 				})
@@ -271,7 +271,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_PermissionDenied() {
 
 				stdout, stderr := s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName)
 				s.Equal(string(newFileContent), stdout)
-				s.Contains(stderr, "Permission denied")
+				s.Contains(stderr, "Exception")
 			})
 		}
 	})

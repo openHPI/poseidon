@@ -17,11 +17,14 @@ type RunnerRequest struct {
 
 // ExecutionRequest is the expected json structure of the request body for the ExecuteCommand function.
 type ExecutionRequest struct {
-	Command     string
-	TimeLimit   int
-	Environment map[string]string
+	Command             string
+	PrivilegedExecution bool
+	TimeLimit           int
+	Environment         map[string]string
 }
 
+// FullCommand joins the environment variables and the passed command into an "sh -c" wrapped command.
+// It does not handle the TimeLimit or the PrivilegedExecution flag.
 func (er *ExecutionRequest) FullCommand() []string {
 	command := make([]string, 0)
 	command = append(command, "env")

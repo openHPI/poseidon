@@ -111,8 +111,8 @@ type ExecuteInteractivelyTestSuite struct {
 
 func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 	s.apiMock = &nomad.ExecutorAPIMock{}
-	s.mockedExecuteCommandCall = s.apiMock.
-		On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, true, mock.Anything, mock.Anything, mock.Anything).
+	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
+		true, false, mock.Anything, mock.Anything, mock.Anything).
 		Return(0, nil)
 	s.timer = &InactivityTimerMock{}
 	s.timer.On("ResetTimeout").Return()
@@ -142,7 +142,7 @@ func (s *ExecuteInteractivelyTestSuite) TestCallsApi() {
 
 	time.Sleep(tests.ShortTimeout)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", tests.DefaultRunnerID, mock.Anything, request.FullCommand(),
-		true, mock.Anything, mock.Anything, mock.Anything)
+		true, false, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
@@ -173,7 +173,7 @@ func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
 func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 	quit := make(chan struct{})
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
-		stdin, ok := args.Get(4).(io.Reader)
+		stdin, ok := args.Get(5).(io.Reader)
 		s.Require().True(ok)
 		buffer := make([]byte, 1) //nolint:makezero,lll // If the length is zero, the Read call never reads anything. gofmt want this alignment.
 		for n := 0; !(n == 1 && buffer[0] == SIGQUIT); {
@@ -257,12 +257,12 @@ func (s *UpdateFileSystemTestSuite) SetupTest() {
 		api:             s.apiMock,
 	}
 	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything,
-		mock.Anything, false, mock.Anything, mock.Anything, mock.Anything).
+		mock.Anything, false, mock.AnythingOfType("bool"), mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			var ok bool
 			s.command, ok = args.Get(2).([]string)
 			s.Require().True(ok)
-			s.stdin, ok = args.Get(4).(*bytes.Buffer)
+			s.stdin, ok = args.Get(5).(*bytes.Buffer)
 			s.Require().True(ok)
 		}).Return(0, nil)
 }
@@ -274,7 +274,7 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtr
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
-		false, mock.Anything, mock.Anything, mock.Anything)
+		false, mock.AnythingOfType("bool"), mock.Anything, mock.Anything, mock.Anything)
 	s.Regexp("tar --extract --absolute-names", s.command)
 }
 
@@ -297,7 +297,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false,
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
@@ -348,7 +348,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{tests.DefaultFileName}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false,
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
 	s.Regexp(fmt.Sprintf("rm[^;]+%s' *;", regexp.QuoteMeta(tests.DefaultFileName)), s.command)
 }
@@ -357,7 +357,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{"/some/potentially/harmful'filename"}}
 	err := s.runner.UpdateFileSystem(copyRequest)
 	s.NoError(err)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false,
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
 	s.Contains(strings.Join(s.command, " "), "'/some/potentially/harmful'\\''filename'")
 }

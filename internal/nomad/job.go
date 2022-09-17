@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"strconv"
 	"strings"
@@ -146,7 +147,11 @@ func FindAndValidateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 func SetForcePullFlag(job *nomadApi.Job, value bool) {
 	taskGroup := FindAndValidateDefaultTaskGroup(job)
 	task := FindAndValidateDefaultTask(taskGroup)
-	task.Config["force_pull"] = value
+	if config.Config.Nomad.DisableForcePull {
+		task.Config["force_pull"] = false
+	} else {
+		task.Config["force_pull"] = value
+	}
 }
 
 // IsEnvironmentTemplateID checks if the passed job id belongs to a template job.

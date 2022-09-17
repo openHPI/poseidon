@@ -42,6 +42,8 @@ nomad:
     keyfile: ./poseidon.key
   # Nomad namespace to use. If unset, 'default' is used
   namespace: poseidon
+  # Prefer local Docker images over pulling them from a registry. Images with the `latest` tag will always be force pulled by Nomad regardless of this configuration.
+  disableforcepull: true
 
 aws:
   # Specifies whether AWS should be used as executor.

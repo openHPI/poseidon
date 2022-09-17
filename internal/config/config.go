@@ -65,9 +65,8 @@ var (
 	configurationInitialized = false
 	log                      = logging.GetLogger("config")
 	TLSConfig                = &tls.Config{
-		MinVersion:               tls.VersionTLS13,
-		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		PreferServerCipherSuites: true,
+		MinVersion:       tls.VersionTLS13,
+		CurvePreferences: []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
 	}
 	ErrConfigInitialized = errors.New("configuration is already initialized")
 )

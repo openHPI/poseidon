@@ -6,14 +6,14 @@ Poseidon can be configured to suit different use cases.
 ## Poseidon
 
 The file `config/config.go` contains a configuration struct containing all possible configuration options for Poseidon. The file also defines default values for most of the configuration options.  
-The options *can* be overridden with a yaml configuration file whose path can be configured with the flag `-config`. By default, Poseidon searches for `configuration.yaml` in the working directory. `configuration.example.yaml` is an example for a configuration file and contains explanations for all options.
+The options *can* be overridden with a yaml configuration file whose path can be configured with the flag `-config`. By default, Poseidon searches for `configuration.yaml` in the working directory. `configuration.example.yaml` is an example for a configuration file and contains explanations for all options. The keys of the options specified in the configuration file must be written in lowercase.  
 The options *can* also be overridden by environment variables. Currently, only the Go types `string`, `int`, `bool` and `struct` (nested) are implemented. The name of the environment variable is constructed as follows: `POSEIDON_(<name of nested struct>_)*<name of field>` (all letters are uppercase).
 
 The precedence of configuration possibilities is:
 
 1. Environment variables
-1. Configuration file
-1. Default values
+2. Configuration file
+3. Default values
 
 If a value is not specified, the value of the subsequent possibility is used.
 

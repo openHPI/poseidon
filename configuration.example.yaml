@@ -16,9 +16,9 @@ server:
     # The path to the key file used for TLS
     keyfile: ./poseidon.key
   # If true, an additional WebSocket connection will be opened to split stdout and stderr when executing interactively
-  interactiveStderr: true
+  interactivestderr: true
   # If set, the file at the given path overwrites the default Nomad job file in internal/environment/template-environment-job.hcl
-  templateJobFile: ./poseidon.hcl
+  templatejobfile: ./poseidon.hcl
 
 # Configuration of the used Nomad cluster
 nomad:

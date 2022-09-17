@@ -90,6 +90,7 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, s
 		return nil, nil, ErrorUnknownExecution
 	}
 	hideEnvironmentVariables(request, "AWS")
+	request.PrivilegedExecution = true // AWS does not support multiple users at this moment.
 	command, ctx, cancel := prepareExecution(request)
 	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)

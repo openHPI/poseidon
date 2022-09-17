@@ -82,6 +82,19 @@ func (s *E2ETestSuite) TestOutputToStderr() {
 	}
 }
 
+func (s *E2ETestSuite) TestUserNomad() {
+	s.Run("unprivileged", func() {
+		stdout, _, _ := ExecuteNonInteractive(&s.Suite, tests.DefaultEnvironmentIDAsInteger,
+			&dto.ExecutionRequest{Command: "id --name --user", PrivilegedExecution: false}, nil)
+		s.Require().NotEqual("root", stdout)
+	})
+	s.Run("privileged", func() {
+		stdout, _, _ := ExecuteNonInteractive(&s.Suite, tests.DefaultEnvironmentIDAsInteger,
+			&dto.ExecutionRequest{Command: "id --name --user", PrivilegedExecution: true}, nil)
+		s.Require().Equal("root\r\n", stdout)
+	})
+}
+
 // AWS environments do not support stdin at this moment therefore they cannot take this test.
 func (s *E2ETestSuite) TestCommandHead() {
 	hello := "Hello World!"

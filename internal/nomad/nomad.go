@@ -70,7 +70,8 @@ type ExecutorAPI interface {
 	// ExecuteCommand executes the given command in the allocation with the given id.
 	// It writes the output of the command to stdout/stderr and reads input from stdin.
 	// If tty is true, the command will run with a tty.
-	ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool,
+	// Iff privilegedExecution is true, the command will be executed privileged.
+	ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool, privilegedExecution bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// MarkRunnerAsUsed marks the runner with the given ID as used. It also stores the timeout duration in the metadata.
@@ -390,12 +391,13 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 // In order for the stderr splitting to work, the command must have the structure
 // []string{..., "sh", "-c", "my-command"}.
 func (a *APIClient) ExecuteCommand(allocationID string,
-	ctx context.Context, command []string, tty bool,
+	ctx context.Context, command []string, tty bool, privilegedExecution bool,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if tty && config.Config.Server.InteractiveStderr {
-		return a.executeCommandInteractivelyWithStderr(allocationID, ctx, command, stdin, stdout, stderr)
+		return a.executeCommandInteractivelyWithStderr(allocationID, ctx, command, privilegedExecution, stdin, stdout, stderr)
 	}
-	exitCode, err := a.apiQuerier.Execute(allocationID, ctx, command, tty, stdin, stdout, stderr)
+	exitCode, err := a.apiQuerier.
+		Execute(allocationID, ctx, setUserCommand(command, privilegedExecution), tty, stdin, stdout, stderr)
 	if err != nil {
 		return 1, fmt.Errorf("error executing command in API: %w", err)
 	}
@@ -408,7 +410,7 @@ func (a *APIClient) ExecuteCommand(allocationID string,
 // to be served both over stdout. This function circumvents this by creating a fifo for the stderr
 // of the command and starting a second execution that reads the stderr from that fifo.
 func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, ctx context.Context,
-	command []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	command []string, privilegedExecution bool, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	// Use current nano time to make the stderr fifo kind of unique.
 	currentNanoTime := time.Now().UnixNano()
 	// We expect the command to be like []string{..., "sh", "-c", "my-command"}.
@@ -422,7 +424,8 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 		defer cancel()
 
 		// Catch stderr in separate execution.
-		exit, err := a.Execute(allocationID, ctx, stderrFifoCommand(currentNanoTime), true,
+		stdErrCommand := setUserCommand(stderrFifoCommand(currentNanoTime), privilegedExecution)
+		exit, err := a.Execute(allocationID, ctx, stdErrCommand, true,
 			nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
 		if err != nil {
 			log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
@@ -430,7 +433,8 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 		stderrExitChan <- exit
 	}()
 
-	exit, err := a.Execute(allocationID, ctx, command, true, stdin, stdout, io.Discard)
+	exit, err := a.
+		Execute(allocationID, ctx, setUserCommand(command, privilegedExecution), true, stdin, stdout, io.Discard)
 
 	// Wait until the stderr catch command finished to make sure we receive all output.
 	<-stderrExitChan
@@ -450,7 +454,24 @@ const (
 	// redirected to the fifo.
 	// Example: "until [ -e my.fifo ]; do sleep 0.01; done; (echo \"my.fifo exists\") 2> my.fifo".
 	stderrWrapperCommandFormat = "until [ -e %s ]; do sleep 0.01; done; (%s) 2> %s"
+
+	// setUserBinaryPath is due to Poseidon requires the setuser script for Nomad environments.
+	setUserBinaryPath = "/sbin/setuser"
+	// setUserBinaryUser is the user that is used and required by Poseidon for Nomad environments.
+	setUserBinaryUser = "user"
+	// PrivilegedExecution is to indicate the privileged execution of the passed command.
+	PrivilegedExecution = true
+	// UnprivilegedExecution is to indicate the unprivileged execution of the passed command.
+	UnprivilegedExecution = false
 )
+
+func setUserCommand(command []string, privilegedExecution bool) []string {
+	if privilegedExecution {
+		return command
+	} else {
+		return append([]string{setUserBinaryPath, setUserBinaryUser}, command...)
+	}
+}
 
 func stderrFifoCommand(id int64) []string {
 	stderrFifoPath := stderrFifo(id)

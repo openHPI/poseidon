@@ -110,7 +110,7 @@ func (r *NomadJob) ExecuteInteractively(
 	exit := make(chan ExitInfo, 1)
 	ctxExecute, cancelExecute := context.WithCancel(context.Background())
 
-	go r.executeCommand(ctxExecute, command, stdin, stdout, stderr, exitInternal)
+	go r.executeCommand(ctxExecute, command, request.PrivilegedExecution, stdin, stdout, stderr, exitInternal)
 	go r.handleExitOrContextDone(ctx, cancelExecute, exitInternal, exit, stdin)
 
 	return exit, cancel, nil
@@ -130,6 +130,7 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) er
 	stdOut := bytes.Buffer{}
 	stdErr := bytes.Buffer{}
 	exitCode, err := r.api.ExecuteCommand(r.id, context.Background(), updateFileCommand, false,
+		nomad.PrivilegedExecution, // All files should be written and owned by a privileged user #211.
 		&tarBuffer, &stdOut, &stdErr)
 
 	if err != nil {
@@ -167,10 +168,10 @@ func prepareExecution(request *dto.ExecutionRequest) (
 	return command, ctx, cancel
 }
 
-func (r *NomadJob) executeCommand(ctx context.Context, command []string,
+func (r *NomadJob) executeCommand(ctx context.Context, command []string, privilegedExecution bool,
 	stdin io.ReadWriter, stdout, stderr io.Writer, exit chan<- ExitInfo,
 ) {
-	exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, stdin, stdout, stderr)
+	exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, privilegedExecution, stdin, stdout, stderr)
 	if err == nil && r.TimeoutPassed() {
 		err = ErrorRunnerInactivityTimeout
 	}

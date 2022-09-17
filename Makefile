@@ -97,7 +97,7 @@ deploy/dockerfiles: ## Clone Dockerfiles repository
 	@git clone git@github.com:$(REPOSITORY_OWNER)/dockerfiles.git deploy/dockerfiles
 
 .PHONY: e2e-test-docker-image
-e2e-test-docker-image: deploy/dockerfiles ## Build Docker image that is pushed to a registry and used in e2e tests
+e2e-test-docker-image: deploy/dockerfiles ## Build Docker image that is used in e2e tests
 	@docker build -t $(E2E_TEST_DOCKER_IMAGE) deploy/dockerfiles/$(E2E_TEST_DOCKER_CONTAINER)/$(E2E_TEST_DOCKER_TAG)
 
 .PHONY: e2e-test

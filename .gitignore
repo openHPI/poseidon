@@ -16,3 +16,6 @@ tests/e2e/configuration.yaml
 # IDE files
 /.idea
 *.iml
+
+# Dockerfiles repository
+deploy/dockerfiles

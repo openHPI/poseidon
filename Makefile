@@ -3,13 +3,14 @@ REPOSITORY_OWNER = "openHPI"
 PKG := "github.com/$(REPOSITORY_OWNER)/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)"
 UNIT_TESTS = $(shell go list ./... | grep -v /e2e)
 
-DOCKER_E2E_CONTAINER_NAME := "$(PROJECT_NAME)-e2e-tests"
 DOCKER_TAG := "poseidon:latest"
 DOCKER_OPTS := -v $(shell pwd)/configuration.yaml:/configuration.yaml
 LOWER_REPOSITORY_OWNER = $(shell echo $(REPOSITORY_OWNER) | tr A-Z a-z)
-REGISTRY = "ghcr.io"
-TAG = ":main"
-E2E_TEST_DOCKER_IMAGE = "$(REGISTRY)/$(LOWER_REPOSITORY_OWNER)/$(DOCKER_E2E_CONTAINER_NAME)$(TAG)"
+
+# Define image to be used in e2e tests. Requires `make` to be available.
+E2E_TEST_DOCKER_CONTAINER := co_execenv_java
+E2E_TEST_DOCKER_TAG := 17
+E2E_TEST_DOCKER_IMAGE = "$(LOWER_REPOSITORY_OWNER)/$(E2E_TEST_DOCKER_CONTAINER):$(E2E_TEST_DOCKER_TAG)"
 
 default: help
 
@@ -92,24 +93,27 @@ coverage: deps ## Generate code coverage report
 coverhtml: coverage ## Generate HTML coverage report
 	@go tool cover -html=coverage_cleaned.cov -o coverage_unit.html
 
-.PHONY: e2e-test-docker-image ## Build Docker image that is pushed to a registry and used in e2e tests
-e2e-test-docker-image: deploy/e2e-test-image/Dockerfile
-	@docker build -t $(E2E_TEST_DOCKER_IMAGE) deploy/e2e-test-image
+deploy/dockerfiles: ## Clone Dockerfiles repository
+	@git clone git@github.com:$(REPOSITORY_OWNER)/dockerfiles.git deploy/dockerfiles
+
+.PHONY: e2e-test-docker-image
+e2e-test-docker-image: deploy/dockerfiles ## Build Docker image that is pushed to a registry and used in e2e tests
+	@docker build -t $(E2E_TEST_DOCKER_IMAGE) deploy/dockerfiles/$(E2E_TEST_DOCKER_CONTAINER)/$(E2E_TEST_DOCKER_TAG)
 
 .PHONY: e2e-test
 e2e-test: deps ## Run e2e tests
-	@docker pull $(E2E_TEST_DOCKER_IMAGE)
+	@[ -z "$(docker images -q $(E2E_TEST_DOCKER_IMAGE))" ] || docker pull $(E2E_TEST_DOCKER_IMAGE)
 	@go test -count=1 ./tests/e2e -v -args -dockerImage="$(E2E_TEST_DOCKER_IMAGE)"
 
 .PHONY: e2e-docker
 e2e-docker: docker ## Run e2e tests against the Docker container
 	docker run --rm -p 127.0.0.1:7200:7200 \
-       --name $(DOCKER_E2E_CONTAINER_NAME) \
+       --name $(E2E_TEST_DOCKER_CONTAINER) \
        -e POSEIDON_SERVER_ADDRESS=0.0.0.0 \
        $(DOCKER_OPTS) \
        $(DOCKER_TAG) &
 	@timeout 30s bash -c "until curl -s -o /dev/null http://127.0.0.1:7200/; do sleep 0.1; done"
-	@make e2e-test || EXIT=$$?; docker stop $(DOCKER_E2E_CONTAINER_NAME); exit $$EXIT
+	@make e2e-test || EXIT=$$?; docker stop $(E2E_TEST_DOCKER_CONTAINER); exit $$EXIT
 
 # See https://aquasecurity.github.io/trivy/v0.18.1/integrations/gitlab-ci/
 TRIVY_VERSION = $(shell wget -qO - "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')

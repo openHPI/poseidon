@@ -175,6 +175,21 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: poseidon
+      - name: Get current branch name
+        id: branch-name
+        uses: tj-actions/branch-names@v6
+      - name: Checkout matching branch for Dockerfiles (optional)
+        id: checkout-dockerfiles
+        if: steps.branch-name.outputs.is_default == 'false'
+        uses: actions/checkout@v3
+        continue-on-error: true
+        with:
+          repository: openHPI/dockerfiles
+          path: deploy/dockerfiles
+          ref: ${{ steps.branch-name.outputs.current_branch }}
+      - name: Build new e2e test image (optional)
+        if: steps.checkout-dockerfiles.outcome == 'success'
+        run: make e2e-test-docker-image
       - name: Run e2e tests
         run: |
           sudo ./nomad agent -dev -log-level=WARN -config e2e-config.hcl &

@@ -330,6 +330,12 @@ paths:
             format: pct-encoded # rfc 3986
             default: "./"
           required: false
+        - name: privilegedExecution
+          in: query
+          description: Specifies if the command should be executed as an privileged user.
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Success. Returns the listing of the runner's filesystem.
@@ -423,6 +429,12 @@ paths:
             format: pct-encoded # rfc 3986
             example: "./flag.txt"
           required: true
+        - name: privilegedExecution
+          in: query
+          description: Specifies if the command should be executed as an privileged user.
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Success. Returns the file.

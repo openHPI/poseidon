@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -156,8 +157,9 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		fileHeader := listFilesResponse.Files[0]
 		s.Equal(dto.FilePath("./"+tests.DefaultFileName), fileHeader.Name)
 		s.Equal(dto.EntryTypeRegularFile, fileHeader.EntryType)
-		s.Equal("user", fileHeader.Owner)
-		s.Equal("user", fileHeader.Group)
+		// ToDo: Reconsider if those files should be owned by root.
+		s.Equal("root", fileHeader.Owner)
+		s.Equal("root", fileHeader.Group)
 		s.Equal("rwxr--r--", fileHeader.Permissions)
 	})
 }
@@ -352,6 +354,8 @@ func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 		response, err := http.Get(getFileURL.String())
 		s.Require().NoError(err)
 		s.Equal(http.StatusOK, response.StatusCode)
+		s.Equal(strconv.Itoa(len(newFileContent)), response.Header.Get("Content-Length"))
+		s.Equal("attachment; filename=\""+tests.DefaultFileName+"\"", response.Header.Get("Content-Disposition"))
 		content, err := io.ReadAll(response.Body)
 		s.Require().NoError(err)
 		s.Equal(newFileContent, content)

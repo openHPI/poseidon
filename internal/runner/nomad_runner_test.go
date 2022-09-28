@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/nullio"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/tests"
@@ -403,6 +404,6 @@ func NewRunner(id string, manager Accessor) Runner {
 func (s *UpdateFileSystemTestSuite) TestGetFileContentReturnsErrorIfExitCodeIsNotZero() {
 	s.mockedExecuteCommandCall.RunFn = nil
 	s.mockedExecuteCommandCall.Return(1, nil)
-	err := s.runner.GetFileContent("", &bytes.Buffer{}, false, context.Background())
+	err := s.runner.GetFileContent("", logging.NewLoggingResponseWriter(nil), false, context.Background())
 	s.ErrorIs(err, ErrFileNotFound)
 }

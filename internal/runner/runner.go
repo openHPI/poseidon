@@ -7,6 +7,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
+	"net/http"
 )
 
 type ExitInfo struct {
@@ -54,7 +55,7 @@ type Runner interface {
 
 	// GetFileContent streams the file content at the requested path into the Writer provided at content.
 	// The result is streamed via the io.Writer in order to not overload the memory with user input.
-	GetFileContent(path string, content io.Writer, privilegedExecution bool, ctx context.Context) error
+	GetFileContent(path string, content http.ResponseWriter, privilegedExecution bool, ctx context.Context) error
 
 	// Destroy destroys the Runner in Nomad.
 	Destroy() error

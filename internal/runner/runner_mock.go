@@ -4,9 +4,11 @@ package runner
 
 import (
 	context "context"
-	io "io"
+	http "net/http"
 
 	dto "github.com/openHPI/poseidon/pkg/dto"
+
+	io "io"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -93,11 +95,11 @@ func (_m *RunnerMock) ExecutionExists(id string) bool {
 }
 
 // GetFileContent provides a mock function with given fields: path, content, privilegedExecution, ctx
-func (_m *RunnerMock) GetFileContent(path string, content io.Writer, privilegedExecution bool, ctx context.Context) error {
+func (_m *RunnerMock) GetFileContent(path string, content http.ResponseWriter, privilegedExecution bool, ctx context.Context) error {
 	ret := _m.Called(path, content, privilegedExecution, ctx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, io.Writer, bool, context.Context) error); ok {
+	if rf, ok := ret.Get(0).(func(string, http.ResponseWriter, bool, context.Context) error); ok {
 		r0 = rf(path, content, privilegedExecution, ctx)
 	} else {
 		r0 = ret.Error(0)

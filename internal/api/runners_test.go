@@ -315,8 +315,8 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsInternalServ
 func (s *UpdateFileSystemRouteTestSuite) TestListFileSystem() {
 	routeURL, err := s.router.Get(UpdateFileSystemPath).URL(RunnerIDKey, tests.DefaultMockID)
 	s.Require().NoError(err)
-	mockCall := s.runnerMock.On("ListFileSystem",
-		mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.Anything, mock.Anything)
+	mockCall := s.runnerMock.On("ListFileSystem", mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"), mock.Anything, mock.AnythingOfType("bool"), mock.Anything)
 
 	s.Run("default parameters", func() {
 		mockCall.Run(func(args mock.Arguments) {
@@ -375,8 +375,8 @@ func (s *UpdateFileSystemRouteTestSuite) TestListFileSystem() {
 func (s *UpdateFileSystemRouteTestSuite) TestFileContent() {
 	routeURL, err := s.router.Get(FileContentRawPath).URL(RunnerIDKey, tests.DefaultMockID)
 	s.Require().NoError(err)
-	mockCall := s.runnerMock.
-		On("GetFileContent", mock.AnythingOfType("string"), mock.Anything, mock.Anything)
+	mockCall := s.runnerMock.On("GetFileContent",
+		mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool"), mock.Anything)
 
 	s.Run("Not Found", func() {
 		mockCall.Return(runner.ErrFileNotFound)

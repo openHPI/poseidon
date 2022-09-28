@@ -28,6 +28,7 @@ const (
 	ExecutionIDKey          = "executionID"
 	PathKey                 = "path"
 	RecursiveKey            = "recursive"
+	PrivilegedExecutionKey  = "privilegedExecution"
 )
 
 type RunnerController struct {
@@ -93,9 +94,13 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	if path == "" {
 		path = "./"
 	}
+	privilegedExecution, err := strconv.ParseBool(request.URL.Query().Get(PrivilegedExecutionKey))
+	if err != nil {
+		privilegedExecution = false
+	}
 
 	writer.Header().Set("Content-Type", "application/json")
-	err = targetRunner.ListFileSystem(path, recursive, writer, request.Context())
+	err = targetRunner.ListFileSystem(path, recursive, writer, privilegedExecution, request.Context())
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writeClientError(writer, err, http.StatusFailedDependency)
 		return
@@ -129,9 +134,13 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
 	path := request.URL.Query().Get(PathKey)
+	privilegedExecution, err := strconv.ParseBool(request.URL.Query().Get(PrivilegedExecutionKey))
+	if err != nil {
+		privilegedExecution = false
+	}
 
 	writer.Header().Set("Content-Type", "application/octet-stream")
-	err := targetRunner.GetFileContent(path, writer, request.Context())
+	err = targetRunner.GetFileContent(path, writer, privilegedExecution, request.Context())
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writeClientError(writer, err, http.StatusFailedDependency)
 		return

@@ -104,7 +104,7 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, s
 // ListFileSystem is currently not supported with this aws serverless function.
 // This is because the function execution ends with the termination of the workload code.
 // So an on-demand file system listing after the termination is not possible. Also, we do not want to copy all files.
-func (w *AWSFunctionWorkload) ListFileSystem(_ string, _ bool, _ io.Writer, _ context.Context) error {
+func (w *AWSFunctionWorkload) ListFileSystem(_ string, _ bool, _ io.Writer, _ bool, _ context.Context) error {
 	return dto.ErrNotSupported
 }
 
@@ -125,7 +125,7 @@ func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequ
 // GetFileContent is currently not supported with this aws serverless function.
 // This is because the function execution ends with the termination of the workload code.
 // So an on-demand file streaming after the termination is not possible. Also, we do not want to copy all files.
-func (w *AWSFunctionWorkload) GetFileContent(_ string, _ io.Writer, _ context.Context) error {
+func (w *AWSFunctionWorkload) GetFileContent(_ string, _ io.Writer, _ bool, _ context.Context) error {
 	return dto.ErrNotSupported
 }
 

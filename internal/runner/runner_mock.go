@@ -92,13 +92,13 @@ func (_m *RunnerMock) ExecutionExists(id string) bool {
 	return r0
 }
 
-// GetFileContent provides a mock function with given fields: path, content, ctx
-func (_m *RunnerMock) GetFileContent(path string, content io.Writer, ctx context.Context) error {
-	ret := _m.Called(path, content, ctx)
+// GetFileContent provides a mock function with given fields: path, content, privilegedExecution, ctx
+func (_m *RunnerMock) GetFileContent(path string, content io.Writer, privilegedExecution bool, ctx context.Context) error {
+	ret := _m.Called(path, content, privilegedExecution, ctx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, io.Writer, context.Context) error); ok {
-		r0 = rf(path, content, ctx)
+	if rf, ok := ret.Get(0).(func(string, io.Writer, bool, context.Context) error); ok {
+		r0 = rf(path, content, privilegedExecution, ctx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -120,13 +120,13 @@ func (_m *RunnerMock) ID() string {
 	return r0
 }
 
-// ListFileSystem provides a mock function with given fields: path, recursive, result, ctx
-func (_m *RunnerMock) ListFileSystem(path string, recursive bool, result io.Writer, ctx context.Context) error {
-	ret := _m.Called(path, recursive, result, ctx)
+// ListFileSystem provides a mock function with given fields: path, recursive, result, privilegedExecution, ctx
+func (_m *RunnerMock) ListFileSystem(path string, recursive bool, result io.Writer, privilegedExecution bool, ctx context.Context) error {
+	ret := _m.Called(path, recursive, result, privilegedExecution, ctx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, bool, io.Writer, context.Context) error); ok {
-		r0 = rf(path, recursive, result, ctx)
+	if rf, ok := ret.Get(0).(func(string, bool, io.Writer, bool, context.Context) error); ok {
+		r0 = rf(path, recursive, result, privilegedExecution, ctx)
 	} else {
 		r0 = ret.Error(0)
 	}

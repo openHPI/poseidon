@@ -139,7 +139,7 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 		privilegedExecution = false
 	}
 
-	writer.Header().Set("Content-Type", "application/octet-stream")
+	writer.Header().Set("Content-Disposition", "attachment; filename=\""+path+"\"")
 	err = targetRunner.GetFileContent(path, writer, privilegedExecution, request.Context())
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writeClientError(writer, err, http.StatusFailedDependency)

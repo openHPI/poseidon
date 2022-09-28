@@ -13,6 +13,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
+	"net/http"
 	"time"
 )
 
@@ -125,7 +126,7 @@ func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequ
 // GetFileContent is currently not supported with this aws serverless function.
 // This is because the function execution ends with the termination of the workload code.
 // So an on-demand file streaming after the termination is not possible. Also, we do not want to copy all files.
-func (w *AWSFunctionWorkload) GetFileContent(_ string, _ io.Writer, _ bool, _ context.Context) error {
+func (w *AWSFunctionWorkload) GetFileContent(_ string, _ http.ResponseWriter, _ bool, _ context.Context) error {
 	return dto.ErrNotSupported
 }
 

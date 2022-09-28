@@ -18,11 +18,22 @@ var (
 	headerLineRegex = regexp.MustCompile(`([-aAbcCdDlMnpPsw?])([-rwxXsStT]{9})([+ ])\d+ (.+?) (.+?) +(\d+) (\d+) (.*)$`)
 )
 
+const (
+	headerLineGroupEntryType   = 1
+	headerLineGroupPermissions = 2
+	headerLineGroupACL         = 3
+	headerLineGroupOwner       = 4
+	headerLineGroupGroup       = 5
+	headerLineGroupSize        = 6
+	headerLineGroupTimestamp   = 7
+	headerLineGroupName        = 8
+)
+
 // Ls2JsonWriter implements io.Writer.
 // It streams the passed data to the Target and transforms the data into the json format.
 type Ls2JsonWriter struct {
 	Target         io.Writer
-	jsonStartSend  bool
+	jsonStartSent  bool
 	setCommaPrefix bool
 	remaining      []byte
 	latestPath     []byte
@@ -64,20 +75,20 @@ func (w *Ls2JsonWriter) Write(p []byte) (int, error) {
 }
 
 func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
-	if !w.jsonStartSend {
+	if !w.jsonStartSent {
 		count, err = w.Target.Write([]byte("{\"files\": ["))
 		if count == 0 || err != nil {
 			log.WithError(err).Warn("Could not write to target")
 			err = fmt.Errorf("could not write to target: %w", err)
 		} else {
-			w.jsonStartSend = true
+			w.jsonStartSent = true
 		}
 	}
 	return count, err
 }
 
 func (w *Ls2JsonWriter) Close() {
-	if w.jsonStartSend {
+	if w.jsonStartSent {
 		count, err := w.Target.Write([]byte("]}"))
 		if count == 0 || err != nil {
 			log.WithError(err).Warn("Could not Close ls2json writer")
@@ -118,22 +129,20 @@ func (w *Ls2JsonWriter) writeLine(line []byte) (count int, err error) {
 }
 
 func (w *Ls2JsonWriter) parseFileHeader(matches [][]byte) ([]byte, error) {
-	entryType := dto.EntryType(matches[1][0])
-	permissions := string(matches[2])
-	acl := string(matches[3])
+	entryType := dto.EntryType(matches[headerLineGroupEntryType][0])
+	permissions := string(matches[headerLineGroupPermissions])
+	acl := string(matches[headerLineGroupACL])
 	if acl == "+" {
 		permissions += "+"
 	}
 
-	owner := string(matches[4])
-	group := string(matches[5])
-	size, err1 := strconv.Atoi(string(matches[6]))
-	timestamp, err2 := strconv.Atoi(string(matches[7]))
+	size, err1 := strconv.Atoi(string(matches[headerLineGroupSize]))
+	timestamp, err2 := strconv.Atoi(string(matches[headerLineGroupTimestamp]))
 	if err1 != nil || err2 != nil {
 		return nil, fmt.Errorf("could not parse file details: %w %+v", err1, err2)
 	}
 
-	name := dto.FilePath(append(w.latestPath, matches[8]...))
+	name := dto.FilePath(append(w.latestPath, matches[headerLineGroupName]...))
 	linkTarget := dto.FilePath("")
 	if entryType == dto.EntryTypeLink {
 		parts := strings.Split(string(name), " -> ")
@@ -153,8 +162,8 @@ func (w *Ls2JsonWriter) parseFileHeader(matches [][]byte) ([]byte, error) {
 		Size:             size,
 		ModificationTime: timestamp,
 		Permissions:      permissions,
-		Owner:            owner,
-		Group:            group,
+		Owner:            string(matches[headerLineGroupOwner]),
+		Group:            string(matches[headerLineGroupGroup]),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not marshal file header: %w", err)

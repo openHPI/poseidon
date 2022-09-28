@@ -15,6 +15,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/nullio"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -27,6 +28,9 @@ const (
 	// executionTimeoutGracePeriod is the time to wait after sending a SIGQUIT signal to a timed out execution.
 	// If the execution does not return after this grace period, the runner is destroyed.
 	executionTimeoutGracePeriod = 3 * time.Second
+	// lsCommand is our format for parsing information of a file(system).
+	lsCommand          = "ls -l --time-style=+%s -1 --literal"
+	lsCommandRecursive = lsCommand + " --recursive"
 )
 
 var (
@@ -121,9 +125,9 @@ func (r *NomadJob) ExecuteInteractively(
 func (r *NomadJob) ListFileSystem(
 	path string, recursive bool, content io.Writer, privilegedExecution bool, ctx context.Context) error {
 	r.ResetTimeout()
-	command := "ls -l --time-style=+%s -1 --literal"
+	command := lsCommand
 	if recursive {
-		command += " --recursive"
+		command = lsCommandRecursive
 	}
 
 	ls2json := &nullio.Ls2JsonWriter{Target: content}
@@ -174,13 +178,17 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) er
 	return nil
 }
 
-func (r *NomadJob) GetFileContent(path string, content io.Writer, privilegedExecution bool, ctx context.Context) error {
+func (r *NomadJob) GetFileContent(
+	path string, content http.ResponseWriter, privilegedExecution bool, ctx context.Context) error {
 	r.ResetTimeout()
 
-	retrieveCommand := (&dto.ExecutionRequest{Command: fmt.Sprintf("cat %q", path)}).FullCommand()
+	contentLengthWriter := &nullio.ContentLengthWriter{Target: content}
+	retrieveCommand := (&dto.ExecutionRequest{
+		Command: fmt.Sprintf("%s %q && cat %q", lsCommand, path, path),
+	}).FullCommand()
 	// Improve: Instead of using io.Discard use a **fixed-sized** buffer. With that we could improve the error message.
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
-		&nullio.Reader{}, content, io.Discard)
+		&nullio.Reader{}, contentLengthWriter, io.Discard)
 
 	if err != nil {
 		return fmt.Errorf("%w: nomad error during retrieve file content copy: %v",

@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/nomad v1.3.5
 	github.com/hashicorp/nomad/api v0.0.0-20220916201402-78e298562941
-	github.com/influxdata/influxdb-client-go/v2 v2.10.0
+	github.com/influxdata/influxdb-client-go/v2 v2.11.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
@@ -96,5 +96,4 @@ require (
 	google.golang.org/grpc v1.49.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

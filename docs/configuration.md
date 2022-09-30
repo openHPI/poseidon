@@ -95,3 +95,27 @@ If the `privilegedExecution` flag is set to `true` during execution, no addition
 
 - A non-privileged user called `user` needs to be present in the image. This user is used to execute the code.
 - The Docker image needs to have a `/sbin/setuser` script allowing the execution of the user code as a non-root user, similar to `/usr/bin/su`.
+
+### Executable Commands
+
+In order to function properly, Poseidon expects the following commands to be available within the PATH:
+
+- `cat`
+- `env`
+- `ls`
+- `mkfifo`
+- `rm`
+- `sh` (not compatible with `zsh`)
+- `sleep`
+- `tar` (including the `--absolute-names` option)
+- `true`
+- `unset`
+- `whoami`
+
+Tests need additional commands:
+
+- `echo`
+- `head`
+- `id`
+- `make`
+- `tail`

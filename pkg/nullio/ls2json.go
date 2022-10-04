@@ -15,7 +15,8 @@ import (
 var (
 	log             = logging.GetLogger("nullio")
 	pathLineRegex   = regexp.MustCompile(`(.*):$`)
-	headerLineRegex = regexp.MustCompile(`([-aAbcCdDlMnpPsw?])([-rwxXsStT]{9})([+ ])\d+ (.+?) (.+?) +(\d+) (\d+) (.*)$`)
+	headerLineRegex = regexp.
+			MustCompile(`([-aAbcCdDlMnpPsw?])([-rwxXsStT]{9})(\+?) +\d+ +(.+?) +(.+?) +(\d+) +(\d+) +(.*)$`)
 )
 
 const (
@@ -37,6 +38,10 @@ type Ls2JsonWriter struct {
 	setCommaPrefix bool
 	remaining      []byte
 	latestPath     []byte
+}
+
+func (w *Ls2JsonWriter) HasStartedWriting() bool {
+	return w.jsonStartSent
 }
 
 func (w *Ls2JsonWriter) Write(p []byte) (int, error) {

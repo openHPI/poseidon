@@ -134,15 +134,17 @@ func (r *NomadJob) ListFileSystem(
 	defer ls2json.Close()
 	retrieveCommand := (&dto.ExecutionRequest{Command: fmt.Sprintf("%s %q", command, path)}).FullCommand()
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
-		&nullio.Reader{}, ls2json, io.Discard)
-	if err != nil {
-		return fmt.Errorf("%w: nomad error during retrieve file headers: %v",
+		&nullio.Reader{Ctx: ctx}, ls2json, io.Discard)
+	switch {
+	case ls2json.HasStartedWriting():
+		err = nil
+	case err != nil:
+		err = fmt.Errorf("%w: nomad error during retrieve file headers: %v",
 			nomad.ErrorExecutorCommunicationFailed, err)
+	case exitCode != 0:
+		err = ErrFileNotFound
 	}
-	if exitCode != 0 {
-		return ErrFileNotFound
-	}
-	return nil
+	return err
 }
 
 func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest) error {
@@ -188,7 +190,7 @@ func (r *NomadJob) GetFileContent(
 	}).FullCommand()
 	// Improve: Instead of using io.Discard use a **fixed-sized** buffer. With that we could improve the error message.
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
-		&nullio.Reader{}, contentLengthWriter, io.Discard)
+		&nullio.Reader{Ctx: ctx}, contentLengthWriter, io.Discard)
 
 	if err != nil {
 		return fmt.Errorf("%w: nomad error during retrieve file content copy: %v",

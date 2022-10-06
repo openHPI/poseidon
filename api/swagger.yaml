@@ -5,6 +5,9 @@ info:
     This API is used by CodeOcean to run code in runners.
   version: '0.2.2'
 
+servers:
+  - url: '/api/v1'
+
 components:
   schemas:
     ExecutionEnvironment:
@@ -88,6 +91,13 @@ components:
       required:
         - message
       additionalProperties: false
+
+  securitySchemes:
+    poseidonAuthToken:
+      type: apiKey
+      in: header
+      name: Poseidon-Token
+      description: A security token that might be required depending on the Poseidon configuration.
 
   responses:
     BadRequest:
@@ -173,6 +183,8 @@ paths:
       description: Return Return the current availability and usage of runners.
       tags:
         - miscellaneous
+      security:
+        - poseidonAuthToken: [ ]
       responses:
         "200":
           description: Success. Returns all execution environments
@@ -218,6 +230,8 @@ paths:
       description: Provide a runner with the requested execution environment to the client (CodeOcean).
       tags:
         - runner
+      security:
+        - poseidonAuthToken: [ ]
       requestBody:
         description: Runner attributes
         required: true
@@ -282,6 +296,8 @@ paths:
       description: The runner is no longer in use and should be destroyed.
       tags:
         - runner
+      security:
+        - poseidonAuthToken: [ ]
       parameters:
         - name: runnerId
           in: path
@@ -314,6 +330,8 @@ paths:
       description: List all files available in the runner.
       tags:
         - runner
+      security:
+        - poseidonAuthToken: [ ]
       parameters:
         - name: recursive
           in: query
@@ -362,6 +380,8 @@ paths:
       description: Delete the files with the given paths from the file system of the specified runner. Afterwards, copy the enclosed files to the runner. Existing files get overwritten and results of previous file copy operations on the same runner are present when executing multiple requests.
       tags:
         - runner
+      security:
+        - poseidonAuthToken: [ ]
       requestBody:
         description: Files to copy or delete
         required: true
@@ -413,6 +433,8 @@ paths:
       description: Download the specified file from the selected runner.
       tags:
         - runner
+      security:
+        - poseidonAuthToken: [ ]
       parameters:
         - name: runnerId
           description: Runner on which the command should be executed
@@ -456,6 +478,8 @@ paths:
       description: Execute a command in the runner. Whether this starts the actual execution or only prepares a Websocket URL to start it depends on the implementation.
       tags:
         - runner
+      security:
+        - poseidonAuthToken: [ ]
       parameters:
         - name: runnerId
           description: Runner on which the command should be executed
@@ -524,6 +548,8 @@ paths:
       description: The url including all parameters will be generated and returned by the `execute` route. This is a WebSocket endpoint. The schema for the WS communication is described in `websocket.schema.json`.
       tags:
         - runner
+      security:
+        - poseidonAuthToken: [ ]
       parameters:
         - name: runnerId
           description: Runner on which the execution is created.
@@ -557,6 +583,8 @@ paths:
       description: List all execution environments the API is aware of.
       tags:
         - execution environment
+      security:
+        - poseidonAuthToken: [ ]
       parameters:
         - name: fetch
           in: query
@@ -594,6 +622,8 @@ paths:
       description: Get a representation of the execution environment specified by the id.
       tags:
         - execution environment
+      security:
+        - poseidonAuthToken: [ ]
       parameters:
         - name: fetch
           in: query
@@ -620,6 +650,8 @@ paths:
       description: This is used for keeping execution environments in sync between the client and the provider of this API. By sending a request with an id, the execution environment is created if it does not exist and updated otherwise.
       tags:
         - execution environment
+      security:
+        - poseidonAuthToken: [ ]
       requestBody:
         description: The new execution environment
         required: true
@@ -641,6 +673,8 @@ paths:
       description: Remove the specified execution environment from the API.
       tags:
         - execution environment
+      security:
+        - poseidonAuthToken: [ ]
       responses:
         "204":
           description: The execution environment was deleted.

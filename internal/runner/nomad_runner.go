@@ -3,6 +3,7 @@ package runner
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -184,13 +185,16 @@ func (r *NomadJob) GetFileContent(
 	path string, content http.ResponseWriter, privilegedExecution bool, ctx context.Context) error {
 	r.ResetTimeout()
 
-	contentLengthWriter := &nullio.ContentLengthWriter{Target: content}
+	fileContentWriter, closer := gunzipWriter(content, ctx)
+	defer closer()
+
 	retrieveCommand := (&dto.ExecutionRequest{
-		Command: fmt.Sprintf("%s %q && cat %q", lsCommand, path, path),
+		Command: fmt.Sprintf("%s %q && gzip --stdout %q", lsCommand, path, path),
 	}).FullCommand()
+	stdErr := &bytes.Buffer{}
 	// Improve: Instead of using io.Discard use a **fixed-sized** buffer. With that we could improve the error message.
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
-		&nullio.Reader{Ctx: ctx}, contentLengthWriter, io.Discard)
+		&nullio.Reader{Ctx: ctx}, fileContentWriter, stdErr)
 
 	if err != nil {
 		return fmt.Errorf("%w: nomad error during retrieve file content copy: %v",
@@ -200,6 +204,46 @@ func (r *NomadJob) GetFileContent(
 		return ErrFileNotFound
 	}
 	return nil
+}
+
+// gunzipWriter decompresses the data written by the nullio.ContentLengthWriter.
+func gunzipWriter(content http.ResponseWriter, ctx context.Context) (writer io.Writer, closer func()) {
+	pipeDstReader, pipeSrcWriter := io.Pipe()
+	closer = func() {
+		if err := pipeSrcWriter.Close(); err != nil {
+			log.WithError(err).Warn("error closing decompression pipe writer.")
+		}
+	}
+
+	contentLengthWriter := &nullio.ContentLengthWriter{
+		Target:   pipeSrcWriter,
+		Callback: func(contentLength string) { content.Header().Set("Content-Length", contentLength) },
+	}
+
+	go func(readingCtx context.Context) {
+		defer func(pipeReader *io.PipeReader) {
+			if err := pipeReader.Close(); err != nil {
+				log.WithError(err).Warn("error closing decompression pipe reader.")
+			}
+		}(pipeDstReader)
+
+		decompressed, err := gzip.NewReader(pipeDstReader)
+		if err != nil {
+			log.WithError(err).Warn("could not create gzip reader")
+			return
+		}
+
+		for readingCtx.Err() == nil {
+			const chunkSize = 1024
+			_, err := io.CopyN(content, decompressed, chunkSize)
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				log.WithError(err).Warn("error copying decompressed data to response.")
+			}
+		}
+	}(ctx)
+	return contentLengthWriter, closer
 }
 
 func (r *NomadJob) Destroy() error {

@@ -3,7 +3,7 @@ package nullio
 import (
 	"errors"
 	"fmt"
-	"net/http"
+	"io"
 )
 
 var ErrRegexMatching = errors.New("could not match content length")
@@ -12,7 +12,8 @@ var ErrRegexMatching = errors.New("could not match content length")
 // It parses the size from the first line as Content Length Header and streams the following data to the Target.
 // The first line is expected to follow the format headerLineRegex.
 type ContentLengthWriter struct {
-	Target           http.ResponseWriter
+	Target           io.Writer
+	Callback         func(contentLength string)
 	contentLengthSet bool
 	firstLine        []byte
 }
@@ -38,7 +39,7 @@ func (w *ContentLengthWriter) Write(p []byte) (count int, err error) {
 			return 0, ErrRegexMatching
 		}
 		size := string(matches[headerLineGroupSize])
-		w.Target.Header().Set("Content-Length", size)
+		w.Callback(size)
 		w.contentLengthSet = true
 
 		if i < len(p)-1 {

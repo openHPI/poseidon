@@ -168,6 +168,7 @@ func (s *E2ETestSuite) expectEnvironmentVariables(stdout string) []string {
 	s.Contains(variables, "CODEOCEAN=true")
 	for _, envVar := range variables {
 		s.False(strings.HasPrefix(envVar, "AWS"))
+		s.False(strings.HasPrefix(envVar, "NOMAD_"))
 	}
 	return variables
 }

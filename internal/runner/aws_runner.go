@@ -37,6 +37,8 @@ type AWSFunctionWorkload struct {
 	runningExecutions map[execution.ID]context.CancelFunc
 	onDestroy         DestroyRunnerHandler
 	environment       ExecutionEnvironment
+	ctx               context.Context
+	cancel            context.CancelFunc
 }
 
 // NewAWSFunctionWorkload creates a new AWSFunctionWorkload with the provided id.
@@ -47,15 +49,18 @@ func NewAWSFunctionWorkload(
 		return nil, fmt.Errorf("failed generating runner id: %w", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	workload := &AWSFunctionWorkload{
 		id:                newUUID.String(),
 		fs:                make(map[dto.FilePath][]byte),
 		runningExecutions: make(map[execution.ID]context.CancelFunc),
 		onDestroy:         onDestroy,
 		environment:       environment,
+		ctx:               ctx,
+		cancel:            cancel,
 	}
 	workload.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
-		monitoring.MeasurementExecutionsAWS, monitorExecutionsRunnerID(environment.ID(), workload.id), time.Minute)
+		monitoring.MeasurementExecutionsAWS, monitorExecutionsRunnerID(environment.ID(), workload.id), time.Minute, ctx)
 	workload.InactivityTimer = NewInactivityTimer(workload, func(_ Runner) error {
 		return workload.Destroy()
 	})
@@ -92,7 +97,7 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, s
 	}
 	hideEnvironmentVariables(request, "AWS")
 	request.PrivilegedExecution = true // AWS does not support multiple users at this moment.
-	command, ctx, cancel := prepareExecution(request)
+	command, ctx, cancel := prepareExecution(request, w.ctx)
 	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)
 
@@ -131,9 +136,7 @@ func (w *AWSFunctionWorkload) GetFileContent(_ string, _ http.ResponseWriter, _ 
 }
 
 func (w *AWSFunctionWorkload) Destroy() error {
-	for _, cancel := range w.runningExecutions {
-		cancel()
-	}
+	w.cancel()
 	if err := w.onDestroy(w); err != nil {
 		return fmt.Errorf("error while destroying aws runner: %w", err)
 	}

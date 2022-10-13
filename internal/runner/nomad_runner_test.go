@@ -127,6 +127,7 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,
 		onDestroy:       s.manager.Return,
+		ctx:             context.Background(),
 	}
 }
 
@@ -207,6 +208,7 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 	})
 	timeLimit := 1
 	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
+	s.runner.cancel = func() {}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil)
 	s.Require().NoError(err)

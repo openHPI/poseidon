@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
@@ -151,13 +152,16 @@ func (m *NomadEnvironmentManager) Load() error {
 
 // newNomadEnvironmetFromJob creates a Nomad environment from the passed Nomad job definition.
 func newNomadEnvironmetFromJob(job *nomadApi.Job, apiClient nomad.ExecutorAPI) *NomadEnvironment {
+	ctx, cancel := context.WithCancel(context.Background())
 	e := &NomadEnvironment{
 		apiClient: apiClient,
 		jobHCL:    templateEnvironmentJobHCL,
 		job:       job,
+		ctx:       ctx,
+		cancel:    cancel,
 	}
 	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
-		runner.MonitorEnvironmentID[runner.Runner](e.ID()), time.Minute)
+		runner.MonitorEnvironmentID[runner.Runner](e.ID()), time.Minute, ctx)
 	return e
 }
 

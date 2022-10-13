@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/assert"
@@ -123,7 +124,7 @@ func TestNewMonitoredLocalStorage_Callback(t *testing.T) {
 		} else if eventType == Creation {
 			callbackAdditions++
 		}
-	}, 0)
+	}, 0, context.Background())
 
 	assertCallbackCounts := func(test func(), totalCalls, additions, deletions int) {
 		beforeTotal := callbackCalls
@@ -174,11 +175,13 @@ func TestNewMonitoredLocalStorage_Callback(t *testing.T) {
 }
 
 func TestNewMonitoredLocalStorage_Periodically(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	callbackCalls := 0
 	NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, eventType EventType) {
 		callbackCalls++
 		assert.Equal(t, Periodically, eventType)
-	}, 200*time.Millisecond)
+	}, 200*time.Millisecond, ctx)
 
 	time.Sleep(tests.ShortTimeout)
 	assert.Equal(t, 1, callbackCalls)

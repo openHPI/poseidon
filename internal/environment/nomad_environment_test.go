@@ -18,7 +18,7 @@ import (
 func TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists(t *testing.T) {
 	_, job := helpers.CreateTemplateJob()
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
-	environment := &NomadEnvironment{nil, "", job, nil}
+	environment := &NomadEnvironment{nil, "", job, nil, nil, nil}
 
 	if assert.Equal(t, 0, len(defaultTaskGroup.Networks)) {
 		environment.SetNetworkAccess(true, []uint16{})
@@ -30,7 +30,7 @@ func TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists(t *testing.T) {
 func TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkExists(t *testing.T) {
 	_, job := helpers.CreateTemplateJob()
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
-	environment := &NomadEnvironment{nil, "", job, nil}
+	environment := &NomadEnvironment{nil, "", job, nil, nil, nil}
 
 	networkResource := &nomadApi.NetworkResource{Mode: "cni/secure-bridge"}
 	defaultTaskGroup.Networks = []*nomadApi.NetworkResource{networkResource}
@@ -59,7 +59,7 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 			_, testJob := helpers.CreateTemplateJob()
 			testTaskGroup := nomad.FindAndValidateDefaultTaskGroup(testJob)
 			testTask := nomad.FindAndValidateDefaultTask(testTaskGroup)
-			testEnvironment := &NomadEnvironment{nil, "", job, nil}
+			testEnvironment := &NomadEnvironment{nil, "", job, nil, nil, nil}
 
 			testEnvironment.SetNetworkAccess(false, ports)
 			mode, ok := testTask.Config["network_mode"]
@@ -74,7 +74,7 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 			_, testJob := helpers.CreateTemplateJob()
 			testTaskGroup := nomad.FindAndValidateDefaultTaskGroup(testJob)
 			testTask := nomad.FindAndValidateDefaultTask(testTaskGroup)
-			testEnvironment := &NomadEnvironment{nil, "", testJob, nil}
+			testEnvironment := &NomadEnvironment{nil, "", testJob, nil, nil, nil}
 
 			testEnvironment.SetNetworkAccess(true, ports)
 			require.Equal(t, 1, len(testTaskGroup.Networks))
@@ -114,7 +114,8 @@ func TestRegisterFailsWhenNomadJobRegistrationFails(t *testing.T) {
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, storage.NewLocalStorage[runner.Runner]()}
+	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{},
+		storage.NewLocalStorage[runner.Runner](), nil, nil}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -131,7 +132,8 @@ func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, storage.NewLocalStorage[runner.Runner]()}
+	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{},
+		storage.NewLocalStorage[runner.Runner](), nil, nil}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -147,7 +149,8 @@ func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{}, storage.NewLocalStorage[runner.Runner]()}
+	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{},
+		storage.NewLocalStorage[runner.Runner](), nil, nil}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -173,7 +176,8 @@ func TestTwoSampleAddExactlyTwoRunners(t *testing.T) {
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 
 	_, job := helpers.CreateTemplateJob()
-	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job, storage.NewLocalStorage[runner.Runner]()}
+	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job,
+		storage.NewLocalStorage[runner.Runner](), nil, nil}
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
 	runner2 := &runner.RunnerMock{}
@@ -206,7 +210,8 @@ func TestSampleDoesNotSetForcePullFlag(t *testing.T) {
 	})
 
 	_, job := helpers.CreateTemplateJob()
-	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job, storage.NewLocalStorage[runner.Runner]()}
+	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job,
+		storage.NewLocalStorage[runner.Runner](), nil, nil}
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
 	environment.AddRunner(runner1)

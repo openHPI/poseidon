@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
@@ -22,12 +23,13 @@ type AbstractManager struct {
 }
 
 // NewAbstractManager creates a new abstract runner manager that keeps track of all runners of one kind.
+// Since this manager is currently directly bound to the lifespan of Poseidon, it does not need a context cancel.
 func NewAbstractManager() *AbstractManager {
 	return &AbstractManager{
 		environments: storage.NewMonitoredLocalStorage[ExecutionEnvironment](
-			monitoring.MeasurementEnvironments, monitorEnvironmentData, 0),
+			monitoring.MeasurementEnvironments, monitorEnvironmentData, 0, context.Background()),
 		usedRunners: storage.NewMonitoredLocalStorage[Runner](
-			monitoring.MeasurementUsedRunner, MonitorRunnersEnvironmentID, time.Hour),
+			monitoring.MeasurementUsedRunner, MonitorRunnersEnvironmentID, time.Hour, context.Background()),
 	}
 }
 

@@ -29,6 +29,8 @@ type NomadEnvironment struct {
 	jobHCL      string
 	job         *nomadApi.Job
 	idleRunners storage.Storage[runner.Runner]
+	ctx         context.Context
+	cancel      context.CancelFunc
 }
 
 func NewNomadEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
@@ -37,9 +39,10 @@ func NewNomadEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobH
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
 	}
 
-	e := &NomadEnvironment{apiClient, jobHCL, job, nil}
+	ctx, cancel := context.WithCancel(context.Background())
+	e := &NomadEnvironment{apiClient, jobHCL, job, nil, ctx, cancel}
 	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
-		runner.MonitorEnvironmentID[runner.Runner](id), time.Minute)
+		runner.MonitorEnvironmentID[runner.Runner](id), time.Minute, ctx)
 	return e, nil
 }
 
@@ -218,6 +221,7 @@ func (n *NomadEnvironment) Register() error {
 }
 
 func (n *NomadEnvironment) Delete() error {
+	n.cancel()
 	err := n.removeRunners()
 	if err != nil {
 		return err

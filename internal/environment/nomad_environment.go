@@ -31,7 +31,7 @@ type NomadEnvironment struct {
 	idleRunners storage.Storage[runner.Runner]
 }
 
-func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
+func NewNomadEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
 	job, err := parseJob(jobHCL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
@@ -39,14 +39,14 @@ func NewNomadEnvironment(apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvi
 
 	e := &NomadEnvironment{apiClient, jobHCL, job, nil}
 	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
-		runner.MonitorEnvironmentID[runner.Runner](e.ID()), time.Minute)
+		runner.MonitorEnvironmentID[runner.Runner](id), time.Minute)
 	return e, nil
 }
 
 func NewNomadEnvironmentFromRequest(
 	apiClient nomad.ExecutorAPI, jobHCL string, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
 	*NomadEnvironment, error) {
-	environment, err := NewNomadEnvironment(apiClient, jobHCL)
+	environment, err := NewNomadEnvironment(id, apiClient, jobHCL)
 	if err != nil {
 		return nil, err
 	}

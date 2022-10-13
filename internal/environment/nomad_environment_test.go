@@ -156,13 +156,13 @@ func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing
 
 func TestParseJob(t *testing.T) {
 	t.Run("parses the given default job", func(t *testing.T) {
-		environment, err := NewNomadEnvironment(nil, templateEnvironmentJobHCL)
+		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil, templateEnvironmentJobHCL)
 		assert.NoError(t, err)
 		assert.NotNil(t, environment.job)
 	})
 
 	t.Run("returns error when given wrong job", func(t *testing.T) {
-		environment, err := NewNomadEnvironment(nil, "")
+		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil, "")
 		assert.Error(t, err)
 		assert.Nil(t, environment)
 	})

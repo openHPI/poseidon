@@ -87,10 +87,10 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 
 	s.Run("returns multiple environments", func() {
 		call.Run(func(args mock.Arguments) {
-			firstEnvironment, err := environment.NewNomadEnvironment(nil,
+			firstEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
 				"job \""+nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)+"\" {}")
 			s.Require().NoError(err)
-			secondEnvironment, err := environment.NewNomadEnvironment(nil,
+			secondEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
 				"job \""+nomad.TemplateJobID(tests.AnotherEnvironmentIDAsInteger)+"\" {}")
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{firstEnvironment, secondEnvironment}, nil}
@@ -149,7 +149,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 
 	s.Run("returns environment", func() {
 		call.Run(func(args mock.Arguments) {
-			testEnvironment, err := environment.NewNomadEnvironment(nil,
+			testEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
 				"job \""+nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)+"\" {}")
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{testEnvironment, nil}

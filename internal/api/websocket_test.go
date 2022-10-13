@@ -333,7 +333,7 @@ func newRunnerWithNotMockedRunnerManager(t *testing.T, apiMock *nomad.ExecutorAP
 
 	runnerID := tests.DefaultRunnerID
 	runnerJob := runner.NewNomadJob(runnerID, nil, apiMock, runnerManager.Return)
-	e, err := environment.NewNomadEnvironment(apiMock, "job \"template-0\" {}")
+	e, err := environment.NewNomadEnvironment(0, apiMock, "job \"template-0\" {}")
 	require.NoError(t, err)
 	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
 	require.NoError(t, err)

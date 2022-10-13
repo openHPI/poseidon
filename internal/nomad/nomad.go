@@ -12,6 +12,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/nullio"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -433,8 +434,8 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 		stderrExitChan <- exit
 	}()
 
-	exit, err := a.
-		Execute(allocationID, ctx, setUserCommand(command, privilegedExecution), true, stdin, stdout, io.Discard)
+	command = hideEnvironmentVariables(setUserCommand(command, privilegedExecution))
+	exit, err := a.Execute(allocationID, ctx, command, true, stdin, stdout, io.Discard)
 
 	// Wait until the stderr catch command finished to make sure we receive all output.
 	<-stderrExitChan
@@ -442,6 +443,13 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 }
 
 const (
+	// unsetEnvironmentVariablesFormat prepends the call to unset the passed variables before the actual command.
+	unsetEnvironmentVariablesFormat = "\"unset %s && %s\""
+	// unsetEnvironmentVariablesPrefix is the prefix of all environment variables that will be filtered.
+	unsetEnvironmentVariablesPrefix = "NOMAD_"
+	// unsetEnvironmentVariablesShell is the shell functionality to get all environment variables starting with the prefix.
+	unsetEnvironmentVariablesShell = "${!" + unsetEnvironmentVariablesPrefix + "@}"
+
 	// stderrFifoFormat represents the format we use for our stderr fifos. The %d should be unique for the execution
 	// as otherwise multiple executions are not possible.
 	// Example: "/tmp/stderr_1623330777825234133.fifo".
@@ -464,6 +472,11 @@ const (
 	// UnprivilegedExecution is to indicate the unprivileged execution of the passed command.
 	UnprivilegedExecution = false
 )
+
+func hideEnvironmentVariables(commands []string) []string {
+	command := strings.Join(commands, " ")
+	return []string{"sh", "-c", fmt.Sprintf(unsetEnvironmentVariablesFormat, unsetEnvironmentVariablesShell, command)}
+}
 
 func setUserCommand(command []string, privilegedExecution bool) []string {
 	if privilegedExecution {

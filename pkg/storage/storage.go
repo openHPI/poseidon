@@ -75,14 +75,14 @@ func NewLocalStorage[T any]() *localStorage[T] {
 // Iff callback is set, it will be called on a write operation.
 // Iff additionalEvents not zero, the duration will be used to periodically send additional monitoring events.
 func NewMonitoredLocalStorage[T any](
-	measurement string, callback WriteCallback[T], additionalEvents time.Duration) *localStorage[T] {
+	measurement string, callback WriteCallback[T], additionalEvents time.Duration, ctx context.Context) *localStorage[T] {
 	s := &localStorage[T]{
 		objects:     make(map[string]T),
 		measurement: measurement,
 		callback:    callback,
 	}
 	if additionalEvents != 0 {
-		go s.periodicallySendMonitoringData(additionalEvents)
+		go s.periodicallySendMonitoringData(additionalEvents, ctx)
 	}
 	return s
 }
@@ -172,8 +172,7 @@ func (s *localStorage[T]) sendMonitoringData(id string, o T, eventType EventType
 	}
 }
 
-func (s *localStorage[T]) periodicallySendMonitoringData(d time.Duration) {
-	ctx := context.Background()
+func (s *localStorage[T]) periodicallySendMonitoringData(d time.Duration, ctx context.Context) {
 	for ctx.Err() == nil {
 		stub := new(T)
 		s.sendMonitoringData("", *stub, Periodically, s.Length())

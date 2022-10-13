@@ -47,6 +47,8 @@ type NomadJob struct {
 	portMappings []nomadApi.PortMapping
 	api          nomad.ExecutorAPI
 	onDestroy    DestroyRunnerHandler
+	ctx          context.Context
+	cancel       context.CancelFunc
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.
@@ -55,14 +57,17 @@ type NomadJob struct {
 func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 	apiClient nomad.ExecutorAPI, onDestroy DestroyRunnerHandler,
 ) *NomadJob {
+	ctx, cancel := context.WithCancel(context.Background())
 	job := &NomadJob{
 		id:           id,
 		portMappings: portMappings,
 		api:          apiClient,
 		onDestroy:    onDestroy,
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 	job.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
-		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), id), time.Minute)
+		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), id), time.Minute, ctx)
 	job.InactivityTimer = NewInactivityTimer(job, onDestroy)
 	return job
 }
@@ -111,10 +116,10 @@ func (r *NomadJob) ExecuteInteractively(
 
 	r.ResetTimeout()
 
-	command, ctx, cancel := prepareExecution(request)
+	command, ctx, cancel := prepareExecution(request, r.ctx)
 	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)
-	ctxExecute, cancelExecute := context.WithCancel(context.Background())
+	ctxExecute, cancelExecute := context.WithCancel(r.ctx)
 
 	go r.executeCommand(ctxExecute, command, request.PrivilegedExecution, stdin, stdout, stderr, exitInternal)
 	go r.handleExitOrContextDone(ctx, cancelExecute, exitInternal, exit, stdin)
@@ -203,20 +208,21 @@ func (r *NomadJob) GetFileContent(
 }
 
 func (r *NomadJob) Destroy() error {
+	r.cancel()
 	if err := r.onDestroy(r); err != nil {
 		return fmt.Errorf("error while destroying runner: %w", err)
 	}
 	return nil
 }
 
-func prepareExecution(request *dto.ExecutionRequest) (
+func prepareExecution(request *dto.ExecutionRequest, environmentCtx context.Context) (
 	command []string, ctx context.Context, cancel context.CancelFunc,
 ) {
 	command = request.FullCommand()
 	if request.TimeLimit == 0 {
-		ctx, cancel = context.WithCancel(context.Background())
+		ctx, cancel = context.WithCancel(environmentCtx)
 	} else {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(request.TimeLimit)*time.Second)
+		ctx, cancel = context.WithTimeout(environmentCtx, time.Duration(request.TimeLimit)*time.Second)
 	}
 	return command, ctx, cancel
 }

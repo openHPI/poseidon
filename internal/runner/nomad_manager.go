@@ -10,6 +10,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
+	"github.com/openHPI/poseidon/pkg/util"
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"time"
@@ -54,9 +55,14 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 }
 
 func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int) {
-	err := m.apiClient.MarkRunnerAsUsed(runner.ID(), timeoutDuration)
+	err := util.RetryExponential(time.Second, func() (err error) {
+		if err = m.apiClient.MarkRunnerAsUsed(runner.ID(), timeoutDuration); err != nil {
+			err = fmt.Errorf("cannot mark runner as used: %w", err)
+		}
+		return
+	})
 	if err != nil {
-		err = m.Return(runner)
+		err := m.Return(runner)
 		if err != nil {
 			log.WithError(err).WithField("runnerID", runner.ID()).Error("can't mark runner as used and can't return runner")
 		}
@@ -65,9 +71,14 @@ func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int
 
 func (m *NomadRunnerManager) Return(r Runner) error {
 	r.StopTimeout()
-	err := m.apiClient.DeleteJob(r.ID())
+	err := util.RetryExponential(time.Second, func() (err error) {
+		if err = m.apiClient.DeleteJob(r.ID()); err != nil {
+			err = fmt.Errorf("error deleting runner in Nomad: %w", err)
+		}
+		return
+	})
 	if err != nil {
-		return fmt.Errorf("error deleting runner in Nomad: %w", err)
+		return fmt.Errorf("%w", err)
 	}
 	m.usedRunners.Delete(r.ID())
 	return nil

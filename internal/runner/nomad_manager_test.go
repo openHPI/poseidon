@@ -6,6 +6,7 @@ import (
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/storage"
+	"github.com/openHPI/poseidon/pkg/util"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -146,6 +147,7 @@ func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 func (s *ManagerTestSuite) TestClaimRemovesRunnerWhenMarkAsUsedFails() {
 	s.exerciseEnvironment.On("Sample", mock.Anything).Return(s.exerciseRunner, true)
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	util.MaxConnectionRetriesExponential = 1
 	modifyMockedCall(s.apiMock, "MarkRunnerAsUsed", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{tests.ErrDefault}
@@ -154,7 +156,7 @@ func (s *ManagerTestSuite) TestClaimRemovesRunnerWhenMarkAsUsedFails() {
 
 	claimedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	s.Require().NoError(err)
-	<-time.After(tests.ShortTimeout) // Claimed runners are marked as used asynchronously
+	<-time.After(time.Second + tests.ShortTimeout) // Claimed runners are marked as used asynchronously
 	s.apiMock.AssertCalled(s.T(), "DeleteJob", claimedRunner.ID())
 	_, ok := s.nomadRunnerManager.usedRunners.Get(claimedRunner.ID())
 	s.False(ok)

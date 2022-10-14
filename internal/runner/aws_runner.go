@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/pkg/execution"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
@@ -34,7 +33,7 @@ type AWSFunctionWorkload struct {
 	id                string
 	fs                map[dto.FilePath][]byte
 	executions        storage.Storage[*dto.ExecutionRequest]
-	runningExecutions map[execution.ID]context.CancelFunc
+	runningExecutions map[string]context.CancelFunc
 	onDestroy         DestroyRunnerHandler
 	environment       ExecutionEnvironment
 	ctx               context.Context
@@ -53,7 +52,7 @@ func NewAWSFunctionWorkload(
 	workload := &AWSFunctionWorkload{
 		id:                newUUID.String(),
 		fs:                make(map[dto.FilePath][]byte),
-		runningExecutions: make(map[execution.ID]context.CancelFunc),
+		runningExecutions: make(map[string]context.CancelFunc),
 		onDestroy:         onDestroy,
 		environment:       environment,
 		ctx:               ctx,
@@ -102,7 +101,7 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, s
 	exit := make(chan ExitInfo, 1)
 
 	go w.executeCommand(ctx, command, stdout, stderr, exitInternal)
-	go w.handleRunnerTimeout(ctx, exitInternal, exit, execution.ID(id))
+	go w.handleRunnerTimeout(ctx, exitInternal, exit, id)
 
 	return exit, cancel, nil
 }
@@ -220,10 +219,10 @@ func (w *AWSFunctionWorkload) receiveOutput(
 // handleRunnerTimeout listens for a runner timeout and aborts the execution in that case.
 // It listens via a context in runningExecutions that is canceled on the timeout event.
 func (w *AWSFunctionWorkload) handleRunnerTimeout(ctx context.Context,
-	exitInternal <-chan ExitInfo, exit chan<- ExitInfo, id execution.ID) {
+	exitInternal <-chan ExitInfo, exit chan<- ExitInfo, executionID string) {
 	executionCtx, cancelExecution := context.WithCancel(ctx)
-	w.runningExecutions[id] = cancelExecution
-	defer delete(w.runningExecutions, id)
+	w.runningExecutions[executionID] = cancelExecution
+	defer delete(w.runningExecutions, executionID)
 	defer close(exit)
 
 	select {

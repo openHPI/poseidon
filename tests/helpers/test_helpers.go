@@ -180,6 +180,26 @@ func HTTPPutJSON(url string, body interface{}) (response *http.Response, err err
 	return HTTPPut(url, reader)
 }
 
+func HTTPPostJSON(url string, body interface{}) (response *http.Response, err error) {
+	requestByteString, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal passed http post body: %w", err)
+	}
+	bodyReader := bytes.NewReader(requestByteString)
+
+	//nolint:noctx // we don't need a http.NewRequestWithContext in our tests
+	req, err := httpRequest(http.MethodPost, url, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error executing request: %w", err)
+	}
+	return resp, nil
+}
+
 const templateJobPriority = 100
 
 func CreateTemplateJob() (base, job *nomadApi.Job) {

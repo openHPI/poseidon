@@ -94,6 +94,7 @@ func initNomad() {
 		return
 	}
 	createDefaultEnvironment()
+	waitForDefaultEnvironment()
 }
 
 func createDefaultEnvironment() {
@@ -120,6 +121,28 @@ func createDefaultEnvironment() {
 	err = resp.Body.Close()
 	if err != nil {
 		log.Fatal("Failed closing body")
+	}
+}
+
+func waitForDefaultEnvironment() {
+	path := helpers.BuildURL(api.BasePath, api.RunnersPath)
+	body := &dto.RunnerRequest{
+		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
+		InactivityTimeout:      1,
+	}
+	var code int
+	const maxRetries = 60
+	for count := 0; count < maxRetries && code != http.StatusOK; count++ {
+		<-time.After(time.Second)
+		if resp, err := helpers.HTTPPostJSON(path, body); err == nil {
+			code = resp.StatusCode
+			log.WithField("count", count).WithField("statusCode", code).Info("Waiting for idle runners")
+		} else {
+			log.WithField("count", count).WithError(err).Warn("Waiting for idle runners")
+		}
+	}
+	if code != http.StatusOK {
+		log.Fatal("Failed to provide a runner")
 	}
 }
 

@@ -13,14 +13,13 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
+	"github.com/openHPI/poseidon/pkg/util"
 	"strconv"
 	"sync"
 	"time"
 )
 
-const (
-	portNumberBase = 10
-)
+const portNumberBase = 10
 
 var ErrScaleDown = errors.New("cannot scale down the environment")
 
@@ -246,7 +245,9 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 	r, ok := n.idleRunners.Sample()
 	if ok {
 		go func() {
-			err := n.createRunner(false)
+			err := util.RetryExponential(time.Second, func() error {
+				return n.createRunner(false)
+			})
 			if err != nil {
 				log.WithError(err).WithField("environmentID", n.ID()).Error("Couldn't create new runner for claimed one")
 			}

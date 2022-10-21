@@ -105,7 +105,7 @@ In order to function properly, Poseidon expects the following commands to be ava
 - `ls`
 - `mkfifo`
 - `rm`
-- `sh` (not compatible with `zsh`)
+- `bash` (not compatible with `sh` or `zsh`)
 - `sleep`
 - `tar` (including the `--absolute-names` option)
 - `true`

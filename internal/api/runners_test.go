@@ -236,6 +236,21 @@ func (s *RunnerRouteTestSuite) TestExecuteRoute() {
 
 		s.Equal(http.StatusBadRequest, recorder.Code)
 	})
+
+	s.Run("forbidden characters in command", func() {
+		recorder := httptest.NewRecorder()
+		executionRequest := dto.ExecutionRequest{
+			Command:   "echo 'forbidden'",
+			TimeLimit: 10,
+		}
+		body, err := json.Marshal(executionRequest)
+		s.Require().NoError(err)
+		request, err := http.NewRequest(http.MethodPost, path.String(), bytes.NewReader(body))
+		s.Require().NoError(err)
+
+		s.router.ServeHTTP(recorder, request)
+		s.Equal(http.StatusBadRequest, recorder.Code)
+	})
 }
 
 func TestUpdateFileSystemRouteTestSuite(t *testing.T) {

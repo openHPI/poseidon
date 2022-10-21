@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -30,6 +31,8 @@ const (
 	RecursiveKey            = "recursive"
 	PrivilegedExecutionKey  = "privilegedExecution"
 )
+
+var ErrForbiddenCharacter = errors.New("use of forbidden character")
 
 type RunnerController struct {
 	manager      runner.Accessor
@@ -158,6 +161,11 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Request) {
 	executionRequest := new(dto.ExecutionRequest)
 	if err := parseJSONRequestBody(writer, request, executionRequest); err != nil {
+		return
+	}
+	forbiddenCharacters := "'"
+	if strings.ContainsAny(executionRequest.Command, forbiddenCharacters) {
+		writeClientError(writer, ErrForbiddenCharacter, http.StatusBadRequest)
 		return
 	}
 

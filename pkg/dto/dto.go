@@ -37,7 +37,7 @@ func (er *ExecutionRequest) FullCommand() []string {
 	for variable, value := range er.Environment {
 		command = append(command, fmt.Sprintf("%s=%s", variable, value))
 	}
-	command = append(command, "sh", "-c", er.Command)
+	command = append(command, "bash", "-c", er.Command)
 	return command
 }
 

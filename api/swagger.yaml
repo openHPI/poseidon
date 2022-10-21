@@ -497,7 +497,7 @@ paths:
               type: object
               properties:
                 command:
-                  description: The command to be executed. The working directory for this execution is the working directory of the image of the execution environment
+                  description: The command to be executed. The working directory for this execution is the working directory of the image of the execution environment. Single quotation ' can not be used.
                   type: string
                   example: python exercise.py
                 privilegedExecution:

@@ -390,15 +390,15 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 // both on the stdout stream. However, if the InteractiveStderr server config option is true,
 // we make sure that stdout and stderr are split correctly.
 // In order for the stderr splitting to work, the command must have the structure
-// []string{..., "sh", "-c", "my-command"}.
+// []string{..., "bash", "-c", "my-command"}.
 func (a *APIClient) ExecuteCommand(allocationID string,
 	ctx context.Context, command []string, tty bool, privilegedExecution bool,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if tty && config.Config.Server.InteractiveStderr {
 		return a.executeCommandInteractivelyWithStderr(allocationID, ctx, command, privilegedExecution, stdin, stdout, stderr)
 	}
-	exitCode, err := a.apiQuerier.
-		Execute(allocationID, ctx, setUserCommand(command, privilegedExecution), tty, stdin, stdout, stderr)
+	command = prepareCommandWithoutTTY(command, privilegedExecution)
+	exitCode, err := a.apiQuerier.Execute(allocationID, ctx, command, tty, stdin, stdout, stderr)
 	if err != nil {
 		return 1, fmt.Errorf("error executing command in API: %w", err)
 	}
@@ -414,10 +414,6 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 	command []string, privilegedExecution bool, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	// Use current nano time to make the stderr fifo kind of unique.
 	currentNanoTime := time.Now().UnixNano()
-	// We expect the command to be like []string{..., "sh", "-c", "my-command"}.
-	oldCommand := command[len(command)-1]
-	// Take the last command which is the one to be executed and wrap it to redirect stderr.
-	command[len(command)-1] = wrapCommandForStderrFifo(currentNanoTime, oldCommand)
 
 	stderrExitChan := make(chan int)
 	go func() {
@@ -425,8 +421,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 		defer cancel()
 
 		// Catch stderr in separate execution.
-		stdErrCommand := setUserCommand(stderrFifoCommand(currentNanoTime), privilegedExecution)
-		exit, err := a.Execute(allocationID, ctx, stdErrCommand, true,
+		exit, err := a.Execute(allocationID, ctx, prepareCommandTTYStdErr(currentNanoTime, privilegedExecution), true,
 			nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
 		if err != nil {
 			log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
@@ -434,7 +429,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 		stderrExitChan <- exit
 	}()
 
-	command = hideEnvironmentVariables(setUserCommand(command, privilegedExecution))
+	command = prepareCommandTTY(command, currentNanoTime, privilegedExecution)
 	exit, err := a.Execute(allocationID, ctx, command, true, stdin, stdout, io.Discard)
 
 	// Wait until the stderr catch command finished to make sure we receive all output.
@@ -444,7 +439,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 
 const (
 	// unsetEnvironmentVariablesFormat prepends the call to unset the passed variables before the actual command.
-	unsetEnvironmentVariablesFormat = "\"unset %s && %s\""
+	unsetEnvironmentVariablesFormat = "unset %s && %s"
 	// unsetEnvironmentVariablesPrefix is the prefix of all environment variables that will be filtered.
 	unsetEnvironmentVariablesPrefix = "NOMAD_"
 	// unsetEnvironmentVariablesShell is the shell functionality to get all environment variables starting with the prefix.
@@ -460,8 +455,8 @@ const (
 	// stderrWrapperCommandFormat, if executed, is supposed to wait until a fifo exists (it sleeps 10ms to reduce load
 	// cause by busy waiting on the system). Once the fifo exists, the given command is executed and its stderr
 	// redirected to the fifo.
-	// Example: "until [ -e my.fifo ]; do sleep 0.01; done; (echo \"my.fifo exists\") 2> my.fifo".
-	stderrWrapperCommandFormat = "until [ -e %s ]; do sleep 0.01; done; (%s) 2> %s"
+	// Example: "'until [ -e my.fifo ]; do sleep 0.01; done; (echo \"my.fifo exists\") 2> my.fifo'".
+	stderrWrapperCommandFormat = "'until [ -e %s ]; do sleep 0.01; done; (%s) 2> %s'"
 
 	// setUserBinaryPath is due to Poseidon requires the setuser script for Nomad environments.
 	setUserBinaryPath = "/sbin/setuser"
@@ -473,27 +468,37 @@ const (
 	UnprivilegedExecution = false
 )
 
-func hideEnvironmentVariables(commands []string) []string {
-	command := strings.Join(commands, " ")
-	return []string{"sh", "-c", fmt.Sprintf(unsetEnvironmentVariablesFormat, unsetEnvironmentVariablesShell, command)}
+func prepareCommandWithoutTTY(commands []string, privilegedExecution bool) []string {
+	commands = setUserCommand(commands, privilegedExecution)
+	commands[len(commands)-1] = fmt.Sprintf("'%s'", commands[len(commands)-1])
+	cmd := strings.Join(commands, " ")
+	return []string{"bash", "-c", fmt.Sprintf(unsetEnvironmentVariablesFormat, unsetEnvironmentVariablesShell, cmd)}
 }
 
+func prepareCommandTTY(commands []string, currentNanoTime int64, privilegedExecution bool) []string {
+	commands = setUserCommand(commands, privilegedExecution)
+	// Take the last command which is the one to be executed and wrap it to redirect stderr.
+	stderrFifoPath := stderrFifo(currentNanoTime)
+	commands[len(commands)-1] =
+		fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoPath, commands[len(commands)-1], stderrFifoPath)
+	cmd := strings.Join(commands, " ")
+	return []string{"bash", "-c", fmt.Sprintf(unsetEnvironmentVariablesFormat, unsetEnvironmentVariablesShell, cmd)}
+}
+
+func prepareCommandTTYStdErr(currentNanoTime int64, privilegedExecution bool) []string {
+	stderrFifoPath := stderrFifo(currentNanoTime)
+	command := []string{"bash", "-c", fmt.Sprintf(stderrFifoCommandFormat, stderrFifoPath, stderrFifoPath, stderrFifoPath)}
+	return setUserCommand(command, privilegedExecution)
+}
+
+// setUserCommand prefixes the passed command with the setUser command.
+// The passed command needs to be wrapped in single quotes to avoid escaping the setUser binary.
 func setUserCommand(command []string, privilegedExecution bool) []string {
 	if privilegedExecution {
 		return command
 	} else {
 		return append([]string{setUserBinaryPath, setUserBinaryUser}, command...)
 	}
-}
-
-func stderrFifoCommand(id int64) []string {
-	stderrFifoPath := stderrFifo(id)
-	return []string{"sh", "-c", fmt.Sprintf(stderrFifoCommandFormat, stderrFifoPath, stderrFifoPath, stderrFifoPath)}
-}
-
-func wrapCommandForStderrFifo(id int64, command string) string {
-	stderrFifoPath := stderrFifo(id)
-	return fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoPath, command, stderrFifoPath)
 }
 
 func stderrFifo(id int64) string {

@@ -17,12 +17,12 @@ jobs:
     env:
       CGO_ENABLED: 0
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cache/go-build
@@ -39,7 +39,7 @@ jobs:
       - name: Build
         run: make build
       - name: Upload Poseidon binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: poseidon
           path: poseidon
@@ -48,9 +48,9 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2.5.2
+        uses: golangci/golangci-lint-action@v3
         with:
           version: latest
           args: --timeout=3m
@@ -59,12 +59,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ compile ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cache/go-build
@@ -81,7 +81,7 @@ jobs:
       - name: Run tests
         run: make coverhtml
       - name: Publish code coverage
-        uses: paambaati/codeclimate-action@v3.0.0
+        uses: paambaati/codeclimate-action@v3.2.0
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
         with:
@@ -89,7 +89,7 @@ jobs:
           coverageLocations: |
             ${{github.workspace}}/coverage_cleaned.cov:gocov
       - name: Upload coverage report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: coverage
           path: coverage_unit.html
@@ -99,7 +99,7 @@ jobs:
     needs: [ compile ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@master
         with:
@@ -123,13 +123,13 @@ jobs:
       POSEIDON_NOMAD_DISABLEFORCEPULL: true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Cache Go modules
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cache/go-build
@@ -144,7 +144,7 @@ jobs:
         run: date +%s > ~/.cache/go-build/trim.txt
         continue-on-error: true
       - name: Cache Nomad and CNI binaries
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ${{ github.workspace }}/nomad
@@ -172,7 +172,7 @@ jobs:
           cp ./docs/resources/secure-bridge.conflist ./cni/secure-bridge.conflist
           echo "server { default_scheduler_config { memory_oversubscription_enabled = true } }, client { cni_path = \"${{ github.workspace }}/cni/bin\", cni_config_dir = \"${{ github.workspace }}/cni\" }" > e2e-config.hcl
       - name: Download Poseidon binary
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: poseidon
       - name: Get current branch name

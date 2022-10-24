@@ -12,7 +12,7 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.11.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -85,7 +85,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/zclconf/go-cty v1.11.0 // indirect
 	github.com/zclconf/go-cty-yaml v1.0.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect

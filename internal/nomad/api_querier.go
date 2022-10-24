@@ -100,16 +100,18 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 		return 1, fmt.Errorf("error retrieving allocation info: %w", err)
 	}
 	exitCode, err := nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
-	if err != nil {
-		rootCause := errors.Unwrap(err)
-		if rootCause != nil && websocket.IsCloseError(rootCause, websocket.CloseNormalClosure) {
-			log.WithError(err).Info("The exit code could not be received.")
-			return 0, nil
-		} else {
-			return 1, fmt.Errorf("error executing command in allocation: %w", err)
-		}
+	switch {
+	case err == nil:
+		return exitCode, nil
+	case websocket.IsCloseError(errors.Unwrap(err), websocket.CloseNormalClosure):
+		log.WithField("runnerID", runnerID).WithError(err).Info("The exit code could not be received.")
+		return 0, nil
+	case errors.Is(err, context.Canceled):
+		log.WithField("runnerID", runnerID).Infof("Execution canceled by context")
+		return 0, nil
+	default:
+		return 1, fmt.Errorf("error executing command in allocation: %w", err)
 	}
-	return exitCode, nil
 }
 
 func (nc *nomadAPIClient) listJobs(prefix string) ([]*nomadApi.JobListStub, error) {

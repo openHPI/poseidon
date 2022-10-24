@@ -133,6 +133,7 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 
 func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
+	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 	path := request.URL.Query().Get(PathKey)
 	privilegedExecution, err := strconv.ParseBool(request.URL.Query().Get(PrivilegedExecutionKey))
 	if err != nil {

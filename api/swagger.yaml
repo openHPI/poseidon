@@ -404,7 +404,7 @@ paths:
                     type: object
                     properties:
                       path:
-                        description: Location where the file should be placed. Can be absolute (starting with /) or relative to the workspace directory. Missing parent directories are created. If this ends with a /, the path is interpreted as a directory and content is ignored
+                        description: Location where the file should be placed. Can be absolute (starting with /) or relative to the workspace directory. Missing parent directories are created. If this ends with a /, the path is interpreted as a directory and content is ignored. Currently, every file/directory is owned by root but the directories have the sticky bit set to allow unprivileged file creation.
                         type: string
                         example: /etc/passwd
                       content:

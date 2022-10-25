@@ -325,6 +325,100 @@ func (s *E2ETestSuite) TestCopyFilesRoute_PermissionDenied() {
 	})
 }
 
+func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
+	runnerID, err := ProvideRunner(&dto.RunnerRequest{ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger})
+	s.NoError(err)
+
+	// Initialization of protected folder
+	newFileContent := []byte("New content")
+	protectedFolderPath := dto.FilePath("protectedFolder/")
+	copyFilesRequestByteString, err := json.Marshal(&dto.UpdateFileSystemRequest{
+		Copy: []dto.File{
+			{Path: protectedFolderPath},
+			{Path: protectedFolderPath + tests.DefaultFileName, Content: newFileContent},
+		},
+	})
+	s.Require().NoError(err)
+
+	resp, err := helpers.HTTPPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath),
+		"application/json", bytes.NewReader(copyFilesRequestByteString))
+	s.NoError(err)
+	s.Equal(http.StatusNoContent, resp.StatusCode)
+
+	// User manipulates protected folder
+	s.Run("User can create files", func() {
+		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+			Command:             fmt.Sprintf("touch %s/userfile", protectedFolderPath),
+			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
+			PrivilegedExecution: false,
+		})
+		s.Require().NoError(err)
+		connection, err := ConnectToWebSocket(webSocketURL)
+		s.Require().NoError(err)
+		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
+		s.Require().Error(err)
+		s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+		stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
+		s.Empty(stdout)
+		s.Empty(stderr)
+	})
+
+	s.Run("User can not delete protected folder", func() {
+		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+			Command:             fmt.Sprintf("rm -fr %s", protectedFolderPath),
+			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
+			PrivilegedExecution: false,
+		})
+		s.Require().NoError(err)
+		connection, err := ConnectToWebSocket(webSocketURL)
+		s.Require().NoError(err)
+		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
+		s.Require().Error(err)
+		s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+		stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
+		s.Empty(stdout)
+		s.Contains(stderr, "Operation not permitted")
+	})
+
+	s.Run("User can not delete protected file", func() {
+		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+			Command:             fmt.Sprintf("rm -f %s", protectedFolderPath+tests.DefaultFileName),
+			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
+			PrivilegedExecution: false,
+		})
+		s.Require().NoError(err)
+		connection, err := ConnectToWebSocket(webSocketURL)
+		s.Require().NoError(err)
+		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
+		s.Require().Error(err)
+		s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+		stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
+		s.Empty(stdout)
+		s.Contains(stderr, "Operation not permitted")
+	})
+
+	s.Run("User can not write protected file", func() {
+		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+			Command:             fmt.Sprintf("echo Hi >> %s", protectedFolderPath+tests.DefaultFileName),
+			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
+			PrivilegedExecution: false,
+		})
+		s.Require().NoError(err)
+		connection, err := ConnectToWebSocket(webSocketURL)
+		s.Require().NoError(err)
+		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
+		s.Require().Error(err)
+		s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+		stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
+		s.Empty(stdout)
+		s.Contains(stderr, "Permission denied")
+	})
+
+	s.Run("File content is not manipulated", func() {
+		s.assertFileContent(runnerID, string(protectedFolderPath+tests.DefaultFileName), string(newFileContent))
+	})
+}
+
 func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 	runnerID, err := ProvideRunner(&dto.RunnerRequest{
 		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,

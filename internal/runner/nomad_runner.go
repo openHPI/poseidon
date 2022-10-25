@@ -342,7 +342,7 @@ func tarHeader(file dto.File) *tar.Header {
 		return &tar.Header{
 			Typeflag: tar.TypeDir,
 			Name:     file.CleanedPath(),
-			Mode:     0o755,
+			Mode:     0o1777, // See #236. Sticky bit is to allow creating files next to write-protected files.
 		}
 	} else {
 		return &tar.Header{

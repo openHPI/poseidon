@@ -28,11 +28,14 @@ const (
 	MeasurementExecutionsNomad = measurementPrefix + "nomad_executions"
 	MeasurementEnvironments    = measurementPrefix + "environments"
 	MeasurementUsedRunner      = measurementPrefix + "used_runners"
+	MeasurementFileDownload    = measurementPrefix + "file_download"
 
 	// The keys for the monitored tags and fields.
 
 	InfluxKeyRunnerID                      = "runner_id"
 	InfluxKeyEnvironmentID                 = "environment_id"
+	InfluxKeyActualContentLength           = "actual_length"
+	InfluxKeyExpectedContentLength         = "expected_length"
 	InfluxKeyDuration                      = "duration"
 	InfluxKeyStartupDuration               = "startup_" + InfluxKeyDuration
 	influxKeyEnvironmentPrewarmingPoolSize = "prewarming_pool_size"

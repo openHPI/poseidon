@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/monitoring"
@@ -190,6 +191,15 @@ func (r *NomadJob) GetFileContent(
 	r.ResetTimeout()
 
 	contentLengthWriter := &nullio.ContentLengthWriter{Target: content}
+	p := influxdb2.NewPointWithMeasurement(monitoring.MeasurementFileDownload)
+	p.AddTag(monitoring.InfluxKeyRunnerID, r.ID())
+	environmentID, err := nomad.EnvironmentIDFromRunnerID(r.ID())
+	if err != nil {
+		log.WithField("runnerID", r.ID()).WithError(err).Warn("can not parse environment id")
+	}
+	p.AddTag(monitoring.InfluxKeyEnvironmentID, environmentID.ToString())
+	defer contentLengthWriter.SendMonitoringData(p)
+
 	retrieveCommand := (&dto.ExecutionRequest{
 		Command: fmt.Sprintf("%s %q && cat %q", lsCommand, path, path),
 	}).FullCommand()

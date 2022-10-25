@@ -106,7 +106,7 @@ func createDefaultEnvironment() {
 
 	defaultNomadEnvironment = dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: 10,
-		CPULimit:           100,
+		CPULimit:           20,
 		MemoryLimit:        100,
 		Image:              *testDockerImage,
 		NetworkAccess:      false,

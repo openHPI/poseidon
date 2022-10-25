@@ -317,7 +317,7 @@ func createEnvironment(t *testing.T, environmentID string, aws bool) {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, environmentID)
 	request := dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: 1,
-		CPULimit:           100,
+		CPULimit:           20,
 		MemoryLimit:        100,
 		NetworkAccess:      false,
 		ExposedPorts:       nil,

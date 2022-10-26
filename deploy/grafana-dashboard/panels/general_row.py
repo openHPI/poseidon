@@ -2,7 +2,7 @@ from grafanalib.core import RowPanel, GridPos, Stat, TimeSeries, Heatmap, BarGau
     ORIENTATION_VERTICAL, GAUGE_DISPLAY_MODE_BASIC
 from grafanalib.influxdb import InfluxDBTarget
 
-from utils.color_mapping import grey_all_mapping
+from utils.color_mapping import grey_all_mapping, color_mapping_environments
 from utils.utils import read_query
 
 requests_per_minute = TimeSeries(
@@ -67,6 +67,7 @@ number_of_executions = BarGauge(
     orientation=ORIENTATION_VERTICAL,
     displayMode=GAUGE_DISPLAY_MODE_BASIC,
     max=None,
+    extraJson=color_mapping_environments,
 )
 
 execution_duration = BarGauge(
@@ -79,6 +80,7 @@ execution_duration = BarGauge(
     format="ns",
     max=None,
     decimals=2,
+    extraJson=color_mapping_environments,
 )
 
 executions_per_runner = BarGauge(
@@ -90,6 +92,7 @@ executions_per_runner = BarGauge(
     displayMode=GAUGE_DISPLAY_MODE_GRADIENT,
     max=None,
     decimals=2,
+    extraJson=color_mapping_environments,
 )
 
 executions_per_minute = BarGauge(
@@ -101,6 +104,7 @@ executions_per_minute = BarGauge(
     displayMode=GAUGE_DISPLAY_MODE_GRADIENT,
     max=None,
     decimals=2,
+    extraJson=color_mapping_environments,
 )
 
 general_row = RowPanel(

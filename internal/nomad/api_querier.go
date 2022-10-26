@@ -107,7 +107,7 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 		log.WithField("runnerID", runnerID).WithError(err).Info("The exit code could not be received.")
 		return 0, nil
 	case errors.Is(err, context.Canceled):
-		log.WithField("runnerID", runnerID).Infof("Execution canceled by context")
+		log.WithField("runnerID", runnerID).Debug("Execution canceled by context")
 		return 0, nil
 	default:
 		return 1, fmt.Errorf("error executing command in allocation: %w", err)

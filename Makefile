@@ -11,6 +11,9 @@ LOWER_REPOSITORY_OWNER = $(shell echo $(REPOSITORY_OWNER) | tr A-Z a-z)
 E2E_TEST_DOCKER_CONTAINER := co_execenv_java
 E2E_TEST_DOCKER_TAG := 17
 E2E_TEST_DOCKER_IMAGE = "$(LOWER_REPOSITORY_OWNER)/$(E2E_TEST_DOCKER_CONTAINER):$(E2E_TEST_DOCKER_TAG)"
+# The base image of the e2e test image. This is used to build the base image as well.
+E2E_TEST_BASE_CONTAINER := docker_exec_phusion
+E2E_TEST_BASE_IMAGE = "$(LOWER_REPOSITORY_OWNER)/$(E2E_TEST_BASE_CONTAINER)"
 
 default: help
 
@@ -98,6 +101,7 @@ deploy/dockerfiles: ## Clone Dockerfiles repository
 
 .PHONY: e2e-test-docker-image
 e2e-test-docker-image: deploy/dockerfiles ## Build Docker image that is used in e2e tests
+	@docker build -t $(E2E_TEST_BASE_IMAGE) -f deploy/dockerfiles/$(E2E_TEST_BASE_CONTAINER)
 	@docker build -t $(E2E_TEST_DOCKER_IMAGE) deploy/dockerfiles/$(E2E_TEST_DOCKER_CONTAINER)/$(E2E_TEST_DOCKER_TAG)
 
 .PHONY: e2e-test

@@ -2,6 +2,7 @@ from grafanalib.core import RowPanel, BarGauge, GridPos, TimeSeries, ORIENTATION
     GAUGE_DISPLAY_MODE_BASIC
 from grafanalib.influxdb import InfluxDBTarget
 
+from utils.color_mapping import color_mapping_environments
 from utils.utils import read_query
 
 prewarming_pool_size = BarGauge(
@@ -13,6 +14,7 @@ prewarming_pool_size = BarGauge(
     orientation=ORIENTATION_VERTICAL,
     displayMode=GAUGE_DISPLAY_MODE_BASIC,
     max=None,
+    extraJson=color_mapping_environments,
 )
 
 idle_runner = TimeSeries(
@@ -22,6 +24,7 @@ idle_runner = TimeSeries(
     gridPos=GridPos(h=10, w=13, x=11, y=1),
     lineInterpolation="stepAfter",
     maxDataPoints=None,
+    extraJson=color_mapping_environments,
 )
 
 runner_startup_duration = TimeSeries(
@@ -32,6 +35,7 @@ runner_startup_duration = TimeSeries(
     unit="ns",
     maxDataPoints=None,
     lineInterpolation="smooth",
+    extraJson=color_mapping_environments,
 )
 
 used_runner = TimeSeries(

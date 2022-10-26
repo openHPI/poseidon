@@ -1,7 +1,8 @@
 from grafanalib.core import RowPanel, GridPos, Histogram, TimeSeries
 from grafanalib.influxdb import InfluxDBTarget
 
-from utils.utils import read_query
+from utils.color_mapping import color_mapping_environments
+from utils.utils import read_query, deep_update_dict
 
 execution_duration_extra_json = {
     "fieldConfig": {
@@ -10,6 +11,7 @@ execution_duration_extra_json = {
         }
     }
 }
+deep_update_dict(execution_duration_extra_json, color_mapping_environments)
 execution_duration = Histogram(
     title="Execution duration",
     dataSource="Poseidon",
@@ -33,6 +35,7 @@ executions_per_runner = Histogram(
     fillOpacity=50,
     lineWidth=1,
     maxDataPoints=None,
+    extraJson=color_mapping_environments,
 )
 
 executions_per_minute = TimeSeries(
@@ -42,6 +45,7 @@ executions_per_minute = TimeSeries(
     gridPos=GridPos(h=10, w=13, x=11, y=57),
     maxDataPoints=None,
     lineInterpolation="smooth",
+    extraJson=color_mapping_environments,
 )
 
 request_body_size = TimeSeries(
@@ -53,6 +57,7 @@ request_body_size = TimeSeries(
     unit="bytes",
     maxDataPoints=None,
     lineInterpolation="smooth",
+    extraJson=color_mapping_environments,
 )
 
 runner_per_minute = TimeSeries(
@@ -62,6 +67,7 @@ runner_per_minute = TimeSeries(
     gridPos=GridPos(h=10, w=13, x=11, y=67),
     maxDataPoints=None,
     lineInterpolation="smooth",
+    extraJson=color_mapping_environments,
 )
 
 runner_insights_row = RowPanel(

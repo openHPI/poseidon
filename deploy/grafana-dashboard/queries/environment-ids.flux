@@ -1,0 +1,6 @@
+from(bucket: "poseidon/autogen")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_field"] == "duration")
+  |> keep(columns: ["environment_id"])
+  |> distinct(column: "environment_id")
+  |> keep(columns: ["_value"])

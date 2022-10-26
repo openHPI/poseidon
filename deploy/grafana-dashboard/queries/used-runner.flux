@@ -1,0 +1,8 @@
+from(bucket: "poseidon/autogen")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_measurement"] == "poseidon_used_runners")
+  |> filter(fn: (r) => r["_field"] == "count")
+  |> filter(fn: (r) => (not exists r.stage) or contains(value: r["stage"], set: ${stages:json}))
+  |> group(columns: ["stage"], mode:"by")
+  |> keep(columns: ["_value", "_time", "stage"])
+  |> aggregateWindow(every: duration(v: int(v: v.windowPeriod) * 5), fn: mean, createEmpty: false)

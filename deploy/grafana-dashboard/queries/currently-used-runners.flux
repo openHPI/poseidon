@@ -1,0 +1,8 @@
+from(bucket: "poseidon/autogen")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_measurement"] == "poseidon_used_runners")
+  |> filter(fn: (r) => r["_field"] == "count")
+  |> group(columns: ["stage"], mode:"by")
+  |> last()
+  |> keep(columns: ["_value", "stage"])
+  |> rename(columns: {_value: ""})

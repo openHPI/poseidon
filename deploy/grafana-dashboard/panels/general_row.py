@@ -7,16 +7,17 @@ from utils.utils import read_query
 
 requests_per_minute = TimeSeries(
     title="Requests per minute",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("requests-per-minute"))],
     gridPos=GridPos(h=9, w=8, x=0, y=22),
     scaleDistributionType="log",
-    extraJson=grey_all_mapping
+    extraJson=grey_all_mapping,
+    lineInterpolation="smooth",
 )
 
 request_latency = Heatmap(
     title="Request Latency",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     dataFormat="timeseries",
     targets=[InfluxDBTarget(query=read_query("request-latency"))],
     gridPos=GridPos(h=9, w=8, x=8, y=22),
@@ -26,34 +27,35 @@ request_latency = Heatmap(
         "yAxis": {
             "format": "ns"
         }
-    }
+    },
 )
 
 service_time = TimeSeries(
     title="Service time (99.9%)",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("service-time"))],
     gridPos=GridPos(h=9, w=8, x=16, y=22),
     scaleDistributionType="log",
     scaleDistributionLog=10,
     unit="ns",
-    maxDataPoints=None
+    maxDataPoints=None,
+    lineInterpolation="smooth",
 )
 
 current_environment_count = Stat(
     title="Current environment count",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("current-environment-count"))],
     gridPos=GridPos(h=6, w=8, x=0, y=31),
-    alignment='center'
+    alignment="center",
 )
 
 currently_used_runners = Stat(
     title="Currently used runners",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("currently-used-runners"))],
     gridPos=GridPos(h=6, w=8, x=8, y=31),
-    alignment="center"
+    alignment="center",
 )
 
 number_of_executions = BarGauge(
@@ -76,6 +78,7 @@ execution_duration = BarGauge(
     displayMode=GAUGE_DISPLAY_MODE_GRADIENT,
     format="ns",
     max=None,
+    decimals=2,
 )
 
 executions_per_runner = BarGauge(
@@ -86,6 +89,7 @@ executions_per_runner = BarGauge(
     allValues=True,
     displayMode=GAUGE_DISPLAY_MODE_GRADIENT,
     max=None,
+    decimals=2,
 )
 
 executions_per_minute = BarGauge(
@@ -96,6 +100,7 @@ executions_per_minute = BarGauge(
     allValues=True,
     displayMode=GAUGE_DISPLAY_MODE_GRADIENT,
     max=None,
+    decimals=2,
 )
 
 general_row = RowPanel(
@@ -114,5 +119,5 @@ general_panels = [
     number_of_executions,
     execution_duration,
     executions_per_runner,
-    executions_per_minute
+    executions_per_minute,
 ]

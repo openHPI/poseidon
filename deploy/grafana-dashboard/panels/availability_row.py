@@ -6,7 +6,7 @@ from utils.utils import read_query
 
 prewarming_pool_size = BarGauge(
     title="Prewarming Pool Size",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("prewarming-pool-size"))],
     gridPos=GridPos(h=10, w=11, x=0, y=1),
     allValues=True,
@@ -17,27 +17,30 @@ prewarming_pool_size = BarGauge(
 
 idle_runner = TimeSeries(
     title="Idle Runner",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("idle-runner"))],
     gridPos=GridPos(h=10, w=13, x=11, y=1),
     lineInterpolation="stepAfter",
-    maxDataPoints=None
+    maxDataPoints=None,
 )
 
 runner_startup_duration = TimeSeries(
     title="Runner startup duration",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("runner-startup-duration"))],
     gridPos=GridPos(h=10, w=12, x=0, y=11),
     unit="ns",
+    maxDataPoints=None,
+    lineInterpolation="smooth",
 )
 
 used_runner = TimeSeries(
     title="Used Runner",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("used-runner"))],
     gridPos=GridPos(h=10, w=12, x=12, y=11),
-    maxDataPoints=None
+    maxDataPoints=None,
+    lineInterpolation="smooth",
 )
 
 availability_row = RowPanel(

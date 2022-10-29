@@ -14,7 +14,7 @@ execution_duration = Histogram(
     title="Execution duration",
     dataSource='Poseidon',
     targets=[InfluxDBTarget(query=read_query("execution-duration-hist"))],
-    gridPos=GridPos(h=8, w=24, x=0, y=2),
+    gridPos=GridPos(h=8, w=24, x=0, y=49),
     bucketSize=100000000,
     colorMode="palette-classic",
     maxDataPoints=None,
@@ -25,7 +25,7 @@ executions_per_runner = Histogram(
     title="Executions per runner",
     dataSource='Poseidon',
     targets=[InfluxDBTarget(query=read_query("executions-per-runner-hist"))],
-    gridPos=GridPos(h=10, w=11, x=0, y=10),
+    gridPos=GridPos(h=10, w=11, x=0, y=57),
     bucketSize=1,
     colorMode="palette-classic",
 )
@@ -34,7 +34,7 @@ executions_per_minute = TimeSeries(
     title="Executions per minute",
     dataSource='Poseidon',
     targets=[InfluxDBTarget(query=read_query("executions-per-minute-time"))],
-    gridPos=GridPos(h=10, w=13, x=11, y=10),
+    gridPos=GridPos(h=10, w=13, x=11, y=57),
     maxDataPoints=None
 )
 
@@ -42,7 +42,7 @@ request_body_size = TimeSeries(
     title="Request Body Size",
     dataSource='Poseidon',
     targets=[InfluxDBTarget(query=read_query("request-body-size"))],
-    gridPos=GridPos(h=10, w=11, x=0, y=20),
+    gridPos=GridPos(h=10, w=11, x=0, y=67),
     scaleDistributionType="log",
     unit="bytes",
     maxDataPoints=None
@@ -52,19 +52,21 @@ runner_per_minute = TimeSeries(
     title="Runner per minute",
     dataSource='Poseidon',
     targets=[InfluxDBTarget(query=read_query("runner-per-minute"))],
-    gridPos=GridPos(h=10, w=13, x=11, y=20),
+    gridPos=GridPos(h=10, w=13, x=11, y=67),
     maxDataPoints=None
 )
 
 runner_insights_row = RowPanel(
     title="Runner Insights",
-    collapsed=True,
-    gridPos=GridPos(h=1, w=24, x=0, y=1),
-    panels=[
-        execution_duration,
-        executions_per_runner,
-        executions_per_minute,
-        request_body_size,
-        runner_per_minute
-    ]
+    collapsed=False,
+    gridPos=GridPos(h=1, w=24, x=0, y=48),
 )
+
+runner_insights_panels = [
+    runner_insights_row,
+    execution_duration,
+    executions_per_runner,
+    executions_per_minute,
+    request_body_size,
+    runner_per_minute,
+]

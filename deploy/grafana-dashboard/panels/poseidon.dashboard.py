@@ -1,18 +1,14 @@
 from grafanalib.core import Dashboard, Templating, Time
 
-from panels.availability_row import availability_row
-from panels.general_row import general_row
-from panels.runner_insights_row import runner_insights_row
+from panels.availability_row import availability_panels
+from panels.general_row import general_panels
+from panels.runner_insights_row import runner_insights_panels
 from utils.variables import stage_variable, environment_variable
 
 dashboard = Dashboard(
     title="Poseidon autogen",
     timezone="browser",
-    panels=[
-        general_row,
-        runner_insights_row,
-        availability_row
-    ],
+    panels=availability_panels + general_panels + runner_insights_panels,
     templating=Templating(list=[
         stage_variable,
         environment_variable

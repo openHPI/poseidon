@@ -1,8 +1,9 @@
-from grafanalib.core import RowPanel, GridPos, Stat, TimeSeries, Heatmap, BarGauge, GAUGE_DISPLAY_MODE_GRADIENT
+from grafanalib.core import RowPanel, GridPos, Stat, TimeSeries, Heatmap, BarGauge, GAUGE_DISPLAY_MODE_GRADIENT, \
+    ORIENTATION_VERTICAL, GAUGE_DISPLAY_MODE_BASIC
 from grafanalib.influxdb import InfluxDBTarget
 
-from color_mapping import grey_all_mapping
-from util import read_query
+from utils.color_mapping import grey_all_mapping
+from utils.utils import read_query
 
 requests_per_minute = TimeSeries(
     title="Requests per minute",
@@ -19,6 +20,7 @@ request_latency = Heatmap(
     dataFormat="timeseries",
     targets=[InfluxDBTarget(query=read_query("request-latency"))],
     gridPos=GridPos(h=9, w=8, x=8, y=1),
+    maxDataPoints=None,
     extraJson={
         "options": {},
         "yAxis": {
@@ -34,7 +36,8 @@ service_time = TimeSeries(
     gridPos=GridPos(h=9, w=8, x=16, y=1),
     scaleDistributionType="log",
     scaleDistributionLog=10,
-    unit="ns"
+    unit="ns",
+    maxDataPoints=None
 )
 
 current_environment_count = Stat(
@@ -59,7 +62,8 @@ number_of_executions = BarGauge(
     targets=[InfluxDBTarget(query=read_query("number-of-executions"))],
     gridPos=GridPos(h=6, w=8, x=16, y=10),
     allValues=True,
-    displayMode=GAUGE_DISPLAY_MODE_GRADIENT,
+    orientation=ORIENTATION_VERTICAL,
+    displayMode=GAUGE_DISPLAY_MODE_BASIC,
     max=None,
 )
 

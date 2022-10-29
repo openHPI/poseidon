@@ -1,6 +1,6 @@
 from grafanalib.core import Template
 
-from util import read_query
+from utils.utils import read_query
 
 stage_variable = Template(
     dataSource="Poseidon",

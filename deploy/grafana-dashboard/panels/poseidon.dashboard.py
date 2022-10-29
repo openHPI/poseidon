@@ -1,9 +1,9 @@
 from grafanalib.core import Dashboard, Templating, Time
 
-from availability_row import availability_row
-from general_row import general_row
-from runner_insights_row import runner_insights_row
-from variables import stage_variable, environment_variable
+from panels.availability_row import availability_row
+from panels.general_row import general_row
+from panels.runner_insights_row import runner_insights_row
+from utils.variables import stage_variable, environment_variable
 
 dashboard = Dashboard(
     title="Poseidon autogen",

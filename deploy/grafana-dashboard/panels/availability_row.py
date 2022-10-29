@@ -2,7 +2,7 @@ from grafanalib.core import RowPanel, BarGauge, GridPos, TimeSeries, ORIENTATION
     GAUGE_DISPLAY_MODE_BASIC
 from grafanalib.influxdb import InfluxDBTarget
 
-from util import read_query
+from utils.utils import read_query
 
 prewarming_pool_size = BarGauge(
     title="Prewarming Pool Size",
@@ -21,6 +21,7 @@ idle_runner = TimeSeries(
     targets=[InfluxDBTarget(query=read_query("idle-runner"))],
     gridPos=GridPos(h=10, w=13, x=11, y=3),
     lineInterpolation="stepAfter",
+    maxDataPoints=None
 )
 
 runner_startup_duration = TimeSeries(
@@ -36,6 +37,7 @@ used_runner = TimeSeries(
     dataSource='Poseidon',
     targets=[InfluxDBTarget(query=read_query("used-runner"))],
     gridPos=GridPos(h=10, w=12, x=12, y=13),
+    maxDataPoints=None
 )
 
 availability_row = RowPanel(

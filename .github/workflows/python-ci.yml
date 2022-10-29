@@ -1,0 +1,33 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ deploy/grafana-dashboard/** ]
+  pull_request:
+    branches: [ main ]
+    paths: [ deploy/grafana-dashboard/** ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: pipenv
+      - name: Install pipenv
+        run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
+      - run: pipenv install
+        working-directory: deploy/grafana-dashboard
+      - name: Create Grafana Dashboard JSON
+        run: pipenv run python main.py
+        working-directory: deploy/grafana-dashboard
+      - name: Upload Grafana Dashboard JSON
+        uses: actions/upload-artifact@v3
+        with:
+          name: grafana-dashboard.json
+          path: deploy/grafana-dashboard/main.json

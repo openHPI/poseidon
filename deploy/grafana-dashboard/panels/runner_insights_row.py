@@ -12,48 +12,56 @@ execution_duration_extra_json = {
 }
 execution_duration = Histogram(
     title="Execution duration",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("execution-duration-hist"))],
     gridPos=GridPos(h=8, w=24, x=0, y=49),
     bucketSize=100000000,
     colorMode="palette-classic",
+    fillOpacity=50,
+    lineWidth=1,
     maxDataPoints=None,
-    extraJson=execution_duration_extra_json
+    extraJson=execution_duration_extra_json,
 )
 
 executions_per_runner = Histogram(
     title="Executions per runner",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("executions-per-runner-hist"))],
     gridPos=GridPos(h=10, w=11, x=0, y=57),
     bucketSize=1,
     colorMode="palette-classic",
+    fillOpacity=50,
+    lineWidth=1,
+    maxDataPoints=None,
 )
 
 executions_per_minute = TimeSeries(
     title="Executions per minute",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("executions-per-minute-time"))],
     gridPos=GridPos(h=10, w=13, x=11, y=57),
-    maxDataPoints=None
+    maxDataPoints=None,
+    lineInterpolation="smooth",
 )
 
 request_body_size = TimeSeries(
     title="Request Body Size",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("request-body-size"))],
     gridPos=GridPos(h=10, w=11, x=0, y=67),
     scaleDistributionType="log",
     unit="bytes",
-    maxDataPoints=None
+    maxDataPoints=None,
+    lineInterpolation="smooth",
 )
 
 runner_per_minute = TimeSeries(
     title="Runner per minute",
-    dataSource='Poseidon',
+    dataSource="Poseidon",
     targets=[InfluxDBTarget(query=read_query("runner-per-minute"))],
     gridPos=GridPos(h=10, w=13, x=11, y=67),
-    maxDataPoints=None
+    maxDataPoints=None,
+    lineInterpolation="smooth",
 )
 
 runner_insights_row = RowPanel(

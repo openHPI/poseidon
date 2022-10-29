@@ -10,7 +10,7 @@ stage_variable = Template(
     refresh=1,
     includeAll=True,
     multi=True,
-    default="production"
+    default="production",
 )
 
 environment_variable = Template(
@@ -21,5 +21,5 @@ environment_variable = Template(
     refresh=1,
     includeAll=True,
     multi=True,
-    default="$__all"
+    default="$__all",
 )

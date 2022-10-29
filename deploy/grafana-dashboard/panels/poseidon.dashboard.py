@@ -11,11 +11,11 @@ dashboard = Dashboard(
     panels=availability_panels + general_panels + runner_insights_panels,
     templating=Templating(list=[
         stage_variable,
-        environment_variable
+        environment_variable,
     ]),
     editable=True,
     refresh="30s",
-    time=Time('now-6h', 'now'),
+    time=Time("now-6h", "now"),
     uid="P21Bh1SVk",
-    version=1
+    version=1,
 ).auto_panel_ids()

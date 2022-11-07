@@ -1,3 +1,3 @@
-[submodule "deploy/ansible-deployment"]
-	path = deploy/ansible-deployment
-	url = git@gitlab.hpi.de:maximilian.pass/poseidon-deployment.git
+[submodule "deploy/codeocean-terraform"]
+	path = deploy/codeocean-terraform
+	url = git@lab.xikolo.de:codeocean/codeocean-terraform.git

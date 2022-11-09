@@ -1,4 +1,5 @@
-from grafanalib.core import RowPanel, GridPos, Histogram, TimeSeries
+from grafanalib.core import RowPanel, GridPos, Histogram, TimeSeries, BarGauge, ORIENTATION_VERTICAL, \
+    GAUGE_DISPLAY_MODE_BASIC, PERCENT_UNIT_FORMAT, GAUGE_CALC_MEAN
 from grafanalib.influxdb import InfluxDBTarget
 
 from utils.color_mapping import color_mapping_environments
@@ -48,10 +49,10 @@ executions_per_minute = TimeSeries(
     extraJson=color_mapping_environments,
 )
 
-request_body_size = TimeSeries(
-    title="Request Body Size",
+file_upload = TimeSeries(
+    title="File Upload",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("request-body-size", "environment-mapping"))],
+    targets=[InfluxDBTarget(query=read_query("file-upload", "environment-mapping"))],
     gridPos=GridPos(h=10, w=11, x=0, y=67),
     scaleDistributionType="log",
     unit="bytes",
@@ -70,6 +71,32 @@ runner_per_minute = TimeSeries(
     extraJson=color_mapping_environments,
 )
 
+file_download = TimeSeries(
+    title="File Download",
+    dataSource="Poseidon",
+    targets=[InfluxDBTarget(query=read_query("file-download", "environment-mapping"))],
+    gridPos=GridPos(h=10, w=11, x=0, y=77),
+    scaleDistributionType="log",
+    unit="bytes",
+    maxDataPoints=None,
+    lineInterpolation="smooth",
+    extraJson=color_mapping_environments,
+)
+
+file_download_ratio = BarGauge(
+    title="File Download Ratio",
+    dataSource="Poseidon",
+    targets=[InfluxDBTarget(query=read_query("file-download-ratio", "environment-mapping"))],
+    gridPos=GridPos(h=10, w=13, x=11, y=77),
+    max=1,
+    allValues=False,
+    calc=GAUGE_CALC_MEAN,
+    orientation=ORIENTATION_VERTICAL,
+    displayMode=GAUGE_DISPLAY_MODE_BASIC,
+    format=PERCENT_UNIT_FORMAT,
+    extraJson=color_mapping_environments,
+)
+
 runner_insights_row = RowPanel(
     title="Runner Insights",
     collapsed=False,
@@ -81,6 +108,8 @@ runner_insights_panels = [
     execution_duration,
     executions_per_runner,
     executions_per_minute,
-    request_body_size,
+    file_upload,
     runner_per_minute,
+    file_download,
+    file_download_ratio,
 ]

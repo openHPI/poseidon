@@ -21,7 +21,7 @@ envMapping = from(bucket: "poseidon/autogen")
   |> last()
   |> keep(columns: ["id", "image", "stage"])
   |> rename(columns: {id: "environment_id"})
-  |> map(fn: (r) => ({ r with image: strings.trimPrefix(v: r.image, prefix: "openhpi/co_execenv_") + "(" + strings.substring(v: r.stage, start: 0, end: 1) + r.environment_id + ")" }))
+  |> map(fn: (r) => ({ r with image: strings.substring(v: r.stage, start: 0, end: 1) + r.environment_id + "/" + strings.trimPrefix(v: r.image, prefix: "openhpi/co_execenv_")}))
 
 join(tables: {key1: result, key2: envMapping}, on: ["environment_id", "stage"], method: "inner")
   |> keep(columns: ["_value", "image", "_time"])

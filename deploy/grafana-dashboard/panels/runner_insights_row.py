@@ -13,7 +13,7 @@ execution_duration_extra_json = {
 execution_duration = Histogram(
     title="Execution duration",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("execution-duration-hist"))],
+    targets=[InfluxDBTarget(query=read_query("execution-duration-hist", "environment-mapping"))],
     gridPos=GridPos(h=8, w=24, x=0, y=49),
     bucketSize=100000000,
     colorMode="palette-classic",
@@ -26,7 +26,7 @@ execution_duration = Histogram(
 executions_per_runner = Histogram(
     title="Executions per runner",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("executions-per-runner-hist"))],
+    targets=[InfluxDBTarget(query=read_query("executions-per-runner-hist", "environment-mapping"))],
     gridPos=GridPos(h=10, w=11, x=0, y=57),
     bucketSize=1,
     colorMode="palette-classic",
@@ -38,7 +38,7 @@ executions_per_runner = Histogram(
 executions_per_minute = TimeSeries(
     title="Executions per minute",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("executions-per-minute-time"))],
+    targets=[InfluxDBTarget(query=read_query("executions-per-minute-time", "environment-mapping"))],
     gridPos=GridPos(h=10, w=13, x=11, y=57),
     maxDataPoints=None,
     lineInterpolation="smooth",
@@ -47,7 +47,7 @@ executions_per_minute = TimeSeries(
 request_body_size = TimeSeries(
     title="Request Body Size",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("request-body-size"))],
+    targets=[InfluxDBTarget(query=read_query("request-body-size", "environment-mapping"))],
     gridPos=GridPos(h=10, w=11, x=0, y=67),
     scaleDistributionType="log",
     unit="bytes",
@@ -58,7 +58,7 @@ request_body_size = TimeSeries(
 runner_per_minute = TimeSeries(
     title="Runner per minute",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("runner-per-minute"))],
+    targets=[InfluxDBTarget(query=read_query("runner-per-minute", "environment-mapping"))],
     gridPos=GridPos(h=10, w=13, x=11, y=67),
     maxDataPoints=None,
     lineInterpolation="smooth",

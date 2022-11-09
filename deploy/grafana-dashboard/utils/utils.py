@@ -3,6 +3,7 @@ def read_query(*names):
     for name in names:
         with open("queries/" + name + ".flux", "r") as file:
             result += file.read()
+        result += "\n"
     return result
 
 

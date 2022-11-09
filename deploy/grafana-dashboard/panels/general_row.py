@@ -61,7 +61,7 @@ currently_used_runners = Stat(
 number_of_executions = BarGauge(
     title="Number of Executions",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("number-of-executions"))],
+    targets=[InfluxDBTarget(query=read_query("number-of-executions", "environment-mapping"))],
     gridPos=GridPos(h=6, w=8, x=16, y=31),
     allValues=True,
     orientation=ORIENTATION_VERTICAL,
@@ -72,7 +72,7 @@ number_of_executions = BarGauge(
 execution_duration = BarGauge(
     title="Execution duration",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("execution-duration"))],
+    targets=[InfluxDBTarget(query=read_query("execution-duration", "environment-mapping"))],
     gridPos=GridPos(h=11, w=8, x=0, y=37),
     allValues=True,
     displayMode=GAUGE_DISPLAY_MODE_GRADIENT,
@@ -84,7 +84,7 @@ execution_duration = BarGauge(
 executions_per_runner = BarGauge(
     title="Executions per runner",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("executions-per-runner"))],
+    targets=[InfluxDBTarget(query=read_query("executions-per-runner", "environment-mapping"))],
     gridPos=GridPos(h=11, w=8, x=8, y=37),
     allValues=True,
     displayMode=GAUGE_DISPLAY_MODE_GRADIENT,
@@ -95,7 +95,7 @@ executions_per_runner = BarGauge(
 executions_per_minute = BarGauge(
     title="Executions per minute",
     dataSource="Poseidon",
-    targets=[InfluxDBTarget(query=read_query("executions-per-minute"))],
+    targets=[InfluxDBTarget(query=read_query("executions-per-minute", "environment-mapping"))],
     gridPos=GridPos(h=11, w=8, x=16, y=37),
     allValues=True,
     displayMode=GAUGE_DISPLAY_MODE_GRADIENT,

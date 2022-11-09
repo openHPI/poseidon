@@ -3,7 +3,7 @@ import "date"
 data = from(bucket: "poseidon/autogen")
   |> range(start: date.truncate(t: v.timeRangeStart, unit: 1m), stop: date.truncate(t: v.timeRangeStop, unit: 1m))
   |> filter(fn: (r) => r._field == "duration")
-  |> filter(fn: (r) => contains(value: r["environment_id"], set: ${environment_ids:json}))
+  |> filter(fn: (r) => (not exists r.environment_id) or contains(value: r["environment_id"], set: ${environment_ids:json}))
   |> filter(fn: (r) => (not exists r.stage) or contains(value: r["stage"], set: ${stages:json}))
   |> keep(columns: ["_time", "_value", "status"])
 

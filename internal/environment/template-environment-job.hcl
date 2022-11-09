@@ -42,7 +42,7 @@ job "template-0" {
 
       resources {
         cpu    = 40
-        memory = 16
+        memory = 30
       }
 
       restart {

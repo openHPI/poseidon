@@ -6,7 +6,6 @@ import (
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/suite"
@@ -23,7 +22,6 @@ import (
  */
 
 var (
-	log                     = logging.GetLogger("e2e")
 	testDockerImage         = flag.String("dockerImage", "", "Docker image to use in E2E tests")
 	nomadClient             *nomadApi.Client
 	nomadNamespace          string
@@ -94,56 +92,15 @@ func initNomad() {
 		return
 	}
 	createDefaultEnvironment()
-	waitForDefaultEnvironment()
+	WaitForDefaultEnvironment()
 }
 
 func createDefaultEnvironment() {
 	if *testDockerImage == "" {
 		log.Fatal("You must specify the -dockerImage flag!")
 	}
-
-	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.DefaultEnvironmentIDAsString)
-
-	defaultNomadEnvironment = dto.ExecutionEnvironmentRequest{
-		PrewarmingPoolSize: 10,
-		CPULimit:           20,
-		MemoryLimit:        100,
-		Image:              *testDockerImage,
-		NetworkAccess:      false,
-		ExposedPorts:       nil,
-	}
-
-	resp, err := helpers.HTTPPutJSON(path, defaultNomadEnvironment)
-	if err != nil || resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
-		log.WithError(err).Fatal("Couldn't create default environment for e2e tests")
-	}
+	defaultNomadEnvironment = CreateDefaultEnvironment(10, *testDockerImage)
 	environmentIDs = append(environmentIDs, tests.DefaultEnvironmentIDAsInteger)
-	err = resp.Body.Close()
-	if err != nil {
-		log.Fatal("Failed closing body")
-	}
-}
-
-func waitForDefaultEnvironment() {
-	path := helpers.BuildURL(api.BasePath, api.RunnersPath)
-	body := &dto.RunnerRequest{
-		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
-		InactivityTimeout:      1,
-	}
-	var code int
-	const maxRetries = 60
-	for count := 0; count < maxRetries && code != http.StatusOK; count++ {
-		<-time.After(time.Second)
-		if resp, err := helpers.HTTPPostJSON(path, body); err == nil {
-			code = resp.StatusCode
-			log.WithField("count", count).WithField("statusCode", code).Info("Waiting for idle runners")
-		} else {
-			log.WithField("count", count).WithError(err).Warn("Waiting for idle runners")
-		}
-	}
-	if code != http.StatusOK {
-		log.Fatal("Failed to provide a runner")
-	}
 }
 
 func deleteE2EEnvironments() {

@@ -3,10 +3,8 @@ package e2e
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
@@ -25,7 +23,7 @@ func (s *E2ETestSuite) TestExecuteCommandRoute() {
 			runnerID, err := ProvideRunner(&dto.RunnerRequest{ExecutionEnvironmentID: int(environmentID)})
 			s.Require().NoError(err)
 
-			webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{Command: "true"})
+			webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{Command: "true"})
 			s.Require().NoError(err)
 			s.NotEqual("", webSocketURL)
 
@@ -222,7 +220,7 @@ func (s *E2ETestSuite) TestNomadStderrFifoIsRemoved() {
 	})
 	s.Require().NoError(err)
 
-	webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{Command: "ls -a /tmp/"})
+	webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{Command: "ls -a /tmp/"})
 	s.Require().NoError(err)
 	connection, err := ConnectToWebSocket(webSocketURL)
 	s.Require().NoError(err)
@@ -290,32 +288,13 @@ func ProvideWebSocketConnection(s *suite.Suite, environmentID dto.EnvironmentID,
 		s.Require().NoError(err)
 		s.Require().Equal(http.StatusNoContent, resp.StatusCode)
 	}
-	webSocketURL, err := ProvideWebSocketURL(s, runnerID, executionRequest)
-	if err != nil {
-		return nil, fmt.Errorf("error providing WebSocket URL: %w", err)
-	}
+	webSocketURL, err := ProvideWebSocketURL(runnerID, executionRequest)
+	s.Require().NoError(err)
 	connection, err := ConnectToWebSocket(webSocketURL)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to WebSocket: %w", err)
 	}
 	return connection, nil
-}
-
-// ProvideWebSocketURL creates a WebSocket endpoint from the ExecutionRequest via an external api request.
-// It requires a running Poseidon instance.
-func ProvideWebSocketURL(s *suite.Suite, runnerID string, request *dto.ExecutionRequest) (string, error) {
-	url := helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.ExecutePath)
-	executionRequestByteString, err := json.Marshal(request)
-	s.Require().NoError(err)
-	reader := strings.NewReader(string(executionRequestByteString))
-	resp, err := http.Post(url, "application/json", reader) //nolint:gosec // url is not influenced by a user
-	s.Require().NoError(err)
-	s.Require().Equal(http.StatusOK, resp.StatusCode)
-
-	executionResponse := new(dto.ExecutionResponse)
-	err = json.NewDecoder(resp.Body).Decode(executionResponse)
-	s.Require().NoError(err)
-	return executionResponse.WebSocketURL, nil
 }
 
 // ConnectToWebSocket establish an external WebSocket connection to the provided url.

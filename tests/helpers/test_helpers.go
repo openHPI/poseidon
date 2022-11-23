@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
@@ -206,6 +207,8 @@ func CreateTemplateJob() (base, job *nomadApi.Job) {
 	base = nomadApi.NewBatchJob(tests.DefaultTemplateJobID, tests.DefaultTemplateJobID, "global", templateJobPriority)
 	job = nomadApi.NewBatchJob(tests.DefaultTemplateJobID, tests.DefaultTemplateJobID, "global", templateJobPriority)
 	job.Datacenters = []string{"dc1"}
+	jobStatus := structs.JobStatusRunning
+	job.Status = &jobStatus
 	configTaskGroup := nomadApi.NewTaskGroup("config", 0)
 	configTaskGroup.Meta = make(map[string]string)
 	configTaskGroup.Meta["prewarmingPoolSize"] = "0"

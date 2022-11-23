@@ -140,18 +140,18 @@ func (m *NomadEnvironmentManager) Load() error {
 		}
 		configTaskGroup := nomad.FindAndValidateConfigTaskGroup(job)
 		if configTaskGroup == nil {
-			jobLogger.Info("Couldn't find config task group in job, skipping ...")
+			jobLogger.Error("FindAndValidateConfigTaskGroup is not creating the task group")
 			continue
 		}
-		environment := newNomadEnvironmetFromJob(job, m.api)
+		environment := newNomadEnvironmentFromJob(job, m.api)
 		m.runnerManager.StoreEnvironment(environment)
 		jobLogger.Info("Successfully recovered environment")
 	}
 	return nil
 }
 
-// newNomadEnvironmetFromJob creates a Nomad environment from the passed Nomad job definition.
-func newNomadEnvironmetFromJob(job *nomadApi.Job, apiClient nomad.ExecutorAPI) *NomadEnvironment {
+// newNomadEnvironmentFromJob creates a Nomad environment from the passed Nomad job definition.
+func newNomadEnvironmentFromJob(job *nomadApi.Job, apiClient nomad.ExecutorAPI) *NomadEnvironment {
 	ctx, cancel := context.WithCancel(context.Background())
 	e := &NomadEnvironment{
 		apiClient: apiClient,
@@ -192,7 +192,7 @@ func fetchEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner
 			continue
 		}
 		if id == environmentID {
-			fetchedEnvironment = newNomadEnvironmetFromJob(job, apiClient)
+			fetchedEnvironment = newNomadEnvironmentFromJob(job, apiClient)
 		}
 	}
 	return fetchedEnvironment, nil

@@ -8,10 +8,14 @@ import (
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/pkg/util"
 	"github.com/openHPI/poseidon/tests"
+	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -350,5 +354,82 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 			s.Equal(nomadJob.id, tests.DefaultRunnerID)
 			s.Equal(nomadJob.portMappings, tests.DefaultPortMappings)
 		})
+	})
+}
+
+func TestNomadRunnerManager_Load(t *testing.T) {
+	apiMock := &nomad.ExecutorAPIMock{}
+	mockWatchAllocations(apiMock)
+	apiMock.On("LoadRunnerPortMappings", mock.AnythingOfType("string")).
+		Return([]nomadApi.PortMapping{}, nil)
+	call := apiMock.On("LoadRunnerJobs", dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+	runnerManager := NewNomadRunnerManager(apiMock, context.Background())
+	environmentMock := createBasicEnvironmentMock(tests.DefaultEnvironmentIDAsInteger)
+	environmentMock.On("ApplyPrewarmingPoolSize").Return(nil)
+	runnerManager.StoreEnvironment(environmentMock)
+
+	t.Run("Stores unused runner", func(t *testing.T) {
+		environmentMock.On("AddRunner", mock.AnythingOfType("*runner.NomadJob")).Once()
+
+		_, job := helpers.CreateTemplateJob()
+		jobID := tests.DefaultRunnerID
+		job.ID = &jobID
+		job.Name = &jobID
+		call.Return([]*nomadApi.Job{job}, nil)
+
+		runnerManager.Load()
+
+		environmentMock.AssertExpectations(t)
+	})
+
+	t.Run("Stores used runner", func(t *testing.T) {
+		_, job := helpers.CreateTemplateJob()
+		jobID := tests.DefaultRunnerID
+		job.ID = &jobID
+		job.Name = &jobID
+		configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
+		require.NotNil(t, configTaskGroup)
+		configTaskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUsedValue
+		call.Return([]*nomadApi.Job{job}, nil)
+
+		require.Zero(t, runnerManager.usedRunners.Length())
+
+		runnerManager.Load()
+
+		_, ok := runnerManager.usedRunners.Get(tests.DefaultRunnerID)
+		assert.True(t, ok)
+	})
+
+	runnerManager.usedRunners.Purge()
+	t.Run("Restart timeout of used runner", func(t *testing.T) {
+		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+		timeout := 1
+
+		_, job := helpers.CreateTemplateJob()
+		jobID := tests.DefaultRunnerID
+		job.ID = &jobID
+		job.Name = &jobID
+		configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
+		require.NotNil(t, configTaskGroup)
+		configTaskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUsedValue
+		configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey] = strconv.Itoa(timeout)
+		call.Return([]*nomadApi.Job{job}, nil)
+
+		require.Zero(t, runnerManager.usedRunners.Length())
+
+		runnerManager.Load()
+
+		require.NotZero(t, runnerManager.usedRunners.Length())
+
+		<-time.After(time.Duration(timeout*2) * time.Second)
+		require.Zero(t, runnerManager.usedRunners.Length())
+	})
+}
+
+func mockWatchAllocations(apiMock *nomad.ExecutorAPIMock) {
+	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
+	call.Run(func(args mock.Arguments) {
+		<-time.After(tests.DefaultTestTimeout)
+		call.ReturnArguments = mock.Arguments{nil}
 	})
 }

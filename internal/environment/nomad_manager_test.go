@@ -8,6 +8,7 @@ import (
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
+	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -265,6 +266,48 @@ func TestNomadEnvironmentManager_List(t *testing.T) {
 		nomadEnvironment, ok := environments[0].(*NomadEnvironment)
 		assert.True(t, ok)
 		assert.Equal(t, fetchedEnvironment.job, nomadEnvironment.job)
+	})
+}
+
+func TestNomadEnvironmentManager_Load(t *testing.T) {
+	apiMock := &nomad.ExecutorAPIMock{}
+	mockWatchAllocations(apiMock)
+	call := apiMock.On("LoadEnvironmentJobs")
+	apiMock.On("LoadRunnerJobs", mock.AnythingOfType("dto.EnvironmentID")).
+		Return([]*nomadApi.Job{}, nil)
+
+	runnerManager := runner.NewNomadRunnerManager(apiMock, context.Background())
+
+	t.Run("Stores fetched environments", func(t *testing.T) {
+		_, job := helpers.CreateTemplateJob()
+		call.Return([]*nomadApi.Job{job}, nil)
+
+		_, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
+		require.False(t, ok)
+
+		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+		require.NoError(t, err)
+
+		environment, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
+		require.True(t, ok)
+		assert.Equal(t, "python:latest", environment.Image())
+	})
+
+	runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
+	t.Run("Processes only running environments", func(t *testing.T) {
+		_, job := helpers.CreateTemplateJob()
+		jobStatus := structs.JobStatusDead
+		job.Status = &jobStatus
+		call.Return([]*nomadApi.Job{job}, nil)
+
+		_, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
+		require.False(t, ok)
+
+		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+		require.NoError(t, err)
+
+		_, ok = runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
+		require.False(t, ok)
 	})
 }
 

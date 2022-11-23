@@ -56,31 +56,6 @@ func (s *E2ETestSuite) TestProvideRunnerRoute() {
 	}
 }
 
-// ProvideRunner creates a runner with the given RunnerRequest via an external request.
-// It needs a running Poseidon instance to work.
-func ProvideRunner(request *dto.RunnerRequest) (string, error) {
-	runnerURL := helpers.BuildURL(api.BasePath, api.RunnersPath)
-	runnerRequestByteString, err := json.Marshal(request)
-	if err != nil {
-		return "", err
-	}
-	reader := strings.NewReader(string(runnerRequestByteString))
-	resp, err := http.Post(runnerURL, "application/json", reader) //nolint:gosec // runnerURL is not influenced by a user
-	if err != nil {
-		return "", err
-	}
-	if resp.StatusCode != http.StatusOK {
-		//nolint:goerr113 // dynamic error is ok in here, as it is a test
-		return "", fmt.Errorf("expected response code 200 when getting runner, got %v", resp.StatusCode)
-	}
-	runnerResponse := new(dto.RunnerResponse)
-	err = json.NewDecoder(resp.Body).Decode(runnerResponse)
-	if err != nil {
-		return "", err
-	}
-	return runnerResponse.ID, nil
-}
-
 // CopyFiles sends the dto.UpdateFileSystemRequest to Poseidon.
 // It needs a running Poseidon instance to work.
 func CopyFiles(runnerID string, request *dto.UpdateFileSystemRequest) (*http.Response, error) {
@@ -347,7 +322,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 
 	// User manipulates protected folder
 	s.Run("User can create files", func() {
-		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+		webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{
 			Command:             fmt.Sprintf("touch %s/userfile", protectedFolderPath),
 			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
 			PrivilegedExecution: false,
@@ -364,7 +339,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 	})
 
 	s.Run("User can not delete protected folder", func() {
-		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+		webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{
 			Command:             fmt.Sprintf("rm -fr %s", protectedFolderPath),
 			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
 			PrivilegedExecution: false,
@@ -381,7 +356,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 	})
 
 	s.Run("User can not delete protected file", func() {
-		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+		webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{
 			Command:             fmt.Sprintf("rm -f %s", protectedFolderPath+tests.DefaultFileName),
 			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
 			PrivilegedExecution: false,
@@ -398,7 +373,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 	})
 
 	s.Run("User can not write protected file", func() {
-		webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+		webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{
 			Command:             fmt.Sprintf("echo Hi >> %s", protectedFolderPath+tests.DefaultFileName),
 			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
 			PrivilegedExecution: false,
@@ -469,7 +444,7 @@ func (s *E2ETestSuite) TestRunnerGetsDestroyedAfterInactivityTimeout() {
 			executionTerminated := make(chan bool)
 			var lastMessage *dto.WebSocketMessage
 			go func() {
-				webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{Command: "sleep infinity"})
+				webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{Command: "sleep infinity"})
 				s.Require().NoError(err)
 				connection, err := ConnectToWebSocket(webSocketURL)
 				s.Require().NoError(err)
@@ -497,7 +472,7 @@ func (s *E2ETestSuite) assertFileContent(runnerID, fileName, expectedContent str
 }
 
 func (s *E2ETestSuite) PrintContentOfFileOnRunner(runnerID, filename string) (stdout, stderr string) {
-	webSocketURL, err := ProvideWebSocketURL(&s.Suite, runnerID, &dto.ExecutionRequest{
+	webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{
 		Command:   fmt.Sprintf("cat %s", filename),
 		TimeLimit: int(tests.DefaultTestTimeout.Seconds()),
 	})

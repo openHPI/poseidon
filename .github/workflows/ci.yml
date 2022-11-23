@@ -202,3 +202,7 @@ jobs:
           ./poseidon &
           until curl -s --fail http://localhost:7200/api/v1/health ; do sleep 1; done
           make e2e-test
+      - name: Run e2e recovery tests
+        run: |
+          killall poseidon
+          make e2e-test-recovery

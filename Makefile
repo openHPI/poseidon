@@ -1,7 +1,7 @@
 PROJECT_NAME := "poseidon"
 REPOSITORY_OWNER = "openHPI"
 PKG := "github.com/$(REPOSITORY_OWNER)/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)"
-UNIT_TESTS = $(shell go list ./... | grep -v /e2e)
+UNIT_TESTS = $(shell go list ./... | grep -v /e2e | grep -v /recovery)
 
 DOCKER_TAG := "poseidon:latest"
 DOCKER_OPTS := -v $(shell pwd)/configuration.yaml:/configuration.yaml
@@ -108,6 +108,10 @@ e2e-test-docker-image: deploy/dockerfiles ## Build Docker image that is used in 
 e2e-test: deps ## Run e2e tests
 	@[ -z "$(docker images -q $(E2E_TEST_DOCKER_IMAGE))" ] || docker pull $(E2E_TEST_DOCKER_IMAGE)
 	@go test -count=1 ./tests/e2e -v -args -dockerImage="$(E2E_TEST_DOCKER_IMAGE)"
+
+.PHONY: e2e-test-recovery
+e2e-test-recovery: deps ## Run recovery e2e tests
+	@go test -count=1 ./tests/recovery -v -args -poseidonPath="../../poseidon" -dockerImage="$(E2E_TEST_DOCKER_IMAGE)"
 
 .PHONY: e2e-docker
 e2e-docker: docker ## Run e2e tests against the Docker container

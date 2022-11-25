@@ -1,0 +1,13 @@
+[
+  "p10/java:8-antlr",
+  "p28/r:4",
+  "p29/python:3.8",
+  "p31/java:17",
+  "p33/openhpi/docker_exec_phusion",
+  "p11/java:8-antlr",
+  "p14/python:3.4",
+  "p18/node:0.12",
+  "p22/python:3.4-rpi-web",
+  "p25/ruby:2.5",
+  "p30/python:3.7-ml"
+]

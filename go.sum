@@ -190,8 +190,8 @@ github.com/hashicorp/memberlist v0.3.0/go.mod h1:MS2lj3INKhZjWNqd3N0m3J+Jxf3DAOn
 github.com/hashicorp/memberlist v0.3.1/go.mod h1:MS2lj3INKhZjWNqd3N0m3J+Jxf3DAOnAH9VT3Sh9MUE=
 github.com/hashicorp/memberlist v0.5.0 h1:EtYPN8DpAURiapus508I4n9CzHs2W+8NZGbmmR/prTM=
 github.com/hashicorp/memberlist v0.5.0/go.mod h1:yvyXLpo0QaGE59Y7hDTsTzDD25JYBZ4mHgHUZ8lrOI0=
-github.com/hashicorp/nomad v1.4.2 h1:ywXODBplzOKu/gqfBVWOwbJcFodjR7tlIHidhv4Gbao=
-github.com/hashicorp/nomad v1.4.2/go.mod h1:fs+8dvfSnbARTFKYTnou4igUT4vfCLuB4koPIpeXH98=
+github.com/hashicorp/nomad v1.4.3 h1:SUcd3ZNKaUFqtsN+TkpXgwjr0tjsvO2B7P7kJP8c2q8=
+github.com/hashicorp/nomad v1.4.3/go.mod h1:WhlXlSEQ5PPUGJOOWZ8RbtGCxVfyUkLEwJEQLzcJIo4=
 github.com/hashicorp/nomad/api v0.0.0-20221021223845-dbd742d8057d h1:QdledA/Hf+uSPj/RjxwlEKEOAGUar626uskMTWbkFW8=
 github.com/hashicorp/nomad/api v0.0.0-20221021223845-dbd742d8057d/go.mod h1:y1Ps5QZUaQt2YVVMJL3XL2jdq4gkvZ+GATFPxav2in0=
 github.com/hashicorp/raft v1.2.0/go.mod h1:vPAJM8Asw6u8LxC3eJCUZmRP/E4QmUGE1R7g7k8sG/8=
@@ -385,7 +385,7 @@ github.com/zclconf/go-cty-yaml v1.0.2/go.mod h1:IP3Ylp0wQpYm50IHK8OZWKMu6sPJIUgK
 go.uber.org/atomic v1.10.0 h1:9qC72Qh0+3MqyJbAn8YU5xVq1frD8bn3JtD2oXtafVQ=
 go.uber.org/atomic v1.10.0/go.mod h1:LUxbIzbOniOlMKjJjyPfpl4v+PKK2cNJn91OQbhoJI0=
 go.uber.org/goleak v1.1.10/go.mod h1:8a7PlsEVH3e/a/GLqe5IIrQx6GzcnRmZEufDUTk4A7A=
-go.uber.org/goleak v1.1.12 h1:gZAh5/EyT/HQwlpkCy6wTpqfH9H8Lz8zbm3dZh+OyzA=
+go.uber.org/goleak v1.2.0 h1:xqgm/S+aQvhWFTtR0XK3Jvg7z8kGV8P4X14IzwN3Eqk=
 golang.org/x/crypto v0.0.0-20180904163835-0709b304e793/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20190923035154-9ee001bba392/go.mod h1:/lpIB1dKB+9EgE3H3cr1v9wB50oz8l4C4h62xy7jSTY=

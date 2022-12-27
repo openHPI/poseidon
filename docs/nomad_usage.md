@@ -34,3 +34,11 @@ When a user requests a runner, a runner from this pool can be used.
 In the background, a new runner is created, thus replenishing the pool.
 By running in the background, the user does not have to wait as long as the runner needs to start.
 The implementation of this concept can be seen in [the Runner Manager](/internal/runner/manager.go).
+
+### Lifecycle
+
+The prewarming pool is initiated when a new environment is requested/created according to the requested prewarming pool size.
+
+Every change on the environment (resource constraints, prewarming pool size, network access) leads to the destruction of the environment including all used and idle runners (the prewarming pool). After that, the environment and its prewarming pool is re-created.
+
+Other causes of the destruction of the prewarming pool are the explicit deletion of the environment by using the API route and via the get environment route with the fetch flag and Nomad not having the corresponding template job.

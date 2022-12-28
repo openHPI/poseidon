@@ -70,6 +70,7 @@ func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int
 }
 
 func (m *NomadRunnerManager) Return(r Runner) error {
+	m.usedRunners.Delete(r.ID())
 	r.StopTimeout()
 	err := util.RetryExponential(time.Second, func() (err error) {
 		if err = m.apiClient.DeleteJob(r.ID()); err != nil {
@@ -80,7 +81,6 @@ func (m *NomadRunnerManager) Return(r Runner) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	m.usedRunners.Delete(r.ID())
 	return nil
 }
 

@@ -68,11 +68,11 @@ type ExecutorAPI interface {
 	// Do not run multiple times simultaneously.
 	WatchEventStream(ctx context.Context, callbacks *AllocationProcessoring) error
 
-	// ExecuteCommand executes the given command in the allocation with the given id.
+	// ExecuteCommand executes the given command in the job/runner with the given id.
 	// It writes the output of the command to stdout/stderr and reads input from stdin.
 	// If tty is true, the command will run with a tty.
 	// Iff privilegedExecution is true, the command will be executed privileged.
-	ExecuteCommand(allocationID string, ctx context.Context, command []string, tty bool, privilegedExecution bool,
+	ExecuteCommand(jobID string, ctx context.Context, command []string, tty bool, privilegedExecution bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// MarkRunnerAsUsed marks the runner with the given ID as used. It also stores the timeout duration in the metadata.
@@ -385,22 +385,22 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 	return jobs, nil
 }
 
-// ExecuteCommand executes the given command in the given allocation.
+// ExecuteCommand executes the given command in the given job.
 // If tty is true, Nomad would normally write stdout and stderr of the command
 // both on the stdout stream. However, if the InteractiveStderr server config option is true,
 // we make sure that stdout and stderr are split correctly.
 // In order for the stderr splitting to work, the command must have the structure
 // []string{..., "bash", "-c", "my-command"}.
-func (a *APIClient) ExecuteCommand(allocationID string,
+func (a *APIClient) ExecuteCommand(jobID string,
 	ctx context.Context, command []string, tty bool, privilegedExecution bool,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if tty && config.Config.Server.InteractiveStderr {
-		return a.executeCommandInteractivelyWithStderr(allocationID, ctx, command, privilegedExecution, stdin, stdout, stderr)
+		return a.executeCommandInteractivelyWithStderr(jobID, ctx, command, privilegedExecution, stdin, stdout, stderr)
 	}
 	command = prepareCommandWithoutTTY(command, privilegedExecution)
-	exitCode, err := a.apiQuerier.Execute(allocationID, ctx, command, tty, stdin, stdout, stderr)
+	exitCode, err := a.apiQuerier.Execute(jobID, ctx, command, tty, stdin, stdout, stderr)
 	if err != nil {
-		return 1, fmt.Errorf("error executing command in API: %w", err)
+		return 1, fmt.Errorf("error executing command in job %s: %w", jobID, err)
 	}
 	return exitCode, nil
 }

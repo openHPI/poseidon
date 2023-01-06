@@ -41,4 +41,4 @@ The prewarming pool is initiated when a new environment is requested/created acc
 
 Every change on the environment (resource constraints, prewarming pool size, network access) leads to the destruction of the environment including all used and idle runners (the prewarming pool). After that, the environment and its prewarming pool is re-created.
 
-Other causes of the destruction of the prewarming pool are the explicit deletion of the environment by using the API route and via the get environment route with the fetch flag and Nomad not having the corresponding template job.
+Other causes which lead to the destruction of the prewarming pool are the explicit deletion of the environment by using the API route or when the corresponding template job for a given enviornment is no longer available on Nomad but a force update is requested using the `GET /execution-environments/{id}?fetch=true` route. The issue described in the latter case should not occur in normal operation, but could arise from either manually deleting the template job, scheduling issues on Nomad or other unforseenable edge cases.  

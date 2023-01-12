@@ -7,7 +7,7 @@ from utils.utils import read_query
 
 prewarming_pool_size = BarGauge(
     title="Prewarming Pool Size",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("prewarming-pool-size", "environment-mapping"))],
     gridPos=GridPos(h=10, w=11, x=0, y=1),
     allValues=True,
@@ -19,7 +19,7 @@ prewarming_pool_size = BarGauge(
 
 idle_runner = TimeSeries(
     title="Idle Runner",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("idle-runner", "environment-mapping"))],
     gridPos=GridPos(h=10, w=13, x=11, y=1),
     lineInterpolation="stepAfter",
@@ -29,7 +29,7 @@ idle_runner = TimeSeries(
 
 runner_startup_duration = TimeSeries(
     title="Runner startup duration",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("runner-startup-duration", "environment-mapping"))],
     gridPos=GridPos(h=10, w=12, x=0, y=11),
     unit="ns",
@@ -40,7 +40,7 @@ runner_startup_duration = TimeSeries(
 
 used_runner = TimeSeries(
     title="Used Runner",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("used-runner"))],
     gridPos=GridPos(h=10, w=12, x=12, y=11),
     maxDataPoints=None,

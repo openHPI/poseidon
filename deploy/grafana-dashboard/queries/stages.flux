@@ -1,4 +1,4 @@
-from(bucket: "poseidon/autogen")
+from(bucket: "poseidon")
   |> range(start: -1y)
   |> filter(fn: (r) => r["_measurement"] == "poseidon_environments")
   |> keep(columns: ["stage"])

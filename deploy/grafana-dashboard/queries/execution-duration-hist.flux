@@ -1,6 +1,6 @@
 import "strings"
 
-result = from(bucket: "poseidon/autogen")
+result = from(bucket: "poseidon")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
   |> filter(fn: (r) => r["_field"] == "duration")
   |> filter(fn: (r) => contains(value: r["environment_id"], set: ${environment_ids:json}))

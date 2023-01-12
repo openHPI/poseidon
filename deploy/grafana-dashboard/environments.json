@@ -1,13 +1,15 @@
-[
-  "p10/java:8-antlr",
-  "p28/r:4",
-  "p29/python:3.8",
-  "p31/java:17",
-  "p33/openhpi/docker_exec_phusion",
-  "p11/java:8-antlr",
-  "p14/python:3.4",
-  "p18/node:0.12",
-  "p22/python:3.4-rpi-web",
-  "p25/ruby:2.5",
-  "p30/python:3.7-ml"
-]
+{
+  "executionEnvironments": [
+    {"image": "openhpi/co_execenv_java:8-antlr", "id": 10},
+    {"image": "openhpi/co_execenv_r:4", "id": 28},
+    {"image": "openhpi/co_execenv_python:3.8", "id": 29},
+    {"image": "openhpi/co_execenv_java:17", "id": 31},
+    {"image": "openhpi/docker_exec_phusion", "id": 33},
+    {"image": "openhpi/co_execenv_java:8-antlr", "id": 11},
+    {"image": "openhpi/co_execenv_python:3.4", "id": 14},
+    {"image": "openhpi/co_execenv_node:0.12", "id": 18},
+    {"image": "openhpi/co_execenv_python:3.4-rpi-web", "id": 22},
+    {"image": "openhpi/co_execenv_ruby:2.5", "id": 25},
+    {"image": "openhpi/co_execenv_python:3.7-ml", "id": 30}
+  ]
+}

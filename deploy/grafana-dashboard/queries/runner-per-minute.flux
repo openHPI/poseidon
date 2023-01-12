@@ -2,7 +2,7 @@ import "strings"
 import "date"
 
 myWindowPeriod = if int(v: v.windowPeriod) > int(v: 2m) then duration(v: int(v: v.windowPeriod) * 30) else duration(v: int(v: v.windowPeriod) * 15)
-result = from(bucket: "poseidon/autogen")
+result = from(bucket: "poseidon")
   |> range(start: date.truncate(t: v.timeRangeStart, unit: 1m), stop: date.truncate(t: v.timeRangeStop, unit: 1m))
   |> filter(fn: (r) => r["_measurement"] == "poseidon_used_runners")
   |> filter(fn: (r) => contains(value: r["environment_id"], set: ${environment_ids:json}))

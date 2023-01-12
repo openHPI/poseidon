@@ -1,4 +1,4 @@
-from(bucket: "poseidon/autogen")
+from(bucket: "poseidon")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
   |> filter(fn: (r) => r["_measurement"] == "poseidon_used_runners")
   |> filter(fn: (r) => r["_field"] == "count")

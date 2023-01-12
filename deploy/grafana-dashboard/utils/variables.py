@@ -3,7 +3,7 @@ from grafanalib.core import Template
 from utils.utils import read_query
 
 stage_variable = Template(
-    dataSource="Poseidon",
+    dataSource="Flux",
     label="Stage",
     name="stages",
     query=read_query("stages"),
@@ -14,7 +14,7 @@ stage_variable = Template(
 )
 
 environment_variable = Template(
-    dataSource="Poseidon",
+    dataSource="Flux",
     label="Environment IDs",
     name="environment_ids",
     query=read_query("environment-ids"),

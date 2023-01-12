@@ -3,7 +3,7 @@ import "date"
 // The need for the date truncation is caused by Poseidon sending all influx events at the same time when starting up. This way not the last but a random value is displayed.
 // Since in this startup process the highest value is the correct one, we choose the highest value of the last events.
 
-data = from(bucket: "poseidon/autogen")
+data = from(bucket: "poseidon")
   |> range(start: -1y)
   |> filter(fn: (r) => r["_measurement"] == "poseidon_environments")
   |> group(columns: ["stage"], mode:"by")

@@ -7,7 +7,7 @@ from utils.utils import read_query
 
 requests_per_minute = TimeSeries(
     title="Requests per minute",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("requests-per-minute"))],
     gridPos=GridPos(h=9, w=8, x=0, y=22),
     scaleDistributionType="log",
@@ -17,7 +17,7 @@ requests_per_minute = TimeSeries(
 
 request_latency = Heatmap(
     title="Request Latency",
-    dataSource="Poseidon",
+    dataSource="Flux",
     dataFormat="timeseries",
     targets=[InfluxDBTarget(query=read_query("request-latency"))],
     gridPos=GridPos(h=9, w=8, x=8, y=22),
@@ -32,7 +32,7 @@ request_latency = Heatmap(
 
 service_time = TimeSeries(
     title="Service time (99.9%)",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("service-time"))],
     gridPos=GridPos(h=9, w=8, x=16, y=22),
     scaleDistributionType="log",
@@ -44,7 +44,7 @@ service_time = TimeSeries(
 
 current_environment_count = Stat(
     title="Current environment count",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("current-environment-count"))],
     gridPos=GridPos(h=6, w=8, x=0, y=31),
     alignment="center",
@@ -52,7 +52,7 @@ current_environment_count = Stat(
 
 currently_used_runners = Stat(
     title="Currently used runners",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("currently-used-runners"))],
     gridPos=GridPos(h=6, w=8, x=8, y=31),
     alignment="center",
@@ -60,7 +60,7 @@ currently_used_runners = Stat(
 
 number_of_executions = BarGauge(
     title="Number of Executions",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("number-of-executions", "environment-mapping"))],
     gridPos=GridPos(h=6, w=8, x=16, y=31),
     allValues=True,
@@ -72,7 +72,7 @@ number_of_executions = BarGauge(
 
 execution_duration = BarGauge(
     title="Execution duration",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("execution-duration", "environment-mapping"))],
     gridPos=GridPos(h=11, w=8, x=0, y=37),
     allValues=True,
@@ -85,7 +85,7 @@ execution_duration = BarGauge(
 
 executions_per_runner = BarGauge(
     title="Executions per runner",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("executions-per-runner", "environment-mapping"))],
     gridPos=GridPos(h=11, w=8, x=8, y=37),
     allValues=True,
@@ -97,7 +97,7 @@ executions_per_runner = BarGauge(
 
 executions_per_minute = BarGauge(
     title="Executions per minute",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("executions-per-minute", "environment-mapping"))],
     gridPos=GridPos(h=11, w=8, x=16, y=37),
     allValues=True,

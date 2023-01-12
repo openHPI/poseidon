@@ -15,7 +15,7 @@ execution_duration_extra_json = {
 deep_update_dict(execution_duration_extra_json, color_mapping_environments)
 execution_duration = Histogram(
     title="Execution duration",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("execution-duration-hist", "environment-mapping"))],
     gridPos=GridPos(h=8, w=24, x=0, y=49),
     bucketSize=100000000,
@@ -28,7 +28,7 @@ execution_duration = Histogram(
 
 executions_per_runner = Histogram(
     title="Executions per runner",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("executions-per-runner-hist", "environment-mapping"))],
     gridPos=GridPos(h=10, w=11, x=0, y=57),
     bucketSize=1,
@@ -41,7 +41,7 @@ executions_per_runner = Histogram(
 
 executions_per_minute = TimeSeries(
     title="Executions per minute",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("executions-per-minute-time", "environment-mapping"))],
     gridPos=GridPos(h=10, w=13, x=11, y=57),
     maxDataPoints=None,
@@ -51,7 +51,7 @@ executions_per_minute = TimeSeries(
 
 file_upload = TimeSeries(
     title="File Upload",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("file-upload", "environment-mapping"))],
     gridPos=GridPos(h=10, w=11, x=0, y=67),
     scaleDistributionType="log",
@@ -63,7 +63,7 @@ file_upload = TimeSeries(
 
 runner_per_minute = TimeSeries(
     title="Runner per minute",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("runner-per-minute", "environment-mapping"))],
     gridPos=GridPos(h=10, w=13, x=11, y=67),
     maxDataPoints=None,
@@ -73,7 +73,7 @@ runner_per_minute = TimeSeries(
 
 file_download = TimeSeries(
     title="File Download",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("file-download", "environment-mapping"))],
     gridPos=GridPos(h=10, w=11, x=0, y=77),
     scaleDistributionType="log",
@@ -85,7 +85,7 @@ file_download = TimeSeries(
 
 file_download_ratio = BarGauge(
     title="File Download Ratio",
-    dataSource="Poseidon",
+    dataSource="Flux",
     targets=[InfluxDBTarget(query=read_query("file-download-ratio", "environment-mapping"))],
     gridPos=GridPos(h=10, w=13, x=11, y=77),
     max=1,

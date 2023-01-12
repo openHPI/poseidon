@@ -1,6 +1,6 @@
 import "strings"
 
-result = from(bucket: "poseidon/autogen")
+result = from(bucket: "poseidon")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
   |> filter(fn: (r) => r["_measurement"] == "poseidon_nomad_idle_runners")
   |> filter(fn: (r) => r["_field"] == "startup_duration")

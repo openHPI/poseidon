@@ -1,6 +1,6 @@
 import "strings"
 
-data = from(bucket: "poseidon/autogen")
+data = from(bucket: "poseidon")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
   |> filter(fn: (r) => (not exists r.stage) or contains(value: r["stage"], set: ${stages:json}))
 

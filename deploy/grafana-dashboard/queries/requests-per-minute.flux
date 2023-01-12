@@ -1,6 +1,6 @@
 import "date"
 
-data = from(bucket: "poseidon/autogen")
+data = from(bucket: "poseidon")
   |> range(start: date.truncate(t: v.timeRangeStart, unit: 1m), stop: date.truncate(t: v.timeRangeStop, unit: 1m))
   |> filter(fn: (r) => r._field == "duration")
   |> filter(fn: (r) => (not exists r.environment_id) or contains(value: r["environment_id"], set: ${environment_ids:json}))

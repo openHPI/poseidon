@@ -23,6 +23,9 @@ jobs:
         run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
       - run: pipenv install
         working-directory: deploy/grafana-dashboard
+      - name: Use Sample Environments
+        run: cp environments.json.sample environments.json
+        working-directory: deploy/grafana-dashboard
       - name: Create Grafana Dashboard JSON
         run: pipenv run python main.py
         working-directory: deploy/grafana-dashboard

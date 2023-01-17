@@ -2,7 +2,6 @@ import "strings"
 
 data = from(bucket: "poseidon")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
-  |> filter(fn: (r) => (not exists r.stage) or contains(value: r["stage"], set: ${stages:json}))
 
 runner_deletions = data
   |> filter(fn: (r) => r["_measurement"] == "poseidon_used_runners")

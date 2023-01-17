@@ -5,7 +5,6 @@ data = from(bucket: "poseidon")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
   |> filter(fn: (r) => r["_measurement"] == "poseidon_file_download")
   |> filter(fn: (r) => contains(value: r["environment_id"], set: ${environment_ids:json}))
-  |> filter(fn: (r) => (not exists r.stage) or contains(value: r["stage"], set: ${stages:json}))
 
 actual = data |> filter(fn: (r) => r["_field"] == "actual_length")
 expected = data |> filter(fn: (r) => r["_field"] == "expected_length")

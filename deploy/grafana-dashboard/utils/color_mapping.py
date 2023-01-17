@@ -31,6 +31,11 @@ colours = [
 
 with open("environments.json") as f:
     environments = json.load(f)
-    environments.sort()
-    for environment in environments:
+
+    environment_identifier = []
+    for environment in environments["executionEnvironments"]:
+        environment_identifier.append(str(environment["id"]) + "/" + environment["image"].removeprefix("openhpi/co_execenv_"))
+
+    environment_identifier.sort()
+    for environment in environment_identifier:
         deep_update_dict(color_mapping_environments, color_mapping(environment, colours.pop(0)))

@@ -185,8 +185,8 @@ github.com/hashicorp/vault/sdk v0.6.2 h1:LtWXUM+WheM5T8pOO/6nOTiFwnE+4y3bPztFf15
 github.com/hashicorp/vault/sdk v0.6.2/go.mod h1:KyfArJkhooyba7gYCKSq8v66QdqJmnbAxtV/OX1+JTs=
 github.com/hashicorp/yamux v0.1.1 h1:yrQxtgseBDrq9Y652vSRDvsKCJKOUD+GzTS4Y0Y8pvE=
 github.com/hashicorp/yamux v0.1.1/go.mod h1:CtWFDAQgb7dxtzFs4tWbplKIe2jSi3+5vKbgIO0SLnQ=
-github.com/influxdata/influxdb-client-go/v2 v2.12.1 h1:RrjoDNyBGFYvjKfjmtIyYAn6GY/SrtocSo4RPlt+Lng=
-github.com/influxdata/influxdb-client-go/v2 v2.12.1/go.mod h1:YteV91FiQxRdccyJ2cHvj2f/5sq4y4Njqu1fQzsQCOU=
+github.com/influxdata/influxdb-client-go/v2 v2.12.2 h1:uYABKdrEKlYm+++qfKdbgaHKBPmoWR5wpbmj6MBB/2g=
+github.com/influxdata/influxdb-client-go/v2 v2.12.2/go.mod h1:YteV91FiQxRdccyJ2cHvj2f/5sq4y4Njqu1fQzsQCOU=
 github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf h1:7JTmneyiNEwVBOHSjoMxiWAqB992atOeepeFYegn5RU=
 github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf/go.mod h1:xaLFMmpvUxqXtVkUJfg9QmT88cDaCJ3ZKgdZ78oO8Qo=
 github.com/jhump/protoreflect v1.6.0 h1:h5jfMVslIg6l29nsMs0D8Wj17RDVdNYti0vDN/PZZoE=

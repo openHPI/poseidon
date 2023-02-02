@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/getsentry/sentry-go"
 	nomadApi "github.com/hashicorp/nomad/api"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -137,7 +136,7 @@ func (r *NomadJob) ListFileSystem(
 		command = lsCommandRecursive
 	}
 
-	ls2json := &nullio.Ls2JsonWriter{Target: content}
+	ls2json := &nullio.Ls2JsonWriter{Target: content, Ctx: ctx}
 	defer ls2json.Close()
 	retrieveCommand := (&dto.ExecutionRequest{Command: fmt.Sprintf("%s %q", command, path)}).FullCommand()
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
@@ -167,11 +166,9 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, ct
 	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
 	stdOut := bytes.Buffer{}
 	stdErr := bytes.Buffer{}
-	span := sentry.StartSpan(ctx, "Execute Update File System")
 	exitCode, err := r.api.ExecuteCommand(r.id, context.Background(), updateFileCommand, false,
 		nomad.PrivilegedExecution, // All files should be written and owned by a privileged user #211.
 		&tarBuffer, &stdOut, &stdErr)
-	span.Finish()
 	if err != nil {
 		return fmt.Errorf(
 			"%w: nomad error during file copy: %v",

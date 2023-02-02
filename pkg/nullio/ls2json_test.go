@@ -2,6 +2,7 @@ package nullio
 
 import (
 	"bytes"
+	"context"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -18,7 +19,7 @@ type Ls2JsonTestSuite struct {
 
 func (s *Ls2JsonTestSuite) SetupTest() {
 	s.buf = &bytes.Buffer{}
-	s.writer = &Ls2JsonWriter{Target: s.buf}
+	s.writer = &Ls2JsonWriter{Target: s.buf, Ctx: context.Background()}
 }
 
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteCreationAndClose() {

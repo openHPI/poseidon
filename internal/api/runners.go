@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/config"
@@ -65,7 +66,9 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	}
 	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
 
+	span := sentry.StartSpan(request.Context(), "Claim Runner")
 	nextRunner, err := r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
+	span.Finish()
 	if err != nil {
 		switch {
 		case errors.Is(err, runner.ErrUnknownExecutionEnvironment):
@@ -103,7 +106,9 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
+	span := sentry.StartSpan(request.Context(), "List File System")
 	err = targetRunner.ListFileSystem(path, recursive, writer, privilegedExecution, request.Context())
+	span.Finish()
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writeClientError(writer, err, http.StatusFailedDependency)
 		return
@@ -125,7 +130,11 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 
 	targetRunner, _ := runner.FromContext(request.Context())
 	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
-	if err := targetRunner.UpdateFileSystem(fileCopyRequest); err != nil {
+
+	span := sentry.StartSpan(request.Context(), "Update File System")
+	err := targetRunner.UpdateFileSystem(fileCopyRequest, request.Context())
+	span.Finish()
+	if err != nil {
 		log.WithError(err).Error("Could not perform the requested updateFileSystem.")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 		return
@@ -144,7 +153,9 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 	}
 
 	writer.Header().Set("Content-Disposition", "attachment; filename=\""+path+"\"")
+	span := sentry.StartSpan(request.Context(), "File Content")
 	err = targetRunner.GetFileContent(path, writer, privilegedExecution, request.Context())
+	span.Finish()
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writeClientError(writer, err, http.StatusFailedDependency)
 		return
@@ -191,7 +202,9 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	id := newUUID.String()
+	span := sentry.StartSpan(request.Context(), "Store Execution")
 	targetRunner.StoreExecution(id, executionRequest)
+	span.Finish()
 	webSocketURL := url.URL{
 		Scheme:   scheme,
 		Host:     request.Host,
@@ -230,7 +243,9 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 	targetRunner, _ := runner.FromContext(request.Context())
 	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
+	span := sentry.StartSpan(request.Context(), "Return Runner")
 	err := r.manager.Return(targetRunner)
+	span.Finish()
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)
 		return

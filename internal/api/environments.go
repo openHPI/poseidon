@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -118,7 +119,9 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 		return
 	}
 
-	created, err := e.manager.CreateOrUpdate(environmentID, *req)
+	span := sentry.StartSpan(request.Context(), "Create Environment")
+	created, err := e.manager.CreateOrUpdate(environmentID, *req, request.Context())
+	span.Finish()
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 	}

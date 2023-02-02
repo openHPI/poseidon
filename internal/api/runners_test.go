@@ -277,7 +277,8 @@ func (s *UpdateFileSystemRouteTestSuite) SetupTest() {
 }
 
 func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsNoContentOnValidRequest() {
-	s.runnerMock.On("UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest")).Return(nil)
+	s.runnerMock.On("UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest"), mock.Anything).
+		Return(nil)
 
 	copyRequest := dto.UpdateFileSystemRequest{}
 	body, err := json.Marshal(copyRequest)
@@ -287,7 +288,8 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsNoContentOnV
 
 	s.router.ServeHTTP(s.recorder, request)
 	s.Equal(http.StatusNoContent, s.recorder.Code)
-	s.runnerMock.AssertCalled(s.T(), "UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest"))
+	s.runnerMock.AssertCalled(s.T(), "UpdateFileSystem",
+		mock.AnythingOfType("*dto.UpdateFileSystemRequest"), mock.Anything)
 }
 
 func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsBadRequestOnInvalidRequestBody() {
@@ -314,7 +316,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemToNonExistingRunner
 
 func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsInternalServerErrorWhenCopyFailed() {
 	s.runnerMock.
-		On("UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest")).
+		On("UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest"), mock.Anything).
 		Return(runner.ErrorFileCopyFailed)
 
 	copyRequest := dto.UpdateFileSystemRequest{}

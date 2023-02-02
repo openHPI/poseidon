@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
@@ -18,7 +19,8 @@ func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
 
 	t.Run("can create default Java environment", func(t *testing.T) {
 		config.Config.AWS.Functions = []string{uniqueImage}
-		_, err := m.CreateOrUpdate(tests.AnotherEnvironmentIDAsInteger, dto.ExecutionEnvironmentRequest{Image: uniqueImage})
+		_, err := m.CreateOrUpdate(
+			tests.AnotherEnvironmentIDAsInteger, dto.ExecutionEnvironmentRequest{Image: uniqueImage}, context.Background())
 		assert.NoError(t, err)
 	})
 
@@ -31,14 +33,14 @@ func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
 	t.Run("non-handleable requests are forwarded to the next manager", func(t *testing.T) {
 		nextHandler := &ManagerHandlerMock{}
 		nextHandler.On("CreateOrUpdate", mock.AnythingOfType("dto.EnvironmentID"),
-			mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).Return(true, nil)
+			mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).Return(true, nil)
 		m.SetNextHandler(nextHandler)
 
 		request := dto.ExecutionEnvironmentRequest{}
-		_, err := m.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, request)
+		_, err := m.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, request, context.Background())
 		assert.NoError(t, err)
 		nextHandler.AssertCalled(t, "CreateOrUpdate",
-			dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), request)
+			dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), request, mock.Anything)
 	})
 }
 

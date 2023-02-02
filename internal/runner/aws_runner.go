@@ -117,7 +117,7 @@ func (w *AWSFunctionWorkload) ListFileSystem(_ string, _ bool, _ io.Writer, _ bo
 // Current limitation: No files can be deleted apart from the previously added files.
 // Future Work: Deduplication of the file systems, as the largest workload is likely to be used by additional
 // CSV files or similar, which are the same for many executions.
-func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequest) error {
+func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequest, _ context.Context) error {
 	for _, path := range request.Delete {
 		delete(w.fs, path)
 	}

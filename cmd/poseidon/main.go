@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
@@ -102,6 +103,9 @@ func initServer() *http.Server {
 	runnerManager, environmentManager = createManagerHandler(createAWSManager, config.Config.AWS.Enabled,
 		runnerManager, environmentManager)
 
+	handler := api.NewRouter(runnerManager, environmentManager)
+	sentryHandler := sentryhttp.New(sentryhttp.Options{}).Handle(handler)
+
 	return &http.Server{
 		Addr: config.Config.Server.URL().Host,
 		// A WriteTimeout would prohibit long-running requests such as creating an execution environment.
@@ -110,7 +114,7 @@ func initServer() *http.Server {
 		ReadHeaderTimeout: time.Second * 15,
 		ReadTimeout:       time.Second * 15,
 		IdleTimeout:       time.Second * 60,
-		Handler:           api.NewRouter(runnerManager, environmentManager),
+		Handler:           sentryHandler,
 	}
 }
 

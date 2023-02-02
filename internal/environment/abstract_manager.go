@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"fmt"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
@@ -37,7 +38,8 @@ func (n *AbstractManager) Get(_ dto.EnvironmentID, _ bool) (runner.ExecutionEnvi
 	return nil, runner.ErrRunnerNotFound
 }
 
-func (n *AbstractManager) CreateOrUpdate(_ dto.EnvironmentID, _ dto.ExecutionEnvironmentRequest) (bool, error) {
+func (n *AbstractManager) CreateOrUpdate(_ dto.EnvironmentID, _ dto.ExecutionEnvironmentRequest, _ context.Context) (
+	bool, error) {
 	return false, nil
 }
 

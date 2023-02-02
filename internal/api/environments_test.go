@@ -246,7 +246,7 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsBadRequestWhenBadBody() 
 func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsInternalServerErrorWhenManagerReturnsError() {
 	testError := tests.ErrDefault
 	s.manager.
-		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).
+		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).
 		Return(false, testError)
 
 	recorder := s.recordRequest()
@@ -256,7 +256,7 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsInternalServerErrorWhenM
 
 func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsCreatedIfNewEnvironment() {
 	s.manager.
-		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).
+		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).
 		Return(true, nil)
 
 	recorder := s.recordRequest()
@@ -265,7 +265,7 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsCreatedIfNewEnvironment(
 
 func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsNoContentIfNotNewEnvironment() {
 	s.manager.
-		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).
+		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).
 		Return(false, nil)
 
 	recorder := s.recordRequest()

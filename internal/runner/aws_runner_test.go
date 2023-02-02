@@ -121,7 +121,7 @@ func TestAWSFunctionWorkload_UpdateFileSystem(t *testing.T) {
 	r.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
 	myFile := dto.File{Path: "myPath", Content: []byte("myContent")}
 
-	err = r.UpdateFileSystem(&dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}})
+	err = r.UpdateFileSystem(&dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}}, context.Background())
 	assert.NoError(t, err)
 	_, execCancel, err := r.ExecuteInteractively(tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
 	require.NoError(t, err)

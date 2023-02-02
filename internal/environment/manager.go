@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 )
@@ -30,6 +31,7 @@ type Manager interface {
 	CreateOrUpdate(
 		id dto.EnvironmentID,
 		request dto.ExecutionEnvironmentRequest,
+		ctx context.Context,
 	) (bool, error)
 
 	// Delete removes the specified execution environment.

@@ -274,7 +274,7 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtr
 	// note: this method tests an implementation detail of the method UpdateFileSystemOfRunner method
 	// if the implementation changes, delete this test and write a new one
 	copyRequest := &dto.UpdateFileSystemRequest{}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 		false, mock.AnythingOfType("bool"), mock.Anything, mock.Anything, mock.Anything)
@@ -284,21 +284,21 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtr
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfExitCodeIsNotZero() {
 	s.mockedExecuteCommandCall.Return(1, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.ErrorIs(err, ErrorFileCopyFailed)
 }
 
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfApiCallDid() {
 	s.mockedExecuteCommandCall.Return(0, tests.ErrDefault)
 	copyRequest := &dto.UpdateFileSystemRequest{}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.ErrorIs(err, nomad.ErrorExecutorCommunicationFailed)
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
 		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
@@ -314,7 +314,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFilePath() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
 		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
@@ -326,7 +326,7 @@ func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFil
 func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLocation() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
 		{Path: tests.FileNameWithAbsolutePath, Content: []byte(tests.DefaultFileContent)}}}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
@@ -336,7 +336,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLoc
 
 func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultDirectoryName, Content: []byte{}}}}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
@@ -349,7 +349,7 @@ func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
 
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{tests.DefaultFileName}}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
@@ -358,7 +358,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{"/some/potentially/harmful'filename"}}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
@@ -367,7 +367,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 
 func (s *UpdateFileSystemTestSuite) TestResetTimerGetsCalled() {
 	copyRequest := &dto.UpdateFileSystemRequest{}
-	err := s.runner.UpdateFileSystem(copyRequest)
+	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.NoError(err)
 	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -89,8 +90,8 @@ func (m *NomadEnvironmentManager) List(fetch bool) ([]runner.ExecutionEnvironmen
 	return m.runnerManager.ListEnvironments(), nil
 }
 
-func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
-	created bool, err error) {
+func (m *NomadEnvironmentManager) CreateOrUpdate(
+	id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest, ctx context.Context) (created bool, err error) {
 	// Check if execution environment is already existing (in the local memory).
 	environment, isExistingEnvironment := m.runnerManager.GetEnvironment(id)
 	if isExistingEnvironment {
@@ -112,13 +113,17 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(id dto.EnvironmentID, request d
 	m.runnerManager.StoreEnvironment(environment)
 
 	// Register template Job with Nomad.
+	span := sentry.StartSpan(ctx, "Register Environment")
 	err = environment.Register()
+	span.Finish()
 	if err != nil {
 		return false, fmt.Errorf("error registering template job in API: %w", err)
 	}
 
 	// Launch idle runners based on the template job.
+	span = sentry.StartSpan(ctx, "Apply Prewarming Pool Size")
 	err = environment.ApplyPrewarmingPoolSize()
+	span.Finish()
 	if err != nil {
 		return false, fmt.Errorf("error scaling template job in API: %w", err)
 	}

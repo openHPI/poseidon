@@ -71,6 +71,12 @@ sentry:
   # This release information is used by Poseidon to provide the version route.
   # Normally it is set by the deployment process.
   # release: this is replaced in the deployment process
+  # In debug mode, the debug information is printed to stdout to help you understand what sentry is doing.
+  # debug: true
+  # Enable performance tracing.
+  # enabletracing: true
+  # The sample rate for sampling traces in the range [0.0, 1.0].
+  # tracessamplerate: 1.0
 
 # Configuration of the influxdb monitoring
 influxdb:

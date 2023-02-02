@@ -2,8 +2,10 @@ package nullio
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"io"
@@ -34,10 +36,12 @@ const (
 // It streams the passed data to the Target and transforms the data into the json format.
 type Ls2JsonWriter struct {
 	Target         io.Writer
+	Ctx            context.Context
 	jsonStartSent  bool
 	setCommaPrefix bool
 	remaining      []byte
 	latestPath     []byte
+	sentrySpan     *sentry.Span
 }
 
 func (w *Ls2JsonWriter) HasStartedWriting() bool {
@@ -87,6 +91,7 @@ func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
 			err = fmt.Errorf("could not write to target: %w", err)
 		} else {
 			w.jsonStartSent = true
+			w.sentrySpan = sentry.StartSpan(w.Ctx, "Forwarding")
 		}
 	}
 	return count, err
@@ -98,6 +103,7 @@ func (w *Ls2JsonWriter) Close() {
 		if count == 0 || err != nil {
 			log.WithError(err).Warn("Could not Close ls2json writer")
 		}
+		w.sentrySpan.Finish()
 	}
 }
 

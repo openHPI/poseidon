@@ -109,6 +109,7 @@ func (r *NomadJob) ExecuteInteractively(
 	id string,
 	stdin io.ReadWriter,
 	stdout, stderr io.Writer,
+	requestCtx context.Context,
 ) (<-chan ExitInfo, context.CancelFunc, error) {
 	request, ok := r.executions.Pop(id)
 	if !ok {
@@ -117,13 +118,19 @@ func (r *NomadJob) ExecuteInteractively(
 
 	r.ResetTimeout()
 
-	command, ctx, cancel := prepareExecution(request, r.ctx)
+	// We have to handle three contexts
+	// - requestCtx:   The context of the http request (including Sentry data)
+	// - r.ctx:        The context of the runner (runner timeout)
+	// - executionCtx: The context of the execution (execution timeout)
+	// -> The executionCtx cancel that might be triggered (when the client connection breaks)
+
+	command, executionCtx, cancel := prepareExecution(request, r.ctx)
 	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)
-	ctxExecute, cancelExecute := context.WithCancel(r.ctx)
+	ctxExecute, cancelExecute := context.WithCancel(requestCtx)
 
 	go r.executeCommand(ctxExecute, command, request.PrivilegedExecution, stdin, stdout, stderr, exitInternal)
-	go r.handleExitOrContextDone(ctx, cancelExecute, exitInternal, exit, stdin)
+	go r.handleExitOrContextDone(executionCtx, cancelExecute, exitInternal, exit, stdin)
 
 	return exit, cancel, nil
 }
@@ -166,7 +173,7 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, ct
 	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
 	stdOut := bytes.Buffer{}
 	stdErr := bytes.Buffer{}
-	exitCode, err := r.api.ExecuteCommand(r.id, context.Background(), updateFileCommand, false,
+	exitCode, err := r.api.ExecuteCommand(r.id, ctx, updateFileCommand, false,
 		nomad.PrivilegedExecution, // All files should be written and owned by a privileged user #211.
 		&tarBuffer, &stdOut, &stdErr)
 	if err != nil {

@@ -132,14 +132,14 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestReturnsErrorWhenExecutionDoesNotExist() {
-	_, _, err := s.runner.ExecuteInteractively("non-existent-id", nil, nil, nil)
+	_, _, err := s.runner.ExecuteInteractively("non-existent-id", nil, nil, nil, context.Background())
 	s.ErrorIs(err, ErrorUnknownExecution)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestCallsApi() {
 	request := &dto.ExecutionRequest{Command: "echo 'Hello World!'"}
 	s.runner.StoreExecution(defaultExecutionID, request)
-	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, nil, nil, nil)
+	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, nil, nil, nil, context.Background())
 	s.Require().NoError(err)
 
 	time.Sleep(tests.ShortTimeout)
@@ -155,7 +155,7 @@ func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
 	timeLimit := 1
 	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
-	exit, _, err := s.runner.ExecuteInteractively(defaultExecutionID, &nullio.ReadWriter{}, nil, nil)
+	exit, _, err := s.runner.ExecuteInteractively(defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
 	s.Require().NoError(err)
 
 	select {
@@ -191,7 +191,8 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 	timeLimit := 1
 	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
-	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil)
+	_, _, err := s.runner.ExecuteInteractively(
+		defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil, context.Background())
 	s.Require().NoError(err)
 	log.Info("Before waiting")
 	select {
@@ -210,7 +211,8 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
 	s.runner.cancel = func() {}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
-	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil)
+	_, _, err := s.runner.ExecuteInteractively(
+		defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil, context.Background())
 	s.Require().NoError(err)
 	<-time.After(executionTimeoutGracePeriod + time.Duration(timeLimit)*time.Second + tests.ShortTimeout)
 	s.manager.AssertCalled(s.T(), "Return", s.runner)
@@ -219,7 +221,7 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
 	executionRequest := &dto.ExecutionRequest{}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
-	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, nil, nil, nil)
+	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, nil, nil, nil, context.Background())
 	s.Require().NoError(err)
 	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }
@@ -228,7 +230,8 @@ func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut(
 	s.mockedTimeoutPassedCall.Return(true)
 	executionRequest := &dto.ExecutionRequest{}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
-	exitChannel, _, err := s.runner.ExecuteInteractively(defaultExecutionID, &nullio.ReadWriter{}, nil, nil)
+	exitChannel, _, err := s.runner.ExecuteInteractively(
+		defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
 	s.Require().NoError(err)
 	exit := <-exitChannel
 	s.Equal(ErrorRunnerInactivityTimeout, exit.Err)

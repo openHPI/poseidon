@@ -48,13 +48,13 @@ func (_m *RunnerMock) Environment() dto.EnvironmentID {
 	return r0
 }
 
-// ExecuteInteractively provides a mock function with given fields: id, stdin, stdout, stderr
-func (_m *RunnerMock) ExecuteInteractively(id string, stdin io.ReadWriter, stdout io.Writer, stderr io.Writer) (<-chan ExitInfo, context.CancelFunc, error) {
-	ret := _m.Called(id, stdin, stdout, stderr)
+// ExecuteInteractively provides a mock function with given fields: id, stdin, stdout, stderr, ctx
+func (_m *RunnerMock) ExecuteInteractively(id string, stdin io.ReadWriter, stdout io.Writer, stderr io.Writer, ctx context.Context) (<-chan ExitInfo, context.CancelFunc, error) {
+	ret := _m.Called(id, stdin, stdout, stderr, ctx)
 
 	var r0 <-chan ExitInfo
-	if rf, ok := ret.Get(0).(func(string, io.ReadWriter, io.Writer, io.Writer) <-chan ExitInfo); ok {
-		r0 = rf(id, stdin, stdout, stderr)
+	if rf, ok := ret.Get(0).(func(string, io.ReadWriter, io.Writer, io.Writer, context.Context) <-chan ExitInfo); ok {
+		r0 = rf(id, stdin, stdout, stderr, ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(<-chan ExitInfo)
@@ -62,8 +62,8 @@ func (_m *RunnerMock) ExecuteInteractively(id string, stdin io.ReadWriter, stdou
 	}
 
 	var r1 context.CancelFunc
-	if rf, ok := ret.Get(1).(func(string, io.ReadWriter, io.Writer, io.Writer) context.CancelFunc); ok {
-		r1 = rf(id, stdin, stdout, stderr)
+	if rf, ok := ret.Get(1).(func(string, io.ReadWriter, io.Writer, io.Writer, context.Context) context.CancelFunc); ok {
+		r1 = rf(id, stdin, stdout, stderr, ctx)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(context.CancelFunc)
@@ -71,8 +71,8 @@ func (_m *RunnerMock) ExecuteInteractively(id string, stdin io.ReadWriter, stdou
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(string, io.ReadWriter, io.Writer, io.Writer) error); ok {
-		r2 = rf(id, stdin, stdout, stderr)
+	if rf, ok := ret.Get(2).(func(string, io.ReadWriter, io.Writer, io.Writer, context.Context) error); ok {
+		r2 = rf(id, stdin, stdout, stderr, ctx)
 	} else {
 		r2 = ret.Error(2)
 	}

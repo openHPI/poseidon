@@ -76,7 +76,8 @@ func TestAWSFunctionWorkload_ExecuteInteractively(t *testing.T) {
 		cancel()
 
 		r.StoreExecution(tests.DefaultEnvironmentIDAsString, &dto.ExecutionRequest{})
-		exit, _, err := r.ExecuteInteractively(tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
+		exit, _, err := r.ExecuteInteractively(
+			tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, context.Background())
 		require.NoError(t, err)
 		<-exit
 		assert.True(t, awsMock.hasConnected)
@@ -89,7 +90,8 @@ func TestAWSFunctionWorkload_ExecuteInteractively(t *testing.T) {
 		request := &dto.ExecutionRequest{Command: command}
 		r.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
 
-		_, cancel, err := r.ExecuteInteractively(tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
+		_, cancel, err := r.ExecuteInteractively(
+			tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, context.Background())
 		require.NoError(t, err)
 		<-time.After(tests.ShortTimeout)
 		cancel()
@@ -123,7 +125,8 @@ func TestAWSFunctionWorkload_UpdateFileSystem(t *testing.T) {
 
 	err = r.UpdateFileSystem(&dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}}, context.Background())
 	assert.NoError(t, err)
-	_, execCancel, err := r.ExecuteInteractively(tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
+	_, execCancel, err := r.ExecuteInteractively(
+		tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, context.Background())
 	require.NoError(t, err)
 	<-time.After(tests.ShortTimeout)
 	execCancel()

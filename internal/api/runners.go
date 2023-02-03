@@ -1,9 +1,9 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/config"
@@ -66,9 +66,11 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	}
 	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
 
-	span := sentry.StartSpan(request.Context(), "Claim Runner")
-	nextRunner, err := r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
-	span.Finish()
+	var nextRunner runner.Runner
+	var err error
+	logging.StartSpan("api.runner.claim", "Claim Runner", request.Context(), func(_ context.Context) {
+		nextRunner, err = r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
+	})
 	if err != nil {
 		switch {
 		case errors.Is(err, runner.ErrUnknownExecutionEnvironment):
@@ -106,9 +108,9 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
-	span := sentry.StartSpan(request.Context(), "List File System")
-	err = targetRunner.ListFileSystem(path, recursive, writer, privilegedExecution, request.Context())
-	span.Finish()
+	logging.StartSpan("api.fs.list", "List File System", request.Context(), func(ctx context.Context) {
+		err = targetRunner.ListFileSystem(path, recursive, writer, privilegedExecution, ctx)
+	})
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writeClientError(writer, err, http.StatusFailedDependency)
 		return
@@ -131,9 +133,10 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	targetRunner, _ := runner.FromContext(request.Context())
 	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
-	span := sentry.StartSpan(request.Context(), "Update File System")
-	err := targetRunner.UpdateFileSystem(fileCopyRequest, request.Context())
-	span.Finish()
+	var err error
+	logging.StartSpan("api.fs.update", "Update File System", request.Context(), func(ctx context.Context) {
+		err = targetRunner.UpdateFileSystem(fileCopyRequest, ctx)
+	})
 	if err != nil {
 		log.WithError(err).Error("Could not perform the requested updateFileSystem.")
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
@@ -153,9 +156,9 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 	}
 
 	writer.Header().Set("Content-Disposition", "attachment; filename=\""+path+"\"")
-	span := sentry.StartSpan(request.Context(), "File Content")
-	err = targetRunner.GetFileContent(path, writer, privilegedExecution, request.Context())
-	span.Finish()
+	logging.StartSpan("api.fs.read", "File Content", request.Context(), func(ctx context.Context) {
+		err = targetRunner.GetFileContent(path, writer, privilegedExecution, ctx)
+	})
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writeClientError(writer, err, http.StatusFailedDependency)
 		return
@@ -202,9 +205,10 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	id := newUUID.String()
-	span := sentry.StartSpan(request.Context(), "Store Execution")
-	targetRunner.StoreExecution(id, executionRequest)
-	span.Finish()
+
+	logging.StartSpan("api.runner.exec", "Store Execution", request.Context(), func(ctx context.Context) {
+		targetRunner.StoreExecution(id, executionRequest)
+	})
 	webSocketURL := url.URL{
 		Scheme:   scheme,
 		Host:     request.Host,
@@ -243,9 +247,10 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 	targetRunner, _ := runner.FromContext(request.Context())
 	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
-	span := sentry.StartSpan(request.Context(), "Return Runner")
-	err := r.manager.Return(targetRunner)
-	span.Finish()
+	var err error
+	logging.StartSpan("api.runner.delete", "Return Runner", request.Context(), func(ctx context.Context) {
+		err = r.manager.Return(targetRunner)
+	})
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)
 		return

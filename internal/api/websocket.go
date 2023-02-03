@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/api/ws"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -97,14 +96,14 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 	log.WithField("runnerId", targetRunner.ID()).
 		WithField("executionID", logging.RemoveNewlineSymbol(executionID)).
 		Info("Running execution")
-	span := sentry.StartSpan(request.Context(), "Execute Interactively")
-	defer span.Finish()
-	exit, cancel, err := targetRunner.ExecuteInteractively(executionID,
-		proxy.Input, proxy.Output.StdOut(), proxy.Output.StdErr())
-	if err != nil {
-		log.WithError(err).Warn("Cannot execute request.")
-		return // The proxy is stopped by the defered cancel.
-	}
+	logging.StartSpan("api.runner.connect", "Execute Interactively", request.Context(), func(_ context.Context) {
+		exit, cancel, err := targetRunner.ExecuteInteractively(executionID,
+			proxy.Input, proxy.Output.StdOut(), proxy.Output.StdErr())
+		if err != nil {
+			log.WithError(err).Warn("Cannot execute request.")
+			return // The proxy is stopped by the deferred cancel.
+		}
 
-	proxy.waitForExit(exit, cancel)
+		proxy.waitForExit(exit, cancel)
+	})
 }

@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 )
@@ -35,4 +36,11 @@ func (hook *SentryHook) Levels() []logrus.Level {
 		logrus.ErrorLevel,
 		logrus.WarnLevel,
 	}
+}
+
+func StartSpan(op, description string, ctx context.Context, callback func(context.Context)) {
+	span := sentry.StartSpan(ctx, op)
+	span.Description = description
+	defer span.Finish()
+	callback(span.Context())
 }

@@ -1,14 +1,15 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"net/http"
 	"strconv"
 )
@@ -119,9 +120,10 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 		return
 	}
 
-	span := sentry.StartSpan(request.Context(), "Create Environment")
-	created, err := e.manager.CreateOrUpdate(environmentID, *req, request.Context())
-	span.Finish()
+	var created bool
+	logging.StartSpan("api.env.update", "Create Environment", request.Context(), func(ctx context.Context) {
+		created, err = e.manager.CreateOrUpdate(environmentID, *req, ctx)
+	})
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorUnknown)
 	}

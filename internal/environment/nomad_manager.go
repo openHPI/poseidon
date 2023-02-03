@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/getsentry/sentry-go"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -113,17 +112,17 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	m.runnerManager.StoreEnvironment(environment)
 
 	// Register template Job with Nomad.
-	span := sentry.StartSpan(ctx, "Register Environment")
-	err = environment.Register()
-	span.Finish()
+	logging.StartSpan("env.update.register", "Register Environment", ctx, func(_ context.Context) {
+		err = environment.Register()
+	})
 	if err != nil {
 		return false, fmt.Errorf("error registering template job in API: %w", err)
 	}
 
 	// Launch idle runners based on the template job.
-	span = sentry.StartSpan(ctx, "Apply Prewarming Pool Size")
-	err = environment.ApplyPrewarmingPoolSize()
-	span.Finish()
+	logging.StartSpan("env.update.poolsize", "Apply Prewarming Pool Size", ctx, func(_ context.Context) {
+		err = environment.ApplyPrewarmingPoolSize()
+	})
 	if err != nil {
 		return false, fmt.Errorf("error scaling template job in API: %w", err)
 	}

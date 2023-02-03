@@ -421,16 +421,22 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 		defer cancel()
 
 		// Catch stderr in separate execution.
-		exit, err := a.Execute(allocationID, ctx, prepareCommandTTYStdErr(currentNanoTime, privilegedExecution), true,
-			nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
-		if err != nil {
-			log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
-		}
-		stderrExitChan <- exit
+		logging.StartSpan("nomad.execute.stderr", "Execution for separate StdErr", ctx, func(ctx context.Context) {
+			exit, err := a.Execute(allocationID, ctx, prepareCommandTTYStdErr(currentNanoTime, privilegedExecution), true,
+				nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
+			if err != nil {
+				log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
+			}
+			stderrExitChan <- exit
+		})
 	}()
 
 	command = prepareCommandTTY(command, currentNanoTime, privilegedExecution)
-	exit, err := a.Execute(allocationID, ctx, command, true, stdin, stdout, io.Discard)
+	var exit int
+	var err error
+	logging.StartSpan("nomad.execute.tty", "Interactive Execution", ctx, func(ctx context.Context) {
+		exit, err = a.Execute(allocationID, ctx, command, true, stdin, stdout, io.Discard)
+	})
 
 	// Wait until the stderr catch command finished to make sure we receive all output.
 	<-stderrExitChan

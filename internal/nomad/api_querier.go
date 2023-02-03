@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"io"
 )
 
@@ -88,18 +89,30 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	ctx context.Context, command []string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
-	allocations, _, err := nc.client.Jobs().Allocations(runnerID, false, nil)
+	var allocations []*nomadApi.AllocationListStub
+	var err error
+	logging.StartSpan("nomad.execute.list", "List Allocations for id", ctx, func(_ context.Context) {
+		allocations, _, err = nc.client.Jobs().Allocations(runnerID, false, nil)
+	})
 	if err != nil {
 		return 1, fmt.Errorf("error retrieving allocations for runner: %w", err)
 	}
 	if len(allocations) == 0 {
 		return 1, ErrorNoAllocationFound
 	}
-	allocation, _, err := nc.client.Allocations().Info(allocations[0].ID, nil)
+
+	var allocation *nomadApi.Allocation
+	logging.StartSpan("nomad.execute.info", "List Data of Allocation", ctx, func(_ context.Context) {
+		allocation, _, err = nc.client.Allocations().Info(allocations[0].ID, nil)
+	})
 	if err != nil {
 		return 1, fmt.Errorf("error retrieving allocation info: %w", err)
 	}
-	exitCode, err := nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
+
+	var exitCode int
+	logging.StartSpan("nomad.execute.exec", "Execute Command in Allocation", ctx, func(ctx context.Context) {
+		exitCode, err = nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
+	})
 	switch {
 	case err == nil:
 		return exitCode, nil

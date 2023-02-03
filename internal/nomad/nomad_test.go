@@ -784,7 +784,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError()
 
 func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
 	err error, runFunc func(arguments mock.Arguments)) *mock.Call {
-	return s.apiMock.On("Execute", s.allocationID, s.ctx, command, withTTY,
+	return s.apiMock.On("Execute", s.allocationID, mock.Anything, command, withTTY,
 		mock.Anything, mock.Anything, mock.Anything).
 		Run(runFunc).
 		Return(exitCode, err)

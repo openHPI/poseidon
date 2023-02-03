@@ -96,9 +96,9 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 	log.WithField("runnerId", targetRunner.ID()).
 		WithField("executionID", logging.RemoveNewlineSymbol(executionID)).
 		Info("Running execution")
-	logging.StartSpan("api.runner.connect", "Execute Interactively", request.Context(), func(_ context.Context) {
+	logging.StartSpan("api.runner.connect", "Execute Interactively", request.Context(), func(ctx context.Context) {
 		exit, cancel, err := targetRunner.ExecuteInteractively(executionID,
-			proxy.Input, proxy.Output.StdOut(), proxy.Output.StdErr())
+			proxy.Input, proxy.Output.StdOut(), proxy.Output.StdErr(), ctx)
 		if err != nil {
 			log.WithError(err).Warn("Cannot execute request.")
 			return // The proxy is stopped by the deferred cancel.

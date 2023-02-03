@@ -43,6 +43,7 @@ type Runner interface {
 		stdin io.ReadWriter,
 		stdout,
 		stderr io.Writer,
+		ctx context.Context,
 	) (exit <-chan ExitInfo, cancel context.CancelFunc, err error)
 
 	// ListFileSystem streams the listing of the file system of the requested directory into the Writer provided.

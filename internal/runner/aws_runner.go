@@ -87,7 +87,8 @@ func (w *AWSFunctionWorkload) ExecutionExists(id string) bool {
 	return ok
 }
 
-func (w *AWSFunctionWorkload) ExecuteInteractively(id string, _ io.ReadWriter, stdout, stderr io.Writer) (
+func (w *AWSFunctionWorkload) ExecuteInteractively(
+	id string, _ io.ReadWriter, stdout, stderr io.Writer, _ context.Context) (
 	<-chan ExitInfo, context.CancelFunc, error) {
 	w.ResetTimeout()
 	request, ok := w.executions.Pop(id)

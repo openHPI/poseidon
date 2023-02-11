@@ -13,6 +13,7 @@ jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    if: github.event_name != 'push' || github.actor != 'dependabot[bot]' && github.actor != 'dependabot-preview[bot]' && github.actor != 'dependabot'
     permissions:
       actions: read
       contents: read

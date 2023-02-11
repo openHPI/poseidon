@@ -9,3 +9,23 @@ updates:
       timezone: UTC
     labels:
       - dependencies
+
+  - package-ecosystem: maven
+    directory: "/deploy/aws/java11Exec"
+    schedule:
+      interval: daily
+      time: "03:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - java
+
+  - package-ecosystem: pip
+    directory: "/deploy/grafana-dashboard"
+    schedule:
+      interval: daily
+      time: "03:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - python

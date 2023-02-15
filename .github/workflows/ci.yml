@@ -7,9 +7,9 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: 1.19
-  NOMAD_VERSION: 1.4.3
-  CNI_VERSION: 1.1.1
+  GO_VERSION: '1.20'
+  NOMAD_VERSION: '1.4.4'
+  CNI_VERSION: '1.1.1'
 
 jobs:
   compile:

@@ -6,19 +6,19 @@ server:
   # Port on which the webserver listens
   port: 7200
   # If set, this token is required in the `Poseidon-Token` header for each route except /health
-  token: SECRET
+  # token: SECRET
   # Configuration of TLS between the web client and Poseidon.
   tls:
     # If set, the API uses TLS for all incoming connections.
-    active: true
+    active: false
     # The path to the certificate file used for TLS
-    certfile: ./poseidon.crt
+    # certfile: ./poseidon.crt
     # The path to the key file used for TLS
-    keyfile: ./poseidon.key
+    # keyfile: ./poseidon.key
   # If true, an additional WebSocket connection will be opened to split stdout and stderr when executing interactively
   interactivestderr: true
   # If set, the file at the given path overwrites the default Nomad job file in internal/environment/template-environment-job.hcl
-  templatejobfile: ./poseidon.hcl
+  # templatejobfile: ./poseidon.hcl
 
 # Configuration of the used Nomad cluster
 nomad:
@@ -29,19 +29,19 @@ nomad:
   # Port of the Nomad server
   port: 4646
   # Authenticate requests to the Nomad server with this token
-  token: SECRET
+  # token: SECRET
   # Configuration of TLS between the Poseidon and Nomad.
   tls:
     # Specifies whether to use TLS when communicating with the Nomad server.
     active: false
     # The path to the certificate of the CA authority of the Nomad host.
-    cafile: ./ca.crt
+    # cafile: ./ca.crt
     # The path to the client certificate file used for TLS
-    certfile: ./poseidon.crt
+    # certfile: ./poseidon.crt
     # The path to the client key file used for TLS
-    keyfile: ./poseidon.key
+    # keyfile: ./poseidon.key
   # Nomad namespace to use. If unset, 'default' is used
-  namespace: poseidon
+  # namespace: poseidon
   # Prefer local Docker images over pulling them from a registry. Images with the `latest` tag will always be force pulled by Nomad regardless of this configuration.
   disableforcepull: true
 
@@ -49,12 +49,12 @@ aws:
   # Specifies whether AWS should be used as executor.
   enabled: false
   # The endpoint of the WebSocket API
-  endpoint: wss://abcdef1234.execute-api.eu-central-1.amazonaws.com/production
+  # endpoint: wss://abcdef1234.execute-api.eu-central-1.amazonaws.com/production
   # Currently, only static AWS environments are supported.
   # For setting this via environment variables you have to use a string separated by spaces, like: POSEIDON_AWS_FUNCTIONS="java11Exec go118Exec".
-  functions:
-    - java11Exec
-    - go118Exec
+  # functions:
+    # - java11Exec
+    # - go118Exec
 
 # Configuration of the logger
 logger:
@@ -65,7 +65,7 @@ logger:
 sentry:
   # The DSN of the sentry endpoint to use.
   # If the DSN is not set, the client is effectively disabled.
-  dsn: https://example.io
+  # dsn: https://example.io
   # The environment to be sent with events.
   # environment: staging
   # This release information is used by Poseidon to provide the version route.
@@ -82,12 +82,12 @@ sentry:
 influxdb:
   # The url of the influxdb endpoint.
   # If the url is not set, the influxdb monitoring is disabled.
-  url: http://localhost:8086
+  # url: http://localhost:8086
   # The token to secure the influxdb endpoint.
-  token: SecretBase64Token==
+  # token: SecretBase64Token==
   # The organization set in your influxdb configuration.
-  organization: PoseidonOrg
+  # organization: PoseidonOrg
   # The influxdb bucket to store the data in.
-  bucket: poseidon
+  # bucket: poseidon
   # The stage to be sent with events.
   # stage: staging

@@ -708,6 +708,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 		s.Require().NotNil(calledStdoutCommand)
 		stderrWrapperCommand := fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoFormat, s.testCommand, stderrFifoFormat)
 		stdoutFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrWrapperCommand), "%d", "\\d*")
+		stdoutFifoRegexp = strings.Replace(stdoutFifoRegexp, s.testCommand, ".*", 1)
 		s.Regexp(stdoutFifoRegexp, calledStdoutCommand[len(calledStdoutCommand)-1])
 	})
 

@@ -398,8 +398,7 @@ func (a *APIClient) ExecuteCommand(jobID string,
 		return a.executeCommandInteractivelyWithStderr(jobID, ctx, command, privilegedExecution, stdin, stdout, stderr)
 	}
 	command = prepareCommandWithoutTTY(command, privilegedExecution)
-	debugWriter := &SentryDebugWriter{Target: stdout, Ctx: ctx}
-	exitCode, err := a.apiQuerier.Execute(jobID, ctx, command, tty, stdin, debugWriter, stderr)
+	exitCode, err := a.apiQuerier.Execute(jobID, ctx, command, tty, stdin, stdout, stderr)
 	if err != nil {
 		return 1, fmt.Errorf("error executing command in job %s: %w", jobID, err)
 	}
@@ -423,9 +422,8 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 
 		// Catch stderr in separate execution.
 		logging.StartSpan("nomad.execute.stderr", "Execution for separate StdErr", ctx, func(ctx context.Context) {
-			debugWriterStderr := &SentryDebugWriter{Target: stderr, Ctx: ctx}
 			exit, err := a.Execute(allocationID, ctx, prepareCommandTTYStdErr(currentNanoTime, privilegedExecution), true,
-				nullio.Reader{Ctx: readingContext}, debugWriterStderr, io.Discard)
+				nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
 			if err != nil {
 				log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
 			}
@@ -437,8 +435,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 	var exit int
 	var err error
 	logging.StartSpan("nomad.execute.tty", "Interactive Execution", ctx, func(ctx context.Context) {
-		debugWriter := &SentryDebugWriter{Target: stdout, Ctx: ctx}
-		exit, err = a.Execute(allocationID, ctx, command, true, stdin, debugWriter, io.Discard)
+		exit, err = a.Execute(allocationID, ctx, command, true, stdin, stdout, io.Discard)
 	})
 
 	// Wait until the stderr catch command finished to make sure we receive all output.
@@ -481,7 +478,7 @@ func prepareCommandWithoutTTY(srcCommands []string, privilegedExecution bool) []
 	commands := make([]string, len(srcCommands)) // nozero The size is required for the copy.
 	copy(commands, srcCommands)
 
-	commands[len(commands)-1] = setInnerDebugMessages(commands[len(commands)-1])
+	commands[len(commands)-1] = setInnerDebugMessages(commands[len(commands)-1], false)
 	commands = setUserCommand(commands, privilegedExecution)
 	commands[len(commands)-1] = fmt.Sprintf("'%s'", commands[len(commands)-1])
 	cmd := strings.Join(commands, " ")
@@ -495,7 +492,7 @@ func prepareCommandTTY(srcCommands []string, currentNanoTime int64, privilegedEx
 	commands := make([]string, len(srcCommands)) // nozero The size is required for the copy.
 	copy(commands, srcCommands)
 
-	commands[len(commands)-1] = setInnerDebugMessages(commands[len(commands)-1])
+	commands[len(commands)-1] = setInnerDebugMessages(commands[len(commands)-1], true)
 	commands = setUserCommand(commands, privilegedExecution)
 	// Take the last command which is the one to be executed and wrap it to redirect stderr.
 	stderrFifoPath := stderrFifo(currentNanoTime)
@@ -511,7 +508,7 @@ func prepareCommandTTY(srcCommands []string, currentNanoTime int64, privilegedEx
 func prepareCommandTTYStdErr(currentNanoTime int64, privilegedExecution bool) []string {
 	stderrFifoPath := stderrFifo(currentNanoTime)
 	cmd := fmt.Sprintf(stderrFifoCommandFormat, stderrFifoPath, stderrFifoPath, stderrFifoPath)
-	cmd = setInnerDebugMessages(cmd)
+	cmd = setInnerDebugMessages(cmd, false)
 	return setUserCommand([]string{"bash", "-c", cmd}, privilegedExecution)
 }
 
@@ -529,8 +526,14 @@ func stderrFifo(id int64) string {
 	return fmt.Sprintf(stderrFifoFormat, id)
 }
 
-func setInnerDebugMessages(command string) (result string) {
-	result = fmt.Sprintf(timeDebugMessageFormatStart, "innerCommand", command)
+// setInnerDebugMessages injects debug commands into the bash command.
+// The debug messages are parsed by the SentryDebugWriter.
+func setInnerDebugMessages(command string, includeCommandInDescription bool) (result string) {
+	description := "innerCommand"
+	if includeCommandInDescription {
+		description += fmt.Sprintf(" %s", command)
+	}
+	result = fmt.Sprintf(timeDebugMessageFormatStart, description, command)
 	result = strings.TrimSuffix(result, ";")
 	return fmt.Sprintf(timeDebugMessageFormatEnd, result, "End")
 }

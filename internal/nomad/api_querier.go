@@ -89,6 +89,7 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	ctx context.Context, command []string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
+	log.WithField("command", command).Trace("Requesting Nomad Exec")
 	var allocations []*nomadApi.AllocationListStub
 	var err error
 	logging.StartSpan("nomad.execute.list", "List Allocations for id", ctx, func(_ context.Context) {
@@ -111,7 +112,10 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 
 	var exitCode int
 	logging.StartSpan("nomad.execute.exec", "Execute Command in Allocation", ctx, func(ctx context.Context) {
-		exitCode, err = nc.client.Allocations().Exec(ctx, allocation, TaskName, tty, command, stdin, stdout, stderr, nil, nil)
+		debugWriter := NewSentryDebugWriter(stdout, ctx)
+		exitCode, err = nc.client.Allocations().
+			Exec(ctx, allocation, TaskName, tty, command, stdin, debugWriter, stderr, nil, nil)
+		debugWriter.Close(exitCode)
 	})
 	switch {
 	case err == nil:

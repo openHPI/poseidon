@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"bytes"
+	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -9,7 +10,7 @@ import (
 
 func TestSentryDebugWriter_Write(t *testing.T) {
 	buf := &bytes.Buffer{}
-	w := SentryDebugWriter{Target: buf}
+	w := SentryDebugWriter{Target: buf, Ctx: context.Background()}
 
 	description := "TestDebugMessageDescription"
 	data := "\x1EPoseidon " + description + " 1676646791482\x1E"

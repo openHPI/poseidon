@@ -17,13 +17,11 @@ const (
 	timeDebugMessageFormatStart = timeDebugMessageFormat + "; %s"
 	// Format Parameters: 1. command, 2. Debug Comment.
 	timeDebugMessageFormatEnd = "%s && " + timeDebugMessageFormat
-
-	timeDebugMessagePatternGroupText = 1
-	timeDebugMessagePatternGroupTime = 2
 )
 
 var (
-	timeDebugMessagePattern      = regexp.MustCompile(`\x1EPoseidon (?P<text>\w+) (?P<time>\d+)\x1E`)
+	timeDebugMessagePattern = regexp.
+				MustCompile(`(?P<before>.*)\x1EPoseidon (?P<text>.+) (?P<time>\d{13})\x1E(?P<after>.*)`)
 	timeDebugMessagePatternStart = regexp.MustCompile(`\x1EPoseidon`)
 )
 
@@ -36,54 +34,81 @@ type SentryDebugWriter struct {
 	lastSpan *sentry.Span
 }
 
-// Improve: Handling of a split debug messages (usually p is exactly one debug message, not less and not more).
+func NewSentryDebugWriter(target io.Writer, ctx context.Context) *SentryDebugWriter {
+	span := sentry.StartSpan(ctx, "nomad.execute.connect")
+	return &SentryDebugWriter{
+		Target:   target,
+		Ctx:      ctx,
+		lastSpan: span,
+	}
+}
+
+// Improve: Handling of a split debug messages (usually, p is exactly one debug message, not less and not more).
 func (s *SentryDebugWriter) Write(p []byte) (n int, err error) {
 	if !timeDebugMessagePatternStart.Match(p) {
 		count, err := s.Target.Write(p)
 		if err != nil {
-			err = fmt.Errorf("SentryDebugWriter Forwarded: %w", err)
+			err = fmt.Errorf("SentryDebugWriter Forwarded Error: %w", err)
 		}
 		return count, err
 	}
 
-	loc := timeDebugMessagePattern.FindIndex(p)
-	if loc == nil {
+	match := matchAndMapTimeDebugMessage(p)
+	if match == nil {
 		log.WithField("data", p).Warn("Exec debug message could not be read completely")
 		return 0, nil
 	}
 
-	go s.handleTimeDebugMessage(p[loc[0]:loc[1]])
+	go s.handleTimeDebugMessage(match)
 
-	debugMessageLength := loc[1] - loc[0]
-	if debugMessageLength < len(p) {
-		count, err := s.Write(append(p[0:loc[0]], p[loc[1]:]...))
-		return debugMessageLength + count, err
+	lengthRemainingData := len(match["before"]) + len(match["after"])
+	if lengthRemainingData > 0 {
+		count, err := s.Write(append(match["before"], match["after"]...))
+		return len(p) - (lengthRemainingData - count), err
 	} else {
-		return debugMessageLength, nil
+		return len(p), nil
 	}
 }
 
-func (s *SentryDebugWriter) handleTimeDebugMessage(message []byte) {
+func (s *SentryDebugWriter) Close(exitCode int) {
 	if s.lastSpan != nil {
+		s.lastSpan.Op = "nomad.execute.disconnect"
+		s.lastSpan.SetTag("exit_code", strconv.Itoa(exitCode))
+		s.lastSpan.Finish()
+	}
+}
+
+// handleTimeDebugMessage transforms one time debug message into a Sentry span.
+// It requires match to contain the keys `time` and `text`.
+func (s *SentryDebugWriter) handleTimeDebugMessage(match map[string][]byte) {
+	timestamp, err := strconv.ParseInt(string(match["time"]), 10, 64)
+	if err != nil {
+		log.WithField("match", match).Warn("Could not parse Unix timestamp")
+		return
+	}
+
+	if s.lastSpan != nil {
+		s.lastSpan.EndTime = time.UnixMilli(timestamp)
+		s.lastSpan.SetData("latency", time.Since(time.UnixMilli(timestamp)).String())
 		s.lastSpan.Finish()
 	}
 
-	matches := timeDebugMessagePattern.FindSubmatch(message)
-	if matches == nil {
-		log.WithField("msg", message).Error("Cannot parse passed time debug message")
-		return
-	}
-
-	timestamp, err := strconv.ParseInt(string(matches[timeDebugMessagePatternGroupTime]), 10, 64)
-	if err != nil {
-		log.WithField("matches", matches).Warn("Could not parse Unix timestamp")
-		return
-	}
-	s.lastSpan = sentry.StartSpan(s.Ctx, "nomad.execute.pipe")
-	s.lastSpan.Description = string(matches[timeDebugMessagePatternGroupText])
-	s.lastSpan.StartTime = time.UnixMilli(timestamp)
-	s.lastSpan.Finish()
-
 	s.lastSpan = sentry.StartSpan(s.Ctx, "nomad.execute.bash")
-	s.lastSpan.Description = string(matches[timeDebugMessagePatternGroupText])
+	s.lastSpan.Description = string(match["text"])
+	s.lastSpan.StartTime = time.UnixMilli(timestamp)
+}
+
+func matchAndMapTimeDebugMessage(p []byte) map[string][]byte {
+	match := timeDebugMessagePattern.FindSubmatch(p)
+	if match == nil {
+		return nil
+	}
+
+	labelMap := make(map[string][]byte)
+	for i, name := range timeDebugMessagePattern.SubexpNames() {
+		if i != 0 && name != "" {
+			labelMap[name] = match[i]
+		}
+	}
+	return labelMap
 }

@@ -1,6 +1,9 @@
 # Project binary
 /poseidon
 
+# CPU profiling information
+cmd/poseidon/default.pgo
+
 # Configuration file
 configuration.yaml
 tests/e2e/configuration.yaml

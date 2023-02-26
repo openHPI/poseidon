@@ -12,11 +12,10 @@ import (
 
 const (
 	// timeDebugMessageFormat is the format of messages that will be converted to debug messages.
-	timeDebugMessageFormat = "echo -ne \"\\x1EPoseidon %s $(date +%%s%%3N)\\x1E\""
 	// Format Parameters: 1. Debug Comment, 2. command.
-	timeDebugMessageFormatStart = timeDebugMessageFormat + "; %s"
+	timeDebugMessageFormatStart = `echo -ne "\x1EPoseidon %s $(date +%%s%%3N)\x1E"; %s`
 	// Format Parameters: 1. command, 2. Debug Comment.
-	timeDebugMessageFormatEnd = "%s && " + timeDebugMessageFormat
+	timeDebugMessageFormatEnd = `%s; bash -c "ec=$?; echo -ne \"\\x1EPoseidon %s \$(date +%%s%%3N)\\x1E\" && exit \$ec"`
 )
 
 var (

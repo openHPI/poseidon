@@ -9,6 +9,7 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"io"
+	"strings"
 )
 
 var (
@@ -89,7 +90,8 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	ctx context.Context, command []string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
-	log.WithField("command", command).Trace("Requesting Nomad Exec")
+	log.WithField("command", strings.ReplaceAll(strings.Join(command, ", "), "\n", "")).
+		Trace("Requesting Nomad Exec")
 	var allocations []*nomadApi.AllocationListStub
 	var err error
 	logging.StartSpan("nomad.execute.list", "List Allocations for id", ctx, func(_ context.Context) {

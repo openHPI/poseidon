@@ -123,6 +123,12 @@ type logger struct {
 	Level string
 }
 
+// Profiling configures the usage of a runtime profiler to create optimized binaries.
+type Profiling struct {
+	Enabled bool
+	File    string
+}
+
 // InfluxDB configures the usage of an Influx db monitoring.
 type InfluxDB struct {
 	URL          string
@@ -134,12 +140,13 @@ type InfluxDB struct {
 
 // configuration contains the complete configuration of Poseidon.
 type configuration struct {
-	Server   server
-	Nomad    Nomad
-	AWS      AWS
-	Logger   logger
-	Sentry   sentry.ClientOptions
-	InfluxDB InfluxDB
+	Server    server
+	Nomad     Nomad
+	AWS       AWS
+	Logger    logger
+	Profiling Profiling
+	Sentry    sentry.ClientOptions
+	InfluxDB  InfluxDB
 }
 
 // InitConfig merges configuration options from environment variables and

@@ -15,6 +15,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/pprof"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -22,9 +24,21 @@ import (
 var (
 	gracefulShutdownWait = 15 * time.Second
 	log                  = logging.GetLogger("main")
+	// If pgoEnabled is true, the binary was built with PGO enabled.
+	// This is set during compilation with our Makefile as a STRING.
+	pgoEnabled = "false"
 )
 
-func initSentry(options *sentry.ClientOptions) {
+func initSentry(options *sentry.ClientOptions, profilingEnabled bool) {
+	options.BeforeSendTransaction = func(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
+		if event.Tags == nil {
+			event.Tags = make(map[string]string)
+		}
+		event.Tags["go_pgo"] = pgoEnabled
+		event.Tags["go_profiling"] = strconv.FormatBool(profilingEnabled)
+		return event
+	}
+
 	if err := sentry.Init(*options); err != nil {
 		log.Errorf("sentry.Init: %s", err)
 	}
@@ -35,6 +49,33 @@ func shutdownSentry() {
 		sentry.CurrentHub().Recover(err)
 		sentry.Flush(logging.GracefulSentryShutdown)
 	}
+}
+
+func initProfiling(options config.Profiling) (cancel func()) {
+	if options.Enabled {
+		profile, err := os.Create(options.File)
+		if err != nil {
+			log.WithError(err).Error("Error while opening the profile file")
+		}
+
+		log.Debug("Starting CPU profiler")
+		if err := pprof.StartCPUProfile(profile); err != nil {
+			log.WithError(err).Error("Error while starting the CPU profiler!!")
+		}
+
+		cancel = func() {
+			if options.Enabled {
+				log.Debug("Stopping CPU profiler")
+				pprof.StopCPUProfile()
+				if err := profile.Close(); err != nil {
+					log.WithError(err).Error("Error while closing profile file")
+				}
+			}
+		}
+	} else {
+		cancel = func() {}
+	}
+	return cancel
 }
 
 func runServer(server *http.Server) {
@@ -139,8 +180,11 @@ func main() {
 		log.WithError(err).Warn("Could not initialize configuration")
 	}
 	logging.InitializeLogging(config.Config.Logger.Level)
-	initSentry(&config.Config.Sentry)
+	initSentry(&config.Config.Sentry, config.Config.Profiling.Enabled)
 	defer shutdownSentry()
+
+	stopProfiling := initProfiling(config.Config.Profiling)
+	defer stopProfiling()
 
 	cancel := monitoring.InitializeInfluxDB(&config.Config.InfluxDB)
 	defer cancel()

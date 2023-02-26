@@ -1,19 +1,23 @@
-PROJECT_NAME := "poseidon"
-REPOSITORY_OWNER = "openHPI"
-PKG := "github.com/$(REPOSITORY_OWNER)/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)"
+PROJECT_NAME = poseidon
+REPOSITORY_OWNER = openHPI
+PKG = github.com/$(REPOSITORY_OWNER)/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)
 UNIT_TESTS = $(shell go list ./... | grep -v /e2e | grep -v /recovery)
 
-DOCKER_TAG := "poseidon:latest"
-DOCKER_OPTS := -v $(shell pwd)/configuration.yaml:/configuration.yaml
+# Define the PGO file to be used for the build
+PGO_FILE = ./cmd/$(PROJECT_NAME)/default.pgo
+
+# Docker options
+DOCKER_TAG = poseidon:latest
+DOCKER_OPTS = -v $(shell pwd)/configuration.yaml:/configuration.yaml
 LOWER_REPOSITORY_OWNER = $(shell echo $(REPOSITORY_OWNER) | tr A-Z a-z)
 
 # Define image to be used in e2e tests. Requires `make` to be available.
-E2E_TEST_DOCKER_CONTAINER := co_execenv_java
-E2E_TEST_DOCKER_TAG := 17
-E2E_TEST_DOCKER_IMAGE = "$(LOWER_REPOSITORY_OWNER)/$(E2E_TEST_DOCKER_CONTAINER):$(E2E_TEST_DOCKER_TAG)"
+E2E_TEST_DOCKER_CONTAINER = co_execenv_java
+E2E_TEST_DOCKER_TAG = 17
+E2E_TEST_DOCKER_IMAGE = $(LOWER_REPOSITORY_OWNER)/$(E2E_TEST_DOCKER_CONTAINER):$(E2E_TEST_DOCKER_TAG)
 # The base image of the e2e test image. This is used to build the base image as well.
 E2E_TEST_BASE_CONTAINER := docker_exec_phusion
-E2E_TEST_BASE_IMAGE = "$(LOWER_REPOSITORY_OWNER)/$(E2E_TEST_BASE_CONTAINER)"
+E2E_TEST_BASE_IMAGE = $(LOWER_REPOSITORY_OWNER)/$(E2E_TEST_BASE_CONTAINER)
 
 default: help
 
@@ -45,7 +49,13 @@ git-hooks: .git/hooks/pre-commit ## Install the git-hooks
 
 .PHONY: build
 build: deps ## Build the binary
+ifneq ("$(wildcard $(PGO_FILE))","")
+# PGO_FILE exists
+	@go build -pgo=$(PGO_FILE) -ldflags "-X main.pgoEnabled=true" -o $(PROJECT_NAME) -v $(PKG)
+else
+# PGO_FILE does not exist
 	@go build -o $(PROJECT_NAME) -v $(PKG)
+endif
 
 .PHONY: clean
 clean: ## Remove previous build
@@ -101,7 +111,7 @@ deploy/dockerfiles: ## Clone Dockerfiles repository
 
 .PHONY: e2e-test-docker-image
 e2e-test-docker-image: deploy/dockerfiles ## Build Docker image that is used in e2e tests
-	@docker build -t $(E2E_TEST_BASE_IMAGE) -f deploy/dockerfiles/$(E2E_TEST_BASE_CONTAINER)
+	@docker build -t $(E2E_TEST_BASE_IMAGE) deploy/dockerfiles/$(E2E_TEST_BASE_CONTAINER)
 	@docker build -t $(E2E_TEST_DOCKER_IMAGE) deploy/dockerfiles/$(E2E_TEST_DOCKER_CONTAINER)/$(E2E_TEST_DOCKER_TAG)
 
 .PHONY: e2e-test

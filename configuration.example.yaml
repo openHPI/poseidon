@@ -61,6 +61,14 @@ logger:
   # Log level that is used after reading the config (INFO until then)
   level: DEBUG
 
+# Configuration of the embedded profiler
+profiling:
+  # Enables the runtime profiler
+  enabled: false
+  # The file to which the profile is written to.
+  # The default location `cmd/poseidon/default.pgo` will be picked up during the build process to create a profile-guided build.
+  file: cmd/poseidon/default.pgo
+
 # Configuration of the sentry logging
 sentry:
   # The DSN of the sentry endpoint to use.

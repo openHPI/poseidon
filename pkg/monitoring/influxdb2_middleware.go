@@ -52,14 +52,34 @@ func InitializeInfluxDB(db *config.InfluxDB) (cancel func()) {
 		return func() {}
 	}
 
-	client := influxdb2.NewClient(db.URL, db.Token)
+	// How long to wait before retrying to write data.
+	const retryInterval = 30 * time.Second
+	// How old the data can be before we stop retrying to write it. Should be larger than maxRetries * retryInterval.
+	const retryExpire = 10 * time.Minute
+	// How often to retry to write data.
+	const maxRetries = 10
+
+	// Set options for retrying with the influx client.
+	options := influxdb2.DefaultOptions()
+	options.SetRetryInterval(uint(retryInterval.Milliseconds()))
+	options.SetMaxRetries(maxRetries)
+	options.SetMaxRetryTime(uint(retryExpire.Milliseconds()))
+
+	// Create a new influx client.
+	client := influxdb2.NewClientWithOptions(db.URL, db.Token, options)
 	influxClient = client.WriteAPI(db.Organization, db.Bucket)
 	influxClient.SetWriteFailedCallback(func(_ string, error http2.Error, retryAttempts uint) bool {
-		if retryAttempts == 0 {
+		log.WithError(&error).WithField("retryAttempts", retryAttempts).Debug("Retrying to write influx data...")
+
+		// retryAttempts means number of retries, 0 if it failed during first write.
+		if retryAttempts == options.MaxRetries() {
 			log.WithError(&error).Warn("Could not write influx data.")
+			return false // Disable retry. We failed to retry writing the data in time.
 		}
 		return true // Enable retry (default)
 	})
+
+	// Flush the influx client on shutdown.
 	cancel = func() {
 		influxClient.Flush()
 		client.Close()

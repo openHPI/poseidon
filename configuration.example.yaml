@@ -76,9 +76,9 @@ sentry:
   # dsn: https://example.io
   # The environment to be sent with events.
   # environment: staging
-  # This release information is used by Poseidon to provide the version route.
-  # Normally it is set by the deployment process.
-  # release: this is replaced in the deployment process
+  # This release information is used by Poseidon to provide the version route and tag events in Sentry.
+  # If no specific value is set, the git commit hash used to build the binary is used.
+  # release: development
   # In debug mode, the debug information is printed to stdout to help you understand what sentry is doing.
   # debug: true
   # Enable performance tracing.

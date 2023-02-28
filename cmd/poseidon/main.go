@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
 	"syscall"
@@ -29,7 +30,38 @@ var (
 	pgoEnabled = "false"
 )
 
+func getVcsRevision() string {
+	vcsRevision := "unknown"
+	vcsModified := false
+
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				vcsRevision = setting.Value
+			} else if setting.Key == "vcs.modified" {
+				var err error
+				vcsModified, err = strconv.ParseBool(setting.Value)
+				if err != nil {
+					vcsModified = true // fallback to true, so we can see that something is wrong
+					log.WithError(err).Error("Could not parse the vcs.modified setting")
+				}
+			}
+		}
+	}
+
+	if vcsModified {
+		return vcsRevision + "-modified"
+	} else {
+		return vcsRevision
+	}
+}
+
 func initSentry(options *sentry.ClientOptions, profilingEnabled bool) {
+	if options.Release == "" {
+		commit := getVcsRevision()
+		options.Release = commit
+	}
+
 	options.BeforeSendTransaction = func(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
 		if event.Tags == nil {
 			event.Tags = make(map[string]string)

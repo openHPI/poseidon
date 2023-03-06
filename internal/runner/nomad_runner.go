@@ -232,7 +232,7 @@ func (r *NomadJob) Destroy() error {
 }
 
 func prepareExecution(request *dto.ExecutionRequest, environmentCtx context.Context) (
-	command []string, ctx context.Context, cancel context.CancelFunc,
+	command string, ctx context.Context, cancel context.CancelFunc,
 ) {
 	command = request.FullCommand()
 	if request.TimeLimit == 0 {
@@ -243,7 +243,7 @@ func prepareExecution(request *dto.ExecutionRequest, environmentCtx context.Cont
 	return command, ctx, cancel
 }
 
-func (r *NomadJob) executeCommand(ctx context.Context, command []string, privilegedExecution bool,
+func (r *NomadJob) executeCommand(ctx context.Context, command string, privilegedExecution bool,
 	stdin io.ReadWriter, stdout, stderr io.Writer, exit chan<- ExitInfo,
 ) {
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, privilegedExecution, stdin, stdout, stderr)

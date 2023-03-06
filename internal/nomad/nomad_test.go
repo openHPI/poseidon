@@ -644,21 +644,19 @@ func TestExecuteCommandTestSuite(t *testing.T) {
 
 type ExecuteCommandTestSuite struct {
 	suite.Suite
-	allocationID     string
-	ctx              context.Context
-	testCommand      string
-	testCommandArray []string
-	expectedStdout   string
-	expectedStderr   string
-	apiMock          *apiQuerierMock
-	nomadAPIClient   APIClient
+	allocationID   string
+	ctx            context.Context
+	testCommand    string
+	expectedStdout string
+	expectedStderr string
+	apiMock        *apiQuerierMock
+	nomadAPIClient APIClient
 }
 
 func (s *ExecuteCommandTestSuite) SetupTest() {
 	s.allocationID = "test-allocation-id"
 	s.ctx = context.Background()
 	s.testCommand = "echo \"do nothing\""
-	s.testCommandArray = []string{"bash", "-c", s.testCommand}
 	s.expectedStdout = "stdout"
 	s.expectedStderr = "stderr"
 	s.apiMock = &apiQuerierMock{}
@@ -673,18 +671,18 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 	stderrExitCode := 1
 
 	var stdout, stderr bytes.Buffer
-	var calledStdoutCommand, calledStderrCommand []string
+	var calledStdoutCommand, calledStderrCommand string
 
 	// mock regular call
-	call := s.mockExecute(mock.AnythingOfType("[]string"), 0, nil, func(_ mock.Arguments) {})
+	call := s.mockExecute(mock.AnythingOfType("string"), 0, nil, func(_ mock.Arguments) {})
 	call.Run(func(args mock.Arguments) {
 		var ok bool
-		calledCommand, ok := args.Get(2).([]string)
+		calledCommand, ok := args.Get(2).(string)
 		s.Require().True(ok)
 		writer, ok := args.Get(5).(io.Writer)
 		s.Require().True(ok)
 
-		if isStderrCommand := len(calledCommand) == 5; isStderrCommand {
+		if isStderrCommand := strings.Contains(calledCommand, "mkfifo"); isStderrCommand {
 			calledStderrCommand = calledCommand
 			_, err := writer.Write([]byte(s.expectedStderr))
 			s.Require().NoError(err)
@@ -697,7 +695,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 		}
 	})
 
-	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY,
+	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommand, withTTY,
 		UnprivilegedExecution, nullio.Reader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
@@ -705,18 +703,18 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 	s.Equal(commandExitCode, exitCode)
 
 	s.Run("should wrap command in stderr wrapper", func() {
-		s.Require().NotNil(calledStdoutCommand)
+		s.Require().NotEmpty(calledStdoutCommand)
 		stderrWrapperCommand := fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoFormat, s.testCommand, stderrFifoFormat)
 		stdoutFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrWrapperCommand), "%d", "\\d*")
 		stdoutFifoRegexp = strings.Replace(stdoutFifoRegexp, s.testCommand, ".*", 1)
-		s.Regexp(stdoutFifoRegexp, calledStdoutCommand[len(calledStdoutCommand)-1])
+		s.Regexp(stdoutFifoRegexp, calledStdoutCommand)
 	})
 
 	s.Run("should call correct stderr command", func() {
-		s.Require().NotNil(calledStderrCommand)
+		s.Require().NotEmpty(calledStderrCommand)
 		stderrFifoCommand := fmt.Sprintf(stderrFifoCommandFormat, stderrFifoFormat, stderrFifoFormat, stderrFifoFormat)
 		stderrFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrFifoCommand), "%d", "\\d*")
-		s.Regexp(stderrFifoRegexp, calledStderrCommand[len(calledStderrCommand)-1])
+		s.Regexp(stderrFifoRegexp, calledStderrCommand)
 	})
 
 	s.Run("should return correct output", func() {
@@ -728,20 +726,20 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
 	config.Config.Server.InteractiveStderr = true
 
-	call := s.mockExecute(mock.AnythingOfType("[]string"), 0, nil, func(_ mock.Arguments) {})
+	call := s.mockExecute(mock.AnythingOfType("string"), 0, nil, func(_ mock.Arguments) {})
 	call.Run(func(args mock.Arguments) {
 		var ok bool
-		calledCommand, ok := args.Get(2).([]string)
+		calledCommand, ok := args.Get(2).(string)
 		s.Require().True(ok)
 
-		if isStderrCommand := len(calledCommand) == 5; isStderrCommand {
+		if isStderrCommand := strings.Contains(calledCommand, "mkfifo"); isStderrCommand {
 			call.ReturnArguments = mock.Arguments{1, nil}
 		} else {
 			call.ReturnArguments = mock.Arguments{1, tests.ErrDefault}
 		}
 	})
 
-	_, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, UnprivilegedExecution,
+	_, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommand, withTTY, UnprivilegedExecution,
 		nullio.Reader{}, io.Discard, io.Discard)
 	s.Equal(tests.ErrDefault, err)
 }
@@ -752,7 +750,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 	commandExitCode := 42
 
 	// mock regular call
-	expectedCommand := prepareCommandWithoutTTY(s.testCommandArray, UnprivilegedExecution)
+	expectedCommand := prepareCommandWithoutTTY(s.testCommand, UnprivilegedExecution)
 	s.mockExecute(expectedCommand, commandExitCode, nil, func(args mock.Arguments) {
 		stdout, ok := args.Get(5).(io.Writer)
 		s.Require().True(ok)
@@ -764,7 +762,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 		s.Require().NoError(err)
 	})
 
-	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY,
+	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommand, withTTY,
 		UnprivilegedExecution, nullio.Reader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
@@ -776,9 +774,9 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 
 func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError() {
 	config.Config.Server.InteractiveStderr = false
-	expectedCommand := prepareCommandWithoutTTY(s.testCommandArray, UnprivilegedExecution)
+	expectedCommand := prepareCommandWithoutTTY(s.testCommand, UnprivilegedExecution)
 	s.mockExecute(expectedCommand, 1, tests.ErrDefault, func(args mock.Arguments) {})
-	_, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommandArray, withTTY, UnprivilegedExecution,
+	_, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommand, withTTY, UnprivilegedExecution,
 		nullio.Reader{}, io.Discard, io.Discard)
 	s.ErrorIs(err, tests.ErrDefault)
 }

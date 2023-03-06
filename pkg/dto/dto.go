@@ -23,11 +23,11 @@ type ExecutionRequest struct {
 	Environment         map[string]string
 }
 
-// FullCommand joins the environment variables and the passed command into an "sh -c" wrapped command.
+// FullCommand joins the environment variables.
 // It does not handle the TimeLimit or the PrivilegedExecution flag.
-func (er *ExecutionRequest) FullCommand() []string {
-	command := make([]string, 0)
-	command = append(command, "env")
+func (er *ExecutionRequest) FullCommand() string {
+	var command string
+	command += "env"
 
 	if er.Environment == nil {
 		er.Environment = make(map[string]string)
@@ -35,9 +35,20 @@ func (er *ExecutionRequest) FullCommand() []string {
 	er.Environment["CODEOCEAN"] = "true"
 
 	for variable, value := range er.Environment {
-		command = append(command, fmt.Sprintf("%s=%s", variable, value))
+		command += fmt.Sprintf(" %s=%s", variable, value)
 	}
-	command = append(command, "bash", "-c", er.Command)
+	command += fmt.Sprintf(" %s", WrapBashCommand(er.Command))
+	return command
+}
+
+// WrapBashCommand escapes the passed command and wraps it into a new bash command.
+// The escaping includes the characters ", \, $, ` (comma-separated) as they are the exceptional characters
+// that still have a special meaning with double quotes. See the Bash Manual - Chapter Quoting.
+// We only handle the dollar-character and the backquote because the %q format already escapes the other two.
+func WrapBashCommand(command string) string {
+	command = fmt.Sprintf("/bin/bash -c %q", command)
+	command = strings.ReplaceAll(command, "$", "\\$")
+	command = strings.ReplaceAll(command, "`", "\\`")
 	return command
 }
 

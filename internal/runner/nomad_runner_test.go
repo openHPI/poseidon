@@ -247,7 +247,7 @@ type UpdateFileSystemTestSuite struct {
 	timer                    *InactivityTimerMock
 	apiMock                  *nomad.ExecutorAPIMock
 	mockedExecuteCommandCall *mock.Call
-	command                  []string
+	command                  string
 	stdin                    *bytes.Buffer
 }
 
@@ -266,7 +266,7 @@ func (s *UpdateFileSystemTestSuite) SetupTest() {
 		mock.Anything, false, mock.AnythingOfType("bool"), mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			var ok bool
-			s.command, ok = args.Get(2).([]string)
+			s.command, ok = args.Get(2).(string)
 			s.Require().True(ok)
 			s.stdin, ok = args.Get(5).(*bytes.Buffer)
 			s.Require().True(ok)
@@ -365,7 +365,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
-	s.Contains(strings.Join(s.command, " "), "'/some/potentially/harmful'\\''filename'")
+	s.Contains(s.command, "'/some/potentially/harmful'\\\\''filename'")
 }
 
 func (s *UpdateFileSystemTestSuite) TestResetTimerGetsCalled() {

@@ -34,7 +34,7 @@ type apiQuerier interface {
 	DeleteJob(jobID string) (err error)
 
 	// Execute runs a command in the passed job.
-	Execute(jobID string, ctx context.Context, command []string, tty bool,
+	Execute(jobID string, ctx context.Context, command string, tty bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// listJobs loads all jobs with the specified prefix.
@@ -87,11 +87,10 @@ func (nc *nomadAPIClient) DeleteJob(jobID string) (err error) {
 }
 
 func (nc *nomadAPIClient) Execute(runnerID string,
-	ctx context.Context, command []string, tty bool,
+	ctx context.Context, cmd string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
-	log.WithField("command", strings.ReplaceAll(strings.Join(command, ", "), "\n", "")).
-		Trace("Requesting Nomad Exec")
+	log.WithField("command", strings.ReplaceAll(cmd, "\n", "")).Trace("Requesting Nomad Exec")
 	var allocations []*nomadApi.AllocationListStub
 	var err error
 	logging.StartSpan("nomad.execute.list", "List Allocations for id", ctx, func(_ context.Context) {
@@ -115,8 +114,9 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	var exitCode int
 	logging.StartSpan("nomad.execute.exec", "Execute Command in Allocation", ctx, func(ctx context.Context) {
 		debugWriter := NewSentryDebugWriter(stdout, ctx)
+		commands := []string{"/bin/bash", "-c", cmd}
 		exitCode, err = nc.client.Allocations().
-			Exec(ctx, allocation, TaskName, tty, command, stdin, debugWriter, stderr, nil, nil)
+			Exec(ctx, allocation, TaskName, tty, commands, stdin, debugWriter, stderr, nil, nil)
 		debugWriter.Close(exitCode)
 	})
 	switch {

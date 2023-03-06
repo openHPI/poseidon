@@ -128,7 +128,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		listFilesResponse := new(dto.ListFileSystemResponse)
 		err = json.NewDecoder(response.Body).Decode(listFilesResponse)
 		s.Require().NoError(err)
-		s.Require().Equal(len(listFilesResponse.Files), 1)
+		s.Require().Equal(1, len(listFilesResponse.Files))
 		fileHeader := listFilesResponse.Files[0]
 		s.Equal(dto.FilePath("./"+tests.DefaultFileName), fileHeader.Name)
 		s.Equal(dto.EntryTypeRegularFile, fileHeader.EntryType)
@@ -322,8 +322,9 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 
 	// User manipulates protected folder
 	s.Run("User can create files", func() {
+		log.WithField("id", runnerID).Debug("Runner ID")
 		webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{
-			Command:             fmt.Sprintf("touch %s/userfile", protectedFolderPath),
+			Command:             fmt.Sprintf("touch %s%s", protectedFolderPath, "userfile"),
 			TimeLimit:           int(tests.DefaultTestTimeout.Seconds()),
 			PrivilegedExecution: false,
 		})

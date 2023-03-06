@@ -72,7 +72,8 @@ type ExecutorAPI interface {
 	// It writes the output of the command to stdout/stderr and reads input from stdin.
 	// If tty is true, the command will run with a tty.
 	// Iff privilegedExecution is true, the command will be executed privileged.
-	ExecuteCommand(jobID string, ctx context.Context, command []string, tty bool, privilegedExecution bool,
+	// The command is passed in the shell form (not the exec array form) and will be executed in a shell.
+	ExecuteCommand(jobID string, ctx context.Context, command string, tty bool, privilegedExecution bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// MarkRunnerAsUsed marks the runner with the given ID as used. It also stores the timeout duration in the metadata.
@@ -389,10 +390,8 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 // If tty is true, Nomad would normally write stdout and stderr of the command
 // both on the stdout stream. However, if the InteractiveStderr server config option is true,
 // we make sure that stdout and stderr are split correctly.
-// In order for the stderr splitting to work, the command must have the structure
-// []string{..., "bash", "-c", "my-command"}.
 func (a *APIClient) ExecuteCommand(jobID string,
-	ctx context.Context, command []string, tty bool, privilegedExecution bool,
+	ctx context.Context, command string, tty bool, privilegedExecution bool,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if tty && config.Config.Server.InteractiveStderr {
 		return a.executeCommandInteractivelyWithStderr(jobID, ctx, command, privilegedExecution, stdin, stdout, stderr)
@@ -411,7 +410,7 @@ func (a *APIClient) ExecuteCommand(jobID string,
 // to be served both over stdout. This function circumvents this by creating a fifo for the stderr
 // of the command and starting a second execution that reads the stderr from that fifo.
 func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, ctx context.Context,
-	command []string, privilegedExecution bool, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	command string, privilegedExecution bool, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	// Use current nano time to make the stderr fifo kind of unique.
 	currentNanoTime := time.Now().UnixNano()
 
@@ -461,8 +460,8 @@ const (
 	// stderrWrapperCommandFormat, if executed, is supposed to wait until a fifo exists (it sleeps 10ms to reduce load
 	// cause by busy waiting on the system). Once the fifo exists, the given command is executed and its stderr
 	// redirected to the fifo.
-	// Example: "'until [ -e my.fifo ]; do sleep 0.01; done; (echo \"my.fifo exists\") 2> my.fifo'".
-	stderrWrapperCommandFormat = "'until [ -e %s ]; do sleep 0.01; done; (%s) 2> %s'"
+	// Example: "until [ -e my.fifo ]; do sleep 0.01; done; (echo \"my.fifo exists\") 2> my.fifo".
+	stderrWrapperCommandFormat = "until [ -e %s ]; do sleep 0.01; done; (%s) 2> %s"
 
 	// setUserBinaryPath is due to Poseidon requires the setuser script for Nomad environments.
 	setUserBinaryPath = "/sbin/setuser"
@@ -474,56 +473,59 @@ const (
 	UnprivilegedExecution = false
 )
 
-func prepareCommandWithoutTTY(srcCommands []string, privilegedExecution bool) []string {
-	commands := make([]string, len(srcCommands)) // nozero The size is required for the copy.
-	copy(commands, srcCommands)
+func prepareCommandWithoutTTY(command string, privilegedExecution bool) string {
+	command = setInnerDebugMessages(command, false)
 
-	commands[len(commands)-1] = setInnerDebugMessages(commands[len(commands)-1], false)
-	commands = setUserCommand(commands, privilegedExecution)
-	commands[len(commands)-1] = fmt.Sprintf("'%s'", commands[len(commands)-1])
-	cmd := strings.Join(commands, " ")
-	cmd = fmt.Sprintf(unsetEnvironmentVariablesFormat, unsetEnvironmentVariablesShell, cmd)
-	// Debug Message
-	cmd = fmt.Sprintf(timeDebugMessageFormatStart, "SetUserAndUnsetEnv", cmd)
-	return []string{"bash", "-c", cmd}
+	command = setUserCommand(command, privilegedExecution)
+	command = unsetEnvironmentVariables(command)
+	return command
 }
 
-func prepareCommandTTY(srcCommands []string, currentNanoTime int64, privilegedExecution bool) []string {
-	commands := make([]string, len(srcCommands)) // nozero The size is required for the copy.
-	copy(commands, srcCommands)
+func prepareCommandTTY(command string, currentNanoTime int64, privilegedExecution bool) string {
+	command = setInnerDebugMessages(command, false)
 
-	commands[len(commands)-1] = setInnerDebugMessages(commands[len(commands)-1], true)
-	commands = setUserCommand(commands, privilegedExecution)
-	// Take the last command which is the one to be executed and wrap it to redirect stderr.
+	// Take the command to be executed and wrap it to redirect stderr.
 	stderrFifoPath := stderrFifo(currentNanoTime)
-	commands[len(commands)-1] =
-		fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoPath, commands[len(commands)-1], stderrFifoPath)
-	cmd := strings.Join(commands, " ")
-	cmd = fmt.Sprintf(unsetEnvironmentVariablesFormat, unsetEnvironmentVariablesShell, cmd)
-	// Debug Message
-	cmd = fmt.Sprintf(timeDebugMessageFormatStart, "SetUserAndUnsetEnv", cmd)
-	return []string{"bash", "-c", cmd}
+	command = fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoPath, command, stderrFifoPath)
+
+	command = setUserCommand(command, privilegedExecution)
+	command = unsetEnvironmentVariables(command)
+	return command
 }
 
-func prepareCommandTTYStdErr(currentNanoTime int64, privilegedExecution bool) []string {
+func prepareCommandTTYStdErr(currentNanoTime int64, privilegedExecution bool) string {
 	stderrFifoPath := stderrFifo(currentNanoTime)
-	cmd := fmt.Sprintf(stderrFifoCommandFormat, stderrFifoPath, stderrFifoPath, stderrFifoPath)
-	cmd = setInnerDebugMessages(cmd, false)
-	return setUserCommand([]string{"bash", "-c", cmd}, privilegedExecution)
-}
-
-// setUserCommand prefixes the passed command with the setUser command.
-// The passed command needs to be wrapped in single quotes to avoid escaping the setUser binary.
-func setUserCommand(command []string, privilegedExecution bool) []string {
-	if privilegedExecution {
-		return command
-	} else {
-		return append([]string{setUserBinaryPath, setUserBinaryUser}, command...)
-	}
+	command := fmt.Sprintf(stderrFifoCommandFormat, stderrFifoPath, stderrFifoPath, stderrFifoPath)
+	command = setInnerDebugMessages(command, false)
+	command = setUserCommand(command, privilegedExecution)
+	return command
 }
 
 func stderrFifo(id int64) string {
 	return fmt.Sprintf(stderrFifoFormat, id)
+}
+
+func unsetEnvironmentVariables(command string) string {
+	command = dto.WrapBashCommand(command)
+	command = fmt.Sprintf(unsetEnvironmentVariablesFormat, unsetEnvironmentVariablesShell, command)
+
+	// Debug Message
+	command = fmt.Sprintf(timeDebugMessageFormatStart, "UnsetEnv", command)
+	return command
+}
+
+// setUserCommand prefixes the passed command with the setUser command.
+func setUserCommand(command string, privilegedExecution bool) string {
+	// Wrap the inner command first so that the setUserBinary applies to the whole inner command.
+	command = dto.WrapBashCommand(command)
+
+	if !privilegedExecution {
+		command = fmt.Sprintf("%s %s %s", setUserBinaryPath, setUserBinaryUser, command)
+	}
+
+	// Debug Message
+	command = fmt.Sprintf(timeDebugMessageFormatStart, "SetUser", command)
+	return command
 }
 
 // setInnerDebugMessages injects debug commands into the bash command.

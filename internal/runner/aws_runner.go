@@ -98,10 +98,11 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(
 	hideEnvironmentVariables(request, "AWS")
 	request.PrivilegedExecution = true // AWS does not support multiple users at this moment.
 	command, ctx, cancel := prepareExecution(request, w.ctx)
+	commands := []string{"/bin/bash", "-c", command}
 	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)
 
-	go w.executeCommand(ctx, command, stdout, stderr, exitInternal)
+	go w.executeCommand(ctx, commands, stdout, stderr, exitInternal)
 	go w.handleRunnerTimeout(ctx, exitInternal, exit, id)
 
 	return exit, cancel, nil

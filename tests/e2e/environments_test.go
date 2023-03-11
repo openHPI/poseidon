@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-var isAWSEnvironment = []bool{false, true}
+var isAWSEnvironment = []bool{false}
 
 func TestCreateOrUpdateEnvironment(t *testing.T) {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)

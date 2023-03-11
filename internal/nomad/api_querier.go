@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/websocket"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/config"
@@ -112,13 +113,18 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	}
 
 	var exitCode int
-	logging.StartSpan("nomad.execute.exec", "Execute Command in Allocation", ctx, func(ctx context.Context) {
-		debugWriter := NewSentryDebugWriter(stdout, ctx)
-		commands := []string{"/bin/bash", "-c", cmd}
-		exitCode, err = nc.client.Allocations().
-			Exec(ctx, allocation, TaskName, tty, commands, stdin, debugWriter, stderr, nil, nil)
-		debugWriter.Close(exitCode)
-	})
+	span := sentry.StartSpan(ctx, "nomad.execute.exec")
+	span.Description = "Execute Command in Allocation"
+
+	debugWriter := NewSentryDebugWriter(stdout, span.Context())
+	commands := []string{"/bin/bash", "-c", cmd}
+	exitCode, err = nc.client.Allocations().
+		Exec(span.Context(), allocation, TaskName, tty, commands, stdin, debugWriter, stderr, nil, nil)
+	debugWriter.Close(exitCode)
+
+	span.SetData("command", cmd)
+	span.Finish()
+
 	switch {
 	case err == nil:
 		return exitCode, nil

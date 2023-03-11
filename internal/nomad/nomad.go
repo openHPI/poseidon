@@ -474,7 +474,8 @@ const (
 )
 
 func prepareCommandWithoutTTY(command string, privilegedExecution bool) string {
-	command = setInnerDebugMessages(command, false)
+	const commandFieldAfterEnv = 4 // instead of "env CODEOCEAN=true /bin/bash -c sleep infinity" just "sleep infinity".
+	command = setInnerDebugMessages(command, commandFieldAfterEnv, -1)
 
 	command = setUserCommand(command, privilegedExecution)
 	command = unsetEnvironmentVariables(command)
@@ -482,7 +483,8 @@ func prepareCommandWithoutTTY(command string, privilegedExecution bool) string {
 }
 
 func prepareCommandTTY(command string, currentNanoTime int64, privilegedExecution bool) string {
-	command = setInnerDebugMessages(command, false)
+	const commandFieldAfterSettingEnvVariables = 4
+	command = setInnerDebugMessages(command, commandFieldAfterSettingEnvVariables, -1)
 
 	// Take the command to be executed and wrap it to redirect stderr.
 	stderrFifoPath := stderrFifo(currentNanoTime)
@@ -496,7 +498,7 @@ func prepareCommandTTY(command string, currentNanoTime int64, privilegedExecutio
 func prepareCommandTTYStdErr(currentNanoTime int64, privilegedExecution bool) string {
 	stderrFifoPath := stderrFifo(currentNanoTime)
 	command := fmt.Sprintf(stderrFifoCommandFormat, stderrFifoPath, stderrFifoPath, stderrFifoPath)
-	command = setInnerDebugMessages(command, false)
+	command = setInnerDebugMessages(command, 0, 1)
 	command = setUserCommand(command, privilegedExecution)
 	return command
 }
@@ -510,7 +512,8 @@ func unsetEnvironmentVariables(command string) string {
 	command = fmt.Sprintf(unsetEnvironmentVariablesFormat, unsetEnvironmentVariablesShell, command)
 
 	// Debug Message
-	command = fmt.Sprintf(timeDebugMessageFormatStart, "UnsetEnv", command)
+	const commandFieldBeforeBash = 2 // e.g. instead of "unset ${!NOMAD_@} && /bin/bash -c [...]" just "unset ${!NOMAD_@}".
+	command = injectStartDebugMessage(command, 0, commandFieldBeforeBash)
 	return command
 }
 
@@ -524,18 +527,36 @@ func setUserCommand(command string, privilegedExecution bool) string {
 	}
 
 	// Debug Message
-	command = fmt.Sprintf(timeDebugMessageFormatStart, "SetUser", command)
+	const commandFieldBeforeBash = 2 // e.g. instead of "/sbin/setuser user /bin/bash -c [...]" just "/sbin/setuser user".
+	command = injectStartDebugMessage(command, 0, commandFieldBeforeBash)
 	return command
+}
+
+func injectStartDebugMessage(command string, start uint, end int) string {
+	commandFields := strings.Fields(command)
+	if start < uint(len(commandFields)) {
+		commandFields = commandFields[start:]
+		end -= int(start)
+	}
+	if end >= 0 && end < len(commandFields) {
+		commandFields = commandFields[:end]
+	}
+
+	description := strings.Join(commandFields, " ")
+	if strings.HasPrefix(description, "\"") && strings.HasSuffix(description, "\"") {
+		description = description[1 : len(description)-1]
+	}
+
+	description = dto.BashEscapeCommand(description)
+	description = description[1 : len(description)-1] // The most outer quotes are not escaped!
+	return fmt.Sprintf(timeDebugMessageFormatStart, description, command)
 }
 
 // setInnerDebugMessages injects debug commands into the bash command.
 // The debug messages are parsed by the SentryDebugWriter.
-func setInnerDebugMessages(command string, includeCommandInDescription bool) (result string) {
-	description := "innerCommand"
-	if includeCommandInDescription {
-		description += fmt.Sprintf(" %s", command)
-	}
-	result = fmt.Sprintf(timeDebugMessageFormatStart, description, command)
+func setInnerDebugMessages(command string, descriptionStart uint, descriptionEnd int) (result string) {
+	result = injectStartDebugMessage(command, descriptionStart, descriptionEnd)
+
 	result = strings.TrimSuffix(result, ";")
-	return fmt.Sprintf(timeDebugMessageFormatEnd, result, "End")
+	return fmt.Sprintf(timeDebugMessageFormatEnd, result, "exit $ec")
 }

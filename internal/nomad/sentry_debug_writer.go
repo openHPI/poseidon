@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/getsentry/sentry-go"
-	"github.com/openHPI/poseidon/pkg/dto"
 	"io"
 	"regexp"
 	"strconv"
@@ -17,7 +16,7 @@ var (
 	// Format Parameters: 1. Debug Comment, 2. command.
 	timeDebugMessageFormatStart = timeDebugMessageFormat + `; %s`
 	// Format Parameters: 1. command, 2. Debug Comment.
-	timeDebugMessageFormatEnd = `%s; ` + dto.WrapBashCommand(`ec=$?; `+timeDebugMessageFormat+` && exit $ec`)
+	timeDebugMessageFormatEnd = `%s; ec=$?; ` + timeDebugMessageFormat + ` && exit $ec`
 
 	timeDebugMessagePattern = regexp.MustCompile(
 		`(?P<before>.*)\x1EPoseidon (?P<text>.+) (?P<time>\d{13})\x1E(?P<after>.*)`)

@@ -19,7 +19,7 @@ var (
 	timeDebugMessageFormatEnd = `%s; ec=$?; ` + timeDebugMessageFormat + ` && exit $ec`
 
 	timeDebugMessagePattern = regexp.MustCompile(
-		`(?P<before>.*)\x1EPoseidon (?P<text>.+) (?P<time>\d{13})\x1E(?P<after>.*)`)
+		`(?P<before>[\S\s]*?)\x1EPoseidon (?P<text>[^\x1E]+) (?P<time>\d{13})\x1E(?P<after>.*)`)
 	timeDebugMessagePatternStart = regexp.MustCompile(`\x1EPoseidon`)
 )
 
@@ -57,15 +57,22 @@ func (s *SentryDebugWriter) Write(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	go s.handleTimeDebugMessage(match)
-
-	lengthRemainingData := len(match["before"]) + len(match["after"])
-	if lengthRemainingData > 0 {
-		count, err := s.Write(append(match["before"], match["after"]...))
-		return len(p) - (lengthRemainingData - count), err
-	} else {
-		return len(p), nil
+	if len(match["before"]) > 0 {
+		var count int
+		count, err = s.Write(match["before"])
+		n += count
 	}
+
+	go s.handleTimeDebugMessage(match)
+	n += len(p) - len(match["before"]) - len(match["after"])
+
+	if len(match["after"]) > 0 {
+		var count int
+		count, err = s.Write(match["after"])
+		n += count
+	}
+
+	return n, err
 }
 
 func (s *SentryDebugWriter) Close(exitCode int) {

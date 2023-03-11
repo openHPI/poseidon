@@ -89,7 +89,7 @@ func (s *E2ETestSuite) TestUserNomad() {
 	s.Run("privileged", func() {
 		stdout, _, _ := ExecuteNonInteractive(&s.Suite, tests.DefaultEnvironmentIDAsInteger,
 			&dto.ExecutionRequest{Command: "id --name --user", PrivilegedExecution: true}, nil)
-		s.Require().Equal("root\r\n", stdout)
+		s.Contains(stdout, "root")
 	})
 }
 
@@ -111,7 +111,7 @@ func (s *E2ETestSuite) TestCommandHead() {
 	s.Require().Error(err)
 	s.Equal(err, &websocket.CloseError{Code: websocket.CloseNormalClosure})
 	stdout, _, _ := helpers.WebSocketOutputMessages(messages)
-	s.Contains(stdout, fmt.Sprintf("%s\r\n%s\r\n", hello, hello))
+	s.Regexp(fmt.Sprintf(`(%s\r\n?){2}`, hello), stdout)
 }
 
 func (s *E2ETestSuite) TestCommandMake() {

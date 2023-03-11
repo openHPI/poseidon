@@ -21,6 +21,18 @@ func TestSentryDebugWriter_Write(t *testing.T) {
 	assert.NotContains(t, buf.String(), description)
 }
 
+func TestSentryDebugWriter_WriteComposed(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := SentryDebugWriter{Target: buf, Ctx: context.Background()}
+
+	data := "Hello World!\r\n\x1EPoseidon unset 1678540012404\x1E\x1EPoseidon /sbin/setuser user 1678540012408\x1E"
+	count, err := w.Write([]byte(data))
+
+	require.NoError(t, err)
+	assert.Equal(t, len(data), count)
+	assert.Contains(t, buf.String(), "Hello World!")
+}
+
 func TestSentryDebugWriter_Close(t *testing.T) {
 	buf := &bytes.Buffer{}
 	s := NewSentryDebugWriter(buf, context.Background())

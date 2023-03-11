@@ -82,6 +82,7 @@ func InitializeInfluxDB(db *config.InfluxDB) (cancel func()) {
 	// Flush the influx client on shutdown.
 	cancel = func() {
 		influxClient.Flush()
+		influxClient = nil
 		client.Close()
 	}
 	return cancel
@@ -149,7 +150,7 @@ func ChangedPrewarmingPoolSize(id dto.EnvironmentID, count uint) {
 	WriteInfluxPoint(p)
 }
 
-// WriteInfluxPoint schedules the indlux data point to be sent.
+// WriteInfluxPoint schedules the influx data point to be sent.
 func WriteInfluxPoint(p *write.Point) {
 	if influxClient != nil {
 		p.AddTag("stage", config.Config.InfluxDB.Stage)

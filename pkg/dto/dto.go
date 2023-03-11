@@ -41,15 +41,20 @@ func (er *ExecutionRequest) FullCommand() string {
 	return command
 }
 
-// WrapBashCommand escapes the passed command and wraps it into a new bash command.
+// BashEscapeCommand escapes the passed command and surrounds it with double-quotes.
 // The escaping includes the characters ", \, $, ` (comma-separated) as they are the exceptional characters
 // that still have a special meaning with double quotes. See the Bash Manual - Chapter Quoting.
 // We only handle the dollar-character and the backquote because the %q format already escapes the other two.
-func WrapBashCommand(command string) string {
-	command = fmt.Sprintf("/bin/bash -c %q", command)
+func BashEscapeCommand(command string) string {
+	command = fmt.Sprintf("%q", command)
 	command = strings.ReplaceAll(command, "$", "\\$")
 	command = strings.ReplaceAll(command, "`", "\\`")
 	return command
+}
+
+// WrapBashCommand escapes the passed command and wraps it into a new bash command.
+func WrapBashCommand(command string) string {
+	return fmt.Sprintf("/bin/bash -c %s", BashEscapeCommand(command))
 }
 
 // EnvironmentID is an id of an environment.

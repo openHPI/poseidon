@@ -34,6 +34,7 @@ type SentryDebugWriter struct {
 
 func NewSentryDebugWriter(target io.Writer, ctx context.Context) *SentryDebugWriter {
 	span := sentry.StartSpan(ctx, "nomad.execute.connect")
+	span.Description = "/bin/bash -c"
 	return &SentryDebugWriter{
 		Target:   target,
 		Ctx:      ctx,

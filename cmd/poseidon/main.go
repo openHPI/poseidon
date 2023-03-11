@@ -215,11 +215,11 @@ func main() {
 	initSentry(&config.Config.Sentry, config.Config.Profiling.Enabled)
 	defer shutdownSentry()
 
-	stopProfiling := initProfiling(config.Config.Profiling)
-	defer stopProfiling()
-
 	cancel := monitoring.InitializeInfluxDB(&config.Config.InfluxDB)
 	defer cancel()
+
+	stopProfiling := initProfiling(config.Config.Profiling)
+	defer stopProfiling()
 
 	server := initServer()
 	go runServer(server)

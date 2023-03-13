@@ -100,6 +100,10 @@ jobs:
 
   dep-scan:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     needs: [ compile ]
     if: github.event_name != 'push' || github.actor != 'dependabot[bot]' && github.actor != 'dependabot-preview[bot]' && github.actor != 'dependabot'
     steps:

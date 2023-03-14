@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/hashicorp/nomad v1.5.0
+	github.com/hashicorp/nomad v1.5.1
 	github.com/hashicorp/nomad/api v0.0.0-20230221185310-d5f0db8a5eb4
 	github.com/influxdata/influxdb-client-go/v2 v2.12.2
 	github.com/mitchellh/mapstructure v1.5.0
@@ -50,7 +50,7 @@ require (
 	github.com/hashicorp/go-immutable-radix/v2 v2.0.0 // indirect
 	github.com/hashicorp/go-msgpack v1.1.5 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/go-plugin v1.4.8 // indirect
+	github.com/hashicorp/go-plugin v1.4.9 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.2 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.7 // indirect

@@ -321,19 +321,29 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 			s.True(ok)
 			mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
+			_, ok = environment.Sample()
+			s.Require().False(ok)
+
 			alloc := &nomadApi.Allocation{
 				JobID:              tests.DefaultRunnerID,
 				AllocatedResources: nil,
 			}
 			s.nomadRunnerManager.onAllocationAdded(alloc, 0)
 
-			runner, ok := environment.Sample()
-			s.True(ok)
+			runner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
+			s.NoError(err)
 			nomadJob, ok := runner.(*NomadJob)
 			s.True(ok)
 			s.Equal(nomadJob.id, tests.DefaultRunnerID)
 			s.Empty(nomadJob.portMappings)
+
+			s.Run("but not again", func() {
+				s.nomadRunnerManager.onAllocationAdded(alloc, 0)
+				runner, err = s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
+				s.Error(err)
+			})
 		})
+		s.nomadRunnerManager.usedRunners.Purge()
 		s.Run("with mapped ports", func() {
 			environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 			s.True(ok)

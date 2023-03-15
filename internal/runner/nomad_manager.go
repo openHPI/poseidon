@@ -146,6 +146,11 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, start
 		return
 	}
 
+	if _, ok := m.usedRunners.Get(alloc.JobID); ok {
+		log.WithField("id", alloc.JobID).Debug("Started Runner is already in use")
+		return
+	}
+
 	environmentID, err := nomad.EnvironmentIDFromRunnerID(alloc.JobID)
 	if err != nil {
 		log.WithError(err).Warn("Allocation could not be added")

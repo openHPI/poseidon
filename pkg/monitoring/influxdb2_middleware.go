@@ -166,7 +166,7 @@ func WriteInfluxPoint(p *write.Point) {
 		for _, field := range p.FieldList() {
 			entry = entry.WithField(field.Key, field.Value)
 		}
-		entry.Debug("Influx data point")
+		entry.Trace("Influx data point")
 	}
 }
 

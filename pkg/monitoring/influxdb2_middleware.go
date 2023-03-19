@@ -21,14 +21,15 @@ const (
 	// influxdbContextKey is a key (runner.ContextKey) to reference the influxdb data point in the request context.
 	influxdbContextKey dto.ContextKey = "influxdb data point"
 	// measurementPrefix allows easier filtering in influxdb.
-	measurementPrefix          = "poseidon_"
-	measurementPoolSize        = measurementPrefix + "poolsize"
-	MeasurementIdleRunnerNomad = measurementPrefix + "nomad_idle_runners"
-	MeasurementExecutionsAWS   = measurementPrefix + "aws_executions"
-	MeasurementExecutionsNomad = measurementPrefix + "nomad_executions"
-	MeasurementEnvironments    = measurementPrefix + "environments"
-	MeasurementUsedRunner      = measurementPrefix + "used_runners"
-	MeasurementFileDownload    = measurementPrefix + "file_download"
+	measurementPrefix           = "poseidon_"
+	measurementPoolSize         = measurementPrefix + "poolsize"
+	MeasurementNomadAllocations = measurementPrefix + "nomad_allocations"
+	MeasurementIdleRunnerNomad  = measurementPrefix + "nomad_idle_runners"
+	MeasurementExecutionsAWS    = measurementPrefix + "aws_executions"
+	MeasurementExecutionsNomad  = measurementPrefix + "nomad_executions"
+	MeasurementEnvironments     = measurementPrefix + "environments"
+	MeasurementUsedRunner       = measurementPrefix + "used_runners"
+	MeasurementFileDownload     = measurementPrefix + "file_download"
 
 	// The keys for the monitored tags and fields.
 

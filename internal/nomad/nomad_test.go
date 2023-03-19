@@ -10,6 +10,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/nullio"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -495,7 +496,7 @@ func TestApiClient_WatchAllocationsHandlesEvents(t *testing.T) {
 			"it adds and deletes the allocation"},
 		{[]*nomadApi.Events{&startAllocationEvents, &startAllocationEvents},
 			[]*nomadApi.Allocation{newStartedAllocation, newStartedAllocation},
-			[]*nomadApi.Allocation(nil),
+			[]*nomadApi.Allocation{newPendingAllocation},
 			"it handles multiple events"},
 	}
 
@@ -511,11 +512,12 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 	newPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	newPendingEvent := eventForAllocation(t, newPendingAllocation)
 
-	pendingMap := make(map[string]time.Time)
-	err := handleAllocationEvent(time.Now().UnixNano(), pendingMap, &newPendingEvent, noopAllocationProcessoring)
+	allocations := storage.NewLocalStorage[*allocationData]()
+	err := handleAllocationEvent(
+		time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessoring)
 	require.NoError(t, err)
 
-	_, ok := pendingMap[newPendingAllocation.ID]
+	_, ok := allocations.Get(newPendingAllocation.ID)
 	assert.True(t, ok)
 }
 

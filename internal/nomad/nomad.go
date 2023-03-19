@@ -9,7 +9,9 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/nullio"
+	"github.com/openHPI/poseidon/pkg/storage"
 	"io"
 	"strconv"
 	"strings"
@@ -35,6 +37,12 @@ type AllocationProcessoring struct {
 }
 type AllocationProcessor func(*nomadApi.Allocation)
 type AllocationProcessorMonitored func(*nomadApi.Allocation, time.Duration)
+
+type allocationData struct {
+	// allocClientStatus defines the state defined by Nomad.
+	allocClientStatus string
+	start             time.Time
+}
 
 // ExecutorAPI provides access to a container orchestration solution.
 type ExecutorAPI interface {
@@ -184,14 +192,15 @@ func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationP
 	if err != nil {
 		return fmt.Errorf("failed retrieving allocation stream: %w", err)
 	}
-	pendingAllocations := make(map[string]time.Time)
+	// allocations contain management data for all pending and running allocations.
+	allocations := storage.NewMonitoredLocalStorage[*allocationData](monitoring.MeasurementNomadAllocations, nil, 0, nil)
 
 	handler := func(event *nomadApi.Event) (bool, error) {
 		switch event.Topic {
 		case nomadApi.TopicEvaluation:
 			return false, handleEvaluationEvent(a.evaluations, event)
 		case nomadApi.TopicAllocation:
-			return false, handleAllocationEvent(startTime, pendingAllocations, event, callbacks)
+			return false, handleAllocationEvent(startTime, allocations, event, callbacks)
 		default:
 			return false, nil
 		}
@@ -255,10 +264,10 @@ func handleEvaluationEvent(evaluations map[string]chan error, event *nomadApi.Ev
 
 // handleAllocationEvent is an event handler that processes allocation events.
 // If a new allocation is received, onNewAllocation is called. If an allocation is deleted, onDeletedAllocation
-// is called. The pendingAllocations map is used to store allocations that are pending but not started yet. Using the
-// map the state is persisted between multiple calls of this function.
-func handleAllocationEvent(startTime int64, pendingAllocations map[string]time.Time, event *nomadApi.Event,
-	callbacks *AllocationProcessoring) error {
+// is called. The allocations storage is used to track pending and running allocations. Using the
+// storage the state is persisted between multiple calls of this function.
+func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocationData],
+	event *nomadApi.Event, callbacks *AllocationProcessoring) error {
 	if event.Type != structs.TypeAllocationUpdated {
 		return nil
 	}
@@ -278,36 +287,46 @@ func handleAllocationEvent(startTime int64, pendingAllocations map[string]time.T
 
 	switch alloc.ClientStatus {
 	case structs.AllocClientStatusPending:
-		handlePendingAllocationEvent(alloc, pendingAllocations)
+		handlePendingAllocationEvent(alloc, allocations, callbacks)
 	case structs.AllocClientStatusRunning:
-		handleRunningAllocationEvent(alloc, pendingAllocations, callbacks)
+		handleRunningAllocationEvent(alloc, allocations, callbacks)
 	case structs.AllocClientStatusFailed:
 		handleFailedAllocationEvent(alloc)
 	}
 	return nil
 }
 
-// handlePendingAllocationEvent sets flag in pendingAllocations that can be used to filter following events.
-func handlePendingAllocationEvent(alloc *nomadApi.Allocation, pendingAllocations map[string]time.Time) {
+// handlePendingAllocationEvent manages allocation that are currently pending.
+// This allows the handling of startups and re-placements of allocations.
+func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
+		// Handle Runner (/Container) re-allocations.
+		if allocData, ok := allocations.Get(alloc.ID); ok && allocData.allocClientStatus == structs.AllocClientStatusRunning {
+			callbacks.OnDeleted(alloc)
+		}
 		// allocation is started, wait until it runs and add to our list afterwards
-		pendingAllocations[alloc.ID] = time.Now()
+		allocations.Add(alloc.ID, &allocationData{allocClientStatus: structs.AllocClientStatusPending, start: time.Now()})
 	}
 }
 
 // handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
-func handleRunningAllocationEvent(alloc *nomadApi.Allocation, pendingAllocations map[string]time.Time,
-	callbacks *AllocationProcessoring) {
+func handleRunningAllocationEvent(alloc *nomadApi.Allocation,
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusStop:
 		callbacks.OnDeleted(alloc)
+		if _, ok := allocations.Get(alloc.ID); ok {
+			allocations.Delete(alloc.ID)
+		} else {
+			log.WithField("id", alloc.ID).Warn("Removing not listed allocation")
+		}
 	case structs.AllocDesiredStatusRun:
 		// is first event that marks the transition between pending and running?
-		startedAt, ok := pendingAllocations[alloc.ID]
-		if ok {
-			startupDuration := time.Since(startedAt)
+		if allocData, ok := allocations.Get(alloc.ID); ok && allocData.allocClientStatus == structs.AllocClientStatusPending {
+			startupDuration := time.Since(allocData.start)
 			callbacks.OnNew(alloc, startupDuration)
-			delete(pendingAllocations, alloc.ID)
+			allocData.allocClientStatus = structs.AllocClientStatusRunning
 		}
 	}
 }

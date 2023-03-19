@@ -147,7 +147,7 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, start
 	}
 
 	if _, ok := m.usedRunners.Get(alloc.JobID); ok {
-		log.WithField("id", alloc.JobID).Debug("Started Runner is already in use")
+		log.WithField("id", alloc.JobID).WithField("states", alloc.TaskStates).Error("Started Runner is already in use")
 		return
 	}
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -27,9 +28,10 @@ var (
 // For matches, it creates a Sentry Span. Otherwise, the data will be forwarded to the Target.
 // The passed context Ctx should contain the Sentry data.
 type SentryDebugWriter struct {
-	Target   io.Writer
-	Ctx      context.Context
-	lastSpan *sentry.Span
+	Target       io.Writer
+	Ctx          context.Context
+	lastSpan     *sentry.Span
+	lastSpanLock sync.Mutex
 }
 
 func NewSentryDebugWriter(target io.Writer, ctx context.Context) *SentryDebugWriter {
@@ -78,6 +80,8 @@ func (s *SentryDebugWriter) Write(p []byte) (n int, err error) {
 
 func (s *SentryDebugWriter) Close(exitCode int) {
 	if s.lastSpan != nil {
+		s.lastSpanLock.Lock()
+		defer s.lastSpanLock.Unlock()
 		s.lastSpan.Op = "nomad.execute.disconnect"
 		s.lastSpan.SetTag("exit_code", strconv.Itoa(exitCode))
 		s.lastSpan.Finish()
@@ -93,6 +97,8 @@ func (s *SentryDebugWriter) handleTimeDebugMessage(match map[string][]byte) {
 		return
 	}
 
+	s.lastSpanLock.Lock()
+	defer s.lastSpanLock.Unlock()
 	if s.lastSpan != nil {
 		s.lastSpan.EndTime = time.UnixMilli(timestamp)
 		s.lastSpan.SetData("latency", time.Since(time.UnixMilli(timestamp)).String())

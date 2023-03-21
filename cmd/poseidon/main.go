@@ -110,7 +110,10 @@ func initProfiling(options config.Profiling) (cancel func()) {
 	return cancel
 }
 
-func runServer(server *http.Server) {
+func runServer(server *http.Server, cancel context.CancelFunc) {
+	defer cancel()
+	defer shutdownSentry() // shutdownSentry must be executed in the main goroutine.
+
 	log.WithField("address", server.Addr).Info("Starting server")
 	var err error
 	if config.Config.Server.TLS.Active {
@@ -193,17 +196,21 @@ func initServer() *http.Server {
 
 // shutdownOnOSSignal listens for a signal from the operating system
 // When receiving a signal the server shuts down but waits up to 15 seconds to close remaining connections.
-func shutdownOnOSSignal(server *http.Server) {
+func shutdownOnOSSignal(server *http.Server, ctx context.Context) {
 	// wait for SIGINT
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	<-signals
-	log.Info("Received SIGINT, shutting down ...")
+	select {
+	case <-ctx.Done():
+		os.Exit(1)
+	case <-signals:
+		log.Info("Received SIGINT, shutting down ...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownWait)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		log.WithError(err).Warn("error shutting server down")
+		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownWait)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			log.WithError(err).Warn("error shutting server down")
+		}
 	}
 }
 
@@ -213,15 +220,15 @@ func main() {
 	}
 	logging.InitializeLogging(config.Config.Logger.Level)
 	initSentry(&config.Config.Sentry, config.Config.Profiling.Enabled)
-	defer shutdownSentry()
 
-	cancel := monitoring.InitializeInfluxDB(&config.Config.InfluxDB)
-	defer cancel()
+	cancelInflux := monitoring.InitializeInfluxDB(&config.Config.InfluxDB)
+	defer cancelInflux()
 
 	stopProfiling := initProfiling(config.Config.Profiling)
 	defer stopProfiling()
 
+	ctx, cancel := context.WithCancel(context.Background())
 	server := initServer()
-	go runServer(server)
-	shutdownOnOSSignal(server)
+	go runServer(server, cancel)
+	shutdownOnOSSignal(server, ctx)
 }

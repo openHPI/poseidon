@@ -39,10 +39,13 @@ type apiQuerier interface {
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// listJobs loads all jobs with the specified prefix.
-	listJobs(prefix string) (allocationListStub []*nomadApi.JobListStub, err error)
+	listJobs(prefix string) (jobListStub []*nomadApi.JobListStub, err error)
 
 	// job returns the job of the given jobID.
 	job(jobID string) (job *nomadApi.Job, err error)
+
+	// listAllocations loads all allocations.
+	listAllocations() (allocationListStub []*nomadApi.AllocationListStub, err error)
 
 	// allocation returns the first allocation of the given job.
 	allocation(jobID string) (*nomadApi.Allocation, error)
@@ -226,6 +229,14 @@ func (nc *nomadAPIClient) SetJobScale(jobID string, count uint, reason string) (
 func (nc *nomadAPIClient) job(jobID string) (job *nomadApi.Job, err error) {
 	job, _, err = nc.client.Jobs().Info(jobID, nil)
 	return
+}
+
+func (nc *nomadAPIClient) listAllocations() ([]*nomadApi.AllocationListStub, error) {
+	allocationListStubs, _, err := nc.client.Allocations().List(nc.queryOptions())
+	if err != nil {
+		return nil, fmt.Errorf("error listing Nomad allocations: %w", err)
+	}
+	return allocationListStubs, nil
 }
 
 func (nc *nomadAPIClient) allocation(jobID string) (alloc *nomadApi.Allocation, err error) {

@@ -314,8 +314,12 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 		handlePendingAllocationEvent(alloc, allocations, callbacks)
 	case structs.AllocClientStatusRunning:
 		handleRunningAllocationEvent(alloc, allocations, callbacks)
+	case structs.AllocClientStatusComplete:
+		handleCompleteAllocationEvent(alloc, allocations, callbacks)
 	case structs.AllocClientStatusFailed:
 		handleFailedAllocationEvent(alloc)
+	default:
+		log.WithField("alloc", alloc).Warn("Other Client Status")
 	}
 	return nil
 }
@@ -325,33 +329,44 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
-		// Handle Runner (/Container) re-allocations.
-		if allocData, ok := allocations.Get(alloc.ID); ok && allocData.allocClientStatus == structs.AllocClientStatusRunning {
+		allocData, ok := allocations.Get(alloc.ID)
+		if ok && allocData.allocClientStatus != structs.AllocClientStatusRunning {
+			// Pending Allocation is already stored.
+			return
+		} else if ok {
+			// Handle Runner (/Container) re-allocations.
 			callbacks.OnDeleted(alloc)
 		}
-		// allocation is started, wait until it runs and add to our list afterwards
+		// Store Pending Allocation - Allocation gets started, wait until it runs.
 		allocations.Add(alloc.ID, &allocationData{allocClientStatus: structs.AllocClientStatusPending, start: time.Now()})
+	} else {
+		log.WithField("alloc", alloc).Warn("Other Desired Status")
 	}
 }
 
 // handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
 func handleRunningAllocationEvent(alloc *nomadApi.Allocation,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
-	switch alloc.DesiredStatus {
-	case structs.AllocDesiredStatusStop:
-		callbacks.OnDeleted(alloc)
-		if _, ok := allocations.Get(alloc.ID); ok {
-			allocations.Delete(alloc.ID)
-		} else {
-			log.WithField("id", alloc.ID).Warn("Removing not listed allocation")
-		}
-	case structs.AllocDesiredStatusRun:
+	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		// is first event that marks the transition between pending and running?
 		if allocData, ok := allocations.Get(alloc.ID); ok && allocData.allocClientStatus == structs.AllocClientStatusPending {
 			startupDuration := time.Since(allocData.start)
 			callbacks.OnNew(alloc, startupDuration)
 			allocData.allocClientStatus = structs.AllocClientStatusRunning
 		}
+	}
+}
+
+// handleCompleteAllocationEvent handles allocations that stopped.
+func handleCompleteAllocationEvent(alloc *nomadApi.Allocation,
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
+	if alloc.DesiredStatus == structs.AllocDesiredStatusStop {
+		if _, ok := allocations.Get(alloc.ID); ok {
+			callbacks.OnDeleted(alloc)
+			allocations.Delete(alloc.ID)
+		}
+	} else {
+		log.WithField("alloc", alloc).Warn("Other Desired Status")
 	}
 }
 

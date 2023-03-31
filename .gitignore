@@ -16,6 +16,9 @@ tests/e2e/configuration.yaml
 # trivy artifacts
 .trivy
 
+# coverage reports
+/coverage
+
 # IDE files
 /.idea
 *.iml

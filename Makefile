@@ -2,6 +2,7 @@ PROJECT_NAME = poseidon
 REPOSITORY_OWNER = openHPI
 PKG = github.com/$(REPOSITORY_OWNER)/$(PROJECT_NAME)/cmd/$(PROJECT_NAME)
 UNIT_TESTS = $(shell go list ./... | grep -v /e2e | grep -v /recovery)
+GOCOVERDIR=coverage
 
 # Define the PGO file to be used for the build
 PGO_FILE = ./cmd/$(PROJECT_NAME)/default.pgo
@@ -57,6 +58,10 @@ else
 	@go build -o $(PROJECT_NAME) -v $(PKG)
 endif
 
+.PHONY: build-cover
+build-cover: deps ## Build the binary and with coverage support for e2e-tests
+	@go build -cover -o $(PROJECT_NAME) -v $(PKG)
+
 .PHONY: clean
 clean: ## Remove previous build
 	@rm -f poseidon
@@ -97,17 +102,29 @@ race: deps ## Run data race detector
 
 .PHONY: coverage
 coverage: deps ## Generate code coverage report
-	@go test $(UNIT_TESTS) -v -coverprofile coverage.cov
+	@mkdir -p $(GOCOVERDIR)
+	@go test $(UNIT_TESTS) -v -coverprofile $(GOCOVERDIR)/coverage_output.cov -covermode atomic
 	# exclude mock files from coverage
-	@cat coverage.cov | grep -v _mock.go > coverage_cleaned.cov || true
-	@go tool cover -func=coverage_cleaned.cov
+	@cat $(GOCOVERDIR)/coverage_output.cov | grep -v _mock.go > $(GOCOVERDIR)/coverage.cov || true
+	@rm $(GOCOVERDIR)/coverage_output.cov
+	@go tool cover -func=$(GOCOVERDIR)/coverage.cov
 
 .PHONY: coverhtml
 coverhtml: coverage ## Generate HTML coverage report
-	@go tool cover -html=coverage_cleaned.cov -o coverage_unit.html
+	@go tool cover -html=$(GOCOVERDIR)/coverage.cov -o $(GOCOVERDIR)/coverage_unit.html
 
 deploy/dockerfiles: ## Clone Dockerfiles repository
 	@git clone git@github.com:$(REPOSITORY_OWNER)/dockerfiles.git deploy/dockerfiles
+
+.PHONY: run-with-coverage
+run-with-coverage: build-cover ## Run binary and capture code coverage (during e2e tests)
+	@mkdir -p $(GOCOVERDIR)
+	@GOCOVERDIR=$(GOCOVERDIR) ./$(PROJECT_NAME)
+
+.PHONY: convert-run-coverage
+convert-run-coverage: ## Convert coverage data (created by `run-with-coverage`) to legacy text format
+	@go tool covdata textfmt -i $(GOCOVERDIR) -o $(GOCOVERDIR)/coverage_run.cov
+	@go tool cover -html=$(GOCOVERDIR)/coverage_run.cov -o $(GOCOVERDIR)/coverage_run.html
 
 .PHONY: e2e-test-docker-image
 e2e-test-docker-image: deploy/dockerfiles ## Build Docker image that is used in e2e tests

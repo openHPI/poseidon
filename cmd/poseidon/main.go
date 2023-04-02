@@ -196,16 +196,28 @@ func initServer() *http.Server {
 
 // shutdownOnOSSignal listens for a signal from the operating system
 // When receiving a signal the server shuts down but waits up to 15 seconds to close remaining connections.
-func shutdownOnOSSignal(server *http.Server, ctx context.Context) {
+func shutdownOnOSSignal(server *http.Server, ctx context.Context, stopProfiling func()) {
 	// wait for SIGINT
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	shutdownSignals := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignals, syscall.SIGINT, syscall.SIGTERM)
+
+	// wait for SIGUSR1
+	writeProfileSignal := make(chan os.Signal, 1)
+	signal.Notify(writeProfileSignal, syscall.SIGUSR1)
+
 	select {
 	case <-ctx.Done():
 		os.Exit(1)
-	case <-signals:
+	case <-writeProfileSignal:
+		log.Info("Received SIGUSR1 ...")
+
+		stopProfiling()
+		// Continue listening on signals and replace `stopProfiling` with an empty function
+		shutdownOnOSSignal(server, ctx, func() {})
+	case <-shutdownSignals:
 		log.Info("Received SIGINT, shutting down ...")
 
+		defer stopProfiling()
 		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownWait)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
@@ -225,10 +237,9 @@ func main() {
 	defer cancelInflux()
 
 	stopProfiling := initProfiling(config.Config.Profiling)
-	defer stopProfiling()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	server := initServer()
 	go runServer(server, cancel)
-	shutdownOnOSSignal(server, ctx)
+	shutdownOnOSSignal(server, ctx, stopProfiling)
 }

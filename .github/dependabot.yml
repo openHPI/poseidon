@@ -13,7 +13,7 @@ updates:
   - package-ecosystem: maven
     directory: "/deploy/aws/java11Exec"
     schedule:
-      interval: daily
+      interval: monthly
       time: "03:00"
       timezone: UTC
     labels:

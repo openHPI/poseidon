@@ -24,7 +24,15 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	event.Level = sentry.Level(entry.Level.String())
 	event.Message = entry.Message
 	event.Extra = entry.Data
-	sentry.CaptureEvent(event)
+
+	var hub *sentry.Hub
+	if entry.Context != nil {
+		hub = sentry.GetHubFromContext(entry.Context)
+	}
+	if hub == nil {
+		hub = sentry.CurrentHub()
+	}
+	hub.CaptureEvent(event)
 	return nil
 }
 

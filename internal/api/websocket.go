@@ -19,7 +19,6 @@ var ErrUnknownExecutionID = errors.New("execution id unknown")
 // webSocketProxy is an encapsulation of logic for forwarding between Runners and CodeOcean.
 type webSocketProxy struct {
 	ctx    context.Context
-	cancel context.CancelFunc
 	Input  ws.WebSocketReader
 	Output ws.WebSocketWriter
 }
@@ -38,16 +37,19 @@ func upgradeConnection(writer http.ResponseWriter, request *http.Request) (ws.Co
 // newWebSocketProxy returns an initiated and started webSocketProxy.
 // As this proxy is already started, a start message is send to the client.
 func newWebSocketProxy(connection ws.Connection, proxyCtx context.Context) *webSocketProxy {
-	wsCtx, cancelWsCommunication := context.WithCancel(proxyCtx)
+	// wsCtx is detached from the proxyCtx
+	// as it should send all messages in the buffer even if the execution/proxy is done.
+	wsCtx, cancelWsCommunication := context.WithCancel(context.Background())
+	wsCtx = sentry.SetHubOnContext(wsCtx, sentry.GetHubFromContext(proxyCtx))
+
 	proxy := &webSocketProxy{
 		ctx:    wsCtx,
-		cancel: cancelWsCommunication,
 		Input:  ws.NewCodeOceanToRawReader(connection, wsCtx, proxyCtx),
-		Output: ws.NewCodeOceanOutputWriter(connection, wsCtx),
+		Output: ws.NewCodeOceanOutputWriter(connection, wsCtx, cancelWsCommunication),
 	}
 
 	connection.SetCloseHandler(func(code int, text string) error {
-		log.WithField("code", code).WithField("text", text).Debug("The client closed the connection.")
+		log.WithContext(wsCtx).WithField("code", code).WithField("text", text).Debug("The client closed the connection.")
 		cancelWsCommunication()
 		return nil
 	})
@@ -70,7 +72,7 @@ func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecuti
 	case exitInfo = <-exit:
 		log.WithContext(wp.ctx).Info("Execution returned")
 		wp.Input.Stop()
-		wp.Output.SendExitInfo(&exitInfo)
+		wp.Output.Close(&exitInfo)
 	}
 }
 

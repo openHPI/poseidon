@@ -16,7 +16,7 @@ func TestRawToCodeOceanWriter(t *testing.T) {
 	connectionMock, message := buildConnectionMock(t)
 	proxyCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	output := NewCodeOceanOutputWriter(connectionMock, proxyCtx)
+	output := NewCodeOceanOutputWriter(connectionMock, proxyCtx, cancel)
 	<-message // start message
 
 	t.Run("StdOut", func(t *testing.T) {
@@ -69,10 +69,10 @@ func TestCodeOceanOutputWriter_SendExitInfo(t *testing.T) {
 			connectionMock, message := buildConnectionMock(t)
 			proxyCtx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			output := NewCodeOceanOutputWriter(connectionMock, proxyCtx)
+			output := NewCodeOceanOutputWriter(connectionMock, proxyCtx, cancel)
 			<-message // start message
 
-			output.SendExitInfo(test.info)
+			output.Close(test.info)
 			expected, err := json.Marshal(test.message)
 			require.NoError(t, err)
 

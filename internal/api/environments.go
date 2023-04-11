@@ -47,17 +47,17 @@ func (e *EnvironmentController) ConfigureRoutes(router *mux.Router) {
 func (e *EnvironmentController) list(writer http.ResponseWriter, request *http.Request) {
 	fetch, err := parseFetchParameter(request)
 	if err != nil {
-		writeClientError(writer, err, http.StatusBadRequest)
+		writeClientError(writer, err, http.StatusBadRequest, request.Context())
 		return
 	}
 
 	environments, err := e.manager.List(fetch)
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
 
-	sendJSON(writer, ExecutionEnvironmentsResponse{environments}, http.StatusOK)
+	sendJSON(writer, ExecutionEnvironmentsResponse{environments}, http.StatusOK, request.Context())
 }
 
 // get returns all information about the requested execution environment.
@@ -65,12 +65,12 @@ func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Re
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
 		// This case is never used as the router validates the id format
-		writeClientError(writer, err, http.StatusBadRequest)
+		writeClientError(writer, err, http.StatusBadRequest, request.Context())
 		return
 	}
 	fetch, err := parseFetchParameter(request)
 	if err != nil {
-		writeClientError(writer, err, http.StatusBadRequest)
+		writeClientError(writer, err, http.StatusBadRequest, request.Context())
 		return
 	}
 
@@ -79,11 +79,11 @@ func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Re
 		writer.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
 
-	sendJSON(writer, executionEnvironment, http.StatusOK)
+	sendJSON(writer, executionEnvironment, http.StatusOK, request.Context())
 }
 
 // delete removes the specified execution environment.
@@ -91,13 +91,13 @@ func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
 		// This case is never used as the router validates the id format
-		writeClientError(writer, err, http.StatusBadRequest)
+		writeClientError(writer, err, http.StatusBadRequest, request.Context())
 		return
 	}
 
 	found, err := e.manager.Delete(environmentID)
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	} else if !found {
 		writer.WriteHeader(http.StatusNotFound)
@@ -111,12 +111,12 @@ func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http
 func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, request *http.Request) {
 	req := new(dto.ExecutionEnvironmentRequest)
 	if err := json.NewDecoder(request.Body).Decode(req); err != nil {
-		writeClientError(writer, err, http.StatusBadRequest)
+		writeClientError(writer, err, http.StatusBadRequest, request.Context())
 		return
 	}
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
-		writeClientError(writer, err, http.StatusBadRequest)
+		writeClientError(writer, err, http.StatusBadRequest, request.Context())
 		return
 	}
 
@@ -125,7 +125,7 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 		created, err = e.manager.CreateOrUpdate(environmentID, *req, ctx)
 	})
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 	}
 
 	if created {

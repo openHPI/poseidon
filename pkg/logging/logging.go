@@ -77,7 +77,7 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(lrw, r)
 
 		latency := time.Now().UTC().Sub(start)
-		logEntry := log.WithFields(logrus.Fields{
+		logEntry := log.WithContext(r.Context()).WithFields(logrus.Fields{
 			"code":       lrw.StatusCode,
 			"method":     r.Method,
 			"path":       path,

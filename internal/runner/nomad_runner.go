@@ -164,7 +164,7 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, ct
 	r.ResetTimeout()
 
 	var tarBuffer bytes.Buffer
-	if err := createTarArchiveForFiles(copyRequest.Copy, &tarBuffer); err != nil {
+	if err := createTarArchiveForFiles(copyRequest.Copy, &tarBuffer, ctx); err != nil {
 		return err
 	}
 
@@ -201,7 +201,7 @@ func (r *NomadJob) GetFileContent(
 	p.AddTag(monitoring.InfluxKeyRunnerID, r.ID())
 	environmentID, err := nomad.EnvironmentIDFromRunnerID(r.ID())
 	if err != nil {
-		log.WithField("runnerID", r.ID()).WithError(err).Warn("can not parse environment id")
+		log.WithContext(ctx).WithField("runnerID", r.ID()).WithError(err).Warn("can not parse environment id")
 	}
 	p.AddTag(monitoring.InfluxKeyEnvironmentID, environmentID.ToString())
 	defer contentLengthWriter.SendMonitoringData(p)
@@ -283,26 +283,26 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 	// log.WithField("runner", r.id).Warn("Could not send SIGQUIT because nothing was written")
 	// }
 	if err != nil {
-		log.WithField("runner", r.id).WithError(err).Warn("Could not send SIGQUIT due to error")
+		log.WithContext(ctx).WithField("runner", r.id).WithError(err).Warn("Could not send SIGQUIT due to error")
 	}
 
 	select {
 	case <-exitInternal:
-		log.WithField("runner", r.id).Debug("Execution terminated after SIGQUIT")
+		log.WithContext(ctx).WithField("runner", r.id).Debug("Execution terminated after SIGQUIT")
 	case <-time.After(executionTimeoutGracePeriod):
-		log.WithField("runner", r.id).Info("Execution did not quit after SIGQUIT")
+		log.WithContext(ctx).WithField("runner", r.id).Info("Execution did not quit after SIGQUIT")
 		if err := r.Destroy(); err != nil {
-			log.WithField("runner", r.id).Error("Error when destroying runner")
+			log.WithContext(ctx).WithField("runner", r.id).Error("Error when destroying runner")
 		}
 	}
 }
 
-func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer) error {
+func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer, ctx context.Context) error {
 	tarWriter := tar.NewWriter(w)
 	for _, file := range filesToCopy {
 		if err := tarWriter.WriteHeader(tarHeader(file)); err != nil {
 			err := fmt.Errorf("error writing tar file header: %w", err)
-			log.
+			log.WithContext(ctx).
 				WithField("path", base64.StdEncoding.EncodeToString([]byte(file.Path))).
 				WithField("content", base64.StdEncoding.EncodeToString(file.Content)).
 				Error(err)
@@ -310,7 +310,7 @@ func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer) error {
 		}
 		if _, err := tarWriter.Write(file.ByteContent()); err != nil {
 			err := fmt.Errorf("error writing tar file content: %w", err)
-			log.
+			log.WithContext(ctx).
 				WithField("path", base64.StdEncoding.EncodeToString([]byte(file.Path))).
 				WithField("content", base64.StdEncoding.EncodeToString(file.Content)).
 				Error(err)

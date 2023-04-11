@@ -42,7 +42,7 @@ func NewRouter(runnerManager runner.Manager, environmentManager environment.Mana
 func configureV1Router(router *mux.Router,
 	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
 	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.WithField("request", r).Debug("Not Found Handler")
+		log.WithContext(r.Context()).WithField("request", r).Debug("Not Found Handler")
 		w.WriteHeader(http.StatusNotFound)
 	})
 	v1 := router.PathPrefix(BasePath).Subrouter()
@@ -75,10 +75,10 @@ func configureV1Router(router *mux.Router,
 
 // Version handles the version route.
 // It responds the release information stored in the configuration.
-func Version(writer http.ResponseWriter, _ *http.Request) {
+func Version(writer http.ResponseWriter, request *http.Request) {
 	release := config.Config.Sentry.Release
 	if len(release) > 0 {
-		sendJSON(writer, release, http.StatusOK)
+		sendJSON(writer, release, http.StatusOK, request.Context())
 	} else {
 		writer.WriteHeader(http.StatusNotFound)
 	}
@@ -87,12 +87,12 @@ func Version(writer http.ResponseWriter, _ *http.Request) {
 // StatisticsExecutionEnvironments handles the route for statistics about execution environments.
 // It responds the prewarming pool size and the number of idle runners and used runners.
 func StatisticsExecutionEnvironments(manager environment.Manager) http.HandlerFunc {
-	return func(writer http.ResponseWriter, _ *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
 		result := make(map[string]*dto.StatisticalExecutionEnvironmentData)
 		environmentsData := manager.Statistics()
 		for id, data := range environmentsData {
 			result[id.ToString()] = data
 		}
-		sendJSON(writer, result, http.StatusOK)
+		sendJSON(writer, result, http.StatusOK, request.Context())
 	}
 }

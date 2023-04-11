@@ -80,7 +80,7 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 		case <-readMessage:
 		}
 
-		if inputContainsError(messageType, err) {
+		if inputContainsError(messageType, err, loopContext) {
 			return
 		}
 		if handleInput(reader, cr.buffer, loopContext) {
@@ -93,11 +93,11 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 func handleInput(reader io.Reader, buffer chan byte, ctx context.Context) (done bool) {
 	message, err := io.ReadAll(reader)
 	if err != nil {
-		log.WithError(err).Warn("error while reading WebSocket message")
+		log.WithContext(ctx).WithError(err).Warn("error while reading WebSocket message")
 		return true
 	}
 
-	log.WithField("message", string(message)).Trace("Received message from client")
+	log.WithContext(ctx).WithField("message", string(message)).Trace("Received message from client")
 	for _, character := range message {
 		select {
 		case <-ctx.Done():
@@ -108,17 +108,17 @@ func handleInput(reader io.Reader, buffer chan byte, ctx context.Context) (done 
 	return false
 }
 
-func inputContainsError(messageType int, err error) (done bool) {
+func inputContainsError(messageType int, err error, ctx context.Context) (done bool) {
 	if err != nil && websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		log.Debug("ReadInputLoop: The client closed the connection!")
+		log.WithContext(ctx).Debug("ReadInputLoop: The client closed the connection!")
 		// The close handler will do something soon.
 		return true
 	} else if err != nil {
-		log.WithError(err).Warn("Error reading client message")
+		log.WithContext(ctx).WithError(err).Warn("Error reading client message")
 		return true
 	}
 	if messageType != websocket.TextMessage {
-		log.WithField("messageType", messageType).Warn("Received message of wrong type")
+		log.WithContext(ctx).WithField("messageType", messageType).Warn("Received message of wrong type")
 		return true
 	}
 	return false

@@ -94,7 +94,7 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	ctx context.Context, cmd string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
-	log.WithField("command", strings.ReplaceAll(cmd, "\n", "")).Trace("Requesting Nomad Exec")
+	log.WithContext(ctx).WithField("command", strings.ReplaceAll(cmd, "\n", "")).Trace("Requesting Nomad Exec")
 	var allocations []*nomadApi.AllocationListStub
 	var err error
 	logging.StartSpan("nomad.execute.list", "List Allocations for id", ctx, func(_ context.Context) {
@@ -132,10 +132,10 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	case err == nil:
 		return exitCode, nil
 	case websocket.IsCloseError(errors.Unwrap(err), websocket.CloseNormalClosure):
-		log.WithField("runnerID", runnerID).WithError(err).Info("The exit code could not be received.")
+		log.WithContext(ctx).WithField("runnerID", runnerID).WithError(err).Info("The exit code could not be received.")
 		return 0, nil
 	case errors.Is(err, context.Canceled):
-		log.WithField("runnerID", runnerID).Debug("Execution canceled by context")
+		log.WithContext(ctx).WithField("runnerID", runnerID).Debug("Execution canceled by context")
 		return 0, nil
 	default:
 		return 1, fmt.Errorf("error executing command in allocation: %w", err)

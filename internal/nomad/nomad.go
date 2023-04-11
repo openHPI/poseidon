@@ -482,7 +482,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 			exit, err := a.Execute(allocationID, ctx, prepareCommandTTYStdErr(currentNanoTime, privilegedExecution), true,
 				nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
 			if err != nil {
-				log.WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
+				log.WithContext(ctx).WithError(err).WithField("runner", allocationID).Warn("Stderr task finished with error")
 			}
 			stderrExitChan <- exit
 		})

@@ -56,7 +56,7 @@ func (s *SentryDebugWriter) Write(p []byte) (n int, err error) {
 
 	match := matchAndMapTimeDebugMessage(p)
 	if match == nil {
-		log.WithField("data", p).Warn("Exec debug message could not be read completely")
+		log.WithContext(s.Ctx).WithField("data", p).Warn("Exec debug message could not be read completely")
 		return 0, nil
 	}
 
@@ -93,7 +93,7 @@ func (s *SentryDebugWriter) Close(exitCode int) {
 func (s *SentryDebugWriter) handleTimeDebugMessage(match map[string][]byte) {
 	timestamp, err := strconv.ParseInt(string(match["time"]), 10, 64)
 	if err != nil {
-		log.WithField("match", match).Warn("Could not parse Unix timestamp")
+		log.WithContext(s.Ctx).WithField("match", match).Warn("Could not parse Unix timestamp")
 		return
 	}
 

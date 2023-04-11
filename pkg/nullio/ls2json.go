@@ -69,7 +69,7 @@ func (w *Ls2JsonWriter) Write(p []byte) (int, error) {
 		if len(line) != 0 {
 			count, err := w.writeLine(line)
 			if err != nil {
-				log.WithError(err).Warn("Could not write line to Target")
+				log.WithContext(w.Ctx).WithError(err).Warn("Could not write line to Target")
 				return count, err
 			}
 		}
@@ -87,7 +87,7 @@ func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
 	if !w.jsonStartSent {
 		count, err = w.Target.Write([]byte("{\"files\": ["))
 		if count == 0 || err != nil {
-			log.WithError(err).Warn("Could not write to target")
+			log.WithContext(w.Ctx).WithError(err).Warn("Could not write to target")
 			err = fmt.Errorf("could not write to target: %w", err)
 		} else {
 			w.jsonStartSent = true
@@ -102,7 +102,7 @@ func (w *Ls2JsonWriter) Close() {
 	if w.jsonStartSent {
 		count, err := w.Target.Write([]byte("]}"))
 		if count == 0 || err != nil {
-			log.WithError(err).Warn("Could not Close ls2json writer")
+			log.WithContext(w.Ctx).WithError(err).Warn("Could not Close ls2json writer")
 		}
 		w.sentrySpan.Finish()
 	}
@@ -163,7 +163,7 @@ func (w *Ls2JsonWriter) parseFileHeader(matches [][]byte) ([]byte, error) {
 			name = dto.FilePath(parts[0])
 			linkTarget = dto.FilePath(parts[1])
 		} else {
-			log.Error("could not split link into name and target")
+			log.WithContext(w.Ctx).Error("could not split link into name and target")
 		}
 	}
 

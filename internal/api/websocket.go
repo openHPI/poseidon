@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/api/ws"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -28,7 +29,7 @@ func upgradeConnection(writer http.ResponseWriter, request *http.Request) (ws.Co
 	connUpgrader := websocket.Upgrader{}
 	connection, err := connUpgrader.Upgrade(writer, request, nil)
 	if err != nil {
-		log.WithError(err).Warn("Connection upgrade failed")
+		log.WithContext(request.Context()).WithError(err).Warn("Connection upgrade failed")
 		return nil, fmt.Errorf("error upgrading the connection: %w", err)
 	}
 	return connection, nil
@@ -61,13 +62,13 @@ func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecuti
 	var exitInfo runner.ExitInfo
 	select {
 	case <-wp.ctx.Done():
-		log.Info("Client closed the connection")
+		log.WithContext(wp.ctx).Info("Client closed the connection")
 		wp.Input.Stop()
 		cancelExecution()
 		<-exit // /internal/runner/runner.go handleExitOrContextDone does not require client connection anymore.
 		<-exit // The goroutine closes this channel indicating that it does not use the connection to the executor anymore.
 	case exitInfo = <-exit:
-		log.Info("Execution returned")
+		log.WithContext(wp.ctx).Info("Execution returned")
 		wp.Input.Stop()
 		wp.Output.SendExitInfo(&exitInfo)
 	}
@@ -80,27 +81,30 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 
 	executionID := request.URL.Query().Get(ExecutionIDKey)
 	if !targetRunner.ExecutionExists(executionID) {
-		writeClientError(writer, ErrUnknownExecutionID, http.StatusNotFound)
+		writeClientError(writer, ErrUnknownExecutionID, http.StatusNotFound, request.Context())
 		return
 	}
 
 	connection, err := upgradeConnection(writer, request)
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
+
+	// ToDo: Why can we not inherit from request.Context() here?
 	proxyCtx, cancelProxy := context.WithCancel(context.Background())
+	proxyCtx = sentry.SetHubOnContext(proxyCtx, sentry.GetHubFromContext(request.Context()))
 	defer cancelProxy()
 	proxy := newWebSocketProxy(connection, proxyCtx)
 
-	log.WithField("runnerId", targetRunner.ID()).
+	log.WithContext(proxyCtx).WithField("runnerId", targetRunner.ID()).
 		WithField("executionID", logging.RemoveNewlineSymbol(executionID)).
 		Info("Running execution")
 	logging.StartSpan("api.runner.connect", "Execute Interactively", request.Context(), func(ctx context.Context) {
 		exit, cancel, err := targetRunner.ExecuteInteractively(executionID,
 			proxy.Input, proxy.Output.StdOut(), proxy.Output.StdErr(), ctx)
 		if err != nil {
-			log.WithError(err).Warn("Cannot execute request.")
+			log.WithContext(ctx).WithError(err).Warn("Cannot execute request.")
 			return // The proxy is stopped by the deferred cancel.
 		}
 

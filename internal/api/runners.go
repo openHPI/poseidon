@@ -74,18 +74,20 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	if err != nil {
 		switch {
 		case errors.Is(err, runner.ErrUnknownExecutionEnvironment):
-			writeClientError(writer, err, http.StatusNotFound)
+			writeClientError(writer, err, http.StatusNotFound, request.Context())
 		case errors.Is(err, runner.ErrNoRunnersAvailable):
-			log.WithField("environment", logging.RemoveNewlineSymbol(strconv.Itoa(int(environmentID)))).
+			log.WithContext(request.Context()).
+				WithField("environment", logging.RemoveNewlineSymbol(strconv.Itoa(int(environmentID)))).
 				Warn("No runners available")
-			writeInternalServerError(writer, err, dto.ErrorNomadOverload)
+			writeInternalServerError(writer, err, dto.ErrorNomadOverload, request.Context())
 		default:
-			writeInternalServerError(writer, err, dto.ErrorUnknown)
+			writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		}
 		return
 	}
 	monitoring.AddRunnerMonitoringData(request, nextRunner.ID(), nextRunner.Environment())
-	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()}, http.StatusOK)
+	sendJSON(writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()},
+		http.StatusOK, request.Context())
 }
 
 // listFileSystem handles the files API route with the method GET.
@@ -112,11 +114,11 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 		err = targetRunner.ListFileSystem(path, recursive, writer, privilegedExecution, ctx)
 	})
 	if errors.Is(err, runner.ErrFileNotFound) {
-		writeClientError(writer, err, http.StatusFailedDependency)
+		writeClientError(writer, err, http.StatusFailedDependency, request.Context())
 		return
 	} else if err != nil {
-		log.WithError(err).Error("Could not perform the requested listFileSystem.")
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		log.WithContext(request.Context()).WithError(err).Error("Could not perform the requested listFileSystem.")
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
 }
@@ -138,8 +140,8 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 		err = targetRunner.UpdateFileSystem(fileCopyRequest, ctx)
 	})
 	if err != nil {
-		log.WithError(err).Error("Could not perform the requested updateFileSystem.")
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		log.WithContext(request.Context()).WithError(err).Error("Could not perform the requested updateFileSystem.")
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
 
@@ -160,11 +162,11 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 		err = targetRunner.GetFileContent(path, writer, privilegedExecution, ctx)
 	})
 	if errors.Is(err, runner.ErrFileNotFound) {
-		writeClientError(writer, err, http.StatusFailedDependency)
+		writeClientError(writer, err, http.StatusFailedDependency, request.Context())
 		return
 	} else if err != nil {
-		log.WithError(err).Error("Could not retrieve the requested file.")
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		log.WithContext(request.Context()).WithError(err).Error("Could not retrieve the requested file.")
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
 }
@@ -179,7 +181,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 	}
 	forbiddenCharacters := "'"
 	if strings.ContainsAny(executionRequest.Command, forbiddenCharacters) {
-		writeClientError(writer, ErrForbiddenCharacter, http.StatusBadRequest)
+		writeClientError(writer, ErrForbiddenCharacter, http.StatusBadRequest, request.Context())
 		return
 	}
 
@@ -194,14 +196,14 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 
 	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIDKey, targetRunner.ID())
 	if err != nil {
-		log.WithError(err).Error("Could not create runner websocket URL.")
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		log.WithContext(request.Context()).WithError(err).Error("Could not create runner websocket URL.")
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
 	newUUID, err := uuid.NewRandom()
 	if err != nil {
-		log.WithError(err).Error("Could not create execution id")
-		writeInternalServerError(writer, err, dto.ErrorUnknown)
+		log.WithContext(request.Context()).WithError(err).Error("Could not create execution id")
+		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
 	id := newUUID.String()
@@ -216,7 +218,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		RawQuery: fmt.Sprintf("%s=%s", ExecutionIDKey, id),
 	}
 
-	sendJSON(writer, &dto.ExecutionResponse{WebSocketURL: webSocketURL.String()}, http.StatusOK)
+	sendJSON(writer, &dto.ExecutionResponse{WebSocketURL: webSocketURL.String()}, http.StatusOK, request.Context())
 }
 
 // The findRunnerMiddleware looks up the runnerId for routes containing it
@@ -230,9 +232,9 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 			// See https://github.com/openHPI/poseidon/issues/54
 			_, readErr := io.ReadAll(request.Body)
 			if readErr != nil {
-				log.WithError(readErr).Warn("Failed to discard the request body")
+				log.WithContext(request.Context()).WithError(readErr).Warn("Failed to discard the request body")
 			}
-			writeClientError(writer, err, http.StatusGone)
+			writeClientError(writer, err, http.StatusGone, request.Context())
 			return
 		}
 		ctx := runner.NewContext(request.Context(), targetRunner)
@@ -252,7 +254,7 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 		err = r.manager.Return(targetRunner)
 	})
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError)
+		writeInternalServerError(writer, err, dto.ErrorNomadInternalServerError, request.Context())
 		return
 	}
 

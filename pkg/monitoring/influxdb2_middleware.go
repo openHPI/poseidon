@@ -130,12 +130,12 @@ func addEnvironmentID(r *http.Request, id dto.EnvironmentID) {
 func AddRequestSize(r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.WithError(err).Warn("Failed to read request body")
+		log.WithContext(r.Context()).WithError(err).Warn("Failed to read request body")
 	}
 
 	err = r.Body.Close()
 	if err != nil {
-		log.WithError(err).Warn("Failed to close request body")
+		log.WithContext(r.Context()).WithError(err).Warn("Failed to close request body")
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 
@@ -185,7 +185,7 @@ func addInfluxDBField(r *http.Request, key string, value interface{}) {
 func dataPointFromRequest(r *http.Request) *write.Point {
 	p, ok := r.Context().Value(influxdbContextKey).(*write.Point)
 	if !ok {
-		log.Error("All http request must contain an influxdb data point!")
+		log.WithContext(r.Context()).Error("All http request must contain an influxdb data point!")
 	}
 	return p
 }

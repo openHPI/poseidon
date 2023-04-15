@@ -30,3 +30,15 @@ For the rest of the documentation see the [docs folder](docs). It describes...
 - [configuration](docs/configuration.md) of the system.
 - [security configurations](docs/security.md) (how to active access control and TLS with Poseidon).
 - [how Poseidon integrates Nomad](docs/nomad_usage.md) in its architecture.
+
+## Contributing
+
+Bug reports and pull requests are welcome on GitHub at https://github.com/openHPI/poseidon. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/openHPI/poseidon/blob/master/CODE_OF_CONDUCT.md).
+
+## License
+
+Poseidon is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+
+## Code of Conduct
+
+Everyone interacting in this project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/openHPI/poseidon/blob/master/CODE_OF_CONDUCT.md).

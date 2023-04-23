@@ -6,6 +6,7 @@ import (
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
@@ -41,6 +42,7 @@ type AllocationProcessorMonitored func(*nomadApi.Allocation, time.Duration)
 type allocationData struct {
 	// allocClientStatus defines the state defined by Nomad.
 	allocClientStatus string
+	jobID             string
 	start             time.Time
 }
 
@@ -104,7 +106,10 @@ func NewExecutorAPI(nomadConfig *config.Nomad) (ExecutorAPI, error) {
 	client := &APIClient{
 		apiQuerier:  &nomadAPIClient{},
 		evaluations: map[string]chan error{},
-		allocations: storage.NewMonitoredLocalStorage[*allocationData](monitoring.MeasurementNomadAllocations, nil, 0, nil),
+		allocations: storage.NewMonitoredLocalStorage[*allocationData](monitoring.MeasurementNomadAllocations,
+			func(p *write.Point, object *allocationData, _ storage.EventType) {
+				p.AddTag(monitoring.InfluxKeyJobID, object.jobID)
+			}, 0, nil),
 	}
 	err := client.init(nomadConfig)
 	return client, err
@@ -230,7 +235,7 @@ func (a *APIClient) initializeAllocations() {
 				stub.ClientStatus == structs.AllocClientStatusRunning {
 				log.WithField("jobID", stub.JobID).WithField("status", stub.ClientStatus).Debug("Recovered Runner")
 				a.allocations.Add(stub.ID,
-					&allocationData{allocClientStatus: stub.ClientStatus, start: time.Unix(0, stub.CreateTime)})
+					&allocationData{allocClientStatus: stub.ClientStatus, start: time.Unix(0, stub.CreateTime), jobID: stub.JobID})
 			}
 		}
 	}
@@ -338,7 +343,8 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 			callbacks.OnDeleted(alloc)
 		}
 		// Store Pending Allocation - Allocation gets started, wait until it runs.
-		allocations.Add(alloc.ID, &allocationData{allocClientStatus: structs.AllocClientStatusPending, start: time.Now()})
+		allocations.Add(alloc.ID,
+			&allocationData{allocClientStatus: structs.AllocClientStatusPending, start: time.Now(), jobID: alloc.JobID})
 	} else {
 		log.WithField("alloc", alloc).Warn("Other Desired Status")
 	}

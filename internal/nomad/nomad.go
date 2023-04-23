@@ -45,6 +45,8 @@ type allocationData struct {
 	allocClientStatus string
 	jobID             string
 	start             time.Time
+	// Just debugging information
+	allocNomadNode string
 }
 
 // ExecutorAPI provides access to a container orchestration solution.
@@ -110,6 +112,8 @@ func NewExecutorAPI(nomadConfig *config.Nomad) (ExecutorAPI, error) {
 		allocations: storage.NewMonitoredLocalStorage[*allocationData](monitoring.MeasurementNomadAllocations,
 			func(p *write.Point, object *allocationData, _ storage.EventType) {
 				p.AddTag(monitoring.InfluxKeyJobID, object.jobID)
+				p.AddTag(monitoring.InfluxKeyClientStatus, object.allocClientStatus)
+				p.AddTag(monitoring.InfluxKeyNomadNode, object.allocNomadNode)
 			}, 0, nil),
 	}
 	err := client.init(nomadConfig)
@@ -247,8 +251,12 @@ func (a *APIClient) initializeAllocations(environmentID dto.EnvironmentID) {
 				continue
 			case stub.ClientStatus == structs.AllocClientStatusPending || stub.ClientStatus == structs.AllocClientStatusRunning:
 				log.WithField("jobID", stub.JobID).WithField("status", stub.ClientStatus).Debug("Recovered Allocation")
-				a.allocations.Add(stub.ID,
-					&allocationData{allocClientStatus: stub.ClientStatus, start: time.Unix(0, stub.CreateTime), jobID: stub.JobID})
+				a.allocations.Add(stub.ID, &allocationData{
+					allocClientStatus: stub.ClientStatus,
+					jobID:             stub.JobID,
+					start:             time.Unix(0, stub.CreateTime),
+					allocNomadNode:    stub.NodeName,
+				})
 			}
 		}
 	}
@@ -363,8 +371,12 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 			callbacks.OnDeleted(alloc)
 		}
 		// Store Pending Allocation - Allocation gets started, wait until it runs.
-		allocations.Add(alloc.ID,
-			&allocationData{allocClientStatus: structs.AllocClientStatusPending, start: time.Now(), jobID: alloc.JobID})
+		allocations.Add(alloc.ID, &allocationData{
+			allocClientStatus: structs.AllocClientStatusPending,
+			jobID:             alloc.JobID,
+			start:             time.Now(),
+			allocNomadNode:    alloc.NodeName,
+		})
 	} else {
 		log.WithField("alloc", alloc).Warn("Other Desired Status")
 	}

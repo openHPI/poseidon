@@ -35,6 +35,7 @@ const (
 
 	InfluxKeyRunnerID                      = "runner_id"
 	InfluxKeyEnvironmentID                 = "environment_id"
+	InfluxKeyJobID                         = "job_id"
 	InfluxKeyActualContentLength           = "actual_length"
 	InfluxKeyExpectedContentLength         = "expected_length"
 	InfluxKeyDuration                      = "duration"

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
@@ -207,6 +208,7 @@ func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationP
 	}
 
 	handler := func(event *nomadApi.Event) (bool, error) {
+		dumpNomadEventToInflux(event)
 		switch event.Topic {
 		case nomadApi.TopicEvaluation:
 			return false, handleEvaluationEvent(a.evaluations, event)
@@ -221,6 +223,15 @@ func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationP
 	err = receiveAndHandleNomadAPIEvents(stream, handler)
 	a.isListening = false
 	return err
+}
+
+func dumpNomadEventToInflux(event *nomadApi.Event) {
+	p := influxdb2.NewPointWithMeasurement(monitoring.MeasurementNomadEvents)
+	p.AddTag("topic", event.Topic.String())
+	p.AddTag("type", event.Type)
+	p.AddTag("key", event.Key)
+	p.AddField("payload", event.Payload)
+	monitoring.WriteInfluxPoint(p)
 }
 
 func (a *APIClient) initializeAllocations() {

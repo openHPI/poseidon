@@ -181,6 +181,9 @@ func (nc *nomadAPIClient) EventStream(ctx context.Context) (<-chan *nomadApi.Eve
 				// As Poseidon uses no such token, the request will return a permission denied error.
 				"*",
 			},
+			nomadApi.TopicJob:        {"*"},
+			nomadApi.TopicNode:       {"*"},
+			nomadApi.TopicDeployment: {"*"},
 		},
 		0,
 		nc.queryOptions())

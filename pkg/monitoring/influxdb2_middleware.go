@@ -23,6 +23,7 @@ const (
 	// measurementPrefix allows easier filtering in influxdb.
 	measurementPrefix           = "poseidon_"
 	measurementPoolSize         = measurementPrefix + "poolsize"
+	MeasurementNomadEvents      = measurementPrefix + "nomad_events"
 	MeasurementNomadAllocations = measurementPrefix + "nomad_allocations"
 	MeasurementIdleRunnerNomad  = measurementPrefix + "nomad_idle_runners"
 	MeasurementExecutionsAWS    = measurementPrefix + "aws_executions"

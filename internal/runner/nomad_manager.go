@@ -115,6 +115,7 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 		return
 	}
 	newJob := NewNomadJob(*job.ID, portMappings, m.apiClient, m.Return)
+	log.WithField("isUsed", isUsed).WithField("runner_id", newJob.ID()).Debug("Recovered Runner")
 	if isUsed {
 		m.usedRunners.Add(newJob.ID(), newJob)
 		timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])

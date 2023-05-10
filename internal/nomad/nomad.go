@@ -318,6 +318,11 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 		return nil
 	}
 
+	log.WithField("alloc_id", alloc.ID).
+		WithField("ClientStatus", alloc.ClientStatus).
+		WithField("DesiredStatus", alloc.DesiredStatus).
+		Debug("Handle Allocation Event")
+
 	// When starting the API and listening on the Nomad event stream we might get events that already
 	// happened from Nomad as it seems to buffer them for a certain duration.
 	// Ignore old events here.
@@ -344,10 +349,12 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 // This allows the handling of startups and re-placements of allocations.
 func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
+	log.WithField("alloc_id", alloc.ID).Debug("Handle Pending Allocation Event")
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		allocData, ok := allocations.Get(alloc.ID)
 		if ok && allocData.allocClientStatus != structs.AllocClientStatusRunning {
 			// Pending Allocation is already stored.
+			log.WithField("alloc_id", alloc.ID).Debug("Pending Allocation already stored")
 			return
 		} else if ok {
 			// Handle Runner (/Container) re-allocations.
@@ -364,6 +371,7 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 // handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
 func handleRunningAllocationEvent(alloc *nomadApi.Allocation,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
+	log.WithField("alloc_id", alloc.ID).Debug("Handle Running Allocation Event")
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		// is first event that marks the transition between pending and running?
 		if allocData, ok := allocations.Get(alloc.ID); ok && allocData.allocClientStatus == structs.AllocClientStatusPending {

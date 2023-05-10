@@ -150,7 +150,7 @@ func (a *APIClient) LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapp
 }
 
 func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi.Job, error) {
-	go a.initializeAllocations()
+	go a.initializeAllocations(environmentID)
 
 	runnerIDs, err := a.LoadRunnerIDs(RunnerJobID(environmentID, ""))
 	if err != nil {
@@ -234,17 +234,19 @@ func dumpNomadEventToInflux(event *nomadApi.Event) {
 	monitoring.WriteInfluxPoint(p)
 }
 
-func (a *APIClient) initializeAllocations() {
+func (a *APIClient) initializeAllocations(environmentID dto.EnvironmentID) {
 	allocationStubs, err := a.listAllocations()
 	if err != nil {
 		log.WithError(err).Warn("Could not initialize allocations")
 	} else {
 		for _, stub := range allocationStubs {
-			if IsEnvironmentTemplateID(stub.JobID) {
+			switch {
+			case IsEnvironmentTemplateID(stub.JobID):
 				continue
-			} else if stub.ClientStatus == structs.AllocClientStatusPending ||
-				stub.ClientStatus == structs.AllocClientStatusRunning {
-				log.WithField("jobID", stub.JobID).WithField("status", stub.ClientStatus).Debug("Recovered Runner")
+			case !strings.HasPrefix(stub.JobID, RunnerJobID(environmentID, "")):
+				continue
+			case stub.ClientStatus == structs.AllocClientStatusPending || stub.ClientStatus == structs.AllocClientStatusRunning:
+				log.WithField("jobID", stub.JobID).WithField("status", stub.ClientStatus).Debug("Recovered Allocation")
 				a.allocations.Add(stub.ID,
 					&allocationData{allocClientStatus: stub.ClientStatus, start: time.Unix(0, stub.CreateTime), jobID: stub.JobID})
 			}

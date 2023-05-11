@@ -509,16 +509,31 @@ func TestApiClient_WatchAllocationsHandlesEvents(t *testing.T) {
 }
 
 func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
-	newPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	newPendingEvent := eventForAllocation(t, newPendingAllocation)
+	t.Run("AllocationUpdated", func(t *testing.T) {
+		newPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+		newPendingEvent := eventForAllocation(t, newPendingAllocation)
 
-	allocations := storage.NewLocalStorage[*allocationData]()
-	err := handleAllocationEvent(
-		time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessoring)
-	require.NoError(t, err)
+		allocations := storage.NewLocalStorage[*allocationData]()
+		err := handleAllocationEvent(
+			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessoring)
+		require.NoError(t, err)
 
-	_, ok := allocations.Get(newPendingAllocation.ID)
-	assert.True(t, ok)
+		_, ok := allocations.Get(newPendingAllocation.ID)
+		assert.True(t, ok)
+	})
+	t.Run("PlanResult", func(t *testing.T) {
+		newPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+		newPendingEvent := eventForAllocation(t, newPendingAllocation)
+		newPendingEvent.Type = structs.TypePlanResult
+
+		allocations := storage.NewLocalStorage[*allocationData]()
+		err := handleAllocationEvent(
+			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessoring)
+		require.NoError(t, err)
+
+		_, ok := allocations.Get(newPendingAllocation.ID)
+		assert.True(t, ok)
+	})
 }
 
 func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved(t *testing.T) {

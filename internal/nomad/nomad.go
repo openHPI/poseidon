@@ -318,9 +318,6 @@ func handleEvaluationEvent(evaluations map[string]chan error, event *nomadApi.Ev
 // storage the state is persisted between multiple calls of this function.
 func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocationData],
 	event *nomadApi.Event, callbacks *AllocationProcessoring) error {
-	if event.Type != structs.TypeAllocationUpdated {
-		return nil
-	}
 	alloc, err := event.Allocation()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve allocation from event: %w", err)
@@ -359,12 +356,13 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 // This allows the handling of startups and re-placements of allocations.
 func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
-	log.WithField("alloc_id", alloc.ID).Debug("Handle Pending Allocation Event")
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		allocData, ok := allocations.Get(alloc.ID)
 		if ok && allocData.allocClientStatus != structs.AllocClientStatusRunning {
 			// Pending Allocation is already stored.
-			log.WithField("alloc_id", alloc.ID).Debug("Pending Allocation already stored")
+			// This happens because depending on the startup duration of the runner, we get zero, one, or more events
+			// notifying us that the allocation is still pending.
+			// We are just interested in the first event, in order to have the correct start time.
 			return
 		} else if ok {
 			// Handle Runner (/Container) re-allocations.
@@ -385,7 +383,6 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 // handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
 func handleRunningAllocationEvent(alloc *nomadApi.Allocation,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
-	log.WithField("alloc_id", alloc.ID).Debug("Handle Running Allocation Event")
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		// is first event that marks the transition between pending and running?
 		if allocData, ok := allocations.Get(alloc.ID); ok && allocData.allocClientStatus == structs.AllocClientStatusPending {

@@ -235,6 +235,7 @@ func dumpNomadEventToInflux(event *nomadApi.Event) {
 	p.AddTag("type", event.Type)
 	p.AddTag("key", event.Key)
 	p.AddField("payload", event.Payload)
+	p.AddTag("time", time.Now().Format("03:04:05.000000000"))
 	monitoring.WriteInfluxPoint(p)
 }
 

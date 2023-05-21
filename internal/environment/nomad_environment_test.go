@@ -178,6 +178,7 @@ func TestTwoSampleAddExactlyTwoRunners(t *testing.T) {
 	_, job := helpers.CreateTemplateJob()
 	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job,
 		storage.NewLocalStorage[runner.Runner](), nil, nil}
+	environment.SetPrewarmingPoolSize(2)
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
 	runner2 := &runner.RunnerMock{}

@@ -243,7 +243,7 @@ func (n *NomadEnvironment) ApplyPrewarmingPoolSize() error {
 
 func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 	r, ok := n.idleRunners.Sample()
-	if ok {
+	if ok && n.idleRunners.Length() < n.PrewarmingPoolSize() {
 		go func() {
 			err := util.RetryExponential(time.Second, func() error {
 				return n.createRunner(false)
@@ -252,6 +252,8 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 				log.WithError(err).WithField("environmentID", n.ID()).Error("Couldn't create new runner for claimed one")
 			}
 		}()
+	} else if ok {
+		log.WithField("environment", n.ID().ToString()).Warn("Too many idle runner")
 	}
 	return r, ok
 }

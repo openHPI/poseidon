@@ -133,7 +133,7 @@ func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
 	retries := 0
 	for ctx.Err() == nil {
 		err := m.apiClient.WatchEventStream(ctx,
-			&nomad.AllocationProcessoring{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
+			&nomad.AllocationProcessing{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
 		retries += 1
 		log.WithContext(ctx).WithError(err).Errorf("Stopped updating the runners! Retry %v", retries)
 		<-time.After(time.Second)
@@ -177,7 +177,7 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 	monitoring.WriteInfluxPoint(p)
 }
 
-func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation) {
+func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation, rescheduled bool) {
 	log.WithField("id", alloc.JobID).Debug("Runner stopped")
 
 	if nomad.IsEnvironmentTemplateID(alloc.JobID) {
@@ -190,7 +190,14 @@ func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation) {
 		return
 	}
 
-	m.usedRunners.Delete(alloc.JobID)
+	r, isUsed := m.usedRunners.Get(alloc.JobID)
+	if isUsed && rescheduled {
+		if err := m.Return(r); err != nil {
+			log.WithError(err).WithField("id", alloc.JobID).Warn("Rescheduled Allocation cannot be stopped")
+			return
+		}
+	}
+
 	environment, ok := m.environments.Get(environmentID.ToString())
 	if ok {
 		environment.DeleteRunner(alloc.JobID)

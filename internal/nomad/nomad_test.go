@@ -24,9 +24,9 @@ import (
 )
 
 var (
-	noopAllocationProcessoring = &AllocationProcessoring{
+	noopAllocationProcessing = &AllocationProcessing{
 		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ *nomadApi.Allocation) {},
+		OnDeleted: func(_ *nomadApi.Allocation, _ bool) {},
 	}
 	ErrUnexpectedEOF = errors.New("unexpected EOF")
 )
@@ -515,7 +515,7 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 
 		allocations := storage.NewLocalStorage[*allocationData]()
 		err := handleAllocationEvent(
-			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessoring)
+			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
 		require.NoError(t, err)
 
 		_, ok := allocations.Get(newPendingAllocation.ID)
@@ -528,7 +528,7 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 
 		allocations := storage.NewLocalStorage[*allocationData]()
 		err := handleAllocationEvent(
-			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessoring)
+			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
 		require.NoError(t, err)
 
 		_, ok := allocations.Get(newPendingAllocation.ID)
@@ -541,7 +541,7 @@ func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetri
 	apiMock.On("EventStream", mock.Anything).Return(nil, tests.ErrDefault)
 	apiClient := &APIClient{apiMock, map[string]chan error{}, storage.NewLocalStorage[*allocationData](), false}
 
-	err := apiClient.WatchEventStream(context.Background(), noopAllocationProcessoring)
+	err := apiClient.WatchEventStream(context.Background(), noopAllocationProcessing)
 	assert.ErrorIs(t, err, tests.ErrDefault)
 }
 
@@ -557,14 +557,14 @@ func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWi
 	require.Error(t, err)
 
 	events := []*nomadApi.Events{{Events: []nomadApi.Event{event}}, {}}
-	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessoring)
+	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessing)
 	assert.Error(t, err)
 	assert.Equal(t, 1, eventsProcessed)
 }
 
 func TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEOF(t *testing.T) {
 	events := []*nomadApi.Events{{Err: ErrUnexpectedEOF}, {}}
-	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessoring)
+	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessing)
 	assert.Error(t, err)
 	assert.Equal(t, 1, eventsProcessed)
 }
@@ -574,11 +574,11 @@ func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
 	t.Helper()
 	var newAllocations []*nomadApi.Allocation
 	var deletedAllocations []*nomadApi.Allocation
-	callbacks := &AllocationProcessoring{
+	callbacks := &AllocationProcessing{
 		OnNew: func(alloc *nomadApi.Allocation, _ time.Duration) {
 			newAllocations = append(newAllocations, alloc)
 		},
-		OnDeleted: func(alloc *nomadApi.Allocation) {
+		OnDeleted: func(alloc *nomadApi.Allocation, _ bool) {
 			deletedAllocations = append(deletedAllocations, alloc)
 		},
 	}
@@ -594,7 +594,7 @@ func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
 // runAllocationWatching simulates events streamed from the Nomad event stream
 // to the MonitorEvaluation method. It starts the MonitorEvaluation function as a goroutine
 // and sequentially transfers the events from the given array to a channel simulating the stream.
-func runAllocationWatching(t *testing.T, events []*nomadApi.Events, callbacks *AllocationProcessoring) (
+func runAllocationWatching(t *testing.T, events []*nomadApi.Events, callbacks *AllocationProcessing) (
 	eventsProcessed int, err error) {
 	t.Helper()
 	stream := make(chan *nomadApi.Events)
@@ -606,7 +606,7 @@ func runAllocationWatching(t *testing.T, events []*nomadApi.Events, callbacks *A
 // runs the MonitorEvaluation method in a goroutine. The mock returns a read-only
 // version of the given stream to simulate an event stream gotten from the real
 // Nomad API.
-func asynchronouslyWatchAllocations(stream chan *nomadApi.Events, callbacks *AllocationProcessoring) chan error {
+func asynchronouslyWatchAllocations(stream chan *nomadApi.Events, callbacks *AllocationProcessing) chan error {
 	ctx := context.Background()
 	// We can only get a read-only channel once we return it from a function.
 	readOnlyStream := func() <-chan *nomadApi.Events { return stream }()

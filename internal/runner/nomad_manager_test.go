@@ -233,7 +233,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 
 	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
-			callbacks, ok := args.Get(1).(*nomad.AllocationProcessoring)
+			callbacks, ok := args.Get(1).(*nomad.AllocationProcessing)
 			s.Require().True(ok)
 			callbacks.OnNew(allocation, 0)
 			call.ReturnArguments = mock.Arguments{nil}
@@ -261,9 +261,9 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 
 	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
 		call.Run(func(args mock.Arguments) {
-			callbacks, ok := args.Get(1).(*nomad.AllocationProcessoring)
+			callbacks, ok := args.Get(1).(*nomad.AllocationProcessing)
 			s.Require().True(ok)
-			callbacks.OnDeleted(allocation)
+			callbacks.OnDeleted(allocation, false)
 			call.ReturnArguments = mock.Arguments{nil}
 		})
 	})

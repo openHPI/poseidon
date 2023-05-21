@@ -46,6 +46,7 @@ job "template-0" {
       }
 
       restart {
+        attempts = 0
         delay = "0s"
       }
     }

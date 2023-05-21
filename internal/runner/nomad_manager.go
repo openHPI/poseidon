@@ -133,7 +133,7 @@ func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
 	retries := 0
 	for ctx.Err() == nil {
 		err := m.apiClient.WatchEventStream(ctx,
-			&nomad.AllocationProcessoring{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
+			&nomad.AllocationProcessing{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
 		retries += 1
 		log.WithContext(ctx).WithError(err).Errorf("Stopped updating the runners! Retry %v", retries)
 		<-time.After(time.Second)
@@ -177,7 +177,7 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 	monitoring.WriteInfluxPoint(p)
 }
 
-func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation) {
+func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation, failed bool) {
 	log.WithField("id", alloc.JobID).Debug("Runner stopped")
 
 	if nomad.IsEnvironmentTemplateID(alloc.JobID) {
@@ -190,9 +190,21 @@ func (m *NomadRunnerManager) onAllocationStopped(alloc *nomadApi.Allocation) {
 		return
 	}
 
+	_, isUsed := m.usedRunners.Get(alloc.JobID)
 	m.usedRunners.Delete(alloc.JobID)
+
 	environment, ok := m.environments.Get(environmentID.ToString())
 	if ok {
 		environment.DeleteRunner(alloc.JobID)
+
+		if !isUsed && failed {
+			entry := log.WithField("failed_job", alloc.JobID)
+			if runner, ok := environment.Sample(); ok {
+				environment.AddRunner(runner)
+				entry.WithField("new_job", runner.ID()).Info("Replaced failed Job")
+			} else {
+				entry.WithError(ErrNoRunnersAvailable).Warn("Failed to replace Job")
+			}
+		}
 	}
 }

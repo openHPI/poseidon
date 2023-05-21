@@ -32,13 +32,13 @@ var (
 // resultChannelWriteTimeout is to detect the error when more element are written into a channel than expected.
 const resultChannelWriteTimeout = 10 * time.Millisecond
 
-// AllocationProcessoring includes the callbacks to interact with allcoation events.
-type AllocationProcessoring struct {
-	OnNew     AllocationProcessorMonitored
-	OnDeleted AllocationProcessor
+// AllocationProcessing includes the callbacks to interact with allocation events.
+type AllocationProcessing struct {
+	OnNew     NewAllocationProcessor
+	OnDeleted DeletedAllocationProcessor
 }
-type AllocationProcessor func(*nomadApi.Allocation)
-type AllocationProcessorMonitored func(*nomadApi.Allocation, time.Duration)
+type DeletedAllocationProcessor func(alloc *nomadApi.Allocation, failed bool)
+type NewAllocationProcessor func(*nomadApi.Allocation, time.Duration)
 
 type allocationData struct {
 	// allocClientStatus defines the state defined by Nomad.
@@ -79,7 +79,7 @@ type ExecutorAPI interface {
 	// WatchEventStream listens on the Nomad event stream for allocation and evaluation events.
 	// Depending on the incoming event, any of the given function is executed.
 	// Do not run multiple times simultaneously.
-	WatchEventStream(ctx context.Context, callbacks *AllocationProcessoring) error
+	WatchEventStream(ctx context.Context, callbacks *AllocationProcessing) error
 
 	// ExecuteCommand executes the given command in the job/runner with the given id.
 	// It writes the output of the command to stdout/stderr and reads input from stdin.
@@ -187,9 +187,9 @@ func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) 
 		defer cancel() // cancel the WatchEventStream when the evaluation result was read.
 
 		go func() {
-			err = a.WatchEventStream(ctx, &AllocationProcessoring{
+			err = a.WatchEventStream(ctx, &AllocationProcessing{
 				OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-				OnDeleted: func(_ *nomadApi.Allocation) {},
+				OnDeleted: func(_ *nomadApi.Allocation, _ bool) {},
 			})
 			cancel() // cancel the waiting for an evaluation result if watching the event stream ends.
 		}()
@@ -204,7 +204,7 @@ func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) 
 	}
 }
 
-func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationProcessoring) error {
+func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationProcessing) error {
 	startTime := time.Now().UnixNano()
 	stream, err := a.EventStream(ctx)
 	if err != nil {
@@ -318,7 +318,7 @@ func handleEvaluationEvent(evaluations map[string]chan error, event *nomadApi.Ev
 // is called. The allocations storage is used to track pending and running allocations. Using the
 // storage the state is persisted between multiple calls of this function.
 func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocationData],
-	event *nomadApi.Event, callbacks *AllocationProcessoring) error {
+	event *nomadApi.Event, callbacks *AllocationProcessing) error {
 	alloc, err := event.Allocation()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve allocation from event: %w", err)
@@ -340,13 +340,13 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 
 	switch alloc.ClientStatus {
 	case structs.AllocClientStatusPending:
-		handlePendingAllocationEvent(alloc, allocations, callbacks)
+		handlePendingAllocationEvent(alloc, allocations)
 	case structs.AllocClientStatusRunning:
 		handleRunningAllocationEvent(alloc, allocations, callbacks)
 	case structs.AllocClientStatusComplete:
 		handleCompleteAllocationEvent(alloc, allocations, callbacks)
 	case structs.AllocClientStatusFailed:
-		handleFailedAllocationEvent(alloc)
+		handleFailedAllocationEvent(alloc, allocations, callbacks)
 	default:
 		log.WithField("alloc", alloc).Warn("Other Client Status")
 	}
@@ -355,8 +355,7 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 
 // handlePendingAllocationEvent manages allocation that are currently pending.
 // This allows the handling of startups and re-placements of allocations.
-func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
-	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
+func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocations storage.Storage[*allocationData]) {
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		allocData, ok := allocations.Get(alloc.ID)
 		if ok && allocData.allocClientStatus != structs.AllocClientStatusRunning {
@@ -366,8 +365,10 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 			// We are just interested in the first event, in order to have the correct start time.
 			return
 		} else if ok {
-			// Handle Runner (/Container) re-allocations.
-			callbacks.OnDeleted(alloc)
+			// Case: Runner (/Container) re-allocations.
+			// It should not occur as we define the Nomad Job Specification to not restart allocations.
+			log.WithField("alloc", alloc).Error("Runner re-allocation")
+			return
 		}
 		// Store Pending Allocation - Allocation gets started, wait until it runs.
 		allocations.Add(alloc.ID, &allocationData{
@@ -381,9 +382,9 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation,
 	}
 }
 
-// handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
+// handleRunningAllocationEvent calls the passed AllocationProcessing filtering similar events.
 func handleRunningAllocationEvent(alloc *nomadApi.Allocation,
-	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	if alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 		// is first event that marks the transition between pending and running?
 		if allocData, ok := allocations.Get(alloc.ID); ok && allocData.allocClientStatus == structs.AllocClientStatusPending {
@@ -396,10 +397,10 @@ func handleRunningAllocationEvent(alloc *nomadApi.Allocation,
 
 // handleCompleteAllocationEvent handles allocations that stopped.
 func handleCompleteAllocationEvent(alloc *nomadApi.Allocation,
-	allocations storage.Storage[*allocationData], callbacks *AllocationProcessoring) {
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	if alloc.DesiredStatus == structs.AllocDesiredStatusStop {
 		if _, ok := allocations.Get(alloc.ID); ok {
-			callbacks.OnDeleted(alloc)
+			callbacks.OnDeleted(alloc, false)
 			allocations.Delete(alloc.ID)
 		}
 	} else {
@@ -408,12 +409,18 @@ func handleCompleteAllocationEvent(alloc *nomadApi.Allocation,
 }
 
 // handleFailedAllocationEvent logs only the first of the multiple failure events.
-func handleFailedAllocationEvent(alloc *nomadApi.Allocation) {
-	if alloc.FollowupEvalID == "" && alloc.PreviousAllocation == "" {
-		log.WithField("job", alloc.JobID).
-			WithField("reason", failureDisplayMessage(alloc)).
-			WithField("alloc", alloc).
-			Warn("Allocation failure")
+func handleFailedAllocationEvent(alloc *nomadApi.Allocation,
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
+	entry := log.WithField("job", alloc.JobID).
+		WithField("reason", failureDisplayMessage(alloc)).
+		WithField("alloc", alloc)
+
+	if _, ok := allocations.Get(alloc.ID); ok {
+		callbacks.OnDeleted(alloc, true)
+		allocations.Delete(alloc.ID)
+		entry.Warn("Allocation failure")
+	} else {
+		log.Debug("Duplicate Allocation Failure event")
 	}
 }
 

@@ -24,9 +24,9 @@ import (
 )
 
 var (
-	noopAllocationProcessoring = &AllocationProcessoring{
+	noopAllocationProcessing = &AllocationProcessing{
 		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ *nomadApi.Allocation) {},
+		OnDeleted: func(_ string) {},
 	}
 	ErrUnexpectedEOF = errors.New("unexpected EOF")
 )
@@ -431,7 +431,7 @@ func TestApiClient_WatchAllocationsIgnoresOldAllocations(t *testing.T) {
 	}}
 
 	assertWatchAllocation(t, []*nomadApi.Events{&oldAllocationEvents},
-		[]*nomadApi.Allocation(nil), []*nomadApi.Allocation(nil))
+		[]*nomadApi.Allocation(nil), []string(nil))
 }
 
 func createOldAllocation(clientStatus, desiredStatus string) *nomadApi.Allocation {
@@ -445,67 +445,107 @@ func TestApiClient_WatchAllocationsIgnoresUnhandledEvents(t *testing.T) {
 			Type:  structs.TypeNodeEvent,
 		},
 	}}
-	assertWatchAllocation(t, []*nomadApi.Events{&nodeEvents}, []*nomadApi.Allocation(nil), []*nomadApi.Allocation(nil))
-
-	planEvents := nomadApi.Events{Events: []nomadApi.Event{
-		{
-			Topic: nomadApi.TopicAllocation,
-			Type:  structs.TypePlanResult,
-		},
-	}}
-	assertWatchAllocation(t, []*nomadApi.Events{&planEvents}, []*nomadApi.Allocation(nil), []*nomadApi.Allocation(nil))
+	assertWatchAllocation(t, []*nomadApi.Events{&nodeEvents}, []*nomadApi.Allocation(nil), []string(nil))
 }
 
-func TestApiClient_WatchAllocationsHandlesEvents(t *testing.T) {
-	newPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	pendingAllocationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, newPendingAllocation)}}
+func TestApiClient_WatchAllocationsUsesCallbacksForEvents(t *testing.T) {
+	pendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+	pendingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, pendingAllocation)}}
 
-	newStartedAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
-	startAllocationEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(t, newPendingAllocation),
-		eventForAllocation(t, newStartedAllocation),
+	t.Run("it does not add allocation when client status is pending", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingEvents}, []*nomadApi.Allocation(nil), []string(nil))
+	})
+
+	startedAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
+	startedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, startedAllocation)}}
+	pendingStartedEvents := nomadApi.Events{Events: []nomadApi.Event{
+		eventForAllocation(t, pendingAllocation), eventForAllocation(t, startedAllocation)}}
+
+	t.Run("it adds allocation with matching events", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string(nil))
+	})
+
+	t.Run("it skips heartbeat and adds allocation with matching events", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string(nil))
+	})
+
+	stoppedAllocation := createRecentAllocation(structs.AllocClientStatusComplete, structs.AllocDesiredStatusStop)
+	stoppedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, stoppedAllocation)}}
+	pendingStartStopEvents := nomadApi.Events{Events: []nomadApi.Event{
+		eventForAllocation(t, pendingAllocation),
+		eventForAllocation(t, startedAllocation),
+		eventForAllocation(t, stoppedAllocation),
 	}}
 
-	newStoppedAllocation := createRecentAllocation(structs.AllocClientStatusComplete, structs.AllocDesiredStatusStop)
-	stopAllocationEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(t, newPendingAllocation),
-		eventForAllocation(t, newStartedAllocation),
-		eventForAllocation(t, newStoppedAllocation),
-	}}
+	t.Run("it adds and deletes the allocation", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartStopEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string{stoppedAllocation.JobID})
+	})
 
-	var cases = []struct {
-		streamedEvents             []*nomadApi.Events
-		expectedNewAllocations     []*nomadApi.Allocation
-		expectedDeletedAllocations []*nomadApi.Allocation
-		name                       string
-	}{
-		{[]*nomadApi.Events{&pendingAllocationEvents},
-			[]*nomadApi.Allocation(nil), []*nomadApi.Allocation(nil),
-			"it does not add allocation when client status is pending"},
-		{[]*nomadApi.Events{&startAllocationEvents},
-			[]*nomadApi.Allocation{newStartedAllocation},
-			[]*nomadApi.Allocation(nil),
-			"it adds allocation with matching events"},
-		{[]*nomadApi.Events{{}, &startAllocationEvents},
-			[]*nomadApi.Allocation{newStartedAllocation},
-			[]*nomadApi.Allocation(nil),
-			"it skips heartbeat and adds allocation with matching events"},
-		{[]*nomadApi.Events{&stopAllocationEvents},
-			[]*nomadApi.Allocation{newStartedAllocation},
-			[]*nomadApi.Allocation{newStoppedAllocation},
-			"it adds and deletes the allocation"},
-		{[]*nomadApi.Events{&startAllocationEvents, &startAllocationEvents},
-			[]*nomadApi.Allocation{newStartedAllocation, newStartedAllocation},
-			[]*nomadApi.Allocation{newPendingAllocation},
-			"it handles multiple events"},
-	}
+	t.Run("it ignores duplicate events", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingEvents, &startedEvents, &startedEvents,
+			&stoppedEvents, &stoppedEvents, &stoppedEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string{startedAllocation.JobID})
+	})
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assertWatchAllocation(t, c.streamedEvents,
-				c.expectedNewAllocations, c.expectedDeletedAllocations)
-		})
-	}
+	t.Run("it ignores events of unknown allocations", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&startedEvents, &startedEvents,
+			&stoppedEvents, &stoppedEvents, &stoppedEvents}, []*nomadApi.Allocation(nil), []string(nil))
+	})
+
+	t.Run("it removes restarted allocations", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &pendingStartedEvents},
+			[]*nomadApi.Allocation{startedAllocation, startedAllocation}, []string{startedAllocation.JobID})
+	})
+
+	rescheduleAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+	rescheduleAllocation.ID = tests.AnotherUUID
+	rescheduleAllocation.PreviousAllocation = pendingAllocation.ID
+	rescheduleStartedAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
+	rescheduleStartedAllocation.ID = tests.AnotherUUID
+	rescheduleAllocation.PreviousAllocation = pendingAllocation.ID
+	rescheduleEvents := nomadApi.Events{Events: []nomadApi.Event{
+		eventForAllocation(t, rescheduleAllocation), eventForAllocation(t, rescheduleStartedAllocation)}}
+
+	t.Run("it removes rescheduled allocations", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &rescheduleEvents},
+			[]*nomadApi.Allocation{startedAllocation, rescheduleStartedAllocation}, []string{startedAllocation.JobID})
+	})
+
+	stoppedPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusStop)
+	stoppedPendingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, stoppedPendingAllocation)}}
+
+	t.Run("it removes stopped pending allocations", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingEvents, &stoppedPendingEvents},
+			[]*nomadApi.Allocation(nil), []string{stoppedPendingAllocation.JobID})
+	})
+
+	failedAllocation := createRecentAllocation(structs.AllocClientStatusFailed, structs.AllocDesiredStatusStop)
+	failedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, failedAllocation)}}
+
+	t.Run("it removes stopped failed allocations", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &failedEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string{failedAllocation.JobID})
+	})
+
+	lostAllocation := createRecentAllocation(structs.AllocClientStatusLost, structs.AllocDesiredStatusStop)
+	lostEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, lostAllocation)}}
+
+	t.Run("it removes stopped lost allocations", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &lostEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string{lostAllocation.JobID})
+	})
+
+	rescheduledLostAllocation := createRecentAllocation(structs.AllocClientStatusLost, structs.AllocDesiredStatusStop)
+	rescheduledLostAllocation.NextAllocation = tests.AnotherUUID
+	rescheduledLostEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, rescheduledLostAllocation)}}
+
+	t.Run("it removes lost allocations not before the last restart attempt", func(t *testing.T) {
+		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &rescheduledLostEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string(nil))
+	})
 }
 
 func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
@@ -515,7 +555,7 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 
 		allocations := storage.NewLocalStorage[*allocationData]()
 		err := handleAllocationEvent(
-			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessoring)
+			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
 		require.NoError(t, err)
 
 		_, ok := allocations.Get(newPendingAllocation.ID)
@@ -528,7 +568,7 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 
 		allocations := storage.NewLocalStorage[*allocationData]()
 		err := handleAllocationEvent(
-			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessoring)
+			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
 		require.NoError(t, err)
 
 		_, ok := allocations.Get(newPendingAllocation.ID)
@@ -541,7 +581,7 @@ func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetri
 	apiMock.On("EventStream", mock.Anything).Return(nil, tests.ErrDefault)
 	apiClient := &APIClient{apiMock, map[string]chan error{}, storage.NewLocalStorage[*allocationData](), false}
 
-	err := apiClient.WatchEventStream(context.Background(), noopAllocationProcessoring)
+	err := apiClient.WatchEventStream(context.Background(), noopAllocationProcessing)
 	assert.ErrorIs(t, err, tests.ErrDefault)
 }
 
@@ -557,29 +597,29 @@ func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWi
 	require.Error(t, err)
 
 	events := []*nomadApi.Events{{Events: []nomadApi.Event{event}}, {}}
-	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessoring)
+	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessing)
 	assert.Error(t, err)
 	assert.Equal(t, 1, eventsProcessed)
 }
 
 func TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEOF(t *testing.T) {
 	events := []*nomadApi.Events{{Err: ErrUnexpectedEOF}, {}}
-	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessoring)
+	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessing)
 	assert.Error(t, err)
 	assert.Equal(t, 1, eventsProcessed)
 }
 
 func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
-	expectedNewAllocations, expectedDeletedAllocations []*nomadApi.Allocation) {
+	expectedNewAllocations []*nomadApi.Allocation, expectedDeletedAllocations []string) {
 	t.Helper()
 	var newAllocations []*nomadApi.Allocation
-	var deletedAllocations []*nomadApi.Allocation
-	callbacks := &AllocationProcessoring{
+	var deletedAllocations []string
+	callbacks := &AllocationProcessing{
 		OnNew: func(alloc *nomadApi.Allocation, _ time.Duration) {
 			newAllocations = append(newAllocations, alloc)
 		},
-		OnDeleted: func(alloc *nomadApi.Allocation) {
-			deletedAllocations = append(deletedAllocations, alloc)
+		OnDeleted: func(jobID string) {
+			deletedAllocations = append(deletedAllocations, jobID)
 		},
 	}
 
@@ -594,7 +634,7 @@ func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
 // runAllocationWatching simulates events streamed from the Nomad event stream
 // to the MonitorEvaluation method. It starts the MonitorEvaluation function as a goroutine
 // and sequentially transfers the events from the given array to a channel simulating the stream.
-func runAllocationWatching(t *testing.T, events []*nomadApi.Events, callbacks *AllocationProcessoring) (
+func runAllocationWatching(t *testing.T, events []*nomadApi.Events, callbacks *AllocationProcessing) (
 	eventsProcessed int, err error) {
 	t.Helper()
 	stream := make(chan *nomadApi.Events)
@@ -606,7 +646,7 @@ func runAllocationWatching(t *testing.T, events []*nomadApi.Events, callbacks *A
 // runs the MonitorEvaluation method in a goroutine. The mock returns a read-only
 // version of the given stream to simulate an event stream gotten from the real
 // Nomad API.
-func asynchronouslyWatchAllocations(stream chan *nomadApi.Events, callbacks *AllocationProcessoring) chan error {
+func asynchronouslyWatchAllocations(stream chan *nomadApi.Events, callbacks *AllocationProcessing) chan error {
 	ctx := context.Background()
 	// We can only get a read-only channel once we return it from a function.
 	readOnlyStream := func() <-chan *nomadApi.Events { return stream }()
@@ -644,7 +684,8 @@ func eventForAllocation(t *testing.T, alloc *nomadApi.Allocation) nomadApi.Event
 
 func createAllocation(modifyTime int64, clientStatus, desiredStatus string) *nomadApi.Allocation {
 	return &nomadApi.Allocation{
-		ID:            tests.DefaultRunnerID,
+		ID:            tests.DefaultUUID,
+		JobID:         tests.DefaultRunnerID,
 		ModifyTime:    modifyTime,
 		ClientStatus:  clientStatus,
 		DesiredStatus: desiredStatus,

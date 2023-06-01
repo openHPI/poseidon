@@ -22,6 +22,13 @@ job "template-0" {
       attribute = "${node.unique.name}"
       weight = 100
     }
+    restart {
+      delay = "0s"
+    }
+    reschedule {
+      unlimited = true
+      attempts = 0
+    }
 
     task "default-task" {
       driver = "docker"
@@ -43,10 +50,6 @@ job "template-0" {
       resources {
         cpu    = 40
         memory = 30
-      }
-
-      restart {
-        delay = "0s"
       }
     }
   }

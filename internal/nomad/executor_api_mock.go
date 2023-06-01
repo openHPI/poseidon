@@ -343,11 +343,11 @@ func (_m *ExecutorAPIMock) SetJobScale(jobID string, count uint, reason string) 
 }
 
 // WatchEventStream provides a mock function with given fields: ctx, callbacks
-func (_m *ExecutorAPIMock) WatchEventStream(ctx context.Context, callbacks *AllocationProcessoring) error {
+func (_m *ExecutorAPIMock) WatchEventStream(ctx context.Context, callbacks *AllocationProcessing) error {
 	ret := _m.Called(ctx, callbacks)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *AllocationProcessoring) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *AllocationProcessing) error); ok {
 		r0 = rf(ctx, callbacks)
 	} else {
 		r0 = ret.Error(0)

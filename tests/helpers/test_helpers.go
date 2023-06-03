@@ -70,7 +70,7 @@ func ReceiveAllWebSocketMessages(connection *websocket.Conn) (messages []*dto.We
 		var message *dto.WebSocketMessage
 		message, err = ReceiveNextWebSocketMessage(connection)
 		if err != nil {
-			return
+			return messages, err
 		}
 		messages = append(messages, message)
 	}
@@ -175,7 +175,7 @@ func HTTPPut(url string, body io.Reader) (response *http.Response, err error) {
 func HTTPPutJSON(url string, body interface{}) (response *http.Response, err error) {
 	requestByteString, err := json.Marshal(body)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("cannot marshal json http body: %w", err)
 	}
 	reader := bytes.NewReader(requestByteString)
 	return HTTPPut(url, reader)

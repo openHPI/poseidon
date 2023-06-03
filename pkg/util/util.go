@@ -18,7 +18,7 @@ func RetryExponentialAttempts(attempts int, sleep time.Duration, f func() error)
 	for i := 0; i < attempts; i++ {
 		err = f()
 		if err == nil {
-			return
+			return nil
 		} else {
 			log.WithField("count", i).WithError(err).Debug("retrying after error")
 			time.Sleep(sleep)

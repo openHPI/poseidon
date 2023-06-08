@@ -37,7 +37,7 @@ type AllocationProcessing struct {
 	OnNew     NewAllocationProcessor
 	OnDeleted DeletedAllocationProcessor
 }
-type DeletedAllocationProcessor func(jobID string)
+type DeletedAllocationProcessor func(jobID string) (removedByPoseidon bool)
 type NewAllocationProcessor func(*nomadApi.Allocation, time.Duration)
 
 type allocationData struct {
@@ -191,7 +191,7 @@ func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) 
 		go func() {
 			err = a.WatchEventStream(ctx, &AllocationProcessing{
 				OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-				OnDeleted: func(_ string) {},
+				OnDeleted: func(_ string) bool { return false },
 			})
 			cancel() // cancel the waiting for an evaluation result if watching the event stream ends.
 		}()
@@ -415,7 +415,15 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocat
 		} else if alloc.PreviousAllocation != "" {
 			// Handle Runner (/Container) re-allocations.
 			if prevData, ok := allocations.Get(alloc.PreviousAllocation); ok {
-				callbacks.OnDeleted(prevData.jobID)
+				if removedByPoseidon := callbacks.OnDeleted(prevData.jobID); removedByPoseidon {
+					// This case handles a race condition between the overdue runner inactivity timeout and the rescheduling of a
+					// lost allocation. The race condition leads first to the rescheduling of the runner, but right after to it
+					// being stopped. Instead of reporting an unexpected stop of the pending runner, we just not start tracking it.
+					return
+				}
+				// Improve: When returning in the step before the allocation data will never be removed (data leak).
+				// But it also shouldn't be removed as the current event could be received multiple times.
+				// If we removed the allocation data the previous case handling wouldn't be triggered for the replicated event.
 				allocations.Delete(alloc.PreviousAllocation)
 			} else {
 				log.WithField("alloc", alloc).Warn("Previous Allocation not found")
@@ -483,14 +491,15 @@ func handleLostAllocationEvent(alloc *nomadApi.Allocation, allocData *allocation
 
 func handleStoppingAllocationEvent(alloc *nomadApi.Allocation, allocations storage.Storage[*allocationData],
 	callbacks *AllocationProcessing, expectedStop bool) {
+	removedByPoseidon := false
 	if alloc.NextAllocation == "" {
-		callbacks.OnDeleted(alloc.JobID)
+		removedByPoseidon = callbacks.OnDeleted(alloc.JobID)
 		allocations.Delete(alloc.ID)
 	}
 
 	entry := log.WithField("job", alloc.JobID)
 	replacementAllocationScheduled := alloc.NextAllocation != ""
-	if expectedStop == replacementAllocationScheduled {
+	if !removedByPoseidon && expectedStop == replacementAllocationScheduled {
 		entry.WithField("alloc", alloc).Warn("Unexpected Allocation Stopping / Restarting")
 	} else {
 		entry.Debug("Expected Allocation Stopping / Restarting")

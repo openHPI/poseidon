@@ -177,22 +177,26 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 	monitoring.WriteInfluxPoint(p)
 }
 
-func (m *NomadRunnerManager) onAllocationStopped(runnerID string) {
+func (m *NomadRunnerManager) onAllocationStopped(runnerID string) (alreadyRemoved bool) {
 	log.WithField("id", runnerID).Debug("Runner stopped")
 
 	if nomad.IsEnvironmentTemplateID(runnerID) {
-		return
+		return false
 	}
 
 	environmentID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
 	if err != nil {
 		log.WithError(err).Warn("Stopped allocation can not be handled")
-		return
+		return false
 	}
 
+	_, stillActive := m.usedRunners.Get(runnerID)
 	m.usedRunners.Delete(runnerID)
+
 	environment, ok := m.environments.Get(environmentID.ToString())
 	if ok {
 		environment.DeleteRunner(runnerID)
 	}
+
+	return !stillActive
 }

@@ -26,7 +26,7 @@ import (
 var (
 	noopAllocationProcessing = &AllocationProcessing{
 		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ string) {},
+		OnDeleted: func(_ string) bool { return false },
 	}
 	ErrUnexpectedEOF = errors.New("unexpected EOF")
 )
@@ -576,6 +576,26 @@ func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
 	})
 }
 
+func TestHandleAllocationEvent_IgnoresReschedulesForStoppedJobs(t *testing.T) {
+	startedAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+	rescheduledAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+	rescheduledAllocation.ID = tests.AnotherUUID
+	rescheduledAllocation.PreviousAllocation = startedAllocation.ID
+	rescheduledEvent := eventForAllocation(t, rescheduledAllocation)
+
+	allocations := storage.NewLocalStorage[*allocationData]()
+	allocations.Add(startedAllocation.ID, &allocationData{jobID: startedAllocation.JobID})
+
+	err := handleAllocationEvent(time.Now().UnixNano(), allocations, &rescheduledEvent, &AllocationProcessing{
+		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
+		OnDeleted: func(_ string) bool { return true },
+	})
+	require.NoError(t, err)
+
+	_, ok := allocations.Get(rescheduledAllocation.ID)
+	assert.False(t, ok)
+}
+
 func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved(t *testing.T) {
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.Anything).Return(nil, tests.ErrDefault)
@@ -618,8 +638,9 @@ func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
 		OnNew: func(alloc *nomadApi.Allocation, _ time.Duration) {
 			newAllocations = append(newAllocations, alloc)
 		},
-		OnDeleted: func(jobID string) {
+		OnDeleted: func(jobID string) bool {
 			deletedAllocations = append(deletedAllocations, jobID)
+			return false
 		},
 	}
 

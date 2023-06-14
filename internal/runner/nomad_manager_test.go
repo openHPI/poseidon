@@ -367,6 +367,42 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 	})
 }
 
+func (s *ManagerTestSuite) TestOnAllocationStopped() {
+	s.Run("stops inactivity timer", func() {
+		testStoppedInactivityTimer(s, true)
+	})
+	s.Run("stops inactivity timer - counter check", func() {
+		testStoppedInactivityTimer(s, false)
+	})
+}
+
+func testStoppedInactivityTimer(s *ManagerTestSuite, stopAllocation bool) {
+	s.T().Helper()
+	environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
+	s.Require().True(ok)
+	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+
+	inactivityTimerCalled := false
+	environment.AddRunner(NewNomadJob(tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(r Runner) error {
+		inactivityTimerCalled = true
+		return nil
+	}))
+
+	runner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, 1)
+	s.Require().NoError(err)
+	s.Require().False(runner.TimeoutPassed())
+	s.Require().False(inactivityTimerCalled)
+
+	if stopAllocation {
+		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(runner.ID())
+		s.False(alreadyRemoved)
+	}
+
+	<-time.After(time.Second + tests.ShortTimeout)
+	s.NotEqual(stopAllocation, runner.TimeoutPassed())
+	s.NotEqual(stopAllocation, inactivityTimerCalled)
+}
+
 func TestNomadRunnerManager_Load(t *testing.T) {
 	apiMock := &nomad.ExecutorAPIMock{}
 	mockWatchAllocations(apiMock)

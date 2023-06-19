@@ -85,6 +85,9 @@ sentry:
   # enabletracing: true
   # The sample rate for sampling traces in the range [0.0, 1.0].
   # tracessamplerate: 1.0
+  # The sample rate for sampling performance profiles in the range [0.0, 1.0].
+  # This is only used if enabletracing is set to true and is relative to tracessamplerate.
+  # profilessamplerate: 1.0
 
 # Configuration of the influxdb monitoring
 influxdb:

@@ -16,12 +16,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace (
-	// Consul is used by Nomad, but rather in an old version v1.7.8 with security issues.
-	github.com/hashicorp/consul => github.com/hashicorp/consul v1.15.3
-	// Nomad is not compatible with newer versions of HCLv2 yet.
-	github.com/hashicorp/hcl/v2 => github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
-)
+// Nomad is not compatible with newer versions of HCLv2 yet.
+replace github.com/hashicorp/hcl/v2 => github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
 
 require (
 	github.com/agext/levenshtein v1.2.3 // indirect

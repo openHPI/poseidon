@@ -89,15 +89,6 @@ jobs:
         if: ${{ success() || failure() }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-      - name: Publish code coverage
-        uses: paambaati/codeclimate-action@v3.2.0
-        if: ${{ success() || failure() }}
-        env:
-          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
-        with:
-          prefix: github.com/openHPI/poseidon/
-          coverageLocations: |
-            ${{github.workspace}}/coverage/coverage.cov:gocov
       - name: Upload coverage report
         uses: actions/upload-artifact@v3
         if: ${{ success() || failure() }}

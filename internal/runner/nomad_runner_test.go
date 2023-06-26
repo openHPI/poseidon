@@ -87,15 +87,6 @@ func TestFromContextReturnsIsNotOkWhenContextHasNoRunner(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestDestroyReturnsRunner(t *testing.T) {
-	manager := &ManagerMock{}
-	manager.On("Return", mock.Anything).Return(nil)
-	runner := NewRunner(tests.DefaultRunnerID, manager)
-	err := runner.Destroy()
-	assert.NoError(t, err)
-	manager.AssertCalled(t, "Return", runner)
-}
-
 func TestExecuteInteractivelyTestSuite(t *testing.T) {
 	suite.Run(t, new(ExecuteInteractivelyTestSuite))
 }
@@ -115,7 +106,9 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 		true, false, mock.Anything, mock.Anything, mock.Anything).
 		Return(0, nil)
+	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.timer = &InactivityTimerMock{}
+	s.timer.On("StopTimeout").Return()
 	s.timer.On("ResetTimeout").Return()
 	s.mockedTimeoutPassedCall = s.timer.On("TimeoutPassed").Return(false)
 	s.manager = &ManagerMock{}
@@ -126,7 +119,6 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 		InactivityTimer: s.timer,
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,
-		onDestroy:       s.manager.Return,
 		ctx:             context.Background(),
 	}
 }
@@ -207,15 +199,24 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
 		select {}
 	})
+	runnerDestroyed := false
+	s.runner.onDestroy = func(_ Runner) error {
+		runnerDestroyed = true
+		return nil
+	}
 	timeLimit := 1
 	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
 	s.runner.cancel = func() {}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
+
 	_, _, err := s.runner.ExecuteInteractively(
 		defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil, context.Background())
 	s.Require().NoError(err)
+
 	<-time.After(executionTimeoutGracePeriod + time.Duration(timeLimit)*time.Second + tests.ShortTimeout)
-	s.manager.AssertCalled(s.T(), "Return", s.runner)
+	s.manager.AssertNotCalled(s.T(), "Return", s.runner)
+	s.apiMock.AssertCalled(s.T(), "DeleteJob", s.runner.ID())
+	s.True(runnerDestroyed)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
@@ -393,17 +394,6 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 		files = append(files, TarFile{Name: hdr.Name, Content: string(bf), TypeFlag: hdr.Typeflag})
 	}
 	return files
-}
-
-// NewRunner creates a new runner with the provided id and manager.
-func NewRunner(id string, manager Accessor) Runner {
-	var handler DestroyRunnerHandler
-	if manager != nil {
-		handler = manager.Return
-	} else {
-		handler = func(_ Runner) error { return nil }
-	}
-	return NewNomadJob(id, nil, nil, handler)
 }
 
 func (s *UpdateFileSystemTestSuite) TestGetFileContentReturnsErrorIfExitCodeIsNotZero() {

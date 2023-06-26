@@ -59,7 +59,8 @@ type Runner interface {
 	GetFileContent(path string, content http.ResponseWriter, privilegedExecution bool, ctx context.Context) error
 
 	// Destroy destroys the Runner in Nomad.
-	Destroy() error
+	// Iff local is true, the destruction will not be propagated to external systems.
+	Destroy(local bool) error
 }
 
 // NewContext creates a context containing a runner.

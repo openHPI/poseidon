@@ -40,7 +40,7 @@ func (s *ManagerTestSuite) SetupTest() {
 	cancel()
 	s.nomadRunnerManager = NewNomadRunnerManager(s.apiMock, ctx)
 
-	s.exerciseRunner = NewRunner(tests.DefaultRunnerID, s.nomadRunnerManager)
+	s.exerciseRunner = NewNomadJob(tests.DefaultRunnerID, nil, s.apiMock, s.nomadRunnerManager.onRunnerDestroyed)
 	s.exerciseEnvironment = createBasicEnvironmentMock(defaultEnvironmentID)
 	s.nomadRunnerManager.StoreEnvironment(s.exerciseEnvironment)
 }
@@ -130,7 +130,7 @@ func (s *ManagerTestSuite) TestClaimReturnsNoRunnerOfDifferentEnvironment() {
 func (s *ManagerTestSuite) TestClaimDoesNotReturnTheSameRunnerTwice() {
 	s.exerciseEnvironment.On("Sample", mock.Anything).Return(s.exerciseRunner, true).Once()
 	s.exerciseEnvironment.On("Sample", mock.Anything).
-		Return(NewRunner(tests.AnotherRunnerID, s.nomadRunnerManager), true).Once()
+		Return(NewNomadJob(tests.AnotherRunnerID, nil, nil, s.nomadRunnerManager.onRunnerDestroyed), true).Once()
 
 	firstReceivedRunner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, defaultInactivityTimeout)
 	s.NoError(err)
@@ -150,6 +150,7 @@ func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 
 func (s *ManagerTestSuite) TestClaimRemovesRunnerWhenMarkAsUsedFails() {
 	s.exerciseEnvironment.On("Sample", mock.Anything).Return(s.exerciseRunner, true)
+	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return()
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	util.MaxConnectionRetriesExponential = 1
 	modifyMockedCall(s.apiMock, "MarkRunnerAsUsed", func(call *mock.Call) {
@@ -181,6 +182,7 @@ func (s *ManagerTestSuite) TestGetReturnsErrorIfRunnerNotFound() {
 
 func (s *ManagerTestSuite) TestReturnRemovesRunnerFromUsedRunners() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return()
 	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner.ID(), s.exerciseRunner)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Nil(err)
@@ -190,6 +192,7 @@ func (s *ManagerTestSuite) TestReturnRemovesRunnerFromUsedRunners() {
 
 func (s *ManagerTestSuite) TestReturnCallsDeleteRunnerApiMethod() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return()
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Nil(err)
 	s.apiMock.AssertCalled(s.T(), "DeleteJob", s.exerciseRunner.ID())
@@ -197,6 +200,7 @@ func (s *ManagerTestSuite) TestReturnCallsDeleteRunnerApiMethod() {
 
 func (s *ManagerTestSuite) TestReturnReturnsErrorWhenApiCallFailed() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(tests.ErrDefault)
+	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return()
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Error(err)
 }
@@ -255,7 +259,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	s.Require().True(ok)
 	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
-	testRunner := NewRunner(allocation.JobID, s.nomadRunnerManager)
+	testRunner := NewNomadJob(allocation.JobID, nil, nil, s.nomadRunnerManager.onRunnerDestroyed)
 	environment.AddRunner(testRunner)
 	s.nomadRunnerManager.usedRunners.Add(testRunner.ID(), testRunner)
 
@@ -378,20 +382,22 @@ func (s *ManagerTestSuite) TestOnAllocationStopped() {
 
 func testStoppedInactivityTimer(s *ManagerTestSuite, stopAllocation bool) {
 	s.T().Helper()
+	s.apiMock.On("DeleteJob", tests.DefaultRunnerID).Return(nil)
+
 	environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 	s.Require().True(ok)
 	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
-	inactivityTimerCalled := false
+	runnerDestroyed := false
 	environment.AddRunner(NewNomadJob(tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(r Runner) error {
-		inactivityTimerCalled = true
+		runnerDestroyed = true
 		return nil
 	}))
 
 	runner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, 1)
 	s.Require().NoError(err)
 	s.Require().False(runner.TimeoutPassed())
-	s.Require().False(inactivityTimerCalled)
+	s.Require().False(runnerDestroyed)
 
 	if stopAllocation {
 		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(runner.ID())
@@ -400,7 +406,7 @@ func testStoppedInactivityTimer(s *ManagerTestSuite, stopAllocation bool) {
 
 	<-time.After(time.Second + tests.ShortTimeout)
 	s.NotEqual(stopAllocation, runner.TimeoutPassed())
-	s.NotEqual(stopAllocation, inactivityTimerCalled)
+	s.True(runnerDestroyed)
 }
 
 func TestNomadRunnerManager_Load(t *testing.T) {
@@ -449,6 +455,7 @@ func TestNomadRunnerManager_Load(t *testing.T) {
 	runnerManager.usedRunners.Purge()
 	t.Run("Restart timeout of used runner", func(t *testing.T) {
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+		environmentMock.On("DeleteRunner", mock.AnythingOfType("string")).Once().Return()
 		timeout := 1
 
 		_, job := helpers.CreateTemplateJob()

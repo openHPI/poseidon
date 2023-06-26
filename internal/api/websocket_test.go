@@ -312,7 +312,7 @@ func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nom
 	executorAPIMock := &nomad.ExecutorAPIMock{}
 	manager := &runner.ManagerMock{}
 	manager.On("Return", mock.Anything).Return(nil)
-	r := runner.NewNomadJob(runnerID, nil, executorAPIMock, manager.Return)
+	r := runner.NewNomadJob(runnerID, nil, executorAPIMock, nil)
 	return r, executorAPIMock
 }
 
@@ -332,7 +332,7 @@ func newRunnerWithNotMockedRunnerManager(t *testing.T, apiMock *nomad.ExecutorAP
 	server := httptest.NewServer(router)
 
 	runnerID := tests.DefaultRunnerID
-	runnerJob := runner.NewNomadJob(runnerID, nil, apiMock, runnerManager.Return)
+	runnerJob := runner.NewNomadJob(runnerID, nil, apiMock, nil)
 	e, err := environment.NewNomadEnvironment(0, apiMock, "job \"template-0\" {}")
 	require.NoError(t, err)
 	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)

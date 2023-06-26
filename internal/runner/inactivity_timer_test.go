@@ -1,8 +1,8 @@
 package runner
 
 import (
+	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/tests"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
@@ -15,18 +15,17 @@ func TestInactivityTimerTestSuite(t *testing.T) {
 type InactivityTimerTestSuite struct {
 	suite.Suite
 	runner   Runner
-	manager  *ManagerMock
 	returned chan bool
 }
 
 func (s *InactivityTimerTestSuite) SetupTest() {
 	s.returned = make(chan bool, 1)
-	s.manager = &ManagerMock{}
-	s.manager.On("Return", mock.Anything).Run(func(_ mock.Arguments) {
+	apiMock := &nomad.ExecutorAPIMock{}
+	apiMock.On("DeleteJob", tests.DefaultRunnerID).Return(nil)
+	s.runner = NewNomadJob(tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error {
 		s.returned <- true
-	}).Return(nil)
-
-	s.runner = NewRunner(tests.DefaultRunnerID, s.manager)
+		return nil
+	})
 
 	s.runner.SetupTimeout(tests.ShortTimeout)
 }

@@ -228,12 +228,17 @@ func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut() {
+	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
+		select {}
+	}).Return(0, nil)
 	s.mockedTimeoutPassedCall.Return(true)
 	executionRequest := &dto.ExecutionRequest{}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
-	exitChannel, _, err := s.runner.ExecuteInteractively(
+
+	exitChannel, cancel, err := s.runner.ExecuteInteractively(
 		defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
 	s.Require().NoError(err)
+	cancel()
 	exit := <-exitChannel
 	s.Equal(ErrorRunnerInactivityTimeout, exit.Err)
 }

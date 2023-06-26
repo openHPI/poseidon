@@ -268,9 +268,6 @@ func (r *NomadJob) executeCommand(ctx context.Context, command string, privilege
 	stdin io.ReadWriter, stdout, stderr io.Writer, exit chan<- ExitInfo,
 ) {
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, privilegedExecution, stdin, stdout, stderr)
-	if err == nil && r.TimeoutPassed() {
-		err = ErrorRunnerInactivityTimeout
-	}
 	exit <- ExitInfo{uint8(exitCode), err}
 }
 
@@ -282,20 +279,30 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 
 	select {
 	case exitInfo := <-exitInternal:
+		// - The execution ended in time or
+		// - the HTTP request of the client/CodeOcean got canceled.
 		exit <- exitInfo
 		return
 	case <-ctx.Done():
+		// - The execution timeout was exceeded,
+		// - the runner was destroyed (runner timeout, or API delete request), or
+		// - the WebSocket connection to the client/CodeOcean closed.
+	}
+
+	err := ctx.Err()
+	if r.TimeoutPassed() {
+		err = ErrorRunnerInactivityTimeout
 	}
 
 	// From this time on the WebSocket connection to the client is closed in /internal/api/websocket.go
 	// waitForExit. Input can still be sent to the executor.
-	exit <- ExitInfo{255, ctx.Err()}
+	exit <- ExitInfo{255, err}
 
 	// This injects the SIGQUIT character into the stdin. This character is parsed by the tty line discipline
 	// (tty has to be true) and converted to a SIGQUIT signal sent to the foreground process attached to the tty.
 	// By default, SIGQUIT causes the process to terminate and produces a core dump. Processes can catch this signal
 	// and ignore it, which is why we destroy the runner if the process does not terminate after a grace period.
-	_, err := stdin.Write([]byte{SIGQUIT})
+	_, err = stdin.Write([]byte{SIGQUIT})
 	// if n != 1 {
 	// The SIGQUIT is sent and correctly processed by the allocation.  However, for an unknown
 	// reason, the number of bytes written is always zero even though the error is nil.

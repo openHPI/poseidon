@@ -15,6 +15,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/nullio"
 	"github.com/openHPI/poseidon/pkg/storage"
+	"github.com/openHPI/poseidon/pkg/util"
 	"io"
 	"net/http"
 	"strings"
@@ -69,7 +70,13 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 	}
 	job.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
 		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), id), time.Minute, ctx)
-	job.InactivityTimer = NewInactivityTimer(job, onDestroy)
+	job.InactivityTimer = NewInactivityTimer(job, func(r Runner) error {
+		err := r.Destroy(false)
+		if err != nil {
+			err = fmt.Errorf("NomadJob: %w", err)
+		}
+		return err
+	})
 	return job
 }
 
@@ -120,7 +127,7 @@ func (r *NomadJob) ExecuteInteractively(
 
 	// We have to handle three contexts
 	// - requestCtx:   The context of the http request (including Sentry data)
-	// - r.ctx:        The context of the runner (runner timeout)
+	// - r.ctx:        The context of the runner (runner timeout, or runner destroyed)
 	// - executionCtx: The context of the execution (execution timeout)
 	// -> The executionCtx cancel that might be triggered (when the client connection breaks)
 
@@ -223,12 +230,26 @@ func (r *NomadJob) GetFileContent(
 	return nil
 }
 
-func (r *NomadJob) Destroy() error {
+func (r *NomadJob) Destroy(local bool) (err error) {
 	r.cancel()
-	if err := r.onDestroy(r); err != nil {
-		return fmt.Errorf("error while destroying runner: %w", err)
+	r.StopTimeout()
+	if r.onDestroy != nil {
+		err = r.onDestroy(r)
 	}
-	return nil
+
+	if !local && err == nil {
+		err = util.RetryExponential(time.Second, func() (err error) {
+			if err = r.api.DeleteJob(r.ID()); err != nil {
+				err = fmt.Errorf("error deleting runner in Nomad: %w", err)
+			}
+			return
+		})
+	}
+
+	if err != nil {
+		err = fmt.Errorf("cannot destroy runner: %w", err)
+	}
+	return err
 }
 
 func prepareExecution(request *dto.ExecutionRequest, environmentCtx context.Context) (
@@ -291,7 +312,7 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 		log.WithContext(ctx).Debug("Execution terminated after SIGQUIT")
 	case <-time.After(executionTimeoutGracePeriod):
 		log.WithContext(ctx).Info("Execution did not quit after SIGQUIT")
-		if err := r.Destroy(); err != nil {
+		if err := r.Destroy(false); err != nil {
 			log.WithContext(ctx).Error("Error when destroying runner")
 		}
 	}

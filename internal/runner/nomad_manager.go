@@ -71,17 +71,11 @@ func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int
 
 func (m *NomadRunnerManager) Return(r Runner) error {
 	m.usedRunners.Delete(r.ID())
-	r.StopTimeout()
-	err := util.RetryExponential(time.Second, func() (err error) {
-		if err = m.apiClient.DeleteJob(r.ID()); err != nil {
-			err = fmt.Errorf("error deleting runner in Nomad: %w", err)
-		}
-		return
-	})
+	err := r.Destroy(false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		err = fmt.Errorf("cannot return runner: %w", err)
 	}
-	return nil
+	return err
 }
 
 func (m *NomadRunnerManager) Load() {
@@ -114,7 +108,7 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 		environmentLogger.WithError(err).Warn("Error loading runner portMappings")
 		return
 	}
-	newJob := NewNomadJob(*job.ID, portMappings, m.apiClient, m.Return)
+	newJob := NewNomadJob(*job.ID, portMappings, m.apiClient, m.onRunnerDestroyed)
 	log.WithField("isUsed", isUsed).WithField(dto.KeyRunnerID, newJob.ID()).Debug("Recovered Runner")
 	if isUsed {
 		m.usedRunners.Add(newJob.ID(), newJob)
@@ -140,6 +134,7 @@ func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
 	}
 }
 
+// onAllocationAdded is the callback for when Nomad started an allocation.
 func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, startup time.Duration) {
 	log.WithField(dto.KeyRunnerID, alloc.JobID).WithField("startupDuration", startup).Debug("Runner started")
 
@@ -165,7 +160,7 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, start
 		if alloc.AllocatedResources != nil {
 			mappedPorts = alloc.AllocatedResources.Shared.Ports
 		}
-		environment.AddRunner(NewNomadJob(alloc.JobID, mappedPorts, m.apiClient, m.Return))
+		environment.AddRunner(NewNomadJob(alloc.JobID, mappedPorts, m.apiClient, m.onRunnerDestroyed))
 		monitorAllocationStartupDuration(startup, alloc.JobID, environmentID)
 	}
 }
@@ -178,6 +173,7 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 	monitoring.WriteInfluxPoint(p)
 }
 
+// onAllocationStopped is the callback for when Nomad stopped an allocation.
 func (m *NomadRunnerManager) onAllocationStopped(runnerID string) (alreadyRemoved bool) {
 	log.WithField(dto.KeyRunnerID, runnerID).Debug("Runner stopped")
 
@@ -193,8 +189,10 @@ func (m *NomadRunnerManager) onAllocationStopped(runnerID string) (alreadyRemove
 
 	r, stillActive := m.usedRunners.Get(runnerID)
 	if stillActive {
-		r.StopTimeout()
 		m.usedRunners.Delete(runnerID)
+		if err := r.Destroy(true); err != nil {
+			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
+		}
 	}
 
 	environment, ok := m.environments.Get(environmentID.ToString())
@@ -203,4 +201,16 @@ func (m *NomadRunnerManager) onAllocationStopped(runnerID string) (alreadyRemove
 	}
 
 	return !stillActive
+}
+
+// onRunnerDestroyed is the callback when the runner destroys itself.
+// The main use of this callback is to remove the runner from the used runners, when its timeout exceeds.
+func (m *NomadRunnerManager) onRunnerDestroyed(r Runner) error {
+	m.usedRunners.Delete(r.ID())
+
+	environment, ok := m.environments.Get(r.Environment().ToString())
+	if ok {
+		environment.DeleteRunner(r.ID())
+	}
+	return nil
 }

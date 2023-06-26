@@ -61,7 +61,7 @@ func NewAWSFunctionWorkload(
 	workload.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
 		monitoring.MeasurementExecutionsAWS, monitorExecutionsRunnerID(environment.ID(), workload.id), time.Minute, ctx)
 	workload.InactivityTimer = NewInactivityTimer(workload, func(_ Runner) error {
-		return workload.Destroy()
+		return workload.Destroy(false)
 	})
 	return workload, nil
 }
@@ -136,7 +136,7 @@ func (w *AWSFunctionWorkload) GetFileContent(_ string, _ http.ResponseWriter, _ 
 	return dto.ErrNotSupported
 }
 
-func (w *AWSFunctionWorkload) Destroy() error {
+func (w *AWSFunctionWorkload) Destroy(_ bool) error {
 	w.cancel()
 	if err := w.onDestroy(w); err != nil {
 		return fmt.Errorf("error while destroying aws runner: %w", err)

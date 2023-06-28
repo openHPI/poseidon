@@ -21,12 +21,21 @@ import (
 )
 
 var (
-	log                              = logging.GetLogger("nomad")
-	ErrorExecutorCommunicationFailed = errors.New("communication with executor failed")
-	ErrorEvaluation                  = errors.New("evaluation could not complete")
-	ErrorPlacingAllocations          = errors.New("failed to place all allocations")
-	ErrorLoadingJob                  = errors.New("failed to load job")
-	ErrorNoAllocatedResourcesFound   = errors.New("no allocated resources found")
+	log                                                        = logging.GetLogger("nomad")
+	ErrorExecutorCommunicationFailed                           = errors.New("communication with executor failed")
+	ErrorEvaluation                                            = errors.New("evaluation could not complete")
+	ErrorPlacingAllocations                                    = errors.New("failed to place all allocations")
+	ErrorLoadingJob                                            = errors.New("failed to load job")
+	ErrorNoAllocatedResourcesFound                             = errors.New("no allocated resources found")
+	ErrorOOMKilled                         RunnerDeletedReason = errors.New("the allocation was OOM Killed")
+	ErrorAllocationRescheduled             RunnerDeletedReason = errors.New("the allocation was rescheduled")
+	ErrorAllocationStopped                 RunnerDeletedReason = errors.New("the allocation was stopped")
+	ErrorAllocationStoppedUnexpectedly     RunnerDeletedReason = fmt.Errorf("%w unexpectedly", ErrorAllocationStopped)
+	ErrorAllocationRescheduledUnexpectedly RunnerDeletedReason = fmt.Errorf(
+		"%w correctly but rescheduled", ErrorAllocationStopped)
+	// ErrorAllocationCompleted is for reporting the reason for the stopped allocation.
+	// We do not consider it as an error but add it anyway for a complete reporting.
+	ErrorAllocationCompleted RunnerDeletedReason = errors.New("the allocation completed")
 )
 
 // resultChannelWriteTimeout is to detect the error when more element are written into a channel than expected.
@@ -37,7 +46,8 @@ type AllocationProcessing struct {
 	OnNew     NewAllocationProcessor
 	OnDeleted DeletedAllocationProcessor
 }
-type DeletedAllocationProcessor func(jobID string) (removedByPoseidon bool)
+type RunnerDeletedReason error
+type DeletedAllocationProcessor func(jobID string, RunnerDeletedReason error) (removedByPoseidon bool)
 type NewAllocationProcessor func(*nomadApi.Allocation, time.Duration)
 
 type allocationData struct {
@@ -191,7 +201,7 @@ func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) 
 		go func() {
 			err = a.WatchEventStream(ctx, &AllocationProcessing{
 				OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-				OnDeleted: func(_ string) bool { return false },
+				OnDeleted: func(_ string, _ error) bool { return false },
 			})
 			cancel() // cancel the waiting for an evaluation result if watching the event stream ends.
 		}()
@@ -411,11 +421,15 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocat
 	case structs.AllocDesiredStatusRun:
 		if allocData != nil {
 			// Handle Allocation restart.
-			callbacks.OnDeleted(alloc.JobID)
+			var reason error
+			if isOOMKilled(alloc) {
+				reason = ErrorOOMKilled
+			}
+			callbacks.OnDeleted(alloc.JobID, reason)
 		} else if alloc.PreviousAllocation != "" {
 			// Handle Runner (/Container) re-allocations.
 			if prevData, ok := allocations.Get(alloc.PreviousAllocation); ok {
-				if removedByPoseidon := callbacks.OnDeleted(prevData.jobID); removedByPoseidon {
+				if removedByPoseidon := callbacks.OnDeleted(prevData.jobID, ErrorAllocationRescheduled); removedByPoseidon {
 					// This case handles a race condition between the overdue runner inactivity timeout and the rescheduling of a
 					// lost allocation. The race condition leads first to the rescheduling of the runner, but right after to it
 					// being stopped. Instead of reporting an unexpected stop of the pending runner, we just not start tracking it.
@@ -466,7 +480,7 @@ func handleCompleteAllocationEvent(alloc *nomadApi.Allocation, _ *allocationData
 	case structs.AllocDesiredStatusRun:
 		log.WithField("alloc", alloc).Warn("Complete allocation desires to run")
 	case structs.AllocDesiredStatusStop:
-		callbacks.OnDeleted(alloc.JobID)
+		callbacks.OnDeleted(alloc.JobID, ErrorAllocationCompleted)
 		allocations.Delete(alloc.ID)
 	default:
 		log.WithField("alloc", alloc).Warn("Other Desired Status")
@@ -477,32 +491,40 @@ func handleCompleteAllocationEvent(alloc *nomadApi.Allocation, _ *allocationData
 func handleFailedAllocationEvent(alloc *nomadApi.Allocation, allocData *allocationData,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	// The stop is expected when the allocation desired to stop even before it failed.
-	expectedStop := allocData.allocDesiredStatus == structs.AllocDesiredStatusStop
-	handleStoppingAllocationEvent(alloc, allocations, callbacks, expectedStop)
+	reschedulingExpected := allocData.allocDesiredStatus != structs.AllocDesiredStatusStop
+	handleStoppingAllocationEvent(alloc, allocations, callbacks, reschedulingExpected)
 }
 
 // handleLostAllocationEvent logs only the last of the multiple lost events.
 func handleLostAllocationEvent(alloc *nomadApi.Allocation, allocData *allocationData,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	// The stop is expected when the allocation desired to stop even before it got lost.
-	expectedStop := allocData.allocDesiredStatus == structs.AllocDesiredStatusStop
-	handleStoppingAllocationEvent(alloc, allocations, callbacks, expectedStop)
+	reschedulingExpected := allocData.allocDesiredStatus != structs.AllocDesiredStatusStop
+	handleStoppingAllocationEvent(alloc, allocations, callbacks, reschedulingExpected)
 }
 
 func handleStoppingAllocationEvent(alloc *nomadApi.Allocation, allocations storage.Storage[*allocationData],
-	callbacks *AllocationProcessing, expectedStop bool) {
+	callbacks *AllocationProcessing, reschedulingExpected bool) {
+	replacementAllocationScheduled := alloc.NextAllocation != ""
+	correctRescheduling := reschedulingExpected == replacementAllocationScheduled
+
 	removedByPoseidon := false
-	if alloc.NextAllocation == "" {
-		removedByPoseidon = callbacks.OnDeleted(alloc.JobID)
+	if !replacementAllocationScheduled {
+		var reason error
+		if correctRescheduling {
+			reason = ErrorAllocationStoppedUnexpectedly
+		} else {
+			reason = ErrorAllocationRescheduledUnexpectedly
+		}
+		removedByPoseidon = callbacks.OnDeleted(alloc.JobID, reason)
 		allocations.Delete(alloc.ID)
 	}
 
 	entry := log.WithField("job", alloc.JobID)
-	replacementAllocationScheduled := alloc.NextAllocation != ""
-	if !removedByPoseidon && expectedStop == replacementAllocationScheduled {
+	if !removedByPoseidon && !correctRescheduling {
 		entry.WithField("alloc", alloc).Warn("Unexpected Allocation Stopping / Restarting")
 	} else {
-		entry.Debug("Expected Allocation Stopping / Restarting")
+		entry.Trace("Expected Allocation Stopping / Restarting")
 	}
 }
 

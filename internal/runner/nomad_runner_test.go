@@ -114,12 +114,14 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 	s.manager = &ManagerMock{}
 	s.manager.On("Return", mock.Anything).Return(nil)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	s.runner = &NomadJob{
 		executions:      storage.NewLocalStorage[*dto.ExecutionRequest](),
 		InactivityTimer: s.timer,
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,
-		ctx:             context.Background(),
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 }
 
@@ -235,12 +237,30 @@ func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut(
 	executionRequest := &dto.ExecutionRequest{}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 
-	exitChannel, cancel, err := s.runner.ExecuteInteractively(
+	exitChannel, _, err := s.runner.ExecuteInteractively(
 		defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
 	s.Require().NoError(err)
-	cancel()
+	err = s.runner.Destroy(ErrorRunnerInactivityTimeout)
+	s.Require().NoError(err)
 	exit := <-exitChannel
-	s.Equal(ErrorRunnerInactivityTimeout, exit.Err)
+	s.ErrorIs(exit.Err, ErrorRunnerInactivityTimeout)
+}
+
+func (s *ExecuteInteractivelyTestSuite) TestDestroyReasonIsPassedToExecution() {
+	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
+		select {}
+	}).Return(0, nil)
+	s.mockedTimeoutPassedCall.Return(true)
+	executionRequest := &dto.ExecutionRequest{}
+	s.runner.StoreExecution(defaultExecutionID, executionRequest)
+
+	exitChannel, _, err := s.runner.ExecuteInteractively(
+		defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
+	s.Require().NoError(err)
+	err = s.runner.Destroy(ErrOOMKilled)
+	s.Require().NoError(err)
+	exit := <-exitChannel
+	s.ErrorIs(exit.Err, ErrOOMKilled)
 }
 
 func TestUpdateFileSystemTestSuite(t *testing.T) {

@@ -60,6 +60,9 @@ func TestCodeOceanOutputWriter_SendExitInfo(t *testing.T) {
 			dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout}},
 		{"Error", &runner.ExitInfo{Err: websocket.ErrCloseSent},
 			dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: "Error executing the request"}},
+		// CodeOcean expects this exact string in case of a OOM Killed runner.
+		{"Specific data for OOM Killed runner", &runner.ExitInfo{Err: runner.ErrOOMKilled},
+			dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: "the allocation was OOM Killed"}},
 		{"Exit", &runner.ExitInfo{Code: 21},
 			dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: 21}},
 	}

@@ -26,7 +26,7 @@ import (
 var (
 	noopAllocationProcessing = &AllocationProcessing{
 		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ string) bool { return false },
+		OnDeleted: func(_ string, _ error) bool { return false },
 	}
 	ErrUnexpectedEOF = errors.New("unexpected EOF")
 )
@@ -588,12 +588,34 @@ func TestHandleAllocationEvent_IgnoresReschedulesForStoppedJobs(t *testing.T) {
 
 	err := handleAllocationEvent(time.Now().UnixNano(), allocations, &rescheduledEvent, &AllocationProcessing{
 		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ string) bool { return true },
+		OnDeleted: func(_ string, _ error) bool { return true },
 	})
 	require.NoError(t, err)
 
 	_, ok := allocations.Get(rescheduledAllocation.ID)
 	assert.False(t, ok)
+}
+
+func TestHandleAllocationEvent_ReportsOOMKilledStatus(t *testing.T) {
+	restartedAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+	event := nomadApi.TaskEvent{Details: map[string]string{"oom_killed": "true"}}
+	state := nomadApi.TaskState{Restarts: 1, Events: []*nomadApi.TaskEvent{&event}}
+	restartedAllocation.TaskStates = map[string]*nomadApi.TaskState{TaskName: &state}
+	restartedEvent := eventForAllocation(t, restartedAllocation)
+
+	allocations := storage.NewLocalStorage[*allocationData]()
+	allocations.Add(restartedAllocation.ID, &allocationData{jobID: restartedAllocation.JobID})
+
+	var reason error
+	err := handleAllocationEvent(time.Now().UnixNano(), allocations, &restartedEvent, &AllocationProcessing{
+		OnNew: func(_ *nomadApi.Allocation, _ time.Duration) {},
+		OnDeleted: func(_ string, r error) bool {
+			reason = r
+			return true
+		},
+	})
+	require.NoError(t, err)
+	assert.ErrorIs(t, reason, ErrorOOMKilled)
 }
 
 func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved(t *testing.T) {
@@ -638,7 +660,7 @@ func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
 		OnNew: func(alloc *nomadApi.Allocation, _ time.Duration) {
 			newAllocations = append(newAllocations, alloc)
 		},
-		OnDeleted: func(jobID string) bool {
+		OnDeleted: func(jobID string, _ error) bool {
 			deletedAllocations = append(deletedAllocations, jobID)
 			return false
 		},

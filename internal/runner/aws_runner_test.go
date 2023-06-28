@@ -147,7 +147,8 @@ func TestAWSFunctionWorkload_Destroy(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = r.Destroy(false)
+	var reason error
+	err = r.Destroy(reason)
 	assert.NoError(t, err)
 	assert.True(t, hasDestroyBeenCalled)
 }

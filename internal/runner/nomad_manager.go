@@ -71,7 +71,7 @@ func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int
 
 func (m *NomadRunnerManager) Return(r Runner) error {
 	m.usedRunners.Delete(r.ID())
-	err := r.Destroy(false)
+	err := r.Destroy(ErrDestroyedByAPIRequest)
 	if err != nil {
 		err = fmt.Errorf("cannot return runner: %w", err)
 	}
@@ -174,7 +174,7 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 }
 
 // onAllocationStopped is the callback for when Nomad stopped an allocation.
-func (m *NomadRunnerManager) onAllocationStopped(runnerID string) (alreadyRemoved bool) {
+func (m *NomadRunnerManager) onAllocationStopped(runnerID string, reason error) (alreadyRemoved bool) {
 	log.WithField(dto.KeyRunnerID, runnerID).Debug("Runner stopped")
 
 	if nomad.IsEnvironmentTemplateID(runnerID) {
@@ -189,8 +189,17 @@ func (m *NomadRunnerManager) onAllocationStopped(runnerID string) (alreadyRemove
 
 	r, stillActive := m.usedRunners.Get(runnerID)
 	if stillActive {
+		// Mask the internal stop reason because the runner might disclose/forward it to CodeOcean/externally.
+		switch {
+		case errors.Is(reason, nomad.ErrorOOMKilled):
+			reason = ErrOOMKilled
+		default:
+			log.WithField(dto.KeyRunnerID, runnerID).WithField("reason", reason).Debug("Internal reason for allocation stop")
+			reason = ErrAllocationStopped
+		}
+
 		m.usedRunners.Delete(runnerID)
-		if err := r.Destroy(true); err != nil {
+		if err := r.Destroy(reason); err != nil {
 			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
 		}
 	}

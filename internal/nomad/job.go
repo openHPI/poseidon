@@ -196,3 +196,20 @@ func partOfJobID(id string, part uint) (dto.EnvironmentID, error) {
 	}
 	return dto.EnvironmentID(environmentID), nil
 }
+
+func isOOMKilled(alloc *nomadApi.Allocation) bool {
+	state, ok := alloc.TaskStates[TaskName]
+	if !ok {
+		return false
+	}
+
+	var oomKilledCount uint64
+	for _, event := range state.Events {
+		if oomString, ok := event.Details["oom_killed"]; ok {
+			if oom, err := strconv.ParseBool(oomString); err == nil && oom {
+				oomKilledCount++
+			}
+		}
+	}
+	return oomKilledCount >= state.Restarts
+}

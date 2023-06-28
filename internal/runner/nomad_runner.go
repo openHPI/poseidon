@@ -25,6 +25,8 @@ import (
 const (
 	// runnerContextKey is the key used to store runners in context.Context.
 	runnerContextKey dto.ContextKey = "runner"
+	// destroyReasonContextKey is the key used to store the reason of the destruction in the context.Context.
+	destroyReasonContextKey dto.ContextKey = "destroyReason"
 	// SIGQUIT is the character that causes a tty to send the SIGQUIT signal to the controlled process.
 	SIGQUIT = 0x1c
 	// executionTimeoutGracePeriod is the time to wait after sending a SIGQUIT signal to a timed out execution.
@@ -36,9 +38,13 @@ const (
 )
 
 var (
-	ErrorUnknownExecution = errors.New("unknown execution")
-	ErrorFileCopyFailed   = errors.New("file copy failed")
-	ErrFileNotFound       = errors.New("file not found or insufficient permissions")
+	ErrorUnknownExecution                  = errors.New("unknown execution")
+	ErrorFileCopyFailed                    = errors.New("file copy failed")
+	ErrFileNotFound                        = errors.New("file not found or insufficient permissions")
+	ErrAllocationStopped     DestroyReason = errors.New("the allocation stopped")
+	ErrOOMKilled             DestroyReason = nomad.ErrorOOMKilled
+	ErrDestroyedByAPIRequest DestroyReason = errors.New("the client wants to stop the runner")
+	ErrCannotStopExecution   DestroyReason = errors.New("the execution did not stop after SIGQUIT")
 )
 
 // NomadJob is an abstraction to communicate with Nomad environments.
@@ -71,7 +77,7 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 	job.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
 		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), id), time.Minute, ctx)
 	job.InactivityTimer = NewInactivityTimer(job, func(r Runner) error {
-		err := r.Destroy(false)
+		err := r.Destroy(ErrorRunnerInactivityTimeout)
 		if err != nil {
 			err = fmt.Errorf("NomadJob: %w", err)
 		}
@@ -230,14 +236,15 @@ func (r *NomadJob) GetFileContent(
 	return nil
 }
 
-func (r *NomadJob) Destroy(local bool) (err error) {
+func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
+	r.ctx = context.WithValue(r.ctx, destroyReasonContextKey, reason)
 	r.cancel()
 	r.StopTimeout()
 	if r.onDestroy != nil {
 		err = r.onDestroy(r)
 	}
 
-	if !local && err == nil {
+	if err == nil && (!errors.Is(reason, ErrAllocationStopped) || !errors.Is(reason, ErrOOMKilled)) {
 		err = util.RetryExponential(time.Second, func() (err error) {
 			if err = r.api.DeleteJob(r.ID()); err != nil {
 				err = fmt.Errorf("error deleting runner in Nomad: %w", err)
@@ -290,13 +297,21 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 	}
 
 	err := ctx.Err()
-	if r.TimeoutPassed() {
-		err = ErrorRunnerInactivityTimeout
+	if reason, ok := r.ctx.Value(destroyReasonContextKey).(error); ok {
+		err = reason
+		if r.TimeoutPassed() && !errors.Is(err, ErrorRunnerInactivityTimeout) {
+			log.WithError(err).Warn("Wrong destroy reason for expired runner")
+		}
 	}
 
 	// From this time on the WebSocket connection to the client is closed in /internal/api/websocket.go
 	// waitForExit. Input can still be sent to the executor.
 	exit <- ExitInfo{255, err}
+
+	// This condition prevents further interaction with a stopped / dead allocation.
+	if errors.Is(err, ErrAllocationStopped) || errors.Is(err, ErrOOMKilled) {
+		return
+	}
 
 	// This injects the SIGQUIT character into the stdin. This character is parsed by the tty line discipline
 	// (tty has to be true) and converted to a SIGQUIT signal sent to the foreground process attached to the tty.
@@ -318,8 +333,8 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 	case <-exitInternal:
 		log.WithContext(ctx).Debug("Execution terminated after SIGQUIT")
 	case <-time.After(executionTimeoutGracePeriod):
-		log.WithContext(ctx).Info("Execution did not quit after SIGQUIT")
-		if err := r.Destroy(false); err != nil {
+		log.WithContext(ctx).Info(ErrCannotStopExecution.Error())
+		if err := r.Destroy(ErrCannotStopExecution); err != nil {
 			log.WithContext(ctx).Error("Error when destroying runner")
 		}
 	}

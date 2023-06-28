@@ -17,6 +17,9 @@ type ExitInfo struct {
 
 type DestroyRunnerHandler = func(r Runner) error
 
+// DestroyReason specifies errors that are expected as reason for destroying a runner.
+type DestroyReason error
+
 type Runner interface {
 	InactivityTimer
 
@@ -59,8 +62,8 @@ type Runner interface {
 	GetFileContent(path string, content http.ResponseWriter, privilegedExecution bool, ctx context.Context) error
 
 	// Destroy destroys the Runner in Nomad.
-	// Iff local is true, the destruction will not be propagated to external systems.
-	Destroy(local bool) error
+	// Depending on the reason special cases of the Destruction will be handled.
+	Destroy(reason DestroyReason) error
 }
 
 // NewContext creates a context containing a runner.

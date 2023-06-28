@@ -259,7 +259,8 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	s.Require().True(ok)
 	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
-	testRunner := NewNomadJob(allocation.JobID, nil, nil, s.nomadRunnerManager.onRunnerDestroyed)
+	testRunner := NewNomadJob(allocation.JobID, nil, s.apiMock, s.nomadRunnerManager.onRunnerDestroyed)
+	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	environment.AddRunner(testRunner)
 	s.nomadRunnerManager.usedRunners.Add(testRunner.ID(), testRunner)
 
@@ -267,7 +268,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 		call.Run(func(args mock.Arguments) {
 			callbacks, ok := args.Get(1).(*nomad.AllocationProcessing)
 			s.Require().True(ok)
-			callbacks.OnDeleted(allocation.JobID)
+			callbacks.OnDeleted(allocation.JobID, nil)
 			call.ReturnArguments = mock.Arguments{nil}
 		})
 	})
@@ -400,7 +401,7 @@ func testStoppedInactivityTimer(s *ManagerTestSuite, stopAllocation bool) {
 	s.Require().False(runnerDestroyed)
 
 	if stopAllocation {
-		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(runner.ID())
+		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(runner.ID(), nil)
 		s.False(alreadyRemoved)
 	}
 

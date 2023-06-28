@@ -84,6 +84,8 @@ func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
 	switch {
 	case errors.Is(info.Err, context.DeadlineExceeded) || errors.Is(info.Err, runner.ErrorRunnerInactivityTimeout):
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout})
+	case errors.Is(info.Err, runner.ErrOOMKilled):
+		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: runner.ErrOOMKilled.Error()})
 	case info.Err != nil:
 		errorMessage := "Error executing the request"
 		log.WithContext(cw.ctx).WithError(info.Err).Warn(errorMessage)

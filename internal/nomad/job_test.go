@@ -141,3 +141,18 @@ func TestEnvironmentIDFromRunnerID(t *testing.T) {
 	_, err = EnvironmentIDFromRunnerID("")
 	assert.Error(t, err)
 }
+
+func TestOOMKilledAllocation(t *testing.T) {
+	event := nomadApi.TaskEvent{Details: map[string]string{"oom_killed": "true"}}
+	state := nomadApi.TaskState{Restarts: 2, Events: []*nomadApi.TaskEvent{&event}}
+	alloc := nomadApi.Allocation{TaskStates: map[string]*nomadApi.TaskState{TaskName: &state}}
+	assert.False(t, isOOMKilled(&alloc))
+
+	event2 := nomadApi.TaskEvent{Details: map[string]string{"oom_killed": "false"}}
+	alloc.TaskStates[TaskName].Events = []*nomadApi.TaskEvent{&event, &event2}
+	assert.False(t, isOOMKilled(&alloc))
+
+	event3 := nomadApi.TaskEvent{Details: map[string]string{"oom_killed": "true"}}
+	alloc.TaskStates[TaskName].Events = []*nomadApi.TaskEvent{&event, &event2, &event3}
+	assert.True(t, isOOMKilled(&alloc))
+}

@@ -99,7 +99,7 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 	defer cancelProxy()
 	proxy := newWebSocketProxy(connection, proxyCtx)
 
-	log.WithContext(proxyCtx).WithField("runnerId", targetRunner.ID()).
+	log.WithContext(proxyCtx).
 		WithField("executionID", logging.RemoveNewlineSymbol(executionID)).
 		Info("Running execution")
 	logging.StartSpan("api.runner.connect", "Execute Interactively", request.Context(), func(ctx context.Context) {

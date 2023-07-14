@@ -249,11 +249,12 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 				return n.createRunner(false)
 			})
 			if err != nil {
-				log.WithError(err).WithField("environmentID", n.ID()).Error("Couldn't create new runner for claimed one")
+				log.WithError(err).WithField(dto.KeyEnvironmentID, n.ID().ToString()).
+					Error("Couldn't create new runner for claimed one")
 			}
 		}()
 	} else if ok {
-		log.WithField("environment", n.ID().ToString()).Warn("Too many idle runner")
+		log.WithField(dto.KeyEnvironmentID, n.ID().ToString()).Warn("Too many idle runner")
 	}
 	return r, ok
 }
@@ -331,7 +332,7 @@ func parseJob(jobHCL string) (*nomadApi.Job, error) {
 }
 
 func (n *NomadEnvironment) createRunners(count uint, forcePull bool) error {
-	log.WithField("runnersRequired", count).WithField("id", n.ID()).Debug("Creating new runners")
+	log.WithField("runnersRequired", count).WithField(dto.KeyEnvironmentID, n.ID()).Debug("Creating new runners")
 	for i := 0; i < int(count); i++ {
 		err := n.createRunner(forcePull)
 		if err != nil {

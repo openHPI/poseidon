@@ -76,9 +76,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		case errors.Is(err, runner.ErrUnknownExecutionEnvironment):
 			writeClientError(writer, err, http.StatusNotFound, request.Context())
 		case errors.Is(err, runner.ErrNoRunnersAvailable):
-			log.WithContext(request.Context()).
-				WithField("environment", logging.RemoveNewlineSymbol(strconv.Itoa(int(environmentID)))).
-				Warn("No runners available")
+			log.WithContext(request.Context()).Warn("No runners available")
 			writeInternalServerError(writer, err, dto.ErrorNomadOverload, request.Context())
 		default:
 			writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
@@ -238,6 +236,8 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 			return
 		}
 		ctx := runner.NewContext(request.Context(), targetRunner)
+		ctx = context.WithValue(ctx, dto.ContextKey(dto.KeyRunnerID), targetRunner.ID())
+		ctx = context.WithValue(ctx, dto.ContextKey(dto.KeyEnvironmentID), targetRunner.Environment().ToString())
 		requestWithRunner := request.WithContext(ctx)
 		next.ServeHTTP(writer, requestWithRunner)
 	})

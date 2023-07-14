@@ -64,7 +64,7 @@ func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int
 	if err != nil {
 		err := m.Return(runner)
 		if err != nil {
-			log.WithError(err).WithField("runnerID", runner.ID()).Error("can't mark runner as used and can't return runner")
+			log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).Error("can't mark runner as used and can't return runner")
 		}
 	}
 }
@@ -86,7 +86,7 @@ func (m *NomadRunnerManager) Return(r Runner) error {
 
 func (m *NomadRunnerManager) Load() {
 	for _, environment := range m.environments.List() {
-		environmentLogger := log.WithField("environmentID", environment.ID())
+		environmentLogger := log.WithField(dto.KeyEnvironmentID, environment.ID().ToString())
 		runnerJobs, err := m.apiClient.LoadRunnerJobs(environment.ID())
 		if err != nil {
 			environmentLogger.WithError(err).Warn("Error fetching the runner jobs")
@@ -115,7 +115,7 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 		return
 	}
 	newJob := NewNomadJob(*job.ID, portMappings, m.apiClient, m.Return)
-	log.WithField("isUsed", isUsed).WithField("runner_id", newJob.ID()).Debug("Recovered Runner")
+	log.WithField("isUsed", isUsed).WithField(dto.KeyRunnerID, newJob.ID()).Debug("Recovered Runner")
 	if isUsed {
 		m.usedRunners.Add(newJob.ID(), newJob)
 		timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])
@@ -141,14 +141,15 @@ func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
 }
 
 func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, startup time.Duration) {
-	log.WithField("id", alloc.JobID).WithField("startupDuration", startup).Debug("Runner started")
+	log.WithField(dto.KeyRunnerID, alloc.JobID).WithField("startupDuration", startup).Debug("Runner started")
 
 	if nomad.IsEnvironmentTemplateID(alloc.JobID) {
 		return
 	}
 
 	if _, ok := m.usedRunners.Get(alloc.JobID); ok {
-		log.WithField("id", alloc.JobID).WithField("states", alloc.TaskStates).Error("Started Runner is already in use")
+		log.WithField(dto.KeyRunnerID, alloc.JobID).WithField("states", alloc.TaskStates).
+			Error("Started Runner is already in use")
 		return
 	}
 
@@ -178,7 +179,7 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 }
 
 func (m *NomadRunnerManager) onAllocationStopped(runnerID string) (alreadyRemoved bool) {
-	log.WithField("id", runnerID).Debug("Runner stopped")
+	log.WithField(dto.KeyRunnerID, runnerID).Debug("Runner stopped")
 
 	if nomad.IsEnvironmentTemplateID(runnerID) {
 		return false

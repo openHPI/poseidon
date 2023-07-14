@@ -34,8 +34,8 @@ const (
 
 	// The keys for the monitored tags and fields.
 
-	InfluxKeyRunnerID                      = "runner_id"
-	InfluxKeyEnvironmentID                 = "environment_id"
+	InfluxKeyRunnerID                      = dto.KeyRunnerID
+	InfluxKeyEnvironmentID                 = dto.KeyEnvironmentID
 	InfluxKeyJobID                         = "job_id"
 	InfluxKeyClientStatus                  = "client_status"
 	InfluxKeyNomadNode                     = "nomad_agent"

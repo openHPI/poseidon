@@ -201,7 +201,7 @@ func (r *NomadJob) GetFileContent(
 	p.AddTag(monitoring.InfluxKeyRunnerID, r.ID())
 	environmentID, err := nomad.EnvironmentIDFromRunnerID(r.ID())
 	if err != nil {
-		log.WithContext(ctx).WithField("runnerID", r.ID()).WithError(err).Warn("can not parse environment id")
+		log.WithContext(ctx).WithError(err).Warn("can not parse environment id")
 	}
 	p.AddTag(monitoring.InfluxKeyEnvironmentID, environmentID.ToString())
 	defer contentLengthWriter.SendMonitoringData(p)
@@ -283,16 +283,16 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 	// log.WithField("runner", r.id).Warn("Could not send SIGQUIT because nothing was written")
 	// }
 	if err != nil {
-		log.WithContext(ctx).WithField("runner", r.id).WithError(err).Warn("Could not send SIGQUIT due to error")
+		log.WithContext(ctx).WithError(err).Warn("Could not send SIGQUIT due to error")
 	}
 
 	select {
 	case <-exitInternal:
-		log.WithContext(ctx).WithField("runner", r.id).Debug("Execution terminated after SIGQUIT")
+		log.WithContext(ctx).Debug("Execution terminated after SIGQUIT")
 	case <-time.After(executionTimeoutGracePeriod):
-		log.WithContext(ctx).WithField("runner", r.id).Info("Execution did not quit after SIGQUIT")
+		log.WithContext(ctx).Info("Execution did not quit after SIGQUIT")
 		if err := r.Destroy(); err != nil {
-			log.WithContext(ctx).WithField("runner", r.id).Error("Error when destroying runner")
+			log.WithContext(ctx).Error("Error when destroying runner")
 		}
 	}
 }

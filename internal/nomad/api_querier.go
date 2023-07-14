@@ -132,10 +132,10 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	case err == nil:
 		return exitCode, nil
 	case websocket.IsCloseError(errors.Unwrap(err), websocket.CloseNormalClosure):
-		log.WithContext(ctx).WithField("runnerID", runnerID).WithError(err).Info("The exit code could not be received.")
+		log.WithContext(ctx).WithError(err).Info("The exit code could not be received.")
 		return 0, nil
 	case errors.Is(err, context.Canceled):
-		log.WithContext(ctx).WithField("runnerID", runnerID).Debug("Execution canceled by context")
+		log.WithContext(ctx).Debug("Execution canceled by context")
 		return 0, nil
 	default:
 		return 1, fmt.Errorf("error executing command in allocation: %w", err)

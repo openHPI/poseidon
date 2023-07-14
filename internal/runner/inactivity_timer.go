@@ -2,6 +2,7 @@ package runner
 
 import (
 	"errors"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"sync"
 	"time"
 )
@@ -70,9 +71,10 @@ func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
 		t.mu.Unlock()
 		err := t.onDestroy(t.runner)
 		if err != nil {
-			log.WithError(err).WithField("id", t.runner.ID()).Warn("Returning runner after inactivity caused an error")
+			log.WithError(err).WithField(dto.KeyRunnerID, t.runner.ID()).
+				Warn("Returning runner after inactivity caused an error")
 		} else {
-			log.WithField("id", t.runner.ID()).Info("Returning runner due to inactivity timeout")
+			log.WithField(dto.KeyRunnerID, t.runner.ID()).Info("Returning runner due to inactivity timeout")
 		}
 	})
 }

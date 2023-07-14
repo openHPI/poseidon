@@ -8,6 +8,7 @@ import (
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -52,6 +53,7 @@ func (s *MiddlewareTestSuite) SetupTest() {
 	}
 	s.router = mux.NewRouter()
 	runnerController := &RunnerController{s.manager, s.router}
+	s.router.Use(monitoring.InfluxDB2Middleware)
 	s.router.Use(runnerController.findRunnerMiddleware)
 	s.router.HandleFunc(fmt.Sprintf("/test/{%s}", RunnerIDKey), runnerRouteHandler).Name("test-runner-id")
 }

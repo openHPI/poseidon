@@ -24,7 +24,6 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	event.Timestamp = entry.Time
 	event.Level = sentry.Level(entry.Level.String())
 	event.Message = entry.Message
-	event.Extra = entry.Data
 
 	var hub *sentry.Hub
 	if entry.Context != nil {
@@ -36,6 +35,15 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	if hub == nil {
 		hub = sentry.CurrentHub()
 	}
+
+	hub.Scope().SetContext("Poseidon Details", entry.Data)
+	if runnerID, ok := entry.Data[dto.KeyRunnerID].(string); ok {
+		hub.Scope().SetTag(dto.KeyRunnerID, runnerID)
+	}
+	if environmentID, ok := entry.Data[dto.KeyEnvironmentID].(string); ok {
+		hub.Scope().SetTag(dto.KeyEnvironmentID, environmentID)
+	}
+
 	hub.CaptureEvent(event)
 	return nil
 }

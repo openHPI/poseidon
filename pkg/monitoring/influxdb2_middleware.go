@@ -74,7 +74,7 @@ func InitializeInfluxDB(db *config.InfluxDB) (cancel func()) {
 	client := influxdb2.NewClientWithOptions(db.URL, db.Token, options)
 	influxClient = client.WriteAPI(db.Organization, db.Bucket)
 	influxClient.SetWriteFailedCallback(func(_ string, error http2.Error, retryAttempts uint) bool {
-		log.WithError(&error).WithField("retryAttempts", retryAttempts).Debug("Retrying to write influx data...")
+		log.WithError(&error).WithField("retryAttempts", retryAttempts).Trace("Retrying to write influx data...")
 
 		// retryAttempts means number of retries, 0 if it failed during first write.
 		if retryAttempts == options.MaxRetries() {

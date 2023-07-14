@@ -92,7 +92,6 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 // It returns a listing of the file system of the provided runner.
 func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
 	recursiveRaw := request.URL.Query().Get(RecursiveKey)
 	recursive, err := strconv.ParseBool(recursiveRaw)
@@ -131,7 +130,6 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	}
 
 	targetRunner, _ := runner.FromContext(request.Context())
-	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
 	var err error
 	logging.StartSpan("api.fs.update", "Update File System", request.Context(), func(ctx context.Context) {
@@ -148,7 +146,6 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 
 func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 	path := request.URL.Query().Get(PathKey)
 	privilegedExecution, err := strconv.ParseBool(request.URL.Query().Get(PrivilegedExecutionKey))
 	if err != nil {
@@ -190,7 +187,6 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		scheme = "ws"
 	}
 	targetRunner, _ := runner.FromContext(request.Context())
-	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
 	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIDKey, targetRunner.ID())
 	if err != nil {
@@ -239,6 +235,8 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 		ctx = context.WithValue(ctx, dto.ContextKey(dto.KeyRunnerID), targetRunner.ID())
 		ctx = context.WithValue(ctx, dto.ContextKey(dto.KeyEnvironmentID), targetRunner.Environment().ToString())
 		requestWithRunner := request.WithContext(ctx)
+		monitoring.AddRunnerMonitoringData(requestWithRunner, targetRunner.ID(), targetRunner.Environment())
+
 		next.ServeHTTP(writer, requestWithRunner)
 	})
 }
@@ -247,7 +245,6 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 // It destroys the given runner on the executor and removes it from the used runners list.
 func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
-	monitoring.AddRunnerMonitoringData(request, targetRunner.ID(), targetRunner.Environment())
 
 	var err error
 	logging.StartSpan("api.runner.delete", "Return Runner", request.Context(), func(ctx context.Context) {

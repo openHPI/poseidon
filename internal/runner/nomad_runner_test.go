@@ -263,6 +263,47 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroyReasonIsPassedToExecution() {
 	s.ErrorIs(exit.Err, ErrOOMKilled)
 }
 
+func (s *ExecuteInteractivelyTestSuite) TestSuspectedOOMKilledExecutionWaitsForVerification() {
+	s.mockedExecuteCommandCall.Return(128, nil)
+	executionRequest := &dto.ExecutionRequest{}
+	s.Run("Actually OOM Killed", func() {
+		s.runner.StoreExecution(defaultExecutionID, executionRequest)
+		exitChannel, _, err := s.runner.ExecuteInteractively(
+			defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
+		s.Require().NoError(err)
+
+		select {
+		case <-exitChannel:
+			s.FailNow("For exit code 128 Poseidon should wait a while to verify the OOM Kill assumption.")
+		case <-time.After(tests.ShortTimeout):
+			// All good. Poseidon waited.
+		}
+
+		err = s.runner.Destroy(ErrOOMKilled)
+		s.Require().NoError(err)
+		exit := <-exitChannel
+		s.ErrorIs(exit.Err, ErrOOMKilled)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	s.runner.ctx = ctx
+	s.runner.cancel = cancel
+	s.Run("Not OOM Killed", func() {
+		s.runner.StoreExecution(defaultExecutionID, executionRequest)
+		exitChannel, _, err := s.runner.ExecuteInteractively(
+			defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
+		s.Require().NoError(err)
+
+		select {
+		case <-time.After(tests.ShortTimeout + time.Second):
+			s.FailNow("Poseidon should not wait too long for verifying the OOM Kill assumption.")
+		case exit := <-exitChannel:
+			s.Equal(uint8(128), exit.Code)
+			s.Nil(exit.Err)
+		}
+	})
+}
+
 func TestUpdateFileSystemTestSuite(t *testing.T) {
 	suite.Run(t, new(UpdateFileSystemTestSuite))
 }

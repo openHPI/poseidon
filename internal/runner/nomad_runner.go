@@ -288,14 +288,36 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 	case exitInfo := <-exitInternal:
 		// - The execution ended in time or
 		// - the HTTP request of the client/CodeOcean got canceled.
-		exit <- exitInfo
-		return
+		r.handleExit(exitInfo, exitInternal, exit, stdin, ctx)
 	case <-ctx.Done():
 		// - The execution timeout was exceeded,
 		// - the runner was destroyed (runner timeout, or API delete request), or
 		// - the WebSocket connection to the client/CodeOcean closed.
+		r.handleContextDone(exitInternal, exit, stdin, ctx)
+	}
+}
+
+func (r *NomadJob) handleExit(exitInfo ExitInfo, exitInternal <-chan ExitInfo, exit chan<- ExitInfo,
+	stdin io.ReadWriter, ctx context.Context) {
+	// Special Handling of OOM Killed allocations. See #401.
+	const exitCodeOfLikelyOOMKilledAllocation = 128
+	const gracePeriodForConfirmingOOMKillReason = time.Second
+	if exitInfo.Code == exitCodeOfLikelyOOMKilledAllocation {
+		select {
+		case <-ctx.Done():
+			// We consider this allocation to be OOM Killed.
+			r.handleContextDone(exitInternal, exit, stdin, ctx)
+			return
+		case <-time.After(gracePeriodForConfirmingOOMKillReason):
+			// We consider that the payload code returned the exit code.
+		}
 	}
 
+	exit <- exitInfo
+}
+
+func (r *NomadJob) handleContextDone(exitInternal <-chan ExitInfo, exit chan<- ExitInfo,
+	stdin io.ReadWriter, ctx context.Context) {
 	err := ctx.Err()
 	if reason, ok := r.ctx.Value(destroyReasonContextKey).(error); ok {
 		err = reason

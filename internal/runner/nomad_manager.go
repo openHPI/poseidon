@@ -189,15 +189,6 @@ func (m *NomadRunnerManager) onAllocationStopped(runnerID string, reason error) 
 
 	r, stillActive := m.usedRunners.Get(runnerID)
 	if stillActive {
-		// Mask the internal stop reason because the runner might disclose/forward it to CodeOcean/externally.
-		switch {
-		case errors.Is(reason, nomad.ErrorOOMKilled):
-			reason = ErrOOMKilled
-		default:
-			log.WithField(dto.KeyRunnerID, runnerID).WithField("reason", reason).Debug("Internal reason for allocation stop")
-			reason = ErrAllocationStopped
-		}
-
 		m.usedRunners.Delete(runnerID)
 		if err := r.Destroy(reason); err != nil {
 			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")

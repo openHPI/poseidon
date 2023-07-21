@@ -41,7 +41,6 @@ var (
 	ErrorUnknownExecution                  = errors.New("unknown execution")
 	ErrorFileCopyFailed                    = errors.New("file copy failed")
 	ErrFileNotFound                        = errors.New("file not found or insufficient permissions")
-	ErrAllocationStopped     DestroyReason = errors.New("the allocation stopped")
 	ErrOOMKilled             DestroyReason = nomad.ErrorOOMKilled
 	ErrDestroyedByAPIRequest DestroyReason = errors.New("the client wants to stop the runner")
 	ErrCannotStopExecution   DestroyReason = errors.New("the execution did not stop after SIGQUIT")
@@ -244,7 +243,7 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 		err = r.onDestroy(r)
 	}
 
-	if err == nil && (!errors.Is(reason, ErrAllocationStopped) || !errors.Is(reason, ErrOOMKilled)) {
+	if err == nil && !errors.Is(reason, ErrOOMKilled) {
 		err = util.RetryExponential(time.Second, func() (err error) {
 			if err = r.api.DeleteJob(r.ID()); err != nil {
 				err = fmt.Errorf("error deleting runner in Nomad: %w", err)
@@ -331,7 +330,7 @@ func (r *NomadJob) handleContextDone(exitInternal <-chan ExitInfo, exit chan<- E
 	exit <- ExitInfo{255, err}
 
 	// This condition prevents further interaction with a stopped / dead allocation.
-	if errors.Is(err, ErrAllocationStopped) || errors.Is(err, ErrOOMKilled) {
+	if errors.Is(err, nomad.ErrorOOMKilled) {
 		return
 	}
 

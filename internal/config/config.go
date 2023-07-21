@@ -53,7 +53,9 @@ var (
 		Logger: logger{
 			Level: "INFO",
 		},
-		Sentry: sentry.ClientOptions{},
+		Sentry: sentry.ClientOptions{
+			AttachStacktrace: true,
+		},
 		InfluxDB: InfluxDB{
 			URL:          "",
 			Token:        "",

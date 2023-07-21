@@ -13,17 +13,20 @@ type SentryHook struct{}
 
 // Fire is triggered on new log entries.
 func (hook *SentryHook) Fire(entry *logrus.Entry) error {
-	if data, ok := entry.Data["error"]; ok {
-		err, ok := data.(error)
-		if ok {
-			entry.Data["error"] = err.Error()
-		}
-	}
-
 	event := sentry.NewEvent()
 	event.Timestamp = entry.Time
 	event.Level = sentry.Level(entry.Level.String())
 	event.Message = entry.Message
+
+	// Add Stack Trace when an error was passed.
+	if data, ok := entry.Data["error"]; ok {
+		err, ok := data.(error)
+		if ok {
+			const maxErrorDepth = 10
+			event.SetException(err, maxErrorDepth)
+			entry.Data["error"] = err.Error()
+		}
+	}
 
 	var hub *sentry.Hub
 	if entry.Context != nil {

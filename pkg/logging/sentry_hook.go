@@ -17,6 +17,7 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	event.Timestamp = entry.Time
 	event.Level = sentry.Level(entry.Level.String())
 	event.Message = entry.Message
+	event.Fingerprint = []string{"{{ default }}", event.Message}
 
 	// Add Stack Trace when an error was passed.
 	if data, ok := entry.Data["error"]; ok {
@@ -25,6 +26,7 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 			const maxErrorDepth = 10
 			event.SetException(err, maxErrorDepth)
 			entry.Data["error"] = err.Error()
+			event.Fingerprint = append(event.Fingerprint, err.Error())
 		}
 	}
 

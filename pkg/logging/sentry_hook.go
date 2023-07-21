@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"errors"
 	"github.com/getsentry/sentry-go"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/sirupsen/logrus"
@@ -11,20 +12,10 @@ import (
 // Consider replacing this with a more feature rich, additional dependency: https://github.com/evalphobia/logrus_sentry
 type SentryHook struct{}
 
+var ErrorHubInvalid = errors.New("the hub is invalid")
+
 // Fire is triggered on new log entries.
 func (hook *SentryHook) Fire(entry *logrus.Entry) error {
-	if data, ok := entry.Data["error"]; ok {
-		err, ok := data.(error)
-		if ok {
-			entry.Data["error"] = err.Error()
-		}
-	}
-
-	event := sentry.NewEvent()
-	event.Timestamp = entry.Time
-	event.Level = sentry.Level(entry.Level.String())
-	event.Message = entry.Message
-
 	var hub *sentry.Hub
 	if entry.Context != nil {
 		hub = sentry.GetHubFromContext(entry.Context)
@@ -35,15 +26,30 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	if hub == nil {
 		hub = sentry.CurrentHub()
 	}
+	client, scope := hub.Client(), hub.Scope()
+	if client == nil || scope == nil {
+		return ErrorHubInvalid
+	}
 
-	hub.Scope().SetContext("Poseidon Details", entry.Data)
+	scope.SetContext("Poseidon Details", entry.Data)
 	if runnerID, ok := entry.Data[dto.KeyRunnerID].(string); ok {
-		hub.Scope().SetTag(dto.KeyRunnerID, runnerID)
+		scope.SetTag(dto.KeyRunnerID, runnerID)
 	}
 	if environmentID, ok := entry.Data[dto.KeyEnvironmentID].(string); ok {
-		hub.Scope().SetTag(dto.KeyEnvironmentID, environmentID)
+		scope.SetTag(dto.KeyEnvironmentID, environmentID)
 	}
 
+	event := client.EventFromMessage(entry.Message, sentry.Level(entry.Level.String()))
+	event.Timestamp = entry.Time
+	// Add Exception when an error was passed.
+	if data, ok := entry.Data["error"]; ok {
+		err, ok := data.(error)
+		if ok {
+			entry.Data["error"] = err.Error()
+			const maxErrorDepth = 10
+			event.SetException(err, maxErrorDepth)
+		}
+	}
 	hub.CaptureEvent(event)
 	return nil
 }

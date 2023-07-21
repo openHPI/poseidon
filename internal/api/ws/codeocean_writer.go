@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/websocket"
+	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"io"
@@ -81,17 +82,22 @@ func (cw *codeOceanOutputWriter) StdErr() io.Writer {
 // Close forwards the kind of exit (timeout, error, normal) to CodeOcean.
 // This results in the closing of the WebSocket connection.
 func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
+	// Mask the internal stop reason before disclosing/forwarding it externally/to CodeOcean.
 	switch {
+	case info.Err == nil:
+		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: info.Code})
 	case errors.Is(info.Err, context.DeadlineExceeded) || errors.Is(info.Err, runner.ErrorRunnerInactivityTimeout):
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout})
 	case errors.Is(info.Err, runner.ErrOOMKilled):
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: runner.ErrOOMKilled.Error()})
-	case info.Err != nil:
+	case errors.Is(info.Err, nomad.ErrorAllocationCompleted), errors.Is(info.Err, runner.ErrDestroyedByAPIRequest):
+		message := "the allocation stopped as expected"
+		log.WithContext(cw.ctx).WithError(info.Err).Debug(message)
+		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: message})
+	default:
 		errorMessage := "Error executing the request"
 		log.WithContext(cw.ctx).WithError(info.Err).Warn(errorMessage)
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: errorMessage})
-	default:
-		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: info.Code})
 	}
 }
 

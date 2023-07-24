@@ -41,13 +41,10 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 
 	event := client.EventFromMessage(entry.Message, sentry.Level(entry.Level.String()))
 	event.Timestamp = entry.Time
-	// Add Exception when an error was passed.
 	if data, ok := entry.Data["error"]; ok {
 		err, ok := data.(error)
 		if ok {
 			entry.Data["error"] = err.Error()
-			const maxErrorDepth = 10
-			event.SetException(err, maxErrorDepth)
 		}
 	}
 	hub.CaptureEvent(event)

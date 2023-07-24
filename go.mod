@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/hashicorp/nomad v1.6.0
+	github.com/hashicorp/nomad v1.6.1
 	github.com/hashicorp/nomad/api v0.0.0-20230623202052-276c69bffde3
 	github.com/influxdata/influxdb-client-go/v2 v2.12.3
 	github.com/mitchellh/mapstructure v1.5.0

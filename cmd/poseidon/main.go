@@ -230,7 +230,7 @@ func main() {
 	if err := config.InitConfig(); err != nil {
 		log.WithError(err).Warn("Could not initialize configuration")
 	}
-	logging.InitializeLogging(config.Config.Logger.Level)
+	logging.InitializeLogging(config.Config.Logger.Level, config.Config.Logger.Formatter)
 	initSentry(&config.Config.Sentry, config.Config.Profiling.Enabled)
 
 	cancelInflux := monitoring.InitializeInfluxDB(&config.Config.InfluxDB)

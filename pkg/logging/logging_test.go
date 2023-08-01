@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ func mockHTTPStatusHandler(status int) http.Handler {
 func TestHTTPMiddlewareWarnsWhenInternalServerError(t *testing.T) {
 	var hook *test.Hook
 	log, hook = test.NewNullLogger()
-	InitializeLogging(logrus.DebugLevel.String())
+	InitializeLogging(logrus.DebugLevel.String(), dto.FormatterText)
 
 	request, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
 	if err != nil {
@@ -34,7 +35,7 @@ func TestHTTPMiddlewareWarnsWhenInternalServerError(t *testing.T) {
 func TestHTTPMiddlewareDebugsWhenStatusOK(t *testing.T) {
 	var hook *test.Hook
 	log, hook = test.NewNullLogger()
-	InitializeLogging(logrus.DebugLevel.String())
+	InitializeLogging(logrus.DebugLevel.String(), dto.FormatterText)
 
 	request, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
 	if err != nil {

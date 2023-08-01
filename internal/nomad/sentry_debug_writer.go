@@ -44,6 +44,15 @@ func NewSentryDebugWriter(target io.Writer, ctx context.Context) *SentryDebugWri
 
 // Improve: Handling of a split debug messages (usually, p is exactly one debug message, not less and not more).
 func (s *SentryDebugWriter) Write(p []byte) (n int, err error) {
+	if s.Ctx.Err() != nil {
+		return 0, err
+	}
+	// Peaking if the target is able to write.
+	// If not we should not process the data (see #325).
+	if _, err = s.Target.Write([]byte{}); err != nil {
+		return 0, fmt.Errorf("SentryDebugWriter cannot write to target: %w", err)
+	}
+
 	if !timeDebugMessagePatternStart.Match(p) {
 		count, err := s.Target.Write(p)
 		if err != nil {

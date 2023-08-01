@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -16,13 +17,22 @@ const CodeOceanOutputWriterBufferSize = 64
 
 // rawToCodeOceanWriter is a simple io.Writer implementation that just forwards the call to sendMessage.
 type rawToCodeOceanWriter struct {
-	sendMessage func(string)
+	outputType  dto.WebSocketMessageType
+	sendMessage func(*dto.WebSocketMessage)
+	ctx         context.Context
 }
 
 // Write implements the io.Writer interface.
 func (rc *rawToCodeOceanWriter) Write(p []byte) (int, error) {
-	rc.sendMessage(string(p))
-	return len(p), nil
+	switch {
+	case rc.ctx.Err() != nil:
+		return 0, fmt.Errorf("CodeOceanWriter context done: %w", rc.ctx.Err())
+	case len(p) == 0:
+		return 0, nil
+	default:
+		rc.sendMessage(&dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
+		return len(p), nil
+	}
 }
 
 // WebSocketWriter is an interface that defines which data is required and which information can be passed.
@@ -36,8 +46,8 @@ type WebSocketWriter interface {
 // It forwards the data written to stdOut or stdErr (Nomad, AWS) to the WebSocket connection (CodeOcean).
 type codeOceanOutputWriter struct {
 	connection Connection
-	stdOut     io.Writer
-	stdErr     io.Writer
+	stdOut     *rawToCodeOceanWriter
+	stdErr     *rawToCodeOceanWriter
 	queue      chan *writingLoopMessage
 	ctx        context.Context
 }
@@ -51,18 +61,22 @@ type writingLoopMessage struct {
 // NewCodeOceanOutputWriter provides an codeOceanOutputWriter for the time the context ctx is active.
 // The codeOceanOutputWriter handles all the messages defined in the websocket.schema.json (start, timeout, stdout, ..).
 func NewCodeOceanOutputWriter(
-	connection Connection, ctx context.Context, done context.CancelFunc) *codeOceanOutputWriter {
+	connection Connection, ctx context.Context, done context.CancelFunc) WebSocketWriter {
 	cw := &codeOceanOutputWriter{
 		connection: connection,
 		queue:      make(chan *writingLoopMessage, CodeOceanOutputWriterBufferSize),
 		ctx:        ctx,
 	}
-	cw.stdOut = &rawToCodeOceanWriter{sendMessage: func(s string) {
-		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputStdout, Data: s})
-	}}
-	cw.stdErr = &rawToCodeOceanWriter{sendMessage: func(s string) {
-		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputStderr, Data: s})
-	}}
+	cw.stdOut = &rawToCodeOceanWriter{
+		outputType:  dto.WebSocketOutputStdout,
+		sendMessage: cw.send,
+		ctx:         ctx,
+	}
+	cw.stdErr = &rawToCodeOceanWriter{
+		outputType:  dto.WebSocketOutputStderr,
+		sendMessage: cw.send,
+		ctx:         ctx,
+	}
 
 	go cw.startWritingLoop(done)
 	cw.send(&dto.WebSocketMessage{Type: dto.WebSocketMetaStart})
@@ -81,9 +95,13 @@ func (cw *codeOceanOutputWriter) StdErr() io.Writer {
 
 // Close forwards the kind of exit (timeout, error, normal) to CodeOcean.
 // This results in the closing of the WebSocket connection.
+// The call of Close is mandantory!
 func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
+	defer func() { cw.queue <- &writingLoopMessage{done: true} }()
 	// Mask the internal stop reason before disclosing/forwarding it externally/to CodeOcean.
 	switch {
+	case info == nil:
+		return
 	case info.Err == nil:
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: info.Code})
 	case errors.Is(info.Err, context.DeadlineExceeded) || errors.Is(info.Err, runner.ErrorRunnerInactivityTimeout):
@@ -92,7 +110,7 @@ func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: runner.ErrOOMKilled.Error()})
 	case errors.Is(info.Err, nomad.ErrorAllocationCompleted), errors.Is(info.Err, runner.ErrDestroyedByAPIRequest):
 		message := "the allocation stopped as expected"
-		log.WithContext(cw.ctx).WithError(info.Err).Debug(message)
+		log.WithContext(cw.ctx).WithError(info.Err).Trace(message)
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: message})
 	default:
 		errorMessage := "Error executing the request"
@@ -103,15 +121,7 @@ func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
 
 // send forwards the passed dto.WebSocketMessage to the writing loop.
 func (cw *codeOceanOutputWriter) send(message *dto.WebSocketMessage) {
-	select {
-	case <-cw.ctx.Done():
-		return
-	default:
-		done := message.Type == dto.WebSocketExit ||
-			message.Type == dto.WebSocketMetaTimeout ||
-			message.Type == dto.WebSocketOutputError
-		cw.queue <- &writingLoopMessage{done: done, data: message}
-	}
+	cw.queue <- &writingLoopMessage{done: false, data: message}
 }
 
 // startWritingLoop enables the writing loop.
@@ -128,15 +138,15 @@ func (cw *codeOceanOutputWriter) startWritingLoop(writingLoopDone context.Cancel
 	}()
 
 	for {
-		select {
-		case <-cw.ctx.Done():
+		message := <-cw.queue
+		done := true
+		if message.data != nil {
+			done = sendMessage(cw.connection, message.data, cw.ctx)
+		}
+		if done || message.done {
+			log.Debug("Writing loop done")
+			writingLoopDone()
 			return
-		case message := <-cw.queue:
-			done := sendMessage(cw.connection, message.data, cw.ctx)
-			if done || message.done {
-				writingLoopDone()
-				return
-			}
 		}
 	}
 }

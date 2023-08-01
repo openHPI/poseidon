@@ -65,6 +65,7 @@ func (wp *webSocketProxy) waitForExit(exit <-chan runner.ExitInfo, cancelExecuti
 	case <-wp.ctx.Done():
 		log.WithContext(wp.ctx).Info("Client closed the connection")
 		wp.Input.Stop()
+		wp.Output.Close(nil)
 		cancelExecution()
 		<-exit // /internal/runner/runner.go handleExitOrContextDone does not require client connection anymore.
 		<-exit // The goroutine closes this channel indicating that it does not use the connection to the executor anymore.

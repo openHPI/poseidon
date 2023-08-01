@@ -181,6 +181,14 @@ func (f File) ByteContent() []byte {
 	}
 }
 
+// Formatter mirrors the available Formatters of logrus for configuration purposes.
+type Formatter string
+
+const (
+	FormatterText = "TextFormatter"
+	FormatterJSON = "JSONFormatter"
+)
+
 // ContextKey is the type for keys in a request context that is used for passing data to the next handler.
 type ContextKey string
 

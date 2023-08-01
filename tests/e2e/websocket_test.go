@@ -1,20 +1,31 @@
 package e2e
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
+)
+
+const (
+	EnvPoseidonLogFile      = "POSEIDON_LOG_FILE"
+	EnvPoseidonLogFormatter = "POSEIDON_LOGGER_FORMATTER"
 )
 
 func (s *E2ETestSuite) TestExecuteCommandRoute() {
@@ -233,6 +244,81 @@ func (s *E2ETestSuite) TestNomadStderrFifoIsRemoved() {
 	s.Contains(stdout, ".fifo", "there should be a .fifo file during the execution")
 
 	s.NotContains(s.ListTempDirectory(runnerID), ".fifo", "/tmp/ should not contain any .fifo files after the execution")
+}
+
+func (s *E2ETestSuite) TestTerminatedByClient() {
+	logFile, logFileOk := os.LookupEnv(EnvPoseidonLogFile)
+	logFormatter, logFormatterOk := os.LookupEnv(EnvPoseidonLogFormatter)
+	if !logFileOk || !logFormatterOk || logFormatter != dto.FormatterJSON {
+		s.T().Skipf("The environment variables %s and %s are not set", EnvPoseidonLogFile, EnvPoseidonLogFormatter)
+		return
+	}
+	start := time.Now()
+
+	// The bug of #325 is triggered in about every second execution. Therefore, we perform
+	// 10 executions to have a high probability of triggering this (fixed) behavior.
+	const runs = 10
+	for i := 0; i < runs; i++ {
+		<-time.After(time.Duration(i) * time.Second)
+		log.WithField("i", i).Info("Run")
+		runnerID, err := ProvideRunner(&dto.RunnerRequest{
+			ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
+		})
+		s.Require().NoError(err)
+
+		webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{Command: "sleep 2"})
+		s.Require().NoError(err)
+		connection, err := ConnectToWebSocket(webSocketURL)
+		s.Require().NoError(err)
+
+		go func() {
+			<-time.After(time.Millisecond)
+			err := connection.WriteControl(websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+			s.Require().NoError(err)
+			err = connection.Close()
+			s.Require().NoError(err)
+		}()
+
+		_, err = helpers.ReceiveAllWebSocketMessages(connection)
+		s.Require().Error(err)
+	}
+
+	records := parseLogFile(s.T(), logFile, start, time.Now())
+	for _, record := range records {
+		msg, ok := record["msg"].(string)
+		if !ok || msg == "Exec debug message could not be read completely" {
+			s.Failf("Found Error", "Ok: %t, message: %s", ok, msg)
+		}
+	}
+}
+
+func parseLogFile(t *testing.T, name string, start time.Time, end time.Time) (logRecords []map[string]interface{}) {
+	t.Helper()
+	<-time.After(tests.ShortTimeout)
+	file, err := os.Open(name)
+	require.NoError(t, err)
+	defer func(t *testing.T, file *os.File) {
+		t.Helper()
+		err := file.Close()
+		require.NoError(t, err)
+	}(t, file)
+	fileScanner := bufio.NewScanner(file)
+	fileScanner.Split(bufio.ScanLines)
+	for fileScanner.Scan() {
+		logRecord := map[string]interface{}{}
+		err = json.Unmarshal(fileScanner.Bytes(), &logRecord)
+		require.NoError(t, err)
+		timeString, ok := logRecord["time"].(string)
+		require.True(t, ok)
+		entryTime, err := time.ParseInLocation(logging.TimestampFormat, timeString, start.Location())
+		require.NoError(t, err)
+		if entryTime.Before(start) || entryTime.After(end) {
+			continue
+		}
+		logRecords = append(logRecords, logRecord)
+	}
+	return logRecords
 }
 
 func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {

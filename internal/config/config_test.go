@@ -33,7 +33,7 @@ func newTestConfiguration() *configuration {
 				Active: false,
 			},
 		},
-		Logger: logger{
+		Logger: Logger{
 			Level: "INFO",
 		},
 	}

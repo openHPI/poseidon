@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/getsentry/sentry-go"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -50,8 +51,9 @@ var (
 			Endpoint:  "",
 			Functions: []string{},
 		},
-		Logger: logger{
-			Level: "INFO",
+		Logger: Logger{
+			Level:     "INFO",
+			Formatter: dto.FormatterText,
 		},
 		Sentry: sentry.ClientOptions{
 			AttachStacktrace: true,
@@ -120,9 +122,10 @@ type TLS struct {
 	KeyFile  string
 }
 
-// logger configures the used logger.
-type logger struct {
-	Level string
+// Logger configures the used Logger.
+type Logger struct {
+	Formatter dto.Formatter
+	Level     string
 }
 
 // Profiling configures the usage of a runtime profiler to create optimized binaries.
@@ -145,7 +148,7 @@ type configuration struct {
 	Server    server
 	Nomad     Nomad
 	AWS       AWS
-	Logger    logger
+	Logger    Logger
 	Profiling Profiling
 	Sentry    sentry.ClientOptions
 	InfluxDB  InfluxDB

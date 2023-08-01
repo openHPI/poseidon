@@ -127,6 +127,8 @@ jobs:
       POSEIDON_AWS_ENABLED: false
       POSEIDON_AWS_ENDPOINT: ${{ secrets.POSEIDON_AWS_ENDPOINT }}
       POSEIDON_AWS_FUNCTIONS: ""
+      POSEIDON_LOGGER_FORMATTER: "JSONFormatter"
+      POSEIDON_LOG_FILE: "../../poseidon.log"
       POSEIDON_NOMAD_DISABLEFORCEPULL: true
       GOCOVERDIR: coverage
     steps:
@@ -204,7 +206,7 @@ jobs:
           until curl -s --fail http://localhost:4646/v1/agent/health ; do sleep 1; done
           chmod +x ./poseidon
           mkdir -p ${GOCOVERDIR}
-          ./poseidon &
+          ./poseidon | tee poseidon.log &
           until curl -s --fail http://localhost:7200/api/v1/health ; do sleep 1; done
           make e2e-test
       - name: Run e2e recovery tests

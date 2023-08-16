@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/api/ws"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -37,9 +36,9 @@ func upgradeConnection(writer http.ResponseWriter, request *http.Request) (ws.Co
 // As this proxy is already started, a start message is send to the client.
 func newWebSocketProxy(connection ws.Connection, proxyCtx context.Context) *webSocketProxy {
 	// wsCtx is detached from the proxyCtx
-	// as it should send all messages in the buffer even if the execution/proxy is done.
-	wsCtx, cancelWsCommunication := context.WithCancel(context.Background())
-	wsCtx = sentry.SetHubOnContext(wsCtx, sentry.GetHubFromContext(proxyCtx))
+	// as it should send all messages in the buffer even shortly after the execution/proxy is done.
+	wsCtx := context.WithoutCancel(proxyCtx)
+	wsCtx, cancelWsCommunication := context.WithCancel(wsCtx)
 
 	proxy := &webSocketProxy{
 		ctx:    wsCtx,
@@ -92,9 +91,9 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 		return
 	}
 
-	// ToDo: Why can we not inherit from request.Context() here?
-	proxyCtx, cancelProxy := context.WithCancel(context.Background())
-	proxyCtx = sentry.SetHubOnContext(proxyCtx, sentry.GetHubFromContext(request.Context()))
+	// We do not inherit from the request.Context() here because we rely on the WebSocket Close Handler.
+	proxyCtx := context.WithoutCancel(request.Context())
+	proxyCtx, cancelProxy := context.WithCancel(proxyCtx)
 	defer cancelProxy()
 	proxy := newWebSocketProxy(connection, proxyCtx)
 

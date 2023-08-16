@@ -13,27 +13,35 @@ import (
 )
 
 func TestAWSDisabledUsesNomadManager(t *testing.T) {
+	disableRecovery, cancel := context.WithCancel(context.Background())
+	cancel()
+
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, true,
-		runner.NewAbstractManager(), &environment.AbstractManager{})
+		runner.NewAbstractManager(), &environment.AbstractManager{}, disableRecovery)
 	awsRunnerManager, awsEnvironmentManager := createManagerHandler(createAWSManager, false,
-		runnerManager, environmentManager)
+		runnerManager, environmentManager, disableRecovery)
 	assert.Equal(t, runnerManager, awsRunnerManager)
 	assert.Equal(t, environmentManager, awsEnvironmentManager)
 }
 
 func TestAWSEnabledWrappesNomadManager(t *testing.T) {
+	disableRecovery, cancel := context.WithCancel(context.Background())
+	cancel()
+
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, true,
-		runner.NewAbstractManager(), &environment.AbstractManager{})
+		runner.NewAbstractManager(), &environment.AbstractManager{}, disableRecovery)
 	awsRunnerManager, awsEnvironmentManager := createManagerHandler(createAWSManager,
-		true, runnerManager, environmentManager)
+		true, runnerManager, environmentManager, disableRecovery)
 	assert.NotEqual(t, runnerManager, awsRunnerManager)
 	assert.NotEqual(t, environmentManager, awsEnvironmentManager)
 }
 
 func TestShutdownOnOSSignal_Profiling(t *testing.T) {
 	called := false
+	disableRecovery, cancel := context.WithCancel(context.Background())
+	cancel()
 
-	server := initServer()
+	server := initServer(disableRecovery)
 	go shutdownOnOSSignal(server, context.Background(), func() {
 		called = true
 	})

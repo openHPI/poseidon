@@ -135,49 +135,51 @@ func runServer(server *http.Server, cancel context.CancelFunc) {
 	}
 }
 
-type managerCreator func() (runnerManager runner.Manager, environmentManager environment.ManagerHandler)
+type managerCreator func(ctx context.Context) (
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler)
 
 // createManagerHandler adds the managers of the passed managerCreator to the chain of responsibility.
 func createManagerHandler(handler managerCreator, enabled bool,
-	nextRunnerManager runner.Manager, nextEnvironmentManager environment.ManagerHandler) (
+	nextRunnerManager runner.Manager, nextEnvironmentManager environment.ManagerHandler, ctx context.Context) (
 	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
 	if !enabled {
 		return nextRunnerManager, nextEnvironmentManager
 	}
 
-	runnerManager, environmentManager = handler()
+	runnerManager, environmentManager = handler(ctx)
 	runnerManager.SetNextHandler(nextRunnerManager)
 	environmentManager.SetNextHandler(nextEnvironmentManager)
 	return runnerManager, environmentManager
 }
 
-func createNomadManager() (runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+func createNomadManager(ctx context.Context) (
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
 	// API initialization
 	nomadAPIClient, err := nomad.NewExecutorAPI(&config.Config.Nomad)
 	if err != nil {
 		log.WithError(err).WithField("nomad config", config.Config.Nomad).Fatal("Error creating Nomad API client")
 	}
 
-	runnerManager = runner.NewNomadRunnerManager(nomadAPIClient, context.Background())
+	runnerManager = runner.NewNomadRunnerManager(nomadAPIClient, ctx)
 	environmentManager, err = environment.
-		NewNomadEnvironmentManager(runnerManager, nomadAPIClient, config.Config.Server.TemplateJobFile)
+		NewNomadEnvironmentManager(runnerManager, nomadAPIClient, config.Config.Server.TemplateJobFile, ctx)
 	if err != nil {
 		log.WithError(err).Fatal("Error initializing environment manager")
 	}
 	return runnerManager, environmentManager
 }
 
-func createAWSManager() (runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+func createAWSManager(_ context.Context) (runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
 	runnerManager = runner.NewAWSRunnerManager()
 	return runnerManager, environment.NewAWSEnvironmentManager(runnerManager)
 }
 
 // initServer builds the http server and configures it with the chain of responsibility for multiple managers.
-func initServer() *http.Server {
+func initServer(ctx context.Context) *http.Server {
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, config.Config.Nomad.Enabled,
-		nil, nil)
+		nil, nil, ctx)
 	runnerManager, environmentManager = createManagerHandler(createAWSManager, config.Config.AWS.Enabled,
-		runnerManager, environmentManager)
+		runnerManager, environmentManager, ctx)
 
 	handler := api.NewRouter(runnerManager, environmentManager)
 	sentryHandler := sentryhttp.New(sentryhttp.Options{}).Handle(handler)
@@ -239,7 +241,7 @@ func main() {
 	stopProfiling := initProfiling(config.Config.Profiling)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	server := initServer()
+	server := initServer(ctx)
 	go runServer(server, cancel)
 	shutdownOnOSSignal(server, ctx, stopProfiling)
 }

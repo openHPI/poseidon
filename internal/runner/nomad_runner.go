@@ -244,7 +244,7 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 	}
 
 	if err == nil && !errors.Is(reason, ErrOOMKilled) {
-		err = util.RetryExponential(time.Second, func() (err error) {
+		err = util.RetryExponential(func() (err error) {
 			if err = r.api.DeleteJob(r.ID()); err != nil {
 				err = fmt.Errorf("error deleting runner in Nomad: %w", err)
 			}

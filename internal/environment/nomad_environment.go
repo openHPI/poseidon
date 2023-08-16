@@ -245,7 +245,7 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 	r, ok := n.idleRunners.Sample()
 	if ok && n.idleRunners.Length() < n.PrewarmingPoolSize() {
 		go func() {
-			err := util.RetryExponential(time.Second, func() error {
+			err := util.RetryExponential(func() error {
 				return n.createRunner(false)
 			})
 			if err != nil {

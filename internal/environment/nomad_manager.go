@@ -36,6 +36,7 @@ func NewNomadEnvironmentManager(
 	runnerManager runner.Manager,
 	apiClient nomad.ExecutorAPI,
 	templateJobFile string,
+	ctx context.Context,
 ) (*NomadEnvironmentManager, error) {
 	if err := loadTemplateEnvironmentJobHCL(templateJobFile); err != nil {
 		return nil, err
@@ -43,7 +44,7 @@ func NewNomadEnvironmentManager(
 
 	m := &NomadEnvironmentManager{&AbstractManager{nil, runnerManager},
 		apiClient, templateEnvironmentJobHCL}
-	if err := util.RetryExponential(func() error { return m.Load() }); err != nil {
+	if err := util.RetryExponentialContext(ctx, func() error { return m.Load() }); err != nil {
 		log.WithError(err).Error("Error recovering the execution environments")
 	}
 	runnerManager.Load()

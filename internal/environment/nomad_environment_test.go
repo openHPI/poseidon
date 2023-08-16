@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -18,7 +19,7 @@ import (
 func TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists(t *testing.T) {
 	_, job := helpers.CreateTemplateJob()
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
-	environment := &NomadEnvironment{nil, "", job, nil, nil, nil}
+	environment := &NomadEnvironment{nil, "", job, nil, context.Background(), nil}
 
 	if assert.Equal(t, 0, len(defaultTaskGroup.Networks)) {
 		environment.SetNetworkAccess(true, []uint16{})
@@ -30,7 +31,7 @@ func TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists(t *testing.T) {
 func TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkExists(t *testing.T) {
 	_, job := helpers.CreateTemplateJob()
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
-	environment := &NomadEnvironment{nil, "", job, nil, nil, nil}
+	environment := &NomadEnvironment{nil, "", job, nil, context.Background(), nil}
 
 	networkResource := &nomadApi.NetworkResource{Mode: "cni/secure-bridge"}
 	defaultTaskGroup.Networks = []*nomadApi.NetworkResource{networkResource}
@@ -59,7 +60,7 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 			_, testJob := helpers.CreateTemplateJob()
 			testTaskGroup := nomad.FindAndValidateDefaultTaskGroup(testJob)
 			testTask := nomad.FindAndValidateDefaultTask(testTaskGroup)
-			testEnvironment := &NomadEnvironment{nil, "", job, nil, nil, nil}
+			testEnvironment := &NomadEnvironment{nil, "", job, nil, context.Background(), nil}
 
 			testEnvironment.SetNetworkAccess(false, ports)
 			mode, ok := testTask.Config["network_mode"]
@@ -74,7 +75,7 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 			_, testJob := helpers.CreateTemplateJob()
 			testTaskGroup := nomad.FindAndValidateDefaultTaskGroup(testJob)
 			testTask := nomad.FindAndValidateDefaultTask(testTaskGroup)
-			testEnvironment := &NomadEnvironment{nil, "", testJob, nil, nil, nil}
+			testEnvironment := &NomadEnvironment{nil, "", testJob, nil, context.Background(), nil}
 
 			testEnvironment.SetNetworkAccess(true, ports)
 			require.Equal(t, 1, len(testTaskGroup.Networks))
@@ -133,7 +134,7 @@ func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
 	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{},
-		storage.NewLocalStorage[runner.Runner](), nil, nil}
+		storage.NewLocalStorage[runner.Runner](), context.Background(), nil}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -150,7 +151,7 @@ func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
 	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{},
-		storage.NewLocalStorage[runner.Runner](), nil, nil}
+		storage.NewLocalStorage[runner.Runner](), context.Background(), nil}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -177,7 +178,7 @@ func TestTwoSampleAddExactlyTwoRunners(t *testing.T) {
 
 	_, job := helpers.CreateTemplateJob()
 	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job,
-		storage.NewLocalStorage[runner.Runner](), nil, nil}
+		storage.NewLocalStorage[runner.Runner](), context.Background(), nil}
 	environment.SetPrewarmingPoolSize(2)
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
@@ -212,7 +213,7 @@ func TestSampleDoesNotSetForcePullFlag(t *testing.T) {
 
 	_, job := helpers.CreateTemplateJob()
 	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job,
-		storage.NewLocalStorage[runner.Runner](), nil, nil}
+		storage.NewLocalStorage[runner.Runner](), context.Background(), nil}
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
 	environment.AddRunner(runner1)

@@ -95,6 +95,9 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 }
 
 func TestNewNomadEnvironmentManager(t *testing.T) {
+	disableRecovery, cancel := context.WithCancel(context.Background())
+	cancel()
+
 	executorAPIMock := &nomad.ExecutorAPIMock{}
 	executorAPIMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
 
@@ -104,7 +107,7 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 	previousTemplateEnvironmentJobHCL := templateEnvironmentJobHCL
 
 	t.Run("returns error if template file does not exist", func(t *testing.T) {
-		_, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, "/non-existent/file")
+		_, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, "/non-existent/file", disableRecovery)
 		assert.Error(t, err)
 	})
 
@@ -115,7 +118,7 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 		f := createTempFile(t, templateJobHCL)
 		defer os.Remove(f.Name())
 
-		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
+		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name(), disableRecovery)
 		assert.NoError(t, err)
 		assert.NotNil(t, m)
 		assert.Equal(t, templateJobHCL, m.templateEnvironmentHCL)
@@ -126,7 +129,7 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 		f := createTempFile(t, templateJobHCL)
 		defer os.Remove(f.Name())
 
-		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
+		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name(), disableRecovery)
 		require.NoError(t, err)
 		_, err = NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil, m.templateEnvironmentHCL)
 		assert.Error(t, err)
@@ -136,6 +139,9 @@ func TestNewNomadEnvironmentManager(t *testing.T) {
 }
 
 func TestNomadEnvironmentManager_Get(t *testing.T) {
+	disableRecovery, cancel := context.WithCancel(context.Background())
+	cancel()
+
 	apiMock := &nomad.ExecutorAPIMock{}
 	mockWatchAllocations(apiMock)
 	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
@@ -146,7 +152,7 @@ func TestNomadEnvironmentManager_Get(t *testing.T) {
 	})
 
 	runnerManager := runner.NewNomadRunnerManager(apiMock, context.Background())
-	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "", disableRecovery)
 	require.NoError(t, err)
 
 	t.Run("Returns error when not found", func(t *testing.T) {
@@ -217,6 +223,9 @@ func TestNomadEnvironmentManager_Get(t *testing.T) {
 }
 
 func TestNomadEnvironmentManager_List(t *testing.T) {
+	disableRecovery, cancel := context.WithCancel(context.Background())
+	cancel()
+
 	apiMock := &nomad.ExecutorAPIMock{}
 	mockWatchAllocations(apiMock)
 	call := apiMock.On("LoadEnvironmentJobs")
@@ -225,7 +234,7 @@ func TestNomadEnvironmentManager_List(t *testing.T) {
 	})
 
 	runnerManager := runner.NewNomadRunnerManager(apiMock, context.Background())
-	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "", disableRecovery)
 	require.NoError(t, err)
 
 	t.Run("with no environments", func(t *testing.T) {
@@ -287,7 +296,7 @@ func TestNomadEnvironmentManager_Load(t *testing.T) {
 		_, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
 		require.False(t, ok)
 
-		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "", context.Background())
 		require.NoError(t, err)
 
 		environment, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
@@ -305,7 +314,7 @@ func TestNomadEnvironmentManager_Load(t *testing.T) {
 		_, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
 		require.False(t, ok)
 
-		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "", context.Background())
 		require.NoError(t, err)
 
 		_, ok = runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)

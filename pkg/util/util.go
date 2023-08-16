@@ -9,6 +9,8 @@ var (
 	log = logging.GetLogger("util")
 	// MaxConnectionRetriesExponential is the default number of retries. It's exported for testing reasons.
 	MaxConnectionRetriesExponential = 18
+	// InitialWaitingDuration is the default initial duration of waiting after a failed time.
+	InitialWaitingDuration = time.Second
 )
 
 // RetryExponentialAttempts executes the passed function
@@ -28,6 +30,10 @@ func RetryExponentialAttempts(attempts int, sleep time.Duration, f func() error)
 	return err
 }
 
-func RetryExponential(sleep time.Duration, f func() error) error {
+func RetryExponentialDuration(sleep time.Duration, f func() error) error {
 	return RetryExponentialAttempts(MaxConnectionRetriesExponential, sleep, f)
+}
+
+func RetryExponential(f func() error) error {
+	return RetryExponentialDuration(InitialWaitingDuration, f)
 }

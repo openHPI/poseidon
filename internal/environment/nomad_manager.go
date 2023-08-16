@@ -12,6 +12,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
+	"github.com/openHPI/poseidon/pkg/util"
 	"os"
 	"time"
 )
@@ -42,7 +43,7 @@ func NewNomadEnvironmentManager(
 
 	m := &NomadEnvironmentManager{&AbstractManager{nil, runnerManager},
 		apiClient, templateEnvironmentJobHCL}
-	if err := m.Load(); err != nil {
+	if err := util.RetryExponential(func() error { return m.Load() }); err != nil {
 		log.WithError(err).Error("Error recovering the execution environments")
 	}
 	runnerManager.Load()

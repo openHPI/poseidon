@@ -55,7 +55,7 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 }
 
 func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int) {
-	err := util.RetryExponential(time.Second, func() (err error) {
+	err := util.RetryExponential(func() (err error) {
 		if err = m.apiClient.MarkRunnerAsUsed(runner.ID(), timeoutDuration); err != nil {
 			err = fmt.Errorf("cannot mark runner as used: %w", err)
 		}

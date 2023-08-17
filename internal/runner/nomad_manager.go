@@ -129,7 +129,7 @@ func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
 		err := m.apiClient.WatchEventStream(ctx,
 			&nomad.AllocationProcessing{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
 		retries += 1
-		log.WithContext(ctx).WithError(err).Errorf("Stopped updating the runners! Retry %v", retries)
+		log.WithContext(ctx).WithError(err).WithField("count", retries).Errorf("Nomad Event Stream failed! Retrying...")
 		<-time.After(time.Second)
 	}
 }

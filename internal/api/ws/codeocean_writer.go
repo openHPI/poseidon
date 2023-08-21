@@ -144,7 +144,7 @@ func (cw *codeOceanOutputWriter) startWritingLoop(writingLoopDone context.Cancel
 			done = sendMessage(cw.connection, message.data, cw.ctx)
 		}
 		if done || message.done {
-			log.Debug("Writing loop done")
+			log.WithContext(cw.ctx).Trace("Writing loop done")
 			writingLoopDone()
 			return
 		}

@@ -40,6 +40,7 @@ func InitializeLogging(logLevel string, formatter dto.Formatter) {
 			TimestampFormat: TimestampFormat,
 		}
 	}
+	log.AddHook(&ContextHook{})
 	log.AddHook(&SentryHook{})
 	log.ExitFunc = func(i int) {
 		sentry.Flush(GracefulSentryShutdown)

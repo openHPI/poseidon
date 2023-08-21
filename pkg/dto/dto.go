@@ -194,9 +194,13 @@ type ContextKey string
 
 // Keys to reference information (for logging or monitoring).
 const (
-	KeyRunnerID      = "runner_id"
-	KeyEnvironmentID = "environment_id"
+	KeyRunnerID            = "runner_id"
+	KeyEnvironmentID       = "environment_id"
+	KeyRunnerDestroyReason = "destroy_reason"
 )
+
+// LoggedContextKeys defines which keys will be logged if a context is passed to logrus. See ContextHook.
+var LoggedContextKeys = []ContextKey{KeyRunnerID, KeyEnvironmentID, KeyRunnerDestroyReason}
 
 // WebSocketMessageType is the type for the messages from Poseidon to the client.
 type WebSocketMessageType string

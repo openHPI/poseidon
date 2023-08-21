@@ -64,7 +64,8 @@ type NomadJob struct {
 func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 	apiClient nomad.ExecutorAPI, onDestroy DestroyRunnerHandler,
 ) *NomadJob {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.WithValue(context.Background(), dto.ContextKey(dto.KeyRunnerID), id)
+	ctx, cancel := context.WithCancel(ctx)
 	job := &NomadJob{
 		id:           id,
 		portMappings: portMappings,
@@ -237,6 +238,7 @@ func (r *NomadJob) GetFileContent(
 
 func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 	r.ctx = context.WithValue(r.ctx, destroyReasonContextKey, reason)
+	log.WithContext(r.ctx).Debug("Destroying Runner")
 	r.cancel()
 	r.StopTimeout()
 	if r.onDestroy != nil {
@@ -254,6 +256,8 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 
 	if err != nil {
 		err = fmt.Errorf("cannot destroy runner: %w", err)
+	} else {
+		log.WithContext(r.ctx).Trace("Runner destroyed")
 	}
 	return err
 }

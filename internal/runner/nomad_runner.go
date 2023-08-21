@@ -149,7 +149,8 @@ func (r *NomadJob) ExecuteInteractively(
 }
 
 func (r *NomadJob) ListFileSystem(
-	path string, recursive bool, content io.Writer, privilegedExecution bool, ctx context.Context) error {
+	path string, recursive bool, content io.Writer, privilegedExecution bool, requestCtx context.Context) error {
+	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
 	command := lsCommand
 	if recursive {
@@ -173,7 +174,8 @@ func (r *NomadJob) ListFileSystem(
 	return err
 }
 
-func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, ctx context.Context) error {
+func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, requestCtx context.Context) error {
+	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
 
 	var tarBuffer bytes.Buffer
@@ -206,7 +208,8 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, ct
 }
 
 func (r *NomadJob) GetFileContent(
-	path string, content http.ResponseWriter, privilegedExecution bool, ctx context.Context) error {
+	path string, content http.ResponseWriter, privilegedExecution bool, requestCtx context.Context) error {
+	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
 
 	contentLengthWriter := &nullio.ContentLengthWriter{Target: content}

@@ -468,3 +468,30 @@ func (s *UpdateFileSystemTestSuite) TestGetFileContentReturnsErrorIfExitCodeIsNo
 	err := s.runner.GetFileContent("", logging.NewLoggingResponseWriter(nil), false, context.Background())
 	s.ErrorIs(err, ErrFileNotFound)
 }
+
+func (s *UpdateFileSystemTestSuite) TestFileCopyIsCanceledOnRunnerDestroy() {
+	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
+		ctx, ok := args.Get(1).(context.Context)
+		s.Require().True(ok)
+
+		select {
+		case <-ctx.Done():
+			s.Fail("mergeContext is done before any of its parents")
+			return
+		case <-time.After(tests.ShortTimeout):
+		}
+
+		select {
+		case <-ctx.Done():
+		case <-time.After(3 * tests.ShortTimeout):
+			s.Fail("mergeContext is not done after the earliest of its parents")
+			return
+		}
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	s.runner.ctx = ctx
+	s.runner.cancel = cancel
+
+	<-time.After(2 * tests.ShortTimeout)
+	s.runner.cancel()
+}

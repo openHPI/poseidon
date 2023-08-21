@@ -26,7 +26,7 @@ const (
 	// runnerContextKey is the key used to store runners in context.Context.
 	runnerContextKey dto.ContextKey = "runner"
 	// destroyReasonContextKey is the key used to store the reason of the destruction in the context.Context.
-	destroyReasonContextKey dto.ContextKey = "destroyReason"
+	destroyReasonContextKey dto.ContextKey = dto.KeyRunnerDestroyReason
 	// SIGQUIT is the character that causes a tty to send the SIGQUIT signal to the controlled process.
 	SIGQUIT = 0x1c
 	// executionTimeoutGracePeriod is the time to wait after sending a SIGQUIT signal to a timed out execution.

@@ -19,9 +19,7 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	var hub *sentry.Hub
 	if entry.Context != nil {
 		hub = sentry.GetHubFromContext(entry.Context)
-		// This might overwrite valid data when not the request context is passed.
-		entry.Data[dto.KeyRunnerID] = entry.Context.Value(dto.ContextKey(dto.KeyRunnerID))
-		entry.Data[dto.KeyEnvironmentID] = entry.Context.Value(dto.ContextKey(dto.KeyEnvironmentID))
+		injectContextValuesIntoData(entry)
 	}
 	if hub == nil {
 		hub = sentry.CurrentHub()

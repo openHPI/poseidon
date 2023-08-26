@@ -39,7 +39,6 @@ func (m mergeContext) Done() <-chan struct{} {
 	}
 	go func(cases []reflect.SelectCase, ch chan struct{}) {
 		_, _, _ = reflect.Select(cases)
-		ch <- struct{}{}
 		close(ch)
 	}(cases, ch)
 	return ch

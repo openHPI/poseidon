@@ -339,13 +339,6 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 		return nil
 	}
 
-	log.WithField("alloc_id", alloc.ID).
-		WithField("ClientStatus", alloc.ClientStatus).
-		WithField("DesiredStatus", alloc.DesiredStatus).
-		WithField("PrevAllocation", alloc.PreviousAllocation).
-		WithField("NextAllocation", alloc.NextAllocation).
-		Debug("Handle Allocation Event")
-
 	// When starting the API and listening on the Nomad event stream we might get events that already
 	// happened from Nomad as it seems to buffer them for a certain duration.
 	// Ignore old events here.
@@ -356,6 +349,13 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 	if valid := filterDuplicateEvents(alloc, allocations); !valid {
 		return nil
 	}
+
+	log.WithField("alloc_id", alloc.ID).
+		WithField("ClientStatus", alloc.ClientStatus).
+		WithField("DesiredStatus", alloc.DesiredStatus).
+		WithField("PrevAllocation", alloc.PreviousAllocation).
+		WithField("NextAllocation", alloc.NextAllocation).
+		Debug("Handle Allocation Event")
 
 	allocData := updateAllocationData(alloc, allocations)
 
@@ -387,10 +387,10 @@ func filterDuplicateEvents(alloc *nomadApi.Allocation, allocations storage.Stora
 		return true
 	case !ok:
 		// This case happens in case of an error or when an event that led to the deletion of the alloc data is duplicated.
-		log.WithField("alloc", alloc).Trace("Ignoring unknown allocation")
+		log.WithField("alloc", alloc).Debug("Ignoring unknown allocation")
 		return false
 	case alloc.ClientStatus == allocData.allocClientStatus && alloc.DesiredStatus == allocData.allocDesiredStatus:
-		log.WithField("alloc", alloc).Trace("Ignoring duplicate event")
+		log.WithField("alloc", alloc).Debug("Ignoring duplicate event")
 		return false
 	default:
 		return true

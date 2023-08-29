@@ -198,7 +198,7 @@ func (m *NomadRunnerManager) onAllocationStopped(runnerID string, reason error) 
 
 	environment, ok := m.environments.Get(environmentID.ToString())
 	if ok {
-		environment.DeleteRunner(runnerID)
+		stillActive = stillActive || environment.DeleteRunner(runnerID)
 	}
 
 	return !stillActive

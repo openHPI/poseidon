@@ -373,6 +373,15 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 }
 
 func (s *ManagerTestSuite) TestOnAllocationStopped() {
+	s.Run("returns false for idle runner", func() {
+		environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
+		s.Require().True(ok)
+		mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+
+		environment.AddRunner(NewNomadJob(tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(r Runner) error { return nil }))
+		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(tests.DefaultRunnerID, nil)
+		s.False(alreadyRemoved)
+	})
 	s.Run("stops inactivity timer", func() {
 		testStoppedInactivityTimer(s, true)
 	})

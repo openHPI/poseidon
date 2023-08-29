@@ -79,6 +79,7 @@ func mockIdleRunners(environmentMock *ExecutionEnvironmentMock) {
 	deleteCall := environmentMock.On("DeleteRunner", mock.AnythingOfType("string"))
 	deleteCall.Run(func(args mock.Arguments) {
 		id, ok := args.Get(0).(string)
+		deleteCall.ReturnArguments = mock.Arguments{ok}
 		if !ok {
 			return
 		}
@@ -150,7 +151,7 @@ func (s *ManagerTestSuite) TestClaimAddsRunnerToUsedRunners() {
 
 func (s *ManagerTestSuite) TestClaimRemovesRunnerWhenMarkAsUsedFails() {
 	s.exerciseEnvironment.On("Sample", mock.Anything).Return(s.exerciseRunner, true)
-	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return()
+	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return(false)
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	util.MaxConnectionRetriesExponential = 1
 	modifyMockedCall(s.apiMock, "MarkRunnerAsUsed", func(call *mock.Call) {
@@ -182,7 +183,7 @@ func (s *ManagerTestSuite) TestGetReturnsErrorIfRunnerNotFound() {
 
 func (s *ManagerTestSuite) TestReturnRemovesRunnerFromUsedRunners() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return()
+	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return(false)
 	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner.ID(), s.exerciseRunner)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Nil(err)
@@ -192,7 +193,7 @@ func (s *ManagerTestSuite) TestReturnRemovesRunnerFromUsedRunners() {
 
 func (s *ManagerTestSuite) TestReturnCallsDeleteRunnerApiMethod() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return()
+	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return(false)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Nil(err)
 	s.apiMock.AssertCalled(s.T(), "DeleteJob", s.exerciseRunner.ID())
@@ -200,7 +201,7 @@ func (s *ManagerTestSuite) TestReturnCallsDeleteRunnerApiMethod() {
 
 func (s *ManagerTestSuite) TestReturnReturnsErrorWhenApiCallFailed() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(tests.ErrDefault)
-	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return()
+	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return(false)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
 	s.Error(err)
 }
@@ -378,7 +379,8 @@ func (s *ManagerTestSuite) TestOnAllocationStopped() {
 		s.Require().True(ok)
 		mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
-		environment.AddRunner(NewNomadJob(tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(r Runner) error { return nil }))
+		environment.AddRunner(
+			NewNomadJob(tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(r Runner) error { return nil }))
 		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(tests.DefaultRunnerID, nil)
 		s.False(alreadyRemoved)
 	})
@@ -465,7 +467,7 @@ func TestNomadRunnerManager_Load(t *testing.T) {
 	runnerManager.usedRunners.Purge()
 	t.Run("Restart timeout of used runner", func(t *testing.T) {
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-		environmentMock.On("DeleteRunner", mock.AnythingOfType("string")).Once().Return()
+		environmentMock.On("DeleteRunner", mock.AnythingOfType("string")).Once().Return(false)
 		timeout := 1
 
 		_, job := helpers.CreateTemplateJob()

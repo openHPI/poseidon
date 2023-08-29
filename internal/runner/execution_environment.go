@@ -46,7 +46,8 @@ type ExecutionEnvironment interface {
 	// AddRunner adds an existing runner to the idle runners of the environment.
 	AddRunner(r Runner)
 	// DeleteRunner removes an idle runner from the environment.
-	DeleteRunner(id string)
+	// ok is true iff the runner was found (and deleted).
+	DeleteRunner(id string) (ok bool)
 	// IdleRunnerCount returns the number of idle runners of the environment.
 	IdleRunnerCount() uint
 }

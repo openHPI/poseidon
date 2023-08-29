@@ -261,8 +261,10 @@ func (n *NomadEnvironment) AddRunner(r runner.Runner) {
 	n.idleRunners.Add(r.ID(), r)
 }
 
-func (n *NomadEnvironment) DeleteRunner(id string) {
+func (n *NomadEnvironment) DeleteRunner(id string) (ok bool) {
+	_, ok = n.idleRunners.Get(id)
 	n.idleRunners.Delete(id)
+	return ok
 }
 
 func (n *NomadEnvironment) IdleRunnerCount() uint {

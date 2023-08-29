@@ -47,6 +47,9 @@ type AllocationProcessing struct {
 	OnDeleted DeletedAllocationProcessor
 }
 type RunnerDeletedReason error
+
+// DeletedAllocationProcessor is a handler that will be called for each deleted allocation.
+// removedByPoseidon should be true iff the Nomad Manager has removed the runner before.
 type DeletedAllocationProcessor func(jobID string, RunnerDeletedReason error) (removedByPoseidon bool)
 type NewAllocationProcessor func(*nomadApi.Allocation, time.Duration)
 

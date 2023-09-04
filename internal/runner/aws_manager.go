@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"time"
@@ -11,8 +12,8 @@ type AWSRunnerManager struct {
 }
 
 // NewAWSRunnerManager creates a new runner manager that keeps track of all runners at AWS.
-func NewAWSRunnerManager() *AWSRunnerManager {
-	return &AWSRunnerManager{NewAbstractManager()}
+func NewAWSRunnerManager(ctx context.Context) *AWSRunnerManager {
+	return &AWSRunnerManager{NewAbstractManager(ctx)}
 }
 
 func (a AWSRunnerManager) Claim(id dto.EnvironmentID, duration int) (Runner, error) {

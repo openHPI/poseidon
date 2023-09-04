@@ -32,7 +32,7 @@ type NomadRunnerManager struct {
 // It uses the apiClient for all requests and runs a background task to keep the runners in sync with Nomad.
 // If you cancel the context the background synchronization will be stopped.
 func NewNomadRunnerManager(apiClient nomad.ExecutorAPI, ctx context.Context) *NomadRunnerManager {
-	m := &NomadRunnerManager{NewAbstractManager(), apiClient}
+	m := &NomadRunnerManager{NewAbstractManager(ctx), apiClient}
 	go m.keepRunnersSynced(ctx)
 	return m
 }

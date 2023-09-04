@@ -169,8 +169,9 @@ func createNomadManager(ctx context.Context) (
 	return runnerManager, environmentManager
 }
 
-func createAWSManager(_ context.Context) (runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
-	runnerManager = runner.NewAWSRunnerManager()
+func createAWSManager(ctx context.Context) (
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+	runnerManager = runner.NewAWSRunnerManager(ctx)
 	return runnerManager, environment.NewAWSEnvironmentManager(runnerManager)
 }
 

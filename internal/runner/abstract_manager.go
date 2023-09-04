@@ -24,12 +24,12 @@ type AbstractManager struct {
 
 // NewAbstractManager creates a new abstract runner manager that keeps track of all runners of one kind.
 // Since this manager is currently directly bound to the lifespan of Poseidon, it does not need a context cancel.
-func NewAbstractManager() *AbstractManager {
+func NewAbstractManager(ctx context.Context) *AbstractManager {
 	return &AbstractManager{
 		environments: storage.NewMonitoredLocalStorage[ExecutionEnvironment](
-			monitoring.MeasurementEnvironments, monitorEnvironmentData, 0, context.Background()),
+			monitoring.MeasurementEnvironments, monitorEnvironmentData, 0, ctx),
 		usedRunners: storage.NewMonitoredLocalStorage[Runner](
-			monitoring.MeasurementUsedRunner, MonitorRunnersEnvironmentID, time.Hour, context.Background()),
+			monitoring.MeasurementUsedRunner, MonitorRunnersEnvironmentID, time.Hour, ctx),
 	}
 }
 
@@ -55,7 +55,9 @@ func (n *AbstractManager) NextHandler() AccessorHandler {
 	if n.HasNextHandler() {
 		return n.nextHandler
 	} else {
-		return NewAbstractManager()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		return NewAbstractManager(ctx)
 	}
 }
 

@@ -17,7 +17,7 @@ func TestAWSDisabledUsesNomadManager(t *testing.T) {
 	cancel()
 
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, true,
-		runner.NewAbstractManager(), &environment.AbstractManager{}, disableRecovery)
+		runner.NewAbstractManager(disableRecovery), &environment.AbstractManager{}, disableRecovery)
 	awsRunnerManager, awsEnvironmentManager := createManagerHandler(createAWSManager, false,
 		runnerManager, environmentManager, disableRecovery)
 	assert.Equal(t, runnerManager, awsRunnerManager)
@@ -29,7 +29,7 @@ func TestAWSEnabledWrappesNomadManager(t *testing.T) {
 	cancel()
 
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, true,
-		runner.NewAbstractManager(), &environment.AbstractManager{}, disableRecovery)
+		runner.NewAbstractManager(disableRecovery), &environment.AbstractManager{}, disableRecovery)
 	awsRunnerManager, awsEnvironmentManager := createManagerHandler(createAWSManager,
 		true, runnerManager, environmentManager, disableRecovery)
 	assert.NotEqual(t, runnerManager, awsRunnerManager)

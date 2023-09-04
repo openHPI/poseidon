@@ -25,6 +25,7 @@ const (
 	AnotherRunnerID               = AnotherEnvironmentIDAsString + "-" + AnotherUUID
 	DefaultExecutionID            = "s0m3-3x3cu710n-1d"
 	DefaultMockID                 = "m0ck-1d"
+	TinyTimeout                   = 10 * time.Millisecond
 	ShortTimeout                  = 100 * time.Millisecond
 	DefaultTestTimeout            = 10 * time.Minute
 )

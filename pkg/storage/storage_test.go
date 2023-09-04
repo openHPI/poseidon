@@ -181,10 +181,12 @@ func TestNewMonitoredLocalStorage_Periodically(t *testing.T) {
 	NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, eventType EventType) {
 		callbackCalls++
 		assert.Equal(t, Periodically, eventType)
-	}, 200*time.Millisecond, ctx)
+	}, 2*tests.ShortTimeout, ctx)
 
-	time.Sleep(tests.ShortTimeout)
+	<-time.After(tests.ShortTimeout)
+	assert.Equal(t, 0, callbackCalls)
+	<-time.After(2 * tests.ShortTimeout)
 	assert.Equal(t, 1, callbackCalls)
-	time.Sleep(200 * time.Millisecond)
+	<-time.After(2 * tests.ShortTimeout)
 	assert.Equal(t, 2, callbackCalls)
 }

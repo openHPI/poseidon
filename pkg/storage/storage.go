@@ -173,9 +173,13 @@ func (s *localStorage[T]) sendMonitoringData(id string, o T, eventType EventType
 }
 
 func (s *localStorage[T]) periodicallySendMonitoringData(d time.Duration, ctx context.Context) {
-	for ctx.Err() == nil {
-		stub := new(T)
-		s.sendMonitoringData("", *stub, Periodically, s.Length())
-		<-time.After(d)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(d):
+			stub := new(T)
+			s.sendMonitoringData("", *stub, Periodically, s.Length())
+		}
 	}
 }

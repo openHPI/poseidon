@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/assert"
@@ -9,7 +10,9 @@ import (
 )
 
 func TestAWSRunnerManager_EnvironmentAccessor(t *testing.T) {
-	m := NewAWSRunnerManager()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := NewAWSRunnerManager(ctx)
 
 	environments := m.ListEnvironments()
 	assert.Empty(t, environments)
@@ -30,7 +33,9 @@ func TestAWSRunnerManager_EnvironmentAccessor(t *testing.T) {
 }
 
 func TestAWSRunnerManager_Claim(t *testing.T) {
-	m := NewAWSRunnerManager()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := NewAWSRunnerManager(ctx)
 	environment := createBasicEnvironmentMock(defaultEnvironmentID)
 	r, err := NewAWSFunctionWorkload(environment, nil)
 	assert.NoError(t, err)
@@ -56,7 +61,9 @@ func TestAWSRunnerManager_Claim(t *testing.T) {
 }
 
 func TestAWSRunnerManager_Return(t *testing.T) {
-	m := NewAWSRunnerManager()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := NewAWSRunnerManager(ctx)
 	environment := createBasicEnvironmentMock(defaultEnvironmentID)
 	m.StoreEnvironment(environment)
 	r, err := NewAWSFunctionWorkload(environment, nil)

@@ -13,7 +13,9 @@ import (
 )
 
 func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
-	runnerManager := runner.NewAWSRunnerManager()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runnerManager := runner.NewAWSRunnerManager(ctx)
 	m := NewAWSEnvironmentManager(runnerManager)
 	uniqueImage := "java11Exec"
 
@@ -45,7 +47,9 @@ func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
 }
 
 func TestAWSEnvironmentManager_Get(t *testing.T) {
-	runnerManager := runner.NewAWSRunnerManager()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runnerManager := runner.NewAWSRunnerManager(ctx)
 	m := NewAWSEnvironmentManager(runnerManager)
 
 	t.Run("Calls next handler when not found", func(t *testing.T) {
@@ -79,7 +83,9 @@ func TestAWSEnvironmentManager_Get(t *testing.T) {
 }
 
 func TestAWSEnvironmentManager_List(t *testing.T) {
-	runnerManager := runner.NewAWSRunnerManager()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runnerManager := runner.NewAWSRunnerManager(ctx)
 	m := NewAWSEnvironmentManager(runnerManager)
 
 	t.Run("also returns environments of the rest of the manager chain", func(t *testing.T) {

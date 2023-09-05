@@ -245,7 +245,7 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 	r, ok := n.idleRunners.Sample()
 	if ok && n.idleRunners.Length() < n.PrewarmingPoolSize() {
 		go func() {
-			err := util.RetryExponentialContext(n.ctx, func() error { return n.createRunner(false) })
+			err := util.RetryExponentialWithContext(n.ctx, func() error { return n.createRunner(false) })
 			if err != nil {
 				log.WithError(err).WithField(dto.KeyEnvironmentID, n.ID().ToString()).
 					Error("Couldn't create new runner for claimed one")

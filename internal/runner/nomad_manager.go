@@ -12,6 +12,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/util"
 	"github.com/sirupsen/logrus"
+	"math"
 	"strconv"
 	"time"
 )
@@ -125,13 +126,17 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environmentLogger 
 }
 
 func (m *NomadRunnerManager) keepRunnersSynced(ctx context.Context) {
-	retries := 0
-	for ctx.Err() == nil {
+	err := util.RetryConstantAttemptsWithContext(math.MaxInt, ctx, func() error {
 		err := m.apiClient.WatchEventStream(ctx,
 			&nomad.AllocationProcessing{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
-		retries += 1
-		log.WithContext(ctx).WithError(err).WithField("count", retries).Errorf("Nomad Event Stream failed! Retrying...")
-		<-time.After(time.Second)
+		if err != nil && !(errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
+			log.WithContext(ctx).WithError(err).Errorf("Nomad Event Stream failed! Retrying...")
+			err = fmt.Errorf("KeepRunnersSynced: %w", err)
+		}
+		return err
+	})
+	if err != nil && !(errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
+		log.WithContext(ctx).WithError(err).Fatal("Stopped Restarting the Nomad Event Stream")
 	}
 }
 

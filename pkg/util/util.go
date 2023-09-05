@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"time"
@@ -15,33 +16,66 @@ var (
 	InitialWaitingDuration = time.Second
 )
 
-// RetryExponentialAttemptsContext executes the passed function
-// with exponentially increasing time in between starting at the passed sleep duration
-// up to a maximum of attempts tries as long as the context is not done.
-func RetryExponentialAttemptsContext(
-	ctx context.Context, attempts int, sleep time.Duration, f func() error) (err error) {
-	for i := 0; i < attempts; i++ {
-		if ctx.Err() != nil {
-			return fmt.Errorf("stopped retry due to: %w", ctx.Err())
-		} else if err = f(); err == nil {
-			return nil
-		} else {
-			log.WithField("count", i).WithError(err).Debug("retrying after error")
-			time.Sleep(sleep)
-			sleep *= 2
+func retryExponential(ctx context.Context, sleep time.Duration, f func() error) func() error {
+	return func() error {
+		err := f()
+
+		if err != nil {
+			select {
+			case <-ctx.Done():
+			case <-time.After(sleep):
+				sleep *= 2
+			}
 		}
+
+		return err
+	}
+}
+
+func retryConstant(ctx context.Context, sleep time.Duration, f func() error) func() error {
+	return func() error {
+		err := f()
+
+		if err != nil {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("stopped retrying: %w", ctx.Err())
+			case <-time.After(sleep):
+			}
+		}
+
+		return err
+	}
+}
+
+func retryAttempts(maxAttempts int, f func() error) (err error) {
+	for i := 0; i < maxAttempts; i++ {
+		err = f()
+		if err == nil {
+			return nil
+		} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return err
+		}
+		log.WithField("count", i).WithError(err).Debug("retrying after error")
 	}
 	return err
 }
 
-func RetryExponentialContext(ctx context.Context, f func() error) error {
-	return RetryExponentialAttemptsContext(ctx, MaxConnectionRetriesExponential, InitialWaitingDuration, f)
+// RetryExponentialWithContext executes the passed function with exponentially increasing time starting with one second
+// up to a default maximum number of attempts as long as the context is not done.
+func RetryExponentialWithContext(ctx context.Context, f func() error) error {
+	return retryAttempts(MaxConnectionRetriesExponential, retryExponential(ctx, InitialWaitingDuration, f))
 }
 
-func RetryExponentialDuration(sleep time.Duration, f func() error) error {
-	return RetryExponentialAttemptsContext(context.Background(), MaxConnectionRetriesExponential, sleep, f)
-}
-
+// RetryExponential executes the passed function with exponentially increasing time starting with one second
+// up to a default maximum number of attempts.
 func RetryExponential(f func() error) error {
-	return RetryExponentialDuration(InitialWaitingDuration, f)
+	return retryAttempts(MaxConnectionRetriesExponential,
+		retryExponential(context.Background(), InitialWaitingDuration, f))
+}
+
+// RetryConstantAttemptsWithContext executes the passed function with a constant retry delay of one second
+// up to the passed maximum number of attempts as long as the context is not done.
+func RetryConstantAttemptsWithContext(attempts int, ctx context.Context, f func() error) error {
+	return retryAttempts(attempts, retryConstant(ctx, InitialWaitingDuration, f))
 }

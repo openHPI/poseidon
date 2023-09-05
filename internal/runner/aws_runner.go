@@ -87,6 +87,8 @@ func (w *AWSFunctionWorkload) ExecutionExists(id string) bool {
 	return ok
 }
 
+// ExecuteInteractively runs the execution request in an AWS function.
+// It should be further improved by using the passed context to handle lost connections.
 func (w *AWSFunctionWorkload) ExecuteInteractively(
 	id string, _ io.ReadWriter, stdout, stderr io.Writer, _ context.Context) (
 	<-chan ExitInfo, context.CancelFunc, error) {

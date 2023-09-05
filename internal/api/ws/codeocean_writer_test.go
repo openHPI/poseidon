@@ -6,45 +6,44 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/stretchr/testify/assert"
+	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"testing"
 )
 
-func TestRawToCodeOceanWriter(t *testing.T) {
-	connectionMock, message := buildConnectionMock(t)
+func (s *MainTestSuite) TestRawToCodeOceanWriter() {
+	connectionMock, messages := buildConnectionMock(&s.MemoryLeakTestSuite)
 	proxyCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	output := NewCodeOceanOutputWriter(connectionMock, proxyCtx, cancel)
-	<-message // start message
+	defer output.Close(nil)
+	<-messages // start messages
 
-	t.Run("StdOut", func(t *testing.T) {
+	s.Run("StdOut", func() {
 		testMessage := "testStdOut"
 		_, err := output.StdOut().Write([]byte(testMessage))
-		require.NoError(t, err)
+		s.Require().NoError(err)
 
 		expected, err := json.Marshal(struct {
 			Type string `json:"type"`
 			Data string `json:"data"`
 		}{string(dto.WebSocketOutputStdout), testMessage})
-		require.NoError(t, err)
+		s.Require().NoError(err)
 
-		assert.Equal(t, expected, <-message)
+		s.Equal(expected, <-messages)
 	})
 
-	t.Run("StdErr", func(t *testing.T) {
+	s.Run("StdErr", func() {
 		testMessage := "testStdErr"
 		_, err := output.StdErr().Write([]byte(testMessage))
-		require.NoError(t, err)
+		s.Require().NoError(err)
 
 		expected, err := json.Marshal(struct {
 			Type string `json:"type"`
 			Data string `json:"data"`
 		}{string(dto.WebSocketOutputStderr), testMessage})
-		require.NoError(t, err)
+		s.Require().NoError(err)
 
-		assert.Equal(t, expected, <-message)
+		s.Equal(expected, <-messages)
 	})
 }
 
@@ -54,7 +53,7 @@ type sendExitInfoTestCase struct {
 	message dto.WebSocketMessage
 }
 
-func TestCodeOceanOutputWriter_SendExitInfo(t *testing.T) {
+func (s *MainTestSuite) TestCodeOceanOutputWriter_SendExitInfo() {
 	testCases := []sendExitInfoTestCase{
 		{"Timeout", &runner.ExitInfo{Err: runner.ErrorRunnerInactivityTimeout},
 			dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout}},
@@ -68,36 +67,41 @@ func TestCodeOceanOutputWriter_SendExitInfo(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			connectionMock, message := buildConnectionMock(t)
+		s.Run(test.name, func() {
+			connectionMock, messages := buildConnectionMock(&s.MemoryLeakTestSuite)
 			proxyCtx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			output := NewCodeOceanOutputWriter(connectionMock, proxyCtx, cancel)
-			<-message // start message
+			<-messages // start messages
 
 			output.Close(test.info)
 			expected, err := json.Marshal(test.message)
-			require.NoError(t, err)
+			s.Require().NoError(err)
 
-			msg := <-message
-			assert.Equal(t, expected, msg)
+			msg := <-messages
+			s.Equal(expected, msg)
+
+			<-messages // close message
 		})
 	}
 }
 
-func buildConnectionMock(t *testing.T) (conn *ConnectionMock, messages chan []byte) {
-	t.Helper()
+func buildConnectionMock(s *tests.MemoryLeakTestSuite) (conn *ConnectionMock, messages <-chan []byte) {
+	s.T().Helper()
 	message := make(chan []byte)
 	connectionMock := &ConnectionMock{}
 	connectionMock.On("WriteMessage", mock.AnythingOfType("int"), mock.AnythingOfType("[]uint8")).
 		Run(func(args mock.Arguments) {
 			m, ok := args.Get(1).([]byte)
-			require.True(t, ok)
-			message <- m
+			s.Require().True(ok)
+			select {
+			case <-s.TestCtx.Done():
+			case message <- m:
+			}
 		}).
 		Return(nil)
 	connectionMock.On("CloseHandler").Return(nil)
 	connectionMock.On("SetCloseHandler", mock.Anything).Return()
-	connectionMock.On("Close").Return()
+	connectionMock.On("Close").Return(nil)
 	return connectionMock, message
 }

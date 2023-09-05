@@ -5,41 +5,51 @@ import (
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/tests"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"syscall"
 	"testing"
 	"time"
 )
 
-func TestAWSDisabledUsesNomadManager(t *testing.T) {
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
+
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestAWSDisabledUsesNomadManager() {
 	disableRecovery, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, true,
-		runner.NewAbstractManager(disableRecovery), &environment.AbstractManager{}, disableRecovery)
+		runner.NewAbstractManager(s.TestCtx), &environment.AbstractManager{}, disableRecovery)
 	awsRunnerManager, awsEnvironmentManager := createManagerHandler(createAWSManager, false,
-		runnerManager, environmentManager, disableRecovery)
-	assert.Equal(t, runnerManager, awsRunnerManager)
-	assert.Equal(t, environmentManager, awsEnvironmentManager)
+		runnerManager, environmentManager, s.TestCtx)
+	s.Equal(runnerManager, awsRunnerManager)
+	s.Equal(environmentManager, awsEnvironmentManager)
 }
 
-func TestAWSEnabledWrappesNomadManager(t *testing.T) {
+func (s *MainTestSuite) TestAWSEnabledWrappesNomadManager() {
 	disableRecovery, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, true,
-		runner.NewAbstractManager(disableRecovery), &environment.AbstractManager{}, disableRecovery)
+		runner.NewAbstractManager(s.TestCtx), &environment.AbstractManager{}, disableRecovery)
 	awsRunnerManager, awsEnvironmentManager := createManagerHandler(createAWSManager,
-		true, runnerManager, environmentManager, disableRecovery)
-	assert.NotEqual(t, runnerManager, awsRunnerManager)
-	assert.NotEqual(t, environmentManager, awsEnvironmentManager)
+		true, runnerManager, environmentManager, s.TestCtx)
+	s.NotEqual(runnerManager, awsRunnerManager)
+	s.NotEqual(environmentManager, awsEnvironmentManager)
 }
 
-func TestShutdownOnOSSignal_Profiling(t *testing.T) {
+func (s *MainTestSuite) TestShutdownOnOSSignal_Profiling() {
 	called := false
 	disableRecovery, cancel := context.WithCancel(context.Background())
 	cancel()
+
+	s.ExpectedGoroutingIncrease++ // The shutdownOnOSSignal waits for an exit after stopping the profiling.
+	s.ExpectedGoroutingIncrease++ // The shutdownOnOSSignal triggers a os.Signal Goroutine.
 
 	server := initServer(disableRecovery)
 	go shutdownOnOSSignal(server, context.Background(), func() {
@@ -48,8 +58,8 @@ func TestShutdownOnOSSignal_Profiling(t *testing.T) {
 
 	<-time.After(tests.ShortTimeout)
 	err := syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 	<-time.After(tests.ShortTimeout)
 
-	assert.True(t, called)
+	s.True(called)
 }

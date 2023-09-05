@@ -11,24 +11,23 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
 
-func TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists(t *testing.T) {
+func (s *MainTestSuite) TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists() {
 	_, job := helpers.CreateTemplateJob()
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 	environment := &NomadEnvironment{nil, "", job, nil, context.Background(), nil}
 
-	if assert.Equal(t, 0, len(defaultTaskGroup.Networks)) {
+	if s.Equal(0, len(defaultTaskGroup.Networks)) {
 		environment.SetNetworkAccess(true, []uint16{})
 
-		assert.Equal(t, 1, len(defaultTaskGroup.Networks))
+		s.Equal(1, len(defaultTaskGroup.Networks))
 	}
 }
 
-func TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkExists(t *testing.T) {
+func (s *MainTestSuite) TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkExists() {
 	_, job := helpers.CreateTemplateJob()
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 	environment := &NomadEnvironment{nil, "", job, nil, context.Background(), nil}
@@ -36,26 +35,26 @@ func TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkExists(t *testing.T) 
 	networkResource := &nomadApi.NetworkResource{Mode: "cni/secure-bridge"}
 	defaultTaskGroup.Networks = []*nomadApi.NetworkResource{networkResource}
 
-	if assert.Equal(t, 1, len(defaultTaskGroup.Networks)) {
+	if s.Equal(1, len(defaultTaskGroup.Networks)) {
 		environment.SetNetworkAccess(true, []uint16{})
 
-		assert.Equal(t, 1, len(defaultTaskGroup.Networks))
-		assert.Equal(t, networkResource, defaultTaskGroup.Networks[0])
+		s.Equal(1, len(defaultTaskGroup.Networks))
+		s.Equal(networkResource, defaultTaskGroup.Networks[0])
 	}
 }
 
-func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
+func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 	_, job := helpers.CreateTemplateJob()
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
 	mode, ok := defaultTask.Config["network_mode"]
-	assert.True(t, ok)
-	assert.Equal(t, "none", mode)
-	assert.Equal(t, 0, len(defaultTaskGroup.Networks))
+	s.True(ok)
+	s.Equal("none", mode)
+	s.Equal(0, len(defaultTaskGroup.Networks))
 
 	exposedPortsTests := [][]uint16{{}, {1337}, {42, 1337}}
-	t.Run("with no network access", func(t *testing.T) {
+	s.Run("with no network access", func() {
 		for _, ports := range exposedPortsTests {
 			_, testJob := helpers.CreateTemplateJob()
 			testTaskGroup := nomad.FindAndValidateDefaultTaskGroup(testJob)
@@ -64,13 +63,13 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 
 			testEnvironment.SetNetworkAccess(false, ports)
 			mode, ok := testTask.Config["network_mode"]
-			assert.True(t, ok)
-			assert.Equal(t, "none", mode)
-			assert.Equal(t, 0, len(testTaskGroup.Networks))
+			s.True(ok)
+			s.Equal("none", mode)
+			s.Equal(0, len(testTaskGroup.Networks))
 		}
 	})
 
-	t.Run("with network access", func(t *testing.T) {
+	s.Run("with network access", func() {
 		for _, ports := range exposedPortsTests {
 			_, testJob := helpers.CreateTemplateJob()
 			testTaskGroup := nomad.FindAndValidateDefaultTaskGroup(testJob)
@@ -78,17 +77,17 @@ func TestConfigureNetworkSetsCorrectValues(t *testing.T) {
 			testEnvironment := &NomadEnvironment{nil, "", testJob, nil, context.Background(), nil}
 
 			testEnvironment.SetNetworkAccess(true, ports)
-			require.Equal(t, 1, len(testTaskGroup.Networks))
+			s.Require().Equal(1, len(testTaskGroup.Networks))
 
 			networkResource := testTaskGroup.Networks[0]
-			assert.Equal(t, "cni/secure-bridge", networkResource.Mode)
-			require.Equal(t, len(ports), len(networkResource.DynamicPorts))
+			s.Equal("cni/secure-bridge", networkResource.Mode)
+			s.Require().Equal(len(ports), len(networkResource.DynamicPorts))
 
-			assertExpectedPorts(t, ports, networkResource)
+			assertExpectedPorts(s.T(), ports, networkResource)
 
 			mode, ok := testTask.Config["network_mode"]
-			assert.True(t, ok)
-			assert.Equal(t, mode, "")
+			s.True(ok)
+			s.Equal(mode, "")
 		}
 	})
 }
@@ -107,7 +106,7 @@ func assertExpectedPorts(t *testing.T, expectedPorts []uint16, networkResource *
 	}
 }
 
-func TestRegisterFailsWhenNomadJobRegistrationFails(t *testing.T) {
+func (s *MainTestSuite) TestRegisterFailsWhenNomadJobRegistrationFails() {
 	apiClientMock := &nomad.ExecutorAPIMock{}
 	expectedErr := tests.ErrDefault
 
@@ -120,11 +119,11 @@ func TestRegisterFailsWhenNomadJobRegistrationFails(t *testing.T) {
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
-	assert.ErrorIs(t, err, expectedErr)
-	apiClientMock.AssertNotCalled(t, "MonitorEvaluation")
+	s.ErrorIs(err, expectedErr)
+	apiClientMock.AssertNotCalled(s.T(), "MonitorEvaluation")
 }
 
-func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.T) {
+func (s *MainTestSuite) TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds() {
 	apiClientMock := &nomad.ExecutorAPIMock{}
 	evaluationID := "id"
 
@@ -138,10 +137,10 @@ func TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationSucceeds(t *testing.
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
-	assert.NoError(t, err)
+	s.NoError(err)
 }
 
-func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing.T) {
+func (s *MainTestSuite) TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails() {
 	apiClientMock := &nomad.ExecutorAPIMock{}
 	evaluationID := "id"
 
@@ -155,24 +154,28 @@ func TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails(t *testing
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
-	assert.ErrorIs(t, err, tests.ErrDefault)
+	s.ErrorIs(err, tests.ErrDefault)
 }
 
-func TestParseJob(t *testing.T) {
-	t.Run("parses the given default job", func(t *testing.T) {
-		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil, templateEnvironmentJobHCL)
-		assert.NoError(t, err)
-		assert.NotNil(t, environment.job)
+func (s *MainTestSuite) TestParseJob() {
+	apiMock := &nomad.ExecutorAPIMock{}
+	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	s.Run("parses the given default job", func() {
+		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+		s.NoError(err)
+		s.NotNil(environment.job)
+		s.NoError(environment.Delete())
 	})
 
-	t.Run("returns error when given wrong job", func(t *testing.T) {
+	s.Run("returns error when given wrong job", func() {
 		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil, "")
-		assert.Error(t, err)
-		assert.Nil(t, environment)
+		s.Error(err)
+		s.Nil(environment)
 	})
 }
 
-func TestTwoSampleAddExactlyTwoRunners(t *testing.T) {
+func (s *MainTestSuite) TestTwoSampleAddExactlyTwoRunners() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 
@@ -189,24 +192,24 @@ func TestTwoSampleAddExactlyTwoRunners(t *testing.T) {
 	environment.AddRunner(runner2)
 
 	_, ok := environment.Sample()
-	require.True(t, ok)
+	s.Require().True(ok)
 	_, ok = environment.Sample()
-	require.True(t, ok)
+	s.Require().True(ok)
 
 	<-time.After(tests.ShortTimeout) // New Runners are requested asynchronously
-	apiMock.AssertNumberOfCalls(t, "RegisterRunnerJob", 2)
+	apiMock.AssertNumberOfCalls(s.T(), "RegisterRunnerJob", 2)
 }
 
-func TestSampleDoesNotSetForcePullFlag(t *testing.T) {
+func (s *MainTestSuite) TestSampleDoesNotSetForcePullFlag() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	call := apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job"))
 	call.Run(func(args mock.Arguments) {
 		job, ok := args.Get(0).(*nomadApi.Job)
-		assert.True(t, ok)
+		s.True(ok)
 
 		taskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 		task := nomad.FindAndValidateDefaultTask(taskGroup)
-		assert.False(t, task.Config["force_pull"].(bool))
+		s.False(task.Config["force_pull"].(bool))
 
 		call.ReturnArguments = mock.Arguments{nil}
 	})
@@ -219,6 +222,6 @@ func TestSampleDoesNotSetForcePullFlag(t *testing.T) {
 	environment.AddRunner(runner1)
 
 	_, ok := environment.Sample()
-	require.True(t, ok)
+	s.Require().True(ok)
 	<-time.After(tests.ShortTimeout) // New Runners are requested asynchronously
 }

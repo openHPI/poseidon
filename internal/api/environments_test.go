@@ -20,7 +20,7 @@ import (
 )
 
 type EnvironmentControllerTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	manager *environment.ManagerHandlerMock
 	router  *mux.Router
 }
@@ -30,6 +30,7 @@ func TestEnvironmentControllerTestSuite(t *testing.T) {
 }
 
 func (s *EnvironmentControllerTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	s.manager = &environment.ManagerHandlerMock{}
 	s.router = NewRouter(nil, s.manager)
 }
@@ -86,6 +87,9 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 	})
 
 	s.Run("returns multiple environments", func() {
+		s.ExpectedGoroutingIncrease++ // We dont care to delete the created environment.
+		s.ExpectedGoroutingIncrease++ // Also not about the second.
+
 		call.Run(func(args mock.Arguments) {
 			firstEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
 				"job \""+nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)+"\" {}")
@@ -148,6 +152,8 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 	s.manager.Calls = []mock.Call{}
 
 	s.Run("returns environment", func() {
+		s.ExpectedGoroutingIncrease++ // We dont care to delete the created environment.
+
 		call.Run(func(args mock.Arguments) {
 			testEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
 				"job \""+nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)+"\" {}")

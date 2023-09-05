@@ -4,12 +4,20 @@ import (
 	"context"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
 )
 
-func TestMergeContext_Deadline(t *testing.T) {
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
+
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestMergeContext_Deadline() {
 	ctxWithoutDeadline := context.Background()
 	earlyDeadline := time.Now().Add(time.Second)
 	ctxWithEarlyDeadline, cancel := context.WithDeadline(context.Background(), earlyDeadline)
@@ -20,11 +28,11 @@ func TestMergeContext_Deadline(t *testing.T) {
 	ctx := NewMergeContext([]context.Context{ctxWithoutDeadline, ctxWithEarlyDeadline, ctxWithLateDeadline})
 	deadline, ok := ctx.Deadline()
 
-	assert.True(t, ok)
-	assert.Equal(t, earlyDeadline, deadline, "The ealiest deadline is returned")
+	s.True(ok)
+	s.Equal(earlyDeadline, deadline, "The ealiest deadline is returned")
 }
 
-func TestMergeContext_Done(t *testing.T) {
+func (s *MainTestSuite) TestMergeContext_Done() {
 	ctxWithoutDeadline := context.Background()
 	ctxWithEarlyDeadline, cancel := context.WithTimeout(context.Background(), 2*tests.ShortTimeout)
 	defer cancel()
@@ -35,7 +43,7 @@ func TestMergeContext_Done(t *testing.T) {
 
 	select {
 	case <-ctx.Done():
-		assert.Fail(t, "mergeContext is done before any of its parents")
+		s.Fail("mergeContext is done before any of its parents")
 		return
 	case <-time.After(tests.ShortTimeout):
 	}
@@ -43,27 +51,27 @@ func TestMergeContext_Done(t *testing.T) {
 	select {
 	case <-ctx.Done():
 	case <-time.After(3 * tests.ShortTimeout):
-		assert.Fail(t, "mergeContext is not done after the earliest of its parents")
+		s.Fail("mergeContext is not done after the earliest of its parents")
 		return
 	}
 }
 
-func TestMergeContext_Err(t *testing.T) {
+func (s *MainTestSuite) TestMergeContext_Err() {
 	ctxWithoutDeadline := context.Background()
 	ctxCancelled, cancel := context.WithCancel(context.Background())
 	ctx := NewMergeContext([]context.Context{ctxWithoutDeadline, ctxCancelled})
 
-	assert.NoError(t, ctx.Err())
+	s.NoError(ctx.Err())
 	cancel()
-	assert.Error(t, ctx.Err())
+	s.Error(ctx.Err())
 }
 
-func TestMergeContext_Value(t *testing.T) {
+func (s *MainTestSuite) TestMergeContext_Value() {
 	ctxWithAValue := context.WithValue(context.Background(), dto.ContextKey("keyA"), "valueA")
 	ctxWithAnotherValue := context.WithValue(context.Background(), dto.ContextKey("keyB"), "valueB")
 	ctx := NewMergeContext([]context.Context{ctxWithAValue, ctxWithAnotherValue})
 
-	assert.Equal(t, "valueA", ctx.Value(dto.ContextKey("keyA")))
-	assert.Equal(t, "valueB", ctx.Value(dto.ContextKey("keyB")))
-	assert.Nil(t, ctx.Value("keyC"))
+	s.Equal("valueA", ctx.Value(dto.ContextKey("keyA")))
+	s.Equal("valueB", ctx.Value(dto.ContextKey("keyB")))
+	s.Nil(ctx.Value("keyC"))
 }

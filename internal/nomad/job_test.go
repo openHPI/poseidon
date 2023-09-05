@@ -5,154 +5,152 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests/helpers"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
-func TestFindTaskGroup(t *testing.T) {
-	t.Run("Returns nil if task group not found", func(t *testing.T) {
+func (s *MainTestSuite) TestFindTaskGroup() {
+	s.Run("Returns nil if task group not found", func() {
 		group := FindTaskGroup(&nomadApi.Job{}, TaskGroupName)
-		assert.Nil(t, group)
+		s.Nil(group)
 	})
 
-	t.Run("Finds task group when existent", func(t *testing.T) {
+	s.Run("Finds task group when existent", func() {
 		_, job := helpers.CreateTemplateJob()
 		group := FindTaskGroup(job, TaskGroupName)
-		assert.NotNil(t, group)
+		s.NotNil(group)
 	})
 }
 
-func TestFindOrCreateDefaultTask(t *testing.T) {
-	t.Run("Adds default task group when not set", func(t *testing.T) {
+func (s *MainTestSuite) TestFindOrCreateDefaultTask() {
+	s.Run("Adds default task group when not set", func() {
 		job := &nomadApi.Job{}
 		group := FindAndValidateDefaultTaskGroup(job)
-		assert.NotNil(t, group)
-		assert.Equal(t, TaskGroupName, *group.Name)
-		assert.Equal(t, 1, len(job.TaskGroups))
-		assert.Equal(t, group, job.TaskGroups[0])
-		assert.Equal(t, TaskCount, *group.Count)
+		s.NotNil(group)
+		s.Equal(TaskGroupName, *group.Name)
+		s.Equal(1, len(job.TaskGroups))
+		s.Equal(group, job.TaskGroups[0])
+		s.Equal(TaskCount, *group.Count)
 	})
 
-	t.Run("Does not modify task group when already set", func(t *testing.T) {
+	s.Run("Does not modify task group when already set", func() {
 		job := &nomadApi.Job{}
 		groupName := TaskGroupName
 		expectedGroup := &nomadApi.TaskGroup{Name: &groupName}
 		job.TaskGroups = []*nomadApi.TaskGroup{expectedGroup}
 
 		group := FindAndValidateDefaultTaskGroup(job)
-		assert.NotNil(t, group)
-		assert.Equal(t, 1, len(job.TaskGroups))
-		assert.Equal(t, expectedGroup, group)
+		s.NotNil(group)
+		s.Equal(1, len(job.TaskGroups))
+		s.Equal(expectedGroup, group)
 	})
 }
 
-func TestFindOrCreateConfigTaskGroup(t *testing.T) {
-	t.Run("Adds config task group when not set", func(t *testing.T) {
+func (s *MainTestSuite) TestFindOrCreateConfigTaskGroup() {
+	s.Run("Adds config task group when not set", func() {
 		job := &nomadApi.Job{}
 		group := FindAndValidateConfigTaskGroup(job)
-		assert.NotNil(t, group)
-		assert.Equal(t, group, job.TaskGroups[0])
-		assert.Equal(t, 1, len(job.TaskGroups))
+		s.NotNil(group)
+		s.Equal(group, job.TaskGroups[0])
+		s.Equal(1, len(job.TaskGroups))
 
-		assert.Equal(t, ConfigTaskGroupName, *group.Name)
-		assert.Equal(t, 0, *group.Count)
+		s.Equal(ConfigTaskGroupName, *group.Name)
+		s.Equal(0, *group.Count)
 	})
 
-	t.Run("Does not modify task group when already set", func(t *testing.T) {
+	s.Run("Does not modify task group when already set", func() {
 		job := &nomadApi.Job{}
 		groupName := ConfigTaskGroupName
 		expectedGroup := &nomadApi.TaskGroup{Name: &groupName}
 		job.TaskGroups = []*nomadApi.TaskGroup{expectedGroup}
 
 		group := FindAndValidateConfigTaskGroup(job)
-		assert.NotNil(t, group)
-		assert.Equal(t, 1, len(job.TaskGroups))
-		assert.Equal(t, expectedGroup, group)
+		s.NotNil(group)
+		s.Equal(1, len(job.TaskGroups))
+		s.Equal(expectedGroup, group)
 	})
 }
 
-func TestFindOrCreateTask(t *testing.T) {
-	t.Run("Does not modify default task when already set", func(t *testing.T) {
+func (s *MainTestSuite) TestFindOrCreateTask() {
+	s.Run("Does not modify default task when already set", func() {
 		groupName := TaskGroupName
 		group := &nomadApi.TaskGroup{Name: &groupName}
 		expectedTask := &nomadApi.Task{Name: TaskName}
 		group.Tasks = []*nomadApi.Task{expectedTask}
 
 		task := FindAndValidateDefaultTask(group)
-		assert.NotNil(t, task)
-		assert.Equal(t, 1, len(group.Tasks))
-		assert.Equal(t, expectedTask, task)
+		s.NotNil(task)
+		s.Equal(1, len(group.Tasks))
+		s.Equal(expectedTask, task)
 	})
 
-	t.Run("Does not modify config task when already set", func(t *testing.T) {
+	s.Run("Does not modify config task when already set", func() {
 		groupName := ConfigTaskGroupName
 		group := &nomadApi.TaskGroup{Name: &groupName}
 		expectedTask := &nomadApi.Task{Name: ConfigTaskName}
 		group.Tasks = []*nomadApi.Task{expectedTask}
 
 		task := FindAndValidateConfigTask(group)
-		assert.NotNil(t, task)
-		assert.Equal(t, 1, len(group.Tasks))
-		assert.Equal(t, expectedTask, task)
+		s.NotNil(task)
+		s.Equal(1, len(group.Tasks))
+		s.Equal(expectedTask, task)
 	})
 }
 
-func TestSetForcePullFlag(t *testing.T) {
+func (s *MainTestSuite) TestSetForcePullFlag() {
 	_, job := helpers.CreateTemplateJob()
 	taskGroup := FindAndValidateDefaultTaskGroup(job)
 	task := FindAndValidateDefaultTask(taskGroup)
 
-	t.Run("Ignoring passed value if DisableForcePull", func(t *testing.T) {
+	s.Run("Ignoring passed value if DisableForcePull", func() {
 		config.Config.Nomad.DisableForcePull = true
 		SetForcePullFlag(job, true)
-		assert.Equal(t, false, task.Config["force_pull"])
+		s.Equal(false, task.Config["force_pull"])
 	})
 
-	t.Run("Using passed value if not DisableForcePull", func(t *testing.T) {
+	s.Run("Using passed value if not DisableForcePull", func() {
 		config.Config.Nomad.DisableForcePull = false
 		SetForcePullFlag(job, true)
-		assert.Equal(t, true, task.Config["force_pull"])
+		s.Equal(true, task.Config["force_pull"])
 
 		SetForcePullFlag(job, false)
-		assert.Equal(t, false, task.Config["force_pull"])
+		s.Equal(false, task.Config["force_pull"])
 	})
 }
 
-func TestIsEnvironmentTemplateID(t *testing.T) {
-	assert.True(t, IsEnvironmentTemplateID("template-42"))
-	assert.False(t, IsEnvironmentTemplateID("template-42-100"))
-	assert.False(t, IsEnvironmentTemplateID("job-42"))
-	assert.False(t, IsEnvironmentTemplateID("template-top"))
+func (s *MainTestSuite) TestIsEnvironmentTemplateID() {
+	s.True(IsEnvironmentTemplateID("template-42"))
+	s.False(IsEnvironmentTemplateID("template-42-100"))
+	s.False(IsEnvironmentTemplateID("job-42"))
+	s.False(IsEnvironmentTemplateID("template-top"))
 }
 
-func TestRunnerJobID(t *testing.T) {
-	assert.Equal(t, "0-RANDOM-UUID", RunnerJobID(0, "RANDOM-UUID"))
+func (s *MainTestSuite) TestRunnerJobID() {
+	s.Equal("0-RANDOM-UUID", RunnerJobID(0, "RANDOM-UUID"))
 }
 
-func TestTemplateJobID(t *testing.T) {
-	assert.Equal(t, "template-42", TemplateJobID(42))
+func (s *MainTestSuite) TestTemplateJobID() {
+	s.Equal("template-42", TemplateJobID(42))
 }
 
-func TestEnvironmentIDFromRunnerID(t *testing.T) {
+func (s *MainTestSuite) TestEnvironmentIDFromRunnerID() {
 	id, err := EnvironmentIDFromRunnerID("42-RANDOM-UUID")
-	assert.NoError(t, err)
-	assert.Equal(t, dto.EnvironmentID(42), id)
+	s.NoError(err)
+	s.Equal(dto.EnvironmentID(42), id)
 
 	_, err = EnvironmentIDFromRunnerID("")
-	assert.Error(t, err)
+	s.Error(err)
 }
 
-func TestOOMKilledAllocation(t *testing.T) {
+func (s *MainTestSuite) TestOOMKilledAllocation() {
 	event := nomadApi.TaskEvent{Details: map[string]string{"oom_killed": "true"}}
 	state := nomadApi.TaskState{Restarts: 2, Events: []*nomadApi.TaskEvent{&event}}
 	alloc := nomadApi.Allocation{TaskStates: map[string]*nomadApi.TaskState{TaskName: &state}}
-	assert.False(t, isOOMKilled(&alloc))
+	s.False(isOOMKilled(&alloc))
 
 	event2 := nomadApi.TaskEvent{Details: map[string]string{"oom_killed": "false"}}
 	alloc.TaskStates[TaskName].Events = []*nomadApi.TaskEvent{&event, &event2}
-	assert.False(t, isOOMKilled(&alloc))
+	s.False(isOOMKilled(&alloc))
 
 	event3 := nomadApi.TaskEvent{Details: map[string]string{"oom_killed": "true"}}
 	alloc.TaskStates[TaskName].Events = []*nomadApi.TaskEvent{&event, &event2, &event3}
-	assert.True(t, isOOMKilled(&alloc))
+	s.True(isOOMKilled(&alloc))
 }

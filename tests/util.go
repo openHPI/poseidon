@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"context"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"io"
 	"os"
@@ -48,8 +49,8 @@ func (s *MemoryLeakTestSuite) SetupTest() {
 
 func (s *MemoryLeakTestSuite) TearDownTest() {
 	s.testCtxCancel()
-	runtime.Gosched()         // Flush done Goroutines
-	<-time.After(TinyTimeout) // Just to make sure
+	runtime.Gosched()          // Flush done Goroutines
+	<-time.After(ShortTimeout) // Just to make sure
 	goroutinesAfter := runtime.NumGoroutine()
 	s.Equal(s.goroutineCountBefore+s.ExpectedGoroutingIncrease, goroutinesAfter)
 
@@ -58,5 +59,14 @@ func (s *MemoryLeakTestSuite) TearDownTest() {
 		s.NoError(err)
 		err = pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
 		s.NoError(err)
+	}
+}
+
+func RemoveMethodFromMock(m *mock.Mock, method string) {
+	for i, call := range m.ExpectedCalls {
+		if call.Method == method {
+			m.ExpectedCalls = append(m.ExpectedCalls[:i], m.ExpectedCalls[i+1:]...)
+			return
+		}
 	}
 }

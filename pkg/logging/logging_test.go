@@ -2,9 +2,10 @@ package logging
 
 import (
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,34 +17,42 @@ func mockHTTPStatusHandler(status int) http.Handler {
 	})
 }
 
-func TestHTTPMiddlewareWarnsWhenInternalServerError(t *testing.T) {
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
+
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestHTTPMiddlewareWarnsWhenInternalServerError() {
 	var hook *test.Hook
 	log, hook = test.NewNullLogger()
 	InitializeLogging(logrus.DebugLevel.String(), dto.FormatterText)
 
 	request, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
 	if err != nil {
-		t.Fatal(err)
+		s.Fail(err.Error())
 	}
 	recorder := httptest.NewRecorder()
 	HTTPLoggingMiddleware(mockHTTPStatusHandler(500)).ServeHTTP(recorder, request)
 
-	assert.Equal(t, 1, len(hook.Entries))
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
+	s.Equal(1, len(hook.Entries))
+	s.Equal(logrus.ErrorLevel, hook.LastEntry().Level)
 }
 
-func TestHTTPMiddlewareDebugsWhenStatusOK(t *testing.T) {
+func (s *MainTestSuite) TestHTTPMiddlewareDebugsWhenStatusOK() {
 	var hook *test.Hook
 	log, hook = test.NewNullLogger()
 	InitializeLogging(logrus.DebugLevel.String(), dto.FormatterText)
 
 	request, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
 	if err != nil {
-		t.Fatal(err)
+		s.Fail(err.Error())
 	}
 	recorder := httptest.NewRecorder()
 	HTTPLoggingMiddleware(mockHTTPStatusHandler(200)).ServeHTTP(recorder, request)
 
-	assert.Equal(t, 1, len(hook.Entries))
-	assert.Equal(t, logrus.DebugLevel, hook.LastEntry().Level)
+	s.Equal(1, len(hook.Entries))
+	s.Equal(logrus.DebugLevel, hook.LastEntry().Level)
 }

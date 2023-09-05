@@ -14,7 +14,6 @@ import (
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"io"
 	"regexp"
@@ -36,7 +35,7 @@ func TestLoadRunnersTestSuite(t *testing.T) {
 }
 
 type LoadRunnersTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	jobID                  string
 	mock                   *apiQuerierMock
 	nomadAPIClient         APIClient
@@ -47,6 +46,7 @@ type LoadRunnersTestSuite struct {
 }
 
 func (s *LoadRunnersTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	s.jobID = tests.DefaultRunnerID
 
 	s.mock = &apiQuerierMock{}
@@ -151,32 +151,32 @@ func NomadTestConfig(address string) *config.Nomad {
 	}
 }
 
-func TestApiClient_init(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_init() {
 	client := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := client.init(NomadTestConfig(TestDefaultAddress))
-	require.Nil(t, err)
+	s.Require().Nil(err)
 }
 
-func TestApiClientCanNotBeInitializedWithInvalidUrl(t *testing.T) {
+func (s *MainTestSuite) TestApiClientCanNotBeInitializedWithInvalidUrl() {
 	client := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := client.init(NomadTestConfig("http://" + TestDefaultAddress))
-	assert.NotNil(t, err)
+	s.NotNil(err)
 }
 
-func TestNewExecutorApiCanBeCreatedWithoutError(t *testing.T) {
+func (s *MainTestSuite) TestNewExecutorApiCanBeCreatedWithoutError() {
 	expectedClient := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := expectedClient.init(NomadTestConfig(TestDefaultAddress))
-	require.Nil(t, err)
+	s.Require().Nil(err)
 
 	_, err = NewExecutorAPI(NomadTestConfig(TestDefaultAddress))
-	require.Nil(t, err)
+	s.Require().Nil(err)
 }
 
 // asynchronouslyMonitorEvaluation creates an APIClient with mocked Nomad API and
 // runs the MonitorEvaluation method in a goroutine. The mock returns a read-only
 // version of the given stream to simulate an event stream gotten from the real
 // Nomad API.
-func asynchronouslyMonitorEvaluation(stream chan *nomadApi.Events) chan error {
+func asynchronouslyMonitorEvaluation(stream <-chan *nomadApi.Events) chan error {
 	ctx := context.Background()
 	// We can only get a read-only channel once we return it from a function.
 	readOnlyStream := func() <-chan *nomadApi.Events { return stream }()
@@ -193,7 +193,7 @@ func asynchronouslyMonitorEvaluation(stream chan *nomadApi.Events) chan error {
 	return errChan
 }
 
-func TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClosed(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClosed() {
 	stream := make(chan *nomadApi.Events)
 	errChan := asynchronouslyMonitorEvaluation(stream)
 
@@ -203,18 +203,18 @@ func TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClosed(t *testing.T) {
 	select {
 	case err = <-errChan:
 	case <-time.After(time.Millisecond * 10):
-		t.Fatal("MonitorEvaluation didn't finish as expected")
+		s.T().Fatal("MonitorEvaluation didn't finish as expected")
 	}
-	assert.Nil(t, err)
+	s.Nil(err)
 }
 
-func TestApiClient_MonitorEvaluationReturnsErrorWhenStreamReturnsError(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsErrorWhenStreamReturnsError() {
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.AnythingOfType("*context.cancelCtx")).
 		Return(nil, tests.ErrDefault)
 	apiClient := &APIClient{apiMock, map[string]chan error{}, storage.NewLocalStorage[*allocationData](), false}
 	err := apiClient.MonitorEvaluation("id", context.Background())
-	assert.ErrorIs(t, err, tests.ErrDefault)
+	s.ErrorIs(err, tests.ErrDefault)
 }
 
 type eventPayload struct {
@@ -241,7 +241,7 @@ func eventForEvaluation(t *testing.T, eval *nomadApi.Evaluation) nomadApi.Event 
 // simulateNomadEventStream streams the given events sequentially to the stream channel.
 // It returns how many events have been processed until an error occurred.
 func simulateNomadEventStream(
-	stream chan *nomadApi.Events,
+	stream chan<- *nomadApi.Events,
 	errChan chan error,
 	events []*nomadApi.Events,
 ) (int, error) {
@@ -255,6 +255,7 @@ func simulateNomadEventStream(
 			eventsProcessed++
 		}
 	}
+	close(stream)
 	// Wait for last event being processed
 	var err error
 	select {
@@ -273,17 +274,17 @@ func runEvaluationMonitoring(events []*nomadApi.Events) (eventsProcessed int, er
 	return simulateNomadEventStream(stream, errChan, events)
 }
 
-func TestApiClient_MonitorEvaluationWithSuccessfulEvent(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithSuccessfulEvent() {
 	eval := nomadApi.Evaluation{Status: structs.EvalStatusComplete}
 	pendingEval := nomadApi.Evaluation{Status: structs.EvalStatusPending}
 
 	// make sure that the tested function can complete
-	require.Nil(t, checkEvaluation(&eval))
+	s.Require().Nil(checkEvaluation(&eval))
 
-	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, &eval)}}
-	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, &pendingEval)}}
+	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(s.T(), &eval)}}
+	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(s.T(), &pendingEval)}}
 	multipleEventsWithPending := nomadApi.Events{Events: []nomadApi.Event{
-		eventForEvaluation(t, &pendingEval), eventForEvaluation(t, &eval),
+		eventForEvaluation(s.T(), &pendingEval), eventForEvaluation(s.T(), &eval),
 	}}
 
 	var cases = []struct {
@@ -304,25 +305,25 @@ func TestApiClient_MonitorEvaluationWithSuccessfulEvent(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
+		s.Run(c.name, func() {
 			eventsProcessed, err := runEvaluationMonitoring(c.streamedEvents)
-			assert.Nil(t, err)
-			assert.Equal(t, c.expectedEventsProcessed, eventsProcessed)
+			s.Nil(err)
+			s.Equal(c.expectedEventsProcessed, eventsProcessed)
 		})
 	}
 }
 
-func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithFailingEvent() {
 	eval := nomadApi.Evaluation{ID: evaluationID, Status: structs.EvalStatusFailed}
 	evalErr := checkEvaluation(&eval)
-	require.NotNil(t, evalErr)
+	s.Require().NotNil(evalErr)
 
 	pendingEval := nomadApi.Evaluation{Status: structs.EvalStatusPending}
 
-	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, &eval)}}
-	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(t, &pendingEval)}}
+	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(s.T(), &eval)}}
+	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(s.T(), &pendingEval)}}
 	multipleEventsWithPending := nomadApi.Events{Events: []nomadApi.Event{
-		eventForEvaluation(t, &pendingEval), eventForEvaluation(t, &eval),
+		eventForEvaluation(s.T(), &pendingEval), eventForEvaluation(s.T(), &eval),
 	}}
 	eventsWithErr := nomadApi.Events{Err: tests.ErrDefault, Events: []nomadApi.Event{{}}}
 
@@ -345,29 +346,29 @@ func TestApiClient_MonitorEvaluationWithFailingEvent(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
+		s.Run(c.name, func() {
 			eventsProcessed, err := runEvaluationMonitoring(c.streamedEvents)
-			require.NotNil(t, err)
-			assert.Contains(t, err.Error(), c.expectedError.Error())
-			assert.Equal(t, c.expectedEventsProcessed, eventsProcessed)
+			s.Require().NotNil(err)
+			s.Contains(err.Error(), c.expectedError.Error())
+			s.Equal(c.expectedEventsProcessed, eventsProcessed)
 		})
 	}
 }
 
-func TestApiClient_MonitorEvaluationFailsWhenFailingToDecodeEvaluation(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_MonitorEvaluationFailsWhenFailingToDecodeEvaluation() {
 	event := nomadApi.Event{
 		Topic: nomadApi.TopicEvaluation,
 		// This should fail decoding, as Evaluation.Status is expected to be a string, not int
 		Payload: map[string]interface{}{"Evaluation": map[string]interface{}{"Status": 1}},
 	}
 	_, err := event.Evaluation()
-	require.NotNil(t, err)
+	s.Require().NotNil(err)
 	eventsProcessed, err := runEvaluationMonitoring([]*nomadApi.Events{{Events: []nomadApi.Event{event}}})
-	assert.Error(t, err)
-	assert.Equal(t, 1, eventsProcessed)
+	s.Error(err)
+	s.Equal(1, eventsProcessed)
 }
 
-func TestCheckEvaluationWithFailedAllocations(t *testing.T) {
+func (s *MainTestSuite) TestCheckEvaluationWithFailedAllocations() {
 	testKey := "test1"
 	failedAllocs := map[string]*nomadApi.AllocationMetric{
 		testKey: {NodesExhausted: 1},
@@ -375,62 +376,62 @@ func TestCheckEvaluationWithFailedAllocations(t *testing.T) {
 	evaluation := nomadApi.Evaluation{FailedTGAllocs: failedAllocs, Status: structs.EvalStatusFailed}
 
 	assertMessageContainsCorrectStrings := func(msg string) {
-		assert.Contains(t, msg, evaluation.Status, "error should contain the evaluation status")
-		assert.Contains(t, msg, fmt.Sprintf("%s: %#v", testKey, failedAllocs[testKey]),
+		s.Contains(msg, evaluation.Status, "error should contain the evaluation status")
+		s.Contains(msg, fmt.Sprintf("%s: %#v", testKey, failedAllocs[testKey]),
 			"error should contain the failed allocations metric")
 	}
 
 	var msgWithoutBlockedEval, msgWithBlockedEval string
-	t.Run("without blocked eval", func(t *testing.T) {
+	s.Run("without blocked eval", func() {
 		err := checkEvaluation(&evaluation)
-		require.NotNil(t, err)
+		s.Require().NotNil(err)
 		msgWithoutBlockedEval = err.Error()
 		assertMessageContainsCorrectStrings(msgWithoutBlockedEval)
 	})
 
-	t.Run("with blocked eval", func(t *testing.T) {
+	s.Run("with blocked eval", func() {
 		evaluation.BlockedEval = "blocking-eval"
 		err := checkEvaluation(&evaluation)
-		require.NotNil(t, err)
+		s.Require().NotNil(err)
 		msgWithBlockedEval = err.Error()
 		assertMessageContainsCorrectStrings(msgWithBlockedEval)
 	})
 
-	assert.NotEqual(t, msgWithBlockedEval, msgWithoutBlockedEval)
+	s.NotEqual(msgWithBlockedEval, msgWithoutBlockedEval)
 }
 
-func TestCheckEvaluationWithoutFailedAllocations(t *testing.T) {
+func (s *MainTestSuite) TestCheckEvaluationWithoutFailedAllocations() {
 	evaluation := nomadApi.Evaluation{FailedTGAllocs: make(map[string]*nomadApi.AllocationMetric)}
 
-	t.Run("when evaluation status complete", func(t *testing.T) {
+	s.Run("when evaluation status complete", func() {
 		evaluation.Status = structs.EvalStatusComplete
 		err := checkEvaluation(&evaluation)
-		assert.Nil(t, err)
+		s.Nil(err)
 	})
 
-	t.Run("when evaluation status not complete", func(t *testing.T) {
+	s.Run("when evaluation status not complete", func() {
 		incompleteStates := []string{structs.EvalStatusFailed, structs.EvalStatusCancelled,
 			structs.EvalStatusBlocked, structs.EvalStatusPending}
 		for _, status := range incompleteStates {
 			evaluation.Status = status
 			err := checkEvaluation(&evaluation)
-			require.NotNil(t, err)
-			assert.Contains(t, err.Error(), status, "error should contain the evaluation status")
+			s.Require().NotNil(err)
+			s.Contains(err.Error(), status, "error should contain the evaluation status")
 		}
 	})
 }
 
-func TestApiClient_WatchAllocationsIgnoresOldAllocations(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_WatchAllocationsIgnoresOldAllocations() {
 	oldStoppedAllocation := createOldAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusStop)
 	oldPendingAllocation := createOldAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	oldRunningAllocation := createOldAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
 	oldAllocationEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(t, oldStoppedAllocation),
-		eventForAllocation(t, oldPendingAllocation),
-		eventForAllocation(t, oldRunningAllocation),
+		eventForAllocation(s.T(), oldStoppedAllocation),
+		eventForAllocation(s.T(), oldPendingAllocation),
+		eventForAllocation(s.T(), oldRunningAllocation),
 	}}
 
-	assertWatchAllocation(t, []*nomadApi.Events{&oldAllocationEvents},
+	assertWatchAllocation(s.T(), []*nomadApi.Events{&oldAllocationEvents},
 		[]*nomadApi.Allocation(nil), []string(nil))
 }
 
@@ -438,65 +439,65 @@ func createOldAllocation(clientStatus, desiredStatus string) *nomadApi.Allocatio
 	return createAllocation(time.Now().Add(-time.Minute).UnixNano(), clientStatus, desiredStatus)
 }
 
-func TestApiClient_WatchAllocationsIgnoresUnhandledEvents(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_WatchAllocationsIgnoresUnhandledEvents() {
 	nodeEvents := nomadApi.Events{Events: []nomadApi.Event{
 		{
 			Topic: nomadApi.TopicNode,
 			Type:  structs.TypeNodeEvent,
 		},
 	}}
-	assertWatchAllocation(t, []*nomadApi.Events{&nodeEvents}, []*nomadApi.Allocation(nil), []string(nil))
+	assertWatchAllocation(s.T(), []*nomadApi.Events{&nodeEvents}, []*nomadApi.Allocation(nil), []string(nil))
 }
 
-func TestApiClient_WatchAllocationsUsesCallbacksForEvents(t *testing.T) {
+func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 	pendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	pendingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, pendingAllocation)}}
+	pendingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), pendingAllocation)}}
 
-	t.Run("it does not add allocation when client status is pending", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingEvents}, []*nomadApi.Allocation(nil), []string(nil))
+	s.Run("it does not add allocation when client status is pending", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingEvents}, []*nomadApi.Allocation(nil), []string(nil))
 	})
 
 	startedAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
-	startedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, startedAllocation)}}
+	startedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), startedAllocation)}}
 	pendingStartedEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(t, pendingAllocation), eventForAllocation(t, startedAllocation)}}
+		eventForAllocation(s.T(), pendingAllocation), eventForAllocation(s.T(), startedAllocation)}}
 
-	t.Run("it adds allocation with matching events", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents},
+	s.Run("it adds allocation with matching events", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingStartedEvents},
 			[]*nomadApi.Allocation{startedAllocation}, []string(nil))
 	})
 
-	t.Run("it skips heartbeat and adds allocation with matching events", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents},
+	s.Run("it skips heartbeat and adds allocation with matching events", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingStartedEvents},
 			[]*nomadApi.Allocation{startedAllocation}, []string(nil))
 	})
 
 	stoppedAllocation := createRecentAllocation(structs.AllocClientStatusComplete, structs.AllocDesiredStatusStop)
-	stoppedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, stoppedAllocation)}}
+	stoppedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), stoppedAllocation)}}
 	pendingStartStopEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(t, pendingAllocation),
-		eventForAllocation(t, startedAllocation),
-		eventForAllocation(t, stoppedAllocation),
+		eventForAllocation(s.T(), pendingAllocation),
+		eventForAllocation(s.T(), startedAllocation),
+		eventForAllocation(s.T(), stoppedAllocation),
 	}}
 
-	t.Run("it adds and deletes the allocation", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartStopEvents},
+	s.Run("it adds and deletes the allocation", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingStartStopEvents},
 			[]*nomadApi.Allocation{startedAllocation}, []string{stoppedAllocation.JobID})
 	})
 
-	t.Run("it ignores duplicate events", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingEvents, &startedEvents, &startedEvents,
+	s.Run("it ignores duplicate events", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingEvents, &startedEvents, &startedEvents,
 			&stoppedEvents, &stoppedEvents, &stoppedEvents},
 			[]*nomadApi.Allocation{startedAllocation}, []string{startedAllocation.JobID})
 	})
 
-	t.Run("it ignores events of unknown allocations", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&startedEvents, &startedEvents,
+	s.Run("it ignores events of unknown allocations", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&startedEvents, &startedEvents,
 			&stoppedEvents, &stoppedEvents, &stoppedEvents}, []*nomadApi.Allocation(nil), []string(nil))
 	})
 
-	t.Run("it removes restarted allocations", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &pendingStartedEvents},
+	s.Run("it removes restarted allocations", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingStartedEvents, &pendingStartedEvents},
 			[]*nomadApi.Allocation{startedAllocation, startedAllocation}, []string{startedAllocation.JobID})
 	})
 
@@ -507,81 +508,82 @@ func TestApiClient_WatchAllocationsUsesCallbacksForEvents(t *testing.T) {
 	rescheduleStartedAllocation.ID = tests.AnotherUUID
 	rescheduleAllocation.PreviousAllocation = pendingAllocation.ID
 	rescheduleEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(t, rescheduleAllocation), eventForAllocation(t, rescheduleStartedAllocation)}}
+		eventForAllocation(s.T(), rescheduleAllocation), eventForAllocation(s.T(), rescheduleStartedAllocation)}}
 
-	t.Run("it removes rescheduled allocations", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &rescheduleEvents},
+	s.Run("it removes rescheduled allocations", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingStartedEvents, &rescheduleEvents},
 			[]*nomadApi.Allocation{startedAllocation, rescheduleStartedAllocation}, []string{startedAllocation.JobID})
 	})
 
 	stoppedPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusStop)
-	stoppedPendingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, stoppedPendingAllocation)}}
+	stoppedPendingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), stoppedPendingAllocation)}}
 
-	t.Run("it removes stopped pending allocations", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingEvents, &stoppedPendingEvents},
+	s.Run("it removes stopped pending allocations", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingEvents, &stoppedPendingEvents},
 			[]*nomadApi.Allocation(nil), []string{stoppedPendingAllocation.JobID})
 	})
 
 	failedAllocation := createRecentAllocation(structs.AllocClientStatusFailed, structs.AllocDesiredStatusStop)
-	failedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, failedAllocation)}}
+	failedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), failedAllocation)}}
 
-	t.Run("it removes stopped failed allocations", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &failedEvents},
+	s.Run("it removes stopped failed allocations", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingStartedEvents, &failedEvents},
 			[]*nomadApi.Allocation{startedAllocation}, []string{failedAllocation.JobID})
 	})
 
 	lostAllocation := createRecentAllocation(structs.AllocClientStatusLost, structs.AllocDesiredStatusStop)
-	lostEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, lostAllocation)}}
+	lostEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), lostAllocation)}}
 
-	t.Run("it removes stopped lost allocations", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &lostEvents},
+	s.Run("it removes stopped lost allocations", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingStartedEvents, &lostEvents},
 			[]*nomadApi.Allocation{startedAllocation}, []string{lostAllocation.JobID})
 	})
 
 	rescheduledLostAllocation := createRecentAllocation(structs.AllocClientStatusLost, structs.AllocDesiredStatusStop)
 	rescheduledLostAllocation.NextAllocation = tests.AnotherUUID
-	rescheduledLostEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(t, rescheduledLostAllocation)}}
+	rescheduledLostEvents := nomadApi.Events{Events: []nomadApi.Event{
+		eventForAllocation(s.T(), rescheduledLostAllocation)}}
 
-	t.Run("it removes lost allocations not before the last restart attempt", func(t *testing.T) {
-		assertWatchAllocation(t, []*nomadApi.Events{&pendingStartedEvents, &rescheduledLostEvents},
+	s.Run("it removes lost allocations not before the last restart attempt", func() {
+		assertWatchAllocation(s.T(), []*nomadApi.Events{&pendingStartedEvents, &rescheduledLostEvents},
 			[]*nomadApi.Allocation{startedAllocation}, []string(nil))
 	})
 }
 
-func TestHandleAllocationEventBuffersPendingAllocation(t *testing.T) {
-	t.Run("AllocationUpdated", func(t *testing.T) {
+func (s *MainTestSuite) TestHandleAllocationEventBuffersPendingAllocation() {
+	s.Run("AllocationUpdated", func() {
 		newPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-		newPendingEvent := eventForAllocation(t, newPendingAllocation)
+		newPendingEvent := eventForAllocation(s.T(), newPendingAllocation)
 
 		allocations := storage.NewLocalStorage[*allocationData]()
 		err := handleAllocationEvent(
 			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
-		require.NoError(t, err)
+		s.Require().NoError(err)
 
 		_, ok := allocations.Get(newPendingAllocation.ID)
-		assert.True(t, ok)
+		s.True(ok)
 	})
-	t.Run("PlanResult", func(t *testing.T) {
+	s.Run("PlanResult", func() {
 		newPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-		newPendingEvent := eventForAllocation(t, newPendingAllocation)
+		newPendingEvent := eventForAllocation(s.T(), newPendingAllocation)
 		newPendingEvent.Type = structs.TypePlanResult
 
 		allocations := storage.NewLocalStorage[*allocationData]()
 		err := handleAllocationEvent(
 			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
-		require.NoError(t, err)
+		s.Require().NoError(err)
 
 		_, ok := allocations.Get(newPendingAllocation.ID)
-		assert.True(t, ok)
+		s.True(ok)
 	})
 }
 
-func TestHandleAllocationEvent_IgnoresReschedulesForStoppedJobs(t *testing.T) {
+func (s *MainTestSuite) TestHandleAllocationEvent_IgnoresReschedulesForStoppedJobs() {
 	startedAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	rescheduledAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	rescheduledAllocation.ID = tests.AnotherUUID
 	rescheduledAllocation.PreviousAllocation = startedAllocation.ID
-	rescheduledEvent := eventForAllocation(t, rescheduledAllocation)
+	rescheduledEvent := eventForAllocation(s.T(), rescheduledAllocation)
 
 	allocations := storage.NewLocalStorage[*allocationData]()
 	allocations.Add(startedAllocation.ID, &allocationData{jobID: startedAllocation.JobID})
@@ -590,18 +592,18 @@ func TestHandleAllocationEvent_IgnoresReschedulesForStoppedJobs(t *testing.T) {
 		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
 		OnDeleted: func(_ string, _ error) bool { return true },
 	})
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	_, ok := allocations.Get(rescheduledAllocation.ID)
-	assert.False(t, ok)
+	s.False(ok)
 }
 
-func TestHandleAllocationEvent_ReportsOOMKilledStatus(t *testing.T) {
+func (s *MainTestSuite) TestHandleAllocationEvent_ReportsOOMKilledStatus() {
 	restartedAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	event := nomadApi.TaskEvent{Details: map[string]string{"oom_killed": "true"}}
 	state := nomadApi.TaskState{Restarts: 1, Events: []*nomadApi.TaskEvent{&event}}
 	restartedAllocation.TaskStates = map[string]*nomadApi.TaskState{TaskName: &state}
-	restartedEvent := eventForAllocation(t, restartedAllocation)
+	restartedEvent := eventForAllocation(s.T(), restartedAllocation)
 
 	allocations := storage.NewLocalStorage[*allocationData]()
 	allocations.Add(restartedAllocation.ID, &allocationData{jobID: restartedAllocation.JobID})
@@ -614,21 +616,21 @@ func TestHandleAllocationEvent_ReportsOOMKilledStatus(t *testing.T) {
 			return true
 		},
 	})
-	require.NoError(t, err)
-	assert.ErrorIs(t, reason, ErrorOOMKilled)
+	s.Require().NoError(err)
+	s.ErrorIs(reason, ErrorOOMKilled)
 }
 
-func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved(t *testing.T) {
+func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved() {
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.Anything).Return(nil, tests.ErrDefault)
 	apiClient := &APIClient{apiMock, map[string]chan error{}, storage.NewLocalStorage[*allocationData](), false}
 
 	err := apiClient.WatchEventStream(context.Background(), noopAllocationProcessing)
-	assert.ErrorIs(t, err, tests.ErrDefault)
+	s.ErrorIs(err, tests.ErrDefault)
 }
 
-func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWithoutReceivingFurtherEvents(
-	t *testing.T) {
+// Test case: WatchAllocations returns an error when an allocation cannot be retrieved without receiving further events.
+func (s *MainTestSuite) TestAPIClient_WatchAllocations() {
 	event := nomadApi.Event{
 		Type:  structs.TypeAllocationUpdated,
 		Topic: nomadApi.TopicAllocation,
@@ -636,19 +638,19 @@ func TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationCannotBeRetrievedWi
 		Payload: map[string]interface{}{"Allocation": map[string]interface{}{"ID": 1}},
 	}
 	_, err := event.Allocation()
-	require.Error(t, err)
+	s.Require().Error(err)
 
 	events := []*nomadApi.Events{{Events: []nomadApi.Event{event}}, {}}
-	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessing)
-	assert.Error(t, err)
-	assert.Equal(t, 1, eventsProcessed)
+	eventsProcessed, err := runAllocationWatching(s.T(), events, noopAllocationProcessing)
+	s.Error(err)
+	s.Equal(1, eventsProcessed)
 }
 
-func TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEOF(t *testing.T) {
+func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEOF() {
 	events := []*nomadApi.Events{{Err: ErrUnexpectedEOF}, {}}
-	eventsProcessed, err := runAllocationWatching(t, events, noopAllocationProcessing)
-	assert.Error(t, err)
-	assert.Equal(t, 1, eventsProcessed)
+	eventsProcessed, err := runAllocationWatching(s.T(), events, noopAllocationProcessing)
+	s.Error(err)
+	s.Equal(1, eventsProcessed)
 }
 
 func assertWatchAllocation(t *testing.T, events []*nomadApi.Events,
@@ -744,7 +746,7 @@ func TestExecuteCommandTestSuite(t *testing.T) {
 }
 
 type ExecuteCommandTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	allocationID   string
 	ctx            context.Context
 	testCommand    string
@@ -755,6 +757,7 @@ type ExecuteCommandTestSuite struct {
 }
 
 func (s *ExecuteCommandTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	s.allocationID = "test-allocation-id"
 	s.ctx = context.Background()
 	s.testCommand = "echo \"do nothing\""
@@ -890,26 +893,26 @@ func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
 		Return(exitCode, err)
 }
 
-func TestAPIClient_LoadRunnerPortMappings(t *testing.T) {
+func (s *MainTestSuite) TestAPIClient_LoadRunnerPortMappings() {
 	apiMock := &apiQuerierMock{}
 	mockedCall := apiMock.On("allocation", tests.DefaultRunnerID)
 	nomadAPIClient := APIClient{apiQuerier: apiMock}
 
-	t.Run("should return error when API query fails", func(t *testing.T) {
+	s.Run("should return error when API query fails", func() {
 		mockedCall.Return(nil, tests.ErrDefault)
 		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
-		assert.Nil(t, portMappings)
-		assert.ErrorIs(t, err, tests.ErrDefault)
+		s.Nil(portMappings)
+		s.ErrorIs(err, tests.ErrDefault)
 	})
 
-	t.Run("should return error when AllocatedResources is nil", func(t *testing.T) {
+	s.Run("should return error when AllocatedResources is nil", func() {
 		mockedCall.Return(&nomadApi.Allocation{AllocatedResources: nil}, nil)
 		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
-		assert.ErrorIs(t, err, ErrorNoAllocatedResourcesFound)
-		assert.Nil(t, portMappings)
+		s.ErrorIs(err, ErrorNoAllocatedResourcesFound)
+		s.Nil(portMappings)
 	})
 
-	t.Run("should correctly return ports", func(t *testing.T) {
+	s.Run("should correctly return ports", func() {
 		allocation := &nomadApi.Allocation{
 			AllocatedResources: &nomadApi.AllocatedResources{
 				Shared: nomadApi.AllocatedSharedResources{Ports: tests.DefaultPortMappings},
@@ -917,7 +920,7 @@ func TestAPIClient_LoadRunnerPortMappings(t *testing.T) {
 		}
 		mockedCall.Return(allocation, nil)
 		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
-		assert.NoError(t, err)
-		assert.Equal(t, tests.DefaultPortMappings, portMappings)
+		s.NoError(err)
+		s.Equal(tests.DefaultPortMappings, portMappings)
 	})
 }

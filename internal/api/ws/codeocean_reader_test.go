@@ -4,15 +4,22 @@ import (
 	"context"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/tests"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"io"
 	"strings"
 	"testing"
 )
 
-func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead(t *testing.T) {
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
+
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead() {
 	readingCtx, cancel := context.WithCancel(context.Background())
 	forwardingCtx := readingCtx
 	defer cancel()
@@ -23,22 +30,23 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead(t *testing.T) {
 		//nolint:makezero // we can't make zero initial length here as the reader otherwise doesn't block
 		p := make([]byte, 10)
 		_, err := reader.Read(p)
-		require.NoError(t, err)
+		s.Require().NoError(err)
 		read <- true
 	}()
 
-	t.Run("Does not return immediately when there is no data", func(t *testing.T) {
-		assert.False(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
+	s.Run("Does not return immediately when there is no data", func() {
+		s.False(tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 
-	t.Run("Returns when there is data available", func(t *testing.T) {
+	s.Run("Returns when there is data available", func() {
 		reader.buffer <- byte(42)
-		assert.True(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
+		s.True(tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 }
 
-func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *testing.T) {
+func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection() {
 	messages := make(chan io.Reader)
+	defer close(messages)
 
 	connection := &ConnectionMock{}
 	connection.On("WriteMessage", mock.AnythingOfType("int"), mock.AnythingOfType("[]uint8")).Return(nil)
@@ -60,16 +68,16 @@ func TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFromConnection(t *tes
 	message := make([]byte, 10)
 	go func() {
 		_, err := reader.Read(message)
-		require.NoError(t, err)
+		s.Require().NoError(err)
 		read <- true
 	}()
 
-	t.Run("Does not return immediately when there is no data", func(t *testing.T) {
-		assert.False(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
+	s.Run("Does not return immediately when there is no data", func() {
+		s.False(tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 
-	t.Run("Returns when there is data available", func(t *testing.T) {
+	s.Run("Returns when there is data available", func() {
 		messages <- strings.NewReader("Hello")
-		assert.True(t, tests.ChannelReceivesSomething(read, tests.ShortTimeout))
+		s.True(tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 }

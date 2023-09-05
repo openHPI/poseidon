@@ -2,10 +2,7 @@ package nullio
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
-	"testing"
 )
 
 type responseWriterStub struct {
@@ -19,7 +16,7 @@ func (r *responseWriterStub) Header() http.Header {
 func (r *responseWriterStub) WriteHeader(_ int) {
 }
 
-func TestContentLengthWriter_Write(t *testing.T) {
+func (s *MainTestSuite) TestContentLengthWriter_Write() {
 	header := http.Header(make(map[string][]string))
 	buf := &responseWriterStub{header: header}
 	writer := &ContentLengthWriter{Target: buf}
@@ -29,20 +26,20 @@ func TestContentLengthWriter_Write(t *testing.T) {
 	part3 := []byte("AG")
 
 	count, err := writer.Write(part1)
-	require.NoError(t, err)
-	assert.Equal(t, len(part1), count)
-	assert.Empty(t, buf.String())
-	assert.Equal(t, "", header.Get("Content-Length"))
+	s.Require().NoError(err)
+	s.Equal(len(part1), count)
+	s.Empty(buf.String())
+	s.Equal("", header.Get("Content-Length"))
 
 	count, err = writer.Write(part2)
-	require.NoError(t, err)
-	assert.Equal(t, len(part2), count)
-	assert.Equal(t, "FL", buf.String())
-	assert.Equal(t, contentLength, header.Get("Content-Length"))
+	s.Require().NoError(err)
+	s.Equal(len(part2), count)
+	s.Equal("FL", buf.String())
+	s.Equal(contentLength, header.Get("Content-Length"))
 
 	count, err = writer.Write(part3)
-	require.NoError(t, err)
-	assert.Equal(t, len(part3), count)
-	assert.Equal(t, "FLAG", buf.String())
-	assert.Equal(t, contentLength, header.Get("Content-Length"))
+	s.Require().NoError(err)
+	s.Equal(len(part3), count)
+	s.Equal("FLAG", buf.String())
+	s.Equal(contentLength, header.Get("Content-Length"))
 }

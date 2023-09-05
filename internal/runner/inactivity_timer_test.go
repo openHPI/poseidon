@@ -13,12 +13,13 @@ func TestInactivityTimerTestSuite(t *testing.T) {
 }
 
 type InactivityTimerTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	runner   Runner
 	returned chan bool
 }
 
 func (s *InactivityTimerTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	s.returned = make(chan bool, 1)
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", tests.DefaultRunnerID).Return(nil)
@@ -31,7 +32,16 @@ func (s *InactivityTimerTestSuite) SetupTest() {
 }
 
 func (s *InactivityTimerTestSuite) TearDownTest() {
-	s.runner.StopTimeout()
+	defer s.MemoryLeakTestSuite.TearDownTest()
+	go func() {
+		select {
+		case <-s.returned:
+		case <-time.After(tests.ShortTimeout):
+		}
+	}()
+
+	err := s.runner.Destroy(nil)
+	s.Require().NoError(err)
 }
 
 func (s *InactivityTimerTestSuite) TestRunnerIsReturnedAfterTimeout() {
@@ -61,7 +71,7 @@ func (s *InactivityTimerTestSuite) TestTimeoutPassedReturnsFalseBeforeDeadline()
 }
 
 func (s *InactivityTimerTestSuite) TestTimeoutPassedReturnsTrueAfterDeadline() {
-	time.Sleep(2 * tests.ShortTimeout)
+	<-time.After(2 * tests.ShortTimeout)
 	s.True(s.runner.TimeoutPassed())
 }
 

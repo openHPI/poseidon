@@ -1,93 +1,106 @@
 package runner
 
 import (
-	"context"
+	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 	"testing"
 )
 
-func TestAWSRunnerManager_EnvironmentAccessor(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	m := NewAWSRunnerManager(ctx)
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
+
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestAWSRunnerManager_EnvironmentAccessor() {
+	m := NewAWSRunnerManager(s.TestCtx)
 
 	environments := m.ListEnvironments()
-	assert.Empty(t, environments)
+	s.Empty(environments)
 
 	environment := createBasicEnvironmentMock(defaultEnvironmentID)
 	m.StoreEnvironment(environment)
 
 	environments = m.ListEnvironments()
-	assert.Len(t, environments, 1)
-	assert.Equal(t, environments[0].ID(), dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+	s.Len(environments, 1)
+	s.Equal(environments[0].ID(), dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 
 	e, ok := m.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
-	assert.True(t, ok)
-	assert.Equal(t, environment, e)
+	s.True(ok)
+	s.Equal(environment, e)
 
 	_, ok = m.GetEnvironment(tests.AnotherEnvironmentIDAsInteger)
-	assert.False(t, ok)
+	s.False(ok)
 }
 
-func TestAWSRunnerManager_Claim(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	m := NewAWSRunnerManager(ctx)
+func (s *MainTestSuite) TestAWSRunnerManager_Claim() {
+	m := NewAWSRunnerManager(s.TestCtx)
 	environment := createBasicEnvironmentMock(defaultEnvironmentID)
-	r, err := NewAWSFunctionWorkload(environment, nil)
-	assert.NoError(t, err)
+	r, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
+	s.NoError(err)
 	environment.On("Sample").Return(r, true)
 	m.StoreEnvironment(environment)
 
-	t.Run("returns runner for AWS environment", func(t *testing.T) {
+	s.Run("returns runner for AWS environment", func() {
 		r, err := m.Claim(tests.DefaultEnvironmentIDAsInteger, 60)
-		assert.NoError(t, err)
-		assert.NotNil(t, r)
+		s.NoError(err)
+		s.NotNil(r)
 	})
 
-	t.Run("forwards request for non-AWS environments", func(t *testing.T) {
+	s.Run("forwards request for non-AWS environments", func() {
 		nextHandler := &ManagerMock{}
 		nextHandler.On("Claim", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("int")).
 			Return(nil, nil)
 		m.SetNextHandler(nextHandler)
 
 		_, err := m.Claim(tests.AnotherEnvironmentIDAsInteger, 60)
-		assert.Nil(t, err)
-		nextHandler.AssertCalled(t, "Claim", dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger), 60)
+		s.Nil(err)
+		nextHandler.AssertCalled(s.T(), "Claim", dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger), 60)
 	})
+
+	err = r.Destroy(nil)
+	s.NoError(err)
 }
 
-func TestAWSRunnerManager_Return(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	m := NewAWSRunnerManager(ctx)
+func (s *MainTestSuite) TestAWSRunnerManager_Return() {
+	m := NewAWSRunnerManager(s.TestCtx)
 	environment := createBasicEnvironmentMock(defaultEnvironmentID)
 	m.StoreEnvironment(environment)
-	r, err := NewAWSFunctionWorkload(environment, nil)
-	assert.NoError(t, err)
+	r, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
+	s.NoError(err)
 
-	t.Run("removes usedRunner", func(t *testing.T) {
+	s.Run("removes usedRunner", func() {
 		m.usedRunners.Add(r.ID(), r)
-		assert.Contains(t, m.usedRunners.List(), r)
+		s.Contains(m.usedRunners.List(), r)
 
 		err := m.Return(r)
-		assert.NoError(t, err)
-		assert.NotContains(t, m.usedRunners.List(), r)
+		s.NoError(err)
+		s.NotContains(m.usedRunners.List(), r)
 	})
 
-	t.Run("calls nextHandler for non-AWS runner", func(t *testing.T) {
+	s.Run("calls nextHandler for non-AWS runner", func() {
 		nextHandler := &ManagerMock{}
 		nextHandler.On("Return", mock.AnythingOfType("*runner.NomadJob")).Return(nil)
 		m.SetNextHandler(nextHandler)
 
-		nonAWSRunner := NewNomadJob(tests.DefaultRunnerID, nil, nil, nil)
+		apiMock := &nomad.ExecutorAPIMock{}
+		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+		nonAWSRunner := NewNomadJob(tests.DefaultRunnerID, nil, apiMock, nil)
 		err := m.Return(nonAWSRunner)
-		assert.NoError(t, err)
-		nextHandler.AssertCalled(t, "Return", nonAWSRunner)
+		s.NoError(err)
+		nextHandler.AssertCalled(s.T(), "Return", nonAWSRunner)
+
+		err = nonAWSRunner.Destroy(nil)
+		s.NoError(err)
 	})
+
+	err = r.Destroy(nil)
+	s.NoError(err)
 }
 
 func createBasicEnvironmentMock(id dto.EnvironmentID) *ExecutionEnvironmentMock {
@@ -97,5 +110,6 @@ func createBasicEnvironmentMock(id dto.EnvironmentID) *ExecutionEnvironmentMock 
 	environment.On("CPULimit").Return(uint(0))
 	environment.On("MemoryLimit").Return(uint(0))
 	environment.On("NetworkAccess").Return(false, nil)
+	environment.On("DeleteRunner", mock.AnythingOfType("string")).Return(false)
 	return environment
 }

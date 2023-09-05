@@ -2,55 +2,51 @@ package nomad
 
 import (
 	"bytes"
-	"context"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"testing"
 )
 
-func TestSentryDebugWriter_Write(t *testing.T) {
+func (s *MainTestSuite) TestSentryDebugWriter_Write() {
 	buf := &bytes.Buffer{}
-	w := SentryDebugWriter{Target: buf, Ctx: context.Background()}
+	w := SentryDebugWriter{Target: buf, Ctx: s.TestCtx}
 
 	description := "TestDebugMessageDescription"
 	data := "\x1EPoseidon " + description + " 1676646791482\x1E"
 	count, err := w.Write([]byte(data))
 
-	require.NoError(t, err)
-	assert.Equal(t, len(data), count)
-	assert.NotContains(t, buf.String(), description)
+	s.Require().NoError(err)
+	s.Equal(len(data), count)
+	s.NotContains(buf.String(), description)
 }
 
-func TestSentryDebugWriter_WriteComposed(t *testing.T) {
+func (s *MainTestSuite) TestSentryDebugWriter_WriteComposed() {
 	buf := &bytes.Buffer{}
-	w := SentryDebugWriter{Target: buf, Ctx: context.Background()}
+	w := SentryDebugWriter{Target: buf, Ctx: s.TestCtx}
 
 	data := "Hello World!\r\n\x1EPoseidon unset 1678540012404\x1E\x1EPoseidon /sbin/setuser user 1678540012408\x1E"
 	count, err := w.Write([]byte(data))
 
-	require.NoError(t, err)
-	assert.Equal(t, len(data), count)
-	assert.Contains(t, buf.String(), "Hello World!")
+	s.Require().NoError(err)
+	s.Equal(len(data), count)
+	s.Contains(buf.String(), "Hello World!")
 }
 
-func TestSentryDebugWriter_Close(t *testing.T) {
+func (s *MainTestSuite) TestSentryDebugWriter_Close() {
 	buf := &bytes.Buffer{}
-	s := NewSentryDebugWriter(buf, context.Background())
-	require.Empty(t, s.lastSpan.Tags)
+	w := NewSentryDebugWriter(buf, s.TestCtx)
+	s.Require().Empty(w.lastSpan.Tags)
 
-	s.Close(42)
-	require.Contains(t, s.lastSpan.Tags, "exit_code")
-	assert.Equal(t, "42", s.lastSpan.Tags["exit_code"])
+	w.Close(42)
+	s.Require().Contains(w.lastSpan.Tags, "exit_code")
+	s.Equal("42", w.lastSpan.Tags["exit_code"])
 }
 
-func TestSentryDebugWriter_handleTimeDebugMessage(t *testing.T) {
+func (s *MainTestSuite) TestSentryDebugWriter_handleTimeDebugMessage() {
 	buf := &bytes.Buffer{}
-	s := NewSentryDebugWriter(buf, context.Background())
-	require.Equal(t, "nomad.execute.connect", s.lastSpan.Op)
+	w := NewSentryDebugWriter(buf, s.TestCtx)
+	s.Require().Equal("nomad.execute.connect", w.lastSpan.Op)
 
 	description := "TestDebugMessageDescription"
 	match := map[string][]byte{"time": []byte("1676646791482"), "text": []byte(description)}
-	s.handleTimeDebugMessage(match)
-	assert.Equal(t, "nomad.execute.bash", s.lastSpan.Op)
-	assert.Equal(t, description, s.lastSpan.Description)
+	w.handleTimeDebugMessage(match)
+	s.Equal("nomad.execute.bash", w.lastSpan.Op)
+	s.Equal(description, w.lastSpan.Description)
 }

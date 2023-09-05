@@ -15,9 +15,7 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"io"
 	"net/http"
@@ -32,7 +30,7 @@ func TestWebSocketTestSuite(t *testing.T) {
 }
 
 type WebSocketTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	router      *mux.Router
 	executionID string
 	runner      runner.Runner
@@ -41,6 +39,7 @@ type WebSocketTestSuite struct {
 }
 
 func (s *WebSocketTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	runnerID := "runner-id"
 	s.runner, s.apiMock = newNomadAllocationWithMockedAPIClient(runnerID)
 
@@ -56,14 +55,19 @@ func (s *WebSocketTestSuite) SetupTest() {
 }
 
 func (s *WebSocketTestSuite) TearDownTest() {
+	defer s.MemoryLeakTestSuite.TearDownTest()
 	s.server.Close()
+	err := s.runner.Destroy(nil)
+	s.Require().NoError(err)
 }
 
 func (s *WebSocketTestSuite) TestWebsocketConnectionCanBeEstablished() {
 	wsURL, err := s.webSocketURL("ws", s.runner.ID(), s.executionID)
 	s.Require().NoError(err)
-	_, _, err = websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
 	s.Require().NoError(err)
+	err = conn.Close()
+	s.NoError(err)
 }
 
 func (s *WebSocketTestSuite) TestWebsocketReturns404IfExecutionDoesNotExist() {
@@ -81,6 +85,8 @@ func (s *WebSocketTestSuite) TestWebsocketReturns400IfRequestedViaHttp() {
 	s.Require().NoError(err)
 	// This functionality is implemented by the WebSocket library.
 	s.Equal(http.StatusBadRequest, response.StatusCode)
+	_, err = io.ReadAll(response.Body)
+	s.NoError(err)
 }
 
 func (s *WebSocketTestSuite) TestWebsocketConnection() {
@@ -248,7 +254,7 @@ func (s *WebSocketTestSuite) TestWebsocketNonZeroExit() {
 	s.Equal(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: 42}, controlMessages[1])
 }
 
-func TestWebsocketTLS(t *testing.T) {
+func (s *MainTestSuite) TestWebsocketTLS() {
 	runnerID := "runner-id"
 	r, apiMock := newNomadAllocationWithMockedAPIClient(runnerID)
 
@@ -260,30 +266,31 @@ func TestWebsocketTLS(t *testing.T) {
 	runnerManager.On("Get", r.ID()).Return(r, nil)
 	router := NewRouter(runnerManager, nil)
 
-	server, err := helpers.StartTLSServer(t, router)
-	require.NoError(t, err)
+	server, err := helpers.StartTLSServer(s.T(), router)
+	s.Require().NoError(err)
 	defer server.Close()
 
 	wsURL, err := webSocketURL("wss", server, router, runnerID, executionID)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	config := &tls.Config{RootCAs: nil, InsecureSkipVerify: true} //nolint:gosec // test needs self-signed cert
 	d := websocket.Dialer{TLSClientConfig: config}
 	connection, _, err := d.Dial(wsURL.String(), nil)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	message, err := helpers.ReceiveNextWebSocketMessage(connection)
-	require.NoError(t, err)
-	assert.Equal(t, dto.WebSocketMetaStart, message.Type)
+	s.Require().NoError(err)
+	s.Equal(dto.WebSocketMetaStart, message.Type)
 	_, err = helpers.ReceiveAllWebSocketMessages(connection)
-	require.Error(t, err)
-	assert.True(t, websocket.IsCloseError(err, websocket.CloseNormalClosure))
+	s.Require().Error(err)
+	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
+	s.NoError(r.Destroy(nil))
 }
 
-func TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt(t *testing.T) {
+func (s *MainTestSuite) TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	executionID := tests.DefaultExecutionID
-	r, wsURL := newRunnerWithNotMockedRunnerManager(t, apiMock, executionID)
+	r, wsURL := newRunnerWithNotMockedRunnerManager(s, apiMock, executionID)
 
 	logger, hook := test.NewNullLogger()
 	log = logger.WithField("pkg", "api")
@@ -294,14 +301,14 @@ func TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt(t *testing.T) {
 			return 0, nil
 		})
 	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	_, err = helpers.ReceiveAllWebSocketMessages(connection)
-	require.Error(t, err)
-	assert.True(t, websocket.IsCloseError(err, websocket.CloseNormalClosure))
+	s.Require().Error(err)
+	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 	for _, logMsg := range hook.Entries {
 		if logMsg.Level < logrus.InfoLevel {
-			assert.Fail(t, logMsg.Message)
+			s.Fail(logMsg.Message)
 		}
 	}
 }
@@ -310,42 +317,47 @@ func TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt(t *testing.T) {
 
 func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nomad.ExecutorAPIMock) {
 	executorAPIMock := &nomad.ExecutorAPIMock{}
+	executorAPIMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	manager := &runner.ManagerMock{}
 	manager.On("Return", mock.Anything).Return(nil)
 	r := runner.NewNomadJob(runnerID, nil, executorAPIMock, nil)
 	return r, executorAPIMock
 }
 
-func newRunnerWithNotMockedRunnerManager(t *testing.T, apiMock *nomad.ExecutorAPIMock, executionID string) (
+func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.ExecutorAPIMock, executionID string) (
 	r runner.Runner, wsURL *url.URL) {
-	t.Helper()
+	s.T().Helper()
 	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
 	call.Run(func(args mock.Arguments) {
-		<-context.Background().Done()
+		<-s.TestCtx.Done()
 		call.ReturnArguments = mock.Arguments{nil}
 	})
-	runnerManager := runner.NewNomadRunnerManager(apiMock, context.Background())
+
+	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
 	router := NewRouter(runnerManager, nil)
+	s.ExpectedGoroutingIncrease++ // We don't care about closing the server at this point.
 	server := httptest.NewServer(router)
 
 	runnerID := tests.DefaultRunnerID
+	s.ExpectedGoroutingIncrease++ // We don't care about removing the runner at this place.
 	runnerJob := runner.NewNomadJob(runnerID, nil, apiMock, nil)
+	s.ExpectedGoroutingIncrease++ // We don't care about removing the environment at this place.
 	e, err := environment.NewNomadEnvironment(0, apiMock, "job \"template-0\" {}")
-	require.NoError(t, err)
+	s.Require().NoError(err)
 	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 	e.SetID(eID)
 	e.SetPrewarmingPoolSize(0)
 	runnerManager.StoreEnvironment(e)
 	e.AddRunner(runnerJob)
 
 	r, err = runnerManager.Claim(e.ID(), int(tests.DefaultTestTimeout.Seconds()))
-	require.NoError(t, err)
+	s.Require().NoError(err)
 	wsURL, err = webSocketURL("ws", server, router, r.ID(), executionID)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 	return r, wsURL
 }
 

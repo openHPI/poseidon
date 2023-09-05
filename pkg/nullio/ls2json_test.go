@@ -3,6 +3,7 @@ package nullio
 import (
 	"bytes"
 	"context"
+	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -12,12 +13,13 @@ func TestLs2JsonTestSuite(t *testing.T) {
 }
 
 type Ls2JsonTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	buf    *bytes.Buffer
 	writer *Ls2JsonWriter
 }
 
 func (s *Ls2JsonTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	s.buf = &bytes.Buffer{}
 	s.writer = &Ls2JsonWriter{Target: s.buf, Ctx: context.Background()}
 }

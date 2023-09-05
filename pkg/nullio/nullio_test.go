@@ -2,23 +2,30 @@ package nullio
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
+	"github.com/openHPI/poseidon/tests"
+	"github.com/stretchr/testify/suite"
 	"io"
 	"testing"
 	"time"
 )
 
-const shortTimeout = 100 * time.Millisecond
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
 
-func TestReader_Read(t *testing.T) {
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestReader_Read() {
 	read := func(reader io.Reader, ret chan<- bool) {
 		p := make([]byte, 0, 5)
 		_, err := reader.Read(p)
-		assert.ErrorIs(t, io.EOF, err)
+		s.ErrorIs(io.EOF, err)
 		close(ret)
 	}
 
-	t.Run("WithContext_DoesNotReturnImmediately", func(t *testing.T) {
+	s.Run("WithContext_DoesNotReturnImmediately", func() {
 		readingContext, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -27,27 +34,27 @@ func TestReader_Read(t *testing.T) {
 
 		select {
 		case <-readerReturned:
-			assert.Fail(t, "The reader returned before the timeout was reached")
-		case <-time.After(shortTimeout):
+			s.Fail("The reader returned before the timeout was reached")
+		case <-time.After(tests.ShortTimeout):
 		}
 	})
 
-	t.Run("WithoutContext_DoesReturnImmediately", func(t *testing.T) {
+	s.Run("WithoutContext_DoesReturnImmediately", func() {
 		readerReturned := make(chan bool)
 		go read(&Reader{}, readerReturned)
 
 		select {
 		case <-readerReturned:
-		case <-time.After(shortTimeout):
-			assert.Fail(t, "The reader returned before the timeout was reached")
+		case <-time.After(tests.ShortTimeout):
+			s.Fail("The reader returned before the timeout was reached")
 		}
 	})
 }
 
-func TestReadWriterWritesEverything(t *testing.T) {
+func (s *MainTestSuite) TestReadWriterWritesEverything() {
 	readWriter := &ReadWriter{}
 	p := []byte{1, 2, 3}
 	n, err := readWriter.Write(p)
-	assert.NoError(t, err)
-	assert.Equal(t, len(p), n)
+	s.NoError(err)
+	s.Equal(len(p), n)
 }

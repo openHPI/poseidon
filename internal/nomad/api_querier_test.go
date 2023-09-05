@@ -4,15 +4,24 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
+	"github.com/openHPI/poseidon/tests"
+	"github.com/stretchr/testify/suite"
 	"testing"
 )
 
-func TestWebsocketErrorNeedsToBeUnwrapped(t *testing.T) {
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
+
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestWebsocketErrorNeedsToBeUnwrapped() {
 	rawError := &websocket.CloseError{Code: websocket.CloseNormalClosure}
 	err := fmt.Errorf("websocket closed before receiving exit code: %w", rawError)
 
-	assert.False(t, websocket.IsCloseError(err, websocket.CloseNormalClosure))
+	s.False(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 	rootCause := errors.Unwrap(err)
-	assert.True(t, websocket.IsCloseError(rootCause, websocket.CloseNormalClosure))
+	s.True(websocket.IsCloseError(rootCause, websocket.CloseNormalClosure))
 }

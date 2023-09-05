@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/tests"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
@@ -15,12 +14,13 @@ func TestRunnerPoolTestSuite(t *testing.T) {
 }
 
 type ObjectPoolTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	objectStorage *localStorage[any]
 	object        int
 }
 
 func (s *ObjectPoolTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	s.objectStorage = NewLocalStorage[any]()
 	s.object = 42
 }
@@ -113,7 +113,15 @@ func (s *ObjectPoolTestSuite) TestLenChangesOnStoreContentChange() {
 	})
 }
 
-func TestNewMonitoredLocalStorage_Callback(t *testing.T) {
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
+
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestNewMonitoredLocalStorage_Callback() {
 	callbackCalls := 0
 	callbackAdditions := 0
 	callbackDeletions := 0
@@ -131,40 +139,40 @@ func TestNewMonitoredLocalStorage_Callback(t *testing.T) {
 		beforeAdditions := callbackAdditions
 		beforeDeletions := callbackDeletions
 		test()
-		assert.Equal(t, beforeTotal+totalCalls, callbackCalls)
-		assert.Equal(t, beforeAdditions+additions, callbackAdditions)
-		assert.Equal(t, beforeDeletions+deletions, callbackDeletions)
+		s.Equal(beforeTotal+totalCalls, callbackCalls)
+		s.Equal(beforeAdditions+additions, callbackAdditions)
+		s.Equal(beforeDeletions+deletions, callbackDeletions)
 	}
 
-	t.Run("Add", func(t *testing.T) {
+	s.Run("Add", func() {
 		assertCallbackCounts(func() {
 			os.Add("id 1", "object 1")
 		}, 1, 1, 0)
 	})
 
-	t.Run("Delete", func(t *testing.T) {
+	s.Run("Delete", func() {
 		assertCallbackCounts(func() {
 			os.Delete("id 1")
 		}, 1, 0, 1)
 	})
 
-	t.Run("List", func(t *testing.T) {
+	s.Run("List", func() {
 		assertCallbackCounts(func() {
 			os.List()
 		}, 0, 0, 0)
 	})
 
-	t.Run("Pop", func(t *testing.T) {
+	s.Run("Pop", func() {
 		os.Add("id 1", "object 1")
 
 		assertCallbackCounts(func() {
 			o, ok := os.Pop("id 1")
-			assert.True(t, ok)
-			assert.Equal(t, "object 1", o)
+			s.True(ok)
+			s.Equal("object 1", o)
 		}, 1, 0, 1)
 	})
 
-	t.Run("Purge", func(t *testing.T) {
+	s.Run("Purge", func() {
 		os.Add("id 1", "object 1")
 		os.Add("id 2", "object 2")
 
@@ -173,20 +181,17 @@ func TestNewMonitoredLocalStorage_Callback(t *testing.T) {
 		}, 2, 0, 2)
 	})
 }
-
-func TestNewMonitoredLocalStorage_Periodically(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func (s *MainTestSuite) TestNewMonitoredLocalStorage_Periodically() {
 	callbackCalls := 0
 	NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, eventType EventType) {
 		callbackCalls++
-		assert.Equal(t, Periodically, eventType)
-	}, 2*tests.ShortTimeout, ctx)
+		s.Equal(Periodically, eventType)
+	}, 2*tests.ShortTimeout, s.TestCtx)
 
 	<-time.After(tests.ShortTimeout)
-	assert.Equal(t, 0, callbackCalls)
+	s.Equal(0, callbackCalls)
 	<-time.After(2 * tests.ShortTimeout)
-	assert.Equal(t, 1, callbackCalls)
+	s.Equal(1, callbackCalls)
 	<-time.After(2 * tests.ShortTimeout)
-	assert.Equal(t, 2, callbackCalls)
+	s.Equal(2, callbackCalls)
 }

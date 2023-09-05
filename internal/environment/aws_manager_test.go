@@ -6,33 +6,40 @@ import (
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"testing"
 )
 
-func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
+}
+
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestAWSEnvironmentManager_CreateOrUpdate() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	runnerManager := runner.NewAWSRunnerManager(ctx)
 	m := NewAWSEnvironmentManager(runnerManager)
 	uniqueImage := "java11Exec"
 
-	t.Run("can create default Java environment", func(t *testing.T) {
+	s.Run("can create default Java environment", func() {
 		config.Config.AWS.Functions = []string{uniqueImage}
 		_, err := m.CreateOrUpdate(
 			tests.AnotherEnvironmentIDAsInteger, dto.ExecutionEnvironmentRequest{Image: uniqueImage}, context.Background())
-		assert.NoError(t, err)
+		s.NoError(err)
 	})
 
-	t.Run("can retrieve added environment", func(t *testing.T) {
+	s.Run("can retrieve added environment", func() {
 		environment, err := m.Get(tests.AnotherEnvironmentIDAsInteger, false)
-		assert.NoError(t, err)
-		assert.Equal(t, environment.Image(), uniqueImage)
+		s.NoError(err)
+		s.Equal(environment.Image(), uniqueImage)
 	})
 
-	t.Run("non-handleable requests are forwarded to the next manager", func(t *testing.T) {
+	s.Run("non-handleable requests are forwarded to the next manager", func() {
 		nextHandler := &ManagerHandlerMock{}
 		nextHandler.On("CreateOrUpdate", mock.AnythingOfType("dto.EnvironmentID"),
 			mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).Return(true, nil)
@@ -40,55 +47,55 @@ func TestAWSEnvironmentManager_CreateOrUpdate(t *testing.T) {
 
 		request := dto.ExecutionEnvironmentRequest{}
 		_, err := m.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, request, context.Background())
-		assert.NoError(t, err)
-		nextHandler.AssertCalled(t, "CreateOrUpdate",
+		s.NoError(err)
+		nextHandler.AssertCalled(s.T(), "CreateOrUpdate",
 			dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), request, mock.Anything)
 	})
 }
 
-func TestAWSEnvironmentManager_Get(t *testing.T) {
+func (s *MainTestSuite) TestAWSEnvironmentManager_Get() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	runnerManager := runner.NewAWSRunnerManager(ctx)
 	m := NewAWSEnvironmentManager(runnerManager)
 
-	t.Run("Calls next handler when not found", func(t *testing.T) {
+	s.Run("Calls next handler when not found", func() {
 		nextHandler := &ManagerHandlerMock{}
 		nextHandler.On("Get", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("bool")).
 			Return(nil, nil)
 		m.SetNextHandler(nextHandler)
 
 		_, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
-		assert.NoError(t, err)
-		nextHandler.AssertCalled(t, "Get", dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), false)
+		s.NoError(err)
+		nextHandler.AssertCalled(s.T(), "Get", dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), false)
 	})
 
-	t.Run("Returns error when not found", func(t *testing.T) {
+	s.Run("Returns error when not found", func() {
 		nextHandler := &AbstractManager{nil, nil}
 		m.SetNextHandler(nextHandler)
 
 		_, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
-		assert.ErrorIs(t, err, runner.ErrRunnerNotFound)
+		s.ErrorIs(err, runner.ErrRunnerNotFound)
 	})
 
-	t.Run("Returns environment when it was added before", func(t *testing.T) {
+	s.Run("Returns environment when it was added before", func() {
 		expectedEnvironment := NewAWSEnvironment(nil)
 		expectedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(expectedEnvironment)
 
 		environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
-		assert.NoError(t, err)
-		assert.Equal(t, expectedEnvironment, environment)
+		s.NoError(err)
+		s.Equal(expectedEnvironment, environment)
 	})
 }
 
-func TestAWSEnvironmentManager_List(t *testing.T) {
+func (s *MainTestSuite) TestAWSEnvironmentManager_List() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	runnerManager := runner.NewAWSRunnerManager(ctx)
 	m := NewAWSEnvironmentManager(runnerManager)
 
-	t.Run("also returns environments of the rest of the manager chain", func(t *testing.T) {
+	s.Run("also returns environments of the rest of the manager chain", func() {
 		nextHandler := &ManagerHandlerMock{}
 		existingEnvironment := NewAWSEnvironment(nil)
 		nextHandler.On("List", mock.AnythingOfType("bool")).
@@ -96,20 +103,20 @@ func TestAWSEnvironmentManager_List(t *testing.T) {
 		m.SetNextHandler(nextHandler)
 
 		environments, err := m.List(false)
-		assert.NoError(t, err)
-		require.Len(t, environments, 1)
-		assert.Contains(t, environments, existingEnvironment)
+		s.NoError(err)
+		s.Require().Len(environments, 1)
+		s.Contains(environments, existingEnvironment)
 	})
 	m.SetNextHandler(nil)
 
-	t.Run("Returns added environment", func(t *testing.T) {
+	s.Run("Returns added environment", func() {
 		localEnvironment := NewAWSEnvironment(nil)
 		localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(localEnvironment)
 
 		environments, err := m.List(false)
-		assert.NoError(t, err)
-		assert.Len(t, environments, 1)
-		assert.Contains(t, environments, localEnvironment)
+		s.NoError(err)
+		s.Len(environments, 1)
+		s.Contains(environments, localEnvironment)
 	})
 }

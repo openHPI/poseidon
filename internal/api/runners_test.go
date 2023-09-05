@@ -23,7 +23,7 @@ import (
 const invalidID = "some-invalid-runner-id"
 
 type MiddlewareTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	manager        *runner.ManagerMock
 	router         *mux.Router
 	runner         runner.Runner
@@ -32,8 +32,11 @@ type MiddlewareTestSuite struct {
 }
 
 func (s *MiddlewareTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	s.manager = &runner.ManagerMock{}
-	s.runner = runner.NewNomadJob(tests.DefaultRunnerID, nil, nil, nil)
+	apiMock := &nomad.ExecutorAPIMock{}
+	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	s.runner = runner.NewNomadJob(tests.DefaultRunnerID, nil, apiMock, nil)
 	s.capturedRunner = nil
 	s.runnerRequest = func(runnerId string) *http.Request {
 		path, err := s.router.Get("test-runner-id").URL(RunnerIDKey, runnerId)
@@ -56,6 +59,12 @@ func (s *MiddlewareTestSuite) SetupTest() {
 	s.router.Use(monitoring.InfluxDB2Middleware)
 	s.router.Use(runnerController.findRunnerMiddleware)
 	s.router.HandleFunc(fmt.Sprintf("/test/{%s}", RunnerIDKey), runnerRouteHandler).Name("test-runner-id")
+}
+
+func (s *MiddlewareTestSuite) TearDownTest() {
+	defer s.MemoryLeakTestSuite.TearDownTest()
+	err := s.runner.Destroy(nil)
+	s.Require().NoError(err)
 }
 
 func TestMiddlewareTestSuite(t *testing.T) {
@@ -102,7 +111,7 @@ func TestRunnerRouteTestSuite(t *testing.T) {
 }
 
 type RunnerRouteTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	runnerManager *runner.ManagerMock
 	router        *mux.Router
 	runner        runner.Runner
@@ -110,12 +119,20 @@ type RunnerRouteTestSuite struct {
 }
 
 func (s *RunnerRouteTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	s.runnerManager = &runner.ManagerMock{}
 	s.router = NewRouter(s.runnerManager, nil)
-	s.runner = runner.NewNomadJob("some-id", nil, nil, nil)
+	apiMock := &nomad.ExecutorAPIMock{}
+	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	s.runner = runner.NewNomadJob("some-id", nil, apiMock, func(_ runner.Runner) error { return nil })
 	s.executionID = "execution"
 	s.runner.StoreExecution(s.executionID, &dto.ExecutionRequest{})
 	s.runnerManager.On("Get", s.runner.ID()).Return(s.runner, nil)
+}
+
+func (s *RunnerRouteTestSuite) TearDownTest() {
+	defer s.MemoryLeakTestSuite.TearDownTest()
+	s.Require().NoError(s.runner.Destroy(nil))
 }
 
 func TestProvideRunnerTestSuite(t *testing.T) {

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -14,13 +15,14 @@ import (
 const testToken = "C0rr3ctT0k3n"
 
 type AuthenticationMiddlewareTestSuite struct {
-	suite.Suite
+	tests.MemoryLeakTestSuite
 	request                      *http.Request
 	recorder                     *httptest.ResponseRecorder
 	httpAuthenticationMiddleware http.Handler
 }
 
 func (s *AuthenticationMiddlewareTestSuite) SetupTest() {
+	s.MemoryLeakTestSuite.SetupTest()
 	correctAuthenticationToken = []byte(testToken)
 	s.recorder = httptest.NewRecorder()
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/test", http.NoBody)
@@ -35,6 +37,7 @@ func (s *AuthenticationMiddlewareTestSuite) SetupTest() {
 }
 
 func (s *AuthenticationMiddlewareTestSuite) TearDownTest() {
+	defer s.MemoryLeakTestSuite.TearDownTest()
 	correctAuthenticationToken = []byte(nil)
 }
 

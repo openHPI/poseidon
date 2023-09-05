@@ -2,10 +2,11 @@ package config
 
 import (
 	"fmt"
+	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -58,29 +59,37 @@ func writeConfigurationFile(t *testing.T, name string, content []byte) string {
 	return filePath
 }
 
-func TestCallingInitConfigTwiceReturnsError(t *testing.T) {
-	configurationInitialized = false
-	err := InitConfig()
-	assert.NoError(t, err)
-	err = InitConfig()
-	assert.Error(t, err)
+type MainTestSuite struct {
+	tests.MemoryLeakTestSuite
 }
 
-func TestCallingInitConfigTwiceDoesNotChangeConfig(t *testing.T) {
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestCallingInitConfigTwiceReturnsError() {
 	configurationInitialized = false
 	err := InitConfig()
-	require.NoError(t, err)
+	s.NoError(err)
+	err = InitConfig()
+	s.Error(err)
+}
+
+func (s *MainTestSuite) TestCallingInitConfigTwiceDoesNotChangeConfig() {
+	configurationInitialized = false
+	err := InitConfig()
+	s.Require().NoError(err)
 	Config = newTestConfiguration()
-	filePath := writeConfigurationFile(t, "test.yaml", []byte("server:\n  port: 5000\n"))
+	filePath := writeConfigurationFile(s.T(), "test.yaml", []byte("server:\n  port: 5000\n"))
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	os.Args = append(os.Args, "-config", filePath)
 	err = InitConfig()
-	require.Error(t, err)
-	assert.Equal(t, 3000, Config.Server.Port)
+	s.Require().Error(err)
+	s.Equal(3000, Config.Server.Port)
 }
 
-func TestReadEnvironmentVariables(t *testing.T) {
+func (s *MainTestSuite) TestReadEnvironmentVariables() {
 	var environmentTests = []struct {
 		variableSuffix string
 		valueToSet     string
@@ -101,33 +110,33 @@ func TestReadEnvironmentVariables(t *testing.T) {
 		_ = os.Setenv(environmentVariable, testCase.valueToSet)
 		readFromEnvironment(prefix, config.getReflectValue())
 		_ = os.Unsetenv(environmentVariable)
-		assert.Equal(t, testCase.expectedValue, testCase.getTargetField(config))
+		s.Equal(testCase.expectedValue, testCase.getTargetField(config))
 	}
 }
 
-func TestReadEnvironmentIgnoresNonPointerValue(t *testing.T) {
+func (s *MainTestSuite) TestReadEnvironmentIgnoresNonPointerValue() {
 	config := newTestConfiguration()
 	_ = os.Setenv("POSEIDON_TEST_SERVER_PORT", "4000")
 	readFromEnvironment("POSEIDON_TEST", reflect.ValueOf(config))
 	_ = os.Unsetenv("POSEIDON_TEST_SERVER_PORT")
-	assert.Equal(t, 3000, config.Server.Port)
+	s.Equal(3000, config.Server.Port)
 }
 
-func TestReadEnvironmentIgnoresNotSupportedType(t *testing.T) {
+func (s *MainTestSuite) TestReadEnvironmentIgnoresNotSupportedType() {
 	config := &struct{ Timeout float64 }{1.0}
 	_ = os.Setenv("POSEIDON_TEST_TIMEOUT", "2.5")
 	readFromEnvironment("POSEIDON_TEST", reflect.ValueOf(config).Elem())
 	_ = os.Unsetenv("POSEIDON_TEST_TIMEOUT")
-	assert.Equal(t, 1.0, config.Timeout)
+	s.Equal(1.0, config.Timeout)
 }
 
-func TestUnsetEnvironmentVariableDoesNotChangeConfig(t *testing.T) {
+func (s *MainTestSuite) TestUnsetEnvironmentVariableDoesNotChangeConfig() {
 	config := newTestConfiguration()
 	readFromEnvironment("POSEIDON_TEST", config.getReflectValue())
-	assert.Equal(t, "INFO", config.Logger.Level)
+	s.Equal("INFO", config.Logger.Level)
 }
 
-func TestReadYamlConfigFile(t *testing.T) {
+func (s *MainTestSuite) TestReadYamlConfigFile() {
 	var yamlTests = []struct {
 		content        []byte
 		expectedValue  interface{}
@@ -144,11 +153,11 @@ func TestReadYamlConfigFile(t *testing.T) {
 	for _, testCase := range yamlTests {
 		config := newTestConfiguration()
 		config.mergeYaml(testCase.content)
-		assert.Equal(t, testCase.expectedValue, testCase.getTargetField(config))
+		s.Equal(testCase.expectedValue, testCase.getTargetField(config))
 	}
 }
 
-func TestInvalidYamlExitsProgram(t *testing.T) {
+func (s *MainTestSuite) TestInvalidYamlExitsProgram() {
 	logger, hook := test.NewNullLogger()
 	// this function is used when calling log.Fatal() and
 	// prevents the program from exiting during this test
@@ -156,34 +165,34 @@ func TestInvalidYamlExitsProgram(t *testing.T) {
 	log = logger.WithField("package", "config_test")
 	config := newTestConfiguration()
 	config.mergeYaml([]byte("logger: level: DEBUG"))
-	assert.Equal(t, 1, len(hook.Entries))
-	assert.Equal(t, logrus.FatalLevel, hook.LastEntry().Level)
+	s.Equal(1, len(hook.Entries))
+	s.Equal(logrus.FatalLevel, hook.LastEntry().Level)
 }
 
-func TestReadConfigFileOverwritesConfig(t *testing.T) {
+func (s *MainTestSuite) TestReadConfigFileOverwritesConfig() {
 	Config = newTestConfiguration()
-	filePath := writeConfigurationFile(t, "test.yaml", []byte("server:\n  port: 5000\n"))
+	filePath := writeConfigurationFile(s.T(), "test.yaml", []byte("server:\n  port: 5000\n"))
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	os.Args = append(os.Args, "-config", filePath)
 	configurationInitialized = false
 	err := InitConfig()
-	require.NoError(t, err)
-	assert.Equal(t, 5000, Config.Server.Port)
+	s.Require().NoError(err)
+	s.Equal(5000, Config.Server.Port)
 }
 
-func TestReadNonExistingConfigFileDoesNotOverwriteConfig(t *testing.T) {
+func (s *MainTestSuite) TestReadNonExistingConfigFileDoesNotOverwriteConfig() {
 	Config = newTestConfiguration()
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	os.Args = append(os.Args, "-config", "file_does_not_exist.yaml")
 	configurationInitialized = false
 	err := InitConfig()
-	require.NoError(t, err)
-	assert.Equal(t, 3000, Config.Server.Port)
+	s.Require().NoError(err)
+	s.Equal(3000, Config.Server.Port)
 }
 
-func TestURLParsing(t *testing.T) {
+func (s *MainTestSuite) TestURLParsing() {
 	var urlTests = []struct {
 		address        string
 		port           int
@@ -196,19 +205,19 @@ func TestURLParsing(t *testing.T) {
 	}
 	for _, testCase := range urlTests {
 		url := parseURL(testCase.address, testCase.port, testCase.tls)
-		assert.Equal(t, testCase.expectedScheme, url.Scheme)
-		assert.Equal(t, testCase.expectedHost, url.Host)
+		s.Equal(testCase.expectedScheme, url.Scheme)
+		s.Equal(testCase.expectedHost, url.Host)
 	}
 }
 
-func TestNomadAPIURL(t *testing.T) {
+func (s *MainTestSuite) TestNomadAPIURL() {
 	config := newTestConfiguration()
-	assert.Equal(t, "http", config.Nomad.URL().Scheme)
-	assert.Equal(t, "127.0.0.2:4646", config.Nomad.URL().Host)
+	s.Equal("http", config.Nomad.URL().Scheme)
+	s.Equal("127.0.0.2:4646", config.Nomad.URL().Host)
 }
 
-func TestPoseidonAPIURL(t *testing.T) {
+func (s *MainTestSuite) TestPoseidonAPIURL() {
 	config := newTestConfiguration()
-	assert.Equal(t, "http", config.Server.URL().Scheme)
-	assert.Equal(t, "127.0.0.1:3000", config.Server.URL().Host)
+	s.Equal("http", config.Server.URL().Scheme)
+	s.Equal("127.0.0.1:3000", config.Server.URL().Host)
 }

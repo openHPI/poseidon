@@ -281,7 +281,10 @@ func (r *NomadJob) executeCommand(ctx context.Context, command string, privilege
 	stdin io.ReadWriter, stdout, stderr io.Writer, exit chan<- ExitInfo,
 ) {
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, privilegedExecution, stdin, stdout, stderr)
-	exit <- ExitInfo{uint8(exitCode), err}
+	select {
+	case exit <- ExitInfo{uint8(exitCode), err}:
+	case <-ctx.Done():
+	}
 }
 
 func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute context.CancelFunc,

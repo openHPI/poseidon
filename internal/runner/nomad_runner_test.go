@@ -219,12 +219,8 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal() {
-	s.T().Skip("ToDo: Refactor NomadJob.executeCommand. Stuck in sending to channel") // ToDo
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
-		<-ctx.Done()
+		<-s.TestCtx.Done()
 	})
 	runnerDestroyed := false
 	s.runner.onDestroy = func(_ Runner) error {
@@ -255,10 +251,8 @@ func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
-		<-ctx.Done()
+		<-s.TestCtx.Done()
 	}).Return(0, nil)
 	s.mockedTimeoutPassedCall.Return(true)
 	executionRequest := &dto.ExecutionRequest{}
@@ -274,12 +268,8 @@ func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut(
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestDestroyReasonIsPassedToExecution() {
-	s.T().Skip("See TestDestroysRunnerAfterTimeoutAndSignal")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
-		<-ctx.Done()
+		<-s.TestCtx.Done()
 	}).Return(0, nil)
 	s.mockedTimeoutPassedCall.Return(true)
 	executionRequest := &dto.ExecutionRequest{}

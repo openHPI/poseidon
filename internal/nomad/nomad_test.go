@@ -837,6 +837,8 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
 		s.Require().True(ok)
 
 		if isStderrCommand := strings.Contains(calledCommand, "mkfifo"); isStderrCommand {
+			// Here we defuse the data race condition of the ReturnArguments being set twice at the same time.
+			<-time.After(tests.ShortTimeout)
 			call.ReturnArguments = mock.Arguments{1, nil}
 		} else {
 			call.ReturnArguments = mock.Arguments{1, tests.ErrDefault}

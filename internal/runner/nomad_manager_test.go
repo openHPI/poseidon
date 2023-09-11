@@ -214,12 +214,38 @@ func (s *ManagerTestSuite) TestReturnCallsDeleteRunnerApiMethod() {
 }
 
 func (s *ManagerTestSuite) TestReturnReturnsErrorWhenApiCallFailed() {
-	s.T().Skip("Since we introduced the Retry mechanism in the runner Destroy this test works not as expected") // ToDo
 	tests.RemoveMethodFromMock(&s.apiMock.Mock, "DeleteJob")
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(tests.ErrDefault)
+	defer s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	defer tests.RemoveMethodFromMock(&s.apiMock.Mock, "DeleteJob")
 	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return(false)
-	err := s.nomadRunnerManager.Return(s.exerciseRunner)
-	s.Error(err)
+
+	util.MaxConnectionRetriesExponential = 1
+	util.InitialWaitingDuration = 2 * tests.ShortTimeout
+
+	chReturnDone := make(chan error)
+	go func(done chan<- error) {
+		err := s.nomadRunnerManager.Return(s.exerciseRunner)
+		select {
+		case <-s.TestCtx.Done():
+		case done <- err:
+		}
+		close(done)
+	}(chReturnDone)
+
+	select {
+	case <-chReturnDone:
+		s.Fail("Return should not return if the API request failed")
+	case <-time.After(tests.ShortTimeout):
+	}
+
+	select {
+	case err := <-chReturnDone:
+		s.ErrorIs(err, tests.ErrDefault)
+	case <-time.After(2 * tests.ShortTimeout):
+		s.Fail("Return should return after the retry mechanism")
+		// note: MaxConnectionRetriesExponential and InitialWaitingDuration is decreased extremely here.
+	}
 }
 
 func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {

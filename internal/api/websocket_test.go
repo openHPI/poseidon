@@ -45,8 +45,8 @@ func (s *WebSocketTestSuite) SetupTest() {
 
 	// default execution
 	s.executionID = tests.DefaultExecutionID
-	s.runner.StoreExecution(s.executionID, &executionRequestHead)
-	mockAPIExecuteHead(s.apiMock)
+	s.runner.StoreExecution(s.executionID, &executionRequestLs)
+	mockAPIExecuteLs(s.apiMock)
 
 	runnerManager := &runner.ManagerMock{}
 	runnerManager.On("Get", s.runner.ID()).Return(s.runner, nil)
@@ -66,6 +66,8 @@ func (s *WebSocketTestSuite) TestWebsocketConnectionCanBeEstablished() {
 	s.Require().NoError(err)
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
 	s.Require().NoError(err)
+
+	<-time.After(tests.ShortTimeout)
 	err = conn.Close()
 	s.NoError(err)
 }
@@ -90,6 +92,8 @@ func (s *WebSocketTestSuite) TestWebsocketReturns400IfRequestedViaHttp() {
 }
 
 func (s *WebSocketTestSuite) TestWebsocketConnection() {
+	s.runner.StoreExecution(s.executionID, &executionRequestHead)
+	mockAPIExecuteHead(s.apiMock)
 	wsURL, err := s.webSocketURL("ws", s.runner.ID(), s.executionID)
 	s.Require().NoError(err)
 	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
@@ -461,6 +465,7 @@ func mockAPIExecuteExitNonZero(api *nomad.ExecutorAPIMock) {
 func mockAPIExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
 	run func(runnerId string, ctx context.Context, command string, tty bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)) {
+	tests.RemoveMethodFromMock(&api.Mock, "ExecuteCommand")
 	call := api.On("ExecuteCommand",
 		mock.AnythingOfType("string"),
 		mock.Anything,

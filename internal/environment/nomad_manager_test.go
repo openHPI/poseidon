@@ -127,7 +127,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 		s.NotNil(m)
 		s.Equal(templateJobHCL, m.templateEnvironmentHCL)
 
-		s.NoError(environment.Delete())
+		s.NoError(environment.Delete(false))
 	})
 
 	s.Run("returns error if template file is invalid", func() {
@@ -145,8 +145,6 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 }
 
 func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
-	s.T().Skip("ToDo: Get does not delete the replaced environment") // ToDo
-
 	disableRecovery, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -179,7 +177,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 		s.NoError(err)
 		s.Equal(expectedEnvironment, environment)
 
-		err = environment.Delete()
+		err = environment.Delete(false)
 		s.Require().NoError(err)
 	})
 
@@ -213,11 +211,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 			s.NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
-			err = fetchedEnvironment.Delete()
+			err = fetchedEnvironment.Delete(false)
 			s.Require().NoError(err)
-			err = environment.Delete()
+			err = environment.Delete(false)
 			s.Require().NoError(err)
-			err = localEnvironment.Delete()
+			err = localEnvironment.Delete(false)
 			s.Require().NoError(err)
 		})
 		runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
@@ -239,9 +237,9 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 			s.NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
-			err = fetchedEnvironment.Delete()
+			err = fetchedEnvironment.Delete(false)
 			s.Require().NoError(err)
-			err = environment.Delete()
+			err = environment.Delete(false)
 			s.Require().NoError(err)
 		})
 	})
@@ -281,7 +279,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 		s.Equal(1, len(environments))
 		s.Equal(localEnvironment, environments[0])
 
-		err = localEnvironment.Delete()
+		err = localEnvironment.Delete(false)
 		s.Require().NoError(err)
 	})
 	runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
@@ -308,9 +306,9 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 		s.True(ok)
 		s.Equal(fetchedEnvironment.job, nomadEnvironment.job)
 
-		err = fetchedEnvironment.Delete()
+		err = fetchedEnvironment.Delete(false)
 		s.Require().NoError(err)
-		err = nomadEnvironment.Delete()
+		err = nomadEnvironment.Delete(false)
 		s.Require().NoError(err)
 	})
 }
@@ -340,7 +338,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 		s.Require().True(ok)
 		s.Equal("python:latest", environment.Image())
 
-		err = environment.Delete()
+		err = environment.Delete(false)
 		s.Require().NoError(err)
 	})
 

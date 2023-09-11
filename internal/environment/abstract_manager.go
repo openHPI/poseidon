@@ -58,7 +58,7 @@ func (n *AbstractManager) Delete(id dto.EnvironmentID) (bool, error) {
 	}
 
 	n.runnerManager.DeleteEnvironment(id)
-	if err := e.Delete(); err != nil {
+	if err := e.Delete(false); err != nil {
 		return true, fmt.Errorf("could not delete environment: %w", err)
 	}
 	return true, nil

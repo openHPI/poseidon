@@ -72,6 +72,10 @@ func (m *NomadEnvironmentManager) Get(id dto.EnvironmentID, fetch bool) (
 			ok = true
 		default:
 			executionEnvironment.SetConfigFrom(fetchedEnvironment)
+			err = fetchedEnvironment.Delete(true)
+			if err != nil {
+				log.WithError(err).Warn("Failed to remove environment locally")
+			}
 		}
 	}
 
@@ -98,7 +102,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	if isExistingEnvironment {
 		// Remove existing environment to force downloading the newest Docker image.
 		// See https://github.com/openHPI/poseidon/issues/69
-		err = environment.Delete()
+		err = environment.Delete(false)
 		if err != nil {
 			return false, fmt.Errorf("failed to remove the environment: %w", err)
 		}

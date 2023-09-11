@@ -219,15 +219,17 @@ func (n *NomadEnvironment) Register() error {
 	return nil
 }
 
-func (n *NomadEnvironment) Delete() error {
+func (n *NomadEnvironment) Delete(local bool) error {
 	n.cancel()
-	err := n.removeRunners()
-	if err != nil {
-		return err
-	}
-	err = n.apiClient.DeleteJob(*n.job.ID)
-	if err != nil {
-		return fmt.Errorf("couldn't delete environment job: %w", err)
+	if !local {
+		err := n.removeRunners()
+		if err != nil {
+			return err
+		}
+		err = n.apiClient.DeleteJob(*n.job.ID)
+		if err != nil {
+			return fmt.Errorf("couldn't delete environment job: %w", err)
+		}
 	}
 	return nil
 }

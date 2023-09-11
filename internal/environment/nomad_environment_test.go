@@ -165,7 +165,7 @@ func (s *MainTestSuite) TestParseJob() {
 		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.NoError(err)
 		s.NotNil(environment.job)
-		s.NoError(environment.Delete())
+		s.NoError(environment.Delete(false))
 	})
 
 	s.Run("returns error when given wrong job", func() {
@@ -216,7 +216,7 @@ func (s *MainTestSuite) TestSampleDoesNotSetForcePullFlag() {
 
 	_, job := helpers.CreateTemplateJob()
 	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job,
-		storage.NewLocalStorage[runner.Runner](), context.Background(), nil}
+		storage.NewLocalStorage[runner.Runner](), s.TestCtx, nil}
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
 	environment.AddRunner(runner1)
@@ -224,4 +224,14 @@ func (s *MainTestSuite) TestSampleDoesNotSetForcePullFlag() {
 	_, ok := environment.Sample()
 	s.Require().True(ok)
 	<-time.After(tests.ShortTimeout) // New Runners are requested asynchronously
+}
+
+func (s *MainTestSuite) TestNomadEnvironment_DeleteLocally() {
+	apiMock := &nomad.ExecutorAPIMock{}
+	environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+	s.Require().NoError(err)
+
+	err = environment.Delete(true)
+	s.NoError(err)
+	apiMock.AssertExpectations(s.T())
 }

@@ -105,6 +105,33 @@ func (s *MainTestSuite) TestFromContextReturnsIsNotOkWhenContextHasNoRunner() {
 	s.False(ok)
 }
 
+func (s *MainTestSuite) TestDestroyDoesNotPropagateToNomadForSomeReasons() {
+	apiMock := &nomad.ExecutorAPIMock{}
+	timer := &InactivityTimerMock{}
+	timer.On("StopTimeout").Return()
+	ctx, cancel := context.WithCancel(s.TestCtx)
+	r := &NomadJob{
+		executions:      storage.NewLocalStorage[*dto.ExecutionRequest](),
+		InactivityTimer: timer,
+		id:              tests.DefaultRunnerID,
+		api:             apiMock,
+		ctx:             ctx,
+		cancel:          cancel,
+	}
+
+	s.Run("destroy removes the runner only locally for OOM Killed Allocations", func() {
+		err := r.Destroy(ErrOOMKilled)
+		s.NoError(err)
+		apiMock.AssertExpectations(s.T())
+	})
+
+	s.Run("destroy removes the runner only locally for rescheduled allocations", func() {
+		err := r.Destroy(nomad.ErrorAllocationRescheduled)
+		s.NoError(err)
+		apiMock.AssertExpectations(s.T())
+	})
+}
+
 func TestExecuteInteractivelyTestSuite(t *testing.T) {
 	suite.Run(t, new(ExecuteInteractivelyTestSuite))
 }

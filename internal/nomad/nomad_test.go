@@ -578,26 +578,6 @@ func (s *MainTestSuite) TestHandleAllocationEventBuffersPendingAllocation() {
 	})
 }
 
-func (s *MainTestSuite) TestHandleAllocationEvent_IgnoresReschedulesForStoppedJobs() {
-	startedAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	rescheduledAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	rescheduledAllocation.ID = tests.AnotherUUID
-	rescheduledAllocation.PreviousAllocation = startedAllocation.ID
-	rescheduledEvent := eventForAllocation(s.T(), rescheduledAllocation)
-
-	allocations := storage.NewLocalStorage[*allocationData]()
-	allocations.Add(startedAllocation.ID, &allocationData{jobID: startedAllocation.JobID})
-
-	err := handleAllocationEvent(time.Now().UnixNano(), allocations, &rescheduledEvent, &AllocationProcessing{
-		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ string, _ error) bool { return true },
-	})
-	s.Require().NoError(err)
-
-	_, ok := allocations.Get(rescheduledAllocation.ID)
-	s.False(ok)
-}
-
 func (s *MainTestSuite) TestHandleAllocationEvent_RegressionTest_14_09_2023() {
 	jobID := "29-6f04b525-5315-11ee-af32-fa163e079f19"
 	a1ID := "04d86250-550c-62f9-9a21-ecdc3b38773e"

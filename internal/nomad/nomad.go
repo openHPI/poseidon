@@ -453,7 +453,8 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocat
 			stopExpected:       stopExpected,
 		})
 	case structs.AllocDesiredStatusStop:
-		handleStoppingAllocationEvent(alloc, allocations, callbacks, false)
+		// As this allocation was still pending, we don't have to propagate its deletion.
+		allocations.Delete(alloc.ID)
 		// Anyway, we want to monitor the occurrences.
 		if !allocData.stopExpected {
 			log.WithField("alloc", alloc).Warn("Pending allocation was stopped unexpectedly")

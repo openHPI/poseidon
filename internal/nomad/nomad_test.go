@@ -518,9 +518,9 @@ func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 	stoppedPendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusStop)
 	stoppedPendingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), stoppedPendingAllocation)}}
 
-	s.Run("it removes stopped pending allocations", func() {
+	s.Run("it does not callback for stopped pending allocations", func() {
 		assertWatchAllocation(s, []*nomadApi.Events{&pendingEvents, &stoppedPendingEvents},
-			[]*nomadApi.Allocation(nil), []string{stoppedPendingAllocation.JobID})
+			[]*nomadApi.Allocation(nil), []string(nil))
 	})
 
 	failedAllocation := createRecentAllocation(structs.AllocClientStatusFailed, structs.AllocDesiredStatusStop)

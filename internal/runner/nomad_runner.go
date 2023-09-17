@@ -246,23 +246,30 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 	r.StopTimeout()
 	if r.onDestroy != nil {
 		err = r.onDestroy(r)
+		if err != nil {
+			log.WithContext(r.ctx).WithError(err).Warn("runner onDestroy callback failed")
+		}
 	}
 
-	if err == nil && !errors.Is(reason, ErrOOMKilled) {
-		err = util.RetryExponential(func() (err error) {
-			if err = r.api.DeleteJob(r.ID()); err != nil {
-				err = fmt.Errorf("error deleting runner in Nomad: %w", err)
-			}
-			return
-		})
+	// local determines if a reason is present that the runner should only be removed locally (without requesting Nomad).
+	local := errors.Is(reason, nomad.ErrorAllocationRescheduled) ||
+		errors.Is(reason, ErrOOMKilled)
+	if local {
+		log.WithContext(r.ctx).Debug("Runner destroyed locally")
+		return nil
 	}
 
+	err = util.RetryExponential(func() (err error) {
+		if err = r.api.DeleteJob(r.ID()); err != nil {
+			err = fmt.Errorf("error deleting runner in Nomad: %w", err)
+		}
+		return
+	})
 	if err != nil {
-		err = fmt.Errorf("cannot destroy runner: %w", err)
-	} else {
-		log.WithContext(r.ctx).Trace("Runner destroyed")
+		return fmt.Errorf("cannot destroy runner: %w", err)
 	}
-	return err
+	log.WithContext(r.ctx).Trace("Runner destroyed")
+	return nil
 }
 
 func prepareExecution(request *dto.ExecutionRequest, environmentCtx context.Context) (

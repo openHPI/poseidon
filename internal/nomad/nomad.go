@@ -60,6 +60,9 @@ type allocationData struct {
 	allocDesiredStatus string
 	jobID              string
 	start              time.Time
+	// stopExpected is used to suppress warnings that could be triggered by a race condition
+	// between the Inactivity timer and an external event leadng to allocation rescheduling.
+	stopExpected bool
 	// Just debugging information
 	allocNomadNode string
 }
@@ -420,6 +423,7 @@ func updateAllocationData(
 // This allows the handling of startups and re-placements of allocations.
 func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocationData,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
+	var stopExpected bool
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
 		if allocData != nil {
@@ -432,15 +436,7 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocat
 		} else if alloc.PreviousAllocation != "" {
 			// Handle Runner (/Container) re-allocations.
 			if prevData, ok := allocations.Get(alloc.PreviousAllocation); ok {
-				if removedByPoseidon := callbacks.OnDeleted(prevData.jobID, ErrorAllocationRescheduled); removedByPoseidon {
-					// This case handles a race condition between the overdue runner inactivity timeout and the rescheduling of a
-					// lost allocation. The race condition leads first to the rescheduling of the runner, but right after to it
-					// being stopped. Instead of reporting an unexpected stop of the pending runner, we just not start tracking it.
-					return
-				}
-				// Improve: When returning in the step before the allocation data will never be removed (data leak).
-				// But it also shouldn't be removed as the current event could be received multiple times.
-				// If we removed the allocation data the previous case handling wouldn't be triggered for the replicated event.
+				stopExpected = callbacks.OnDeleted(prevData.jobID, ErrorAllocationRescheduled)
 				allocations.Delete(alloc.PreviousAllocation)
 			} else {
 				log.WithField("alloc", alloc).Warn("Previous Allocation not found")
@@ -454,9 +450,17 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocat
 			jobID:              alloc.JobID,
 			start:              time.Now(),
 			allocNomadNode:     alloc.NodeName,
+			stopExpected:       stopExpected,
 		})
 	case structs.AllocDesiredStatusStop:
 		handleStoppingAllocationEvent(alloc, allocations, callbacks, false)
+		// Anyway, we want to monitor the occurrences.
+		if !allocData.stopExpected {
+			log.WithField("alloc", alloc).Warn("Pending allocation was stopped unexpectedly")
+		} else {
+			// ToDo: This log statement is just for measuring how common the mentioned race condition is. Remove it soon.
+			log.WithField("alloc", alloc).Warn("Pending allocation was stopped expectedly")
+		}
 	default:
 		log.WithField("alloc", alloc).Warn("Other Desired Status")
 	}

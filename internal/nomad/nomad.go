@@ -390,10 +390,10 @@ func filterDuplicateEvents(alloc *nomadApi.Allocation, allocations storage.Stora
 		return true
 	case !ok:
 		// This case happens in case of an error or when an event that led to the deletion of the alloc data is duplicated.
-		log.WithField("alloc", alloc).Debug("Ignoring unknown allocation")
+		log.WithField("allocID", alloc.ID).Debug("Ignoring unknown allocation")
 		return false
 	case alloc.ClientStatus == allocData.allocClientStatus && alloc.DesiredStatus == allocData.allocDesiredStatus:
-		log.WithField("alloc", alloc).Debug("Ignoring duplicate event")
+		log.WithField("allocID", alloc.ID).Debug("Ignoring duplicate event")
 		return false
 	default:
 		return true

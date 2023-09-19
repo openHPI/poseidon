@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
@@ -108,6 +109,41 @@ func initProfiling(options config.Profiling) (cancel func()) {
 		cancel = func() {}
 	}
 	return cancel
+}
+
+// watchMemoryAndAlert monitors the memory usage of Poseidon and sends an alert if it exceeds a threshold.
+func watchMemoryAndAlert() {
+	// We assume that Poseidon usually takes about 50-300 MB of memory. Therefore, we specify the threshold of 1 GB.
+	// Improve: Make this value dynamic or relative.
+	const threshold = 1 * 1000 * 1000 * 1000
+	const interval = 5 * time.Second
+
+	for {
+		var stats runtime.MemStats
+		runtime.ReadMemStats(&stats)
+		log.WithField("heap", stats.HeapAlloc).Trace("Current Memory Usage")
+
+		if stats.HeapAlloc >= threshold {
+			log.WithField("heap", stats.HeapAlloc).Warn("Memory Threshold exceeded")
+
+			err := pprof.Lookup("heap").WriteTo(os.Stderr, 1)
+			if err != nil {
+				log.WithError(err).Warn("Failed to log the heap profile")
+			}
+
+			err = pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
+			if err != nil {
+				log.WithError(err).Warn("Failed to log the goroutines")
+			}
+		}
+
+		select {
+		case <-time.After(interval):
+			continue
+		case <-context.Background().Done():
+			return
+		}
+	}
 }
 
 func runServer(server *http.Server, cancel context.CancelFunc) {
@@ -240,6 +276,7 @@ func main() {
 	defer cancelInflux()
 
 	stopProfiling := initProfiling(config.Config.Profiling)
+	go watchMemoryAndAlert()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	server := initServer(ctx)

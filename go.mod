@@ -3,7 +3,7 @@ module github.com/openHPI/poseidon
 go 1.21.1
 
 require (
-	github.com/getsentry/sentry-go v0.24.1
+	github.com/getsentry/sentry-go v0.25.0
 	github.com/google/uuid v1.3.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0

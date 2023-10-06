@@ -85,8 +85,8 @@ func shutdownSentry() {
 }
 
 func initProfiling(options config.Profiling) (cancel func()) {
-	if options.Enabled {
-		profile, err := os.Create(options.File)
+	if options.CPUEnabled {
+		profile, err := os.Create(options.CPUFile)
 		if err != nil {
 			log.WithError(err).Error("Error while opening the profile file")
 		}
@@ -97,7 +97,7 @@ func initProfiling(options config.Profiling) (cancel func()) {
 		}
 
 		cancel = func() {
-			if options.Enabled {
+			if options.CPUEnabled {
 				log.Debug("Stopping CPU profiler")
 				pprof.StopCPUProfile()
 				if err := profile.Close(); err != nil {
@@ -112,18 +112,20 @@ func initProfiling(options config.Profiling) (cancel func()) {
 }
 
 // watchMemoryAndAlert monitors the memory usage of Poseidon and sends an alert if it exceeds a threshold.
-func watchMemoryAndAlert() {
-	// We assume that Poseidon usually takes about 50-300 MB of memory. Therefore, we specify the threshold of 1 GB.
-	// Improve: Make this value dynamic or relative.
-	const threshold = 1 * 1000 * 1000 * 1000
-	const interval = 5 * time.Second
+func watchMemoryAndAlert(options config.Profiling) {
+	if options.MemoryInterval == 0 {
+		return
+	}
 
+	var exceeded bool
 	for {
 		var stats runtime.MemStats
 		runtime.ReadMemStats(&stats)
 		log.WithField("heap", stats.HeapAlloc).Trace("Current Memory Usage")
 
-		if stats.HeapAlloc >= threshold {
+		const megabytesToBytes = 1000 * 1000
+		if !exceeded && stats.HeapAlloc >= uint64(options.MemoryThreshold)*megabytesToBytes {
+			exceeded = true
 			log.WithField("heap", stats.HeapAlloc).Warn("Memory Threshold exceeded")
 
 			err := pprof.Lookup("heap").WriteTo(os.Stderr, 1)
@@ -135,10 +137,13 @@ func watchMemoryAndAlert() {
 			if err != nil {
 				log.WithError(err).Warn("Failed to log the goroutines")
 			}
+		} else if exceeded {
+			exceeded = false
+			log.WithField("heap", stats.HeapAlloc).Info("Memory Threshold no longer exceeded")
 		}
 
 		select {
-		case <-time.After(interval):
+		case <-time.After(time.Duration(options.MemoryInterval) * time.Millisecond):
 			continue
 		case <-context.Background().Done():
 			return
@@ -270,13 +275,13 @@ func main() {
 		log.WithError(err).Warn("Could not initialize configuration")
 	}
 	logging.InitializeLogging(config.Config.Logger.Level, config.Config.Logger.Formatter)
-	initSentry(&config.Config.Sentry, config.Config.Profiling.Enabled)
+	initSentry(&config.Config.Sentry, config.Config.Profiling.CPUEnabled)
 
 	cancelInflux := monitoring.InitializeInfluxDB(&config.Config.InfluxDB)
 	defer cancelInflux()
 
 	stopProfiling := initProfiling(config.Config.Profiling)
-	go watchMemoryAndAlert()
+	go watchMemoryAndAlert(config.Config.Profiling)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	server := initServer(ctx)

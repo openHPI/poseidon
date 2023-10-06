@@ -64,10 +64,15 @@ logger:
 # Configuration of the embedded profiler
 profiling:
   # Enables the runtime profiler
-  enabled: false
+  cpuenabled: false
   # The file to which the profile is written to.
   # The default location `cmd/poseidon/default.pgo` will be picked up during the build process to create a profile-guided build.
-  file: cmd/poseidon/default.pgo
+  cpufile: cmd/poseidon/default.pgo
+  # If set, a memory watchdog will be started that monitors the memory usage of Poseidon and alerts if the threshold is exceeded.
+  # The value defines the interval in milliseconds in which the memory usage is checked.
+  memoryinterval: 30_000
+  # The Threshold in MB of memory usage at which Poseidon will start alerting.
+  memorythreshold: 1_000
 
 # Configuration of the sentry logging
 sentry:

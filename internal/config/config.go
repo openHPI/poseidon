@@ -55,6 +55,9 @@ var (
 			Level:     "INFO",
 			Formatter: dto.FormatterText,
 		},
+		Profiling: Profiling{
+			MemoryThreshold: 1_000,
+		},
 		Sentry: sentry.ClientOptions{
 			AttachStacktrace: true,
 		},
@@ -130,8 +133,10 @@ type Logger struct {
 
 // Profiling configures the usage of a runtime profiler to create optimized binaries.
 type Profiling struct {
-	Enabled bool
-	File    string
+	CPUEnabled      bool
+	CPUFile         string
+	MemoryInterval  uint
+	MemoryThreshold uint
 }
 
 // InfluxDB configures the usage of an Influx db monitoring.

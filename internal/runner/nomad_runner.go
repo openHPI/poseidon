@@ -163,13 +163,20 @@ func (r *NomadJob) ListFileSystem(
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
 		&nullio.Reader{Ctx: ctx}, ls2json, io.Discard)
 	switch {
+	case ls2json.HasStartedWriting() && err == nil && exitCode == 0:
+		// Successful. Nothing to do.
 	case ls2json.HasStartedWriting():
+		// if HasStartedWriting the status code of the response is already sent.
+		// Therefore, we cannot notify CodeOcean about an error at this point anymore.
+		log.WithError(err).WithField("exitCode", exitCode).Warn("Ignoring error of listing the file system")
 		err = nil
 	case err != nil:
 		err = fmt.Errorf("%w: nomad error during retrieve file headers: %v",
 			nomad.ErrorExecutorCommunicationFailed, err)
 	case exitCode != 0:
 		err = ErrFileNotFound
+	case !ls2json.HasStartedWriting():
+		err = fmt.Errorf("list file system failed silently: %w", nomad.ErrorExecutorCommunicationFailed)
 	}
 	return err
 }

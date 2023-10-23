@@ -96,9 +96,6 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 }
 
 func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
-	disableRecovery, cancel := context.WithCancel(context.Background())
-	cancel()
-
 	executorAPIMock := &nomad.ExecutorAPIMock{}
 	executorAPIMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
 	executorAPIMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
@@ -110,7 +107,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 	previousTemplateEnvironmentJobHCL := templateEnvironmentJobHCL
 
 	s.Run("returns error if template file does not exist", func() {
-		_, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, "/non-existent/file", disableRecovery)
+		_, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, "/non-existent/file")
 		s.Error(err)
 	})
 
@@ -122,12 +119,12 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 		f := createTempFile(s.T(), templateJobHCL)
 		defer os.Remove(f.Name())
 
-		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name(), disableRecovery)
+		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
 		s.NoError(err)
 		s.NotNil(m)
 		s.Equal(templateJobHCL, m.templateEnvironmentHCL)
 
-		s.NoError(environment.Delete(false))
+		s.NoError(environment.Delete(tests.ErrCleanupDestroyReason))
 	})
 
 	s.Run("returns error if template file is invalid", func() {
@@ -135,7 +132,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 		f := createTempFile(s.T(), templateJobHCL)
 		defer os.Remove(f.Name())
 
-		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name(), disableRecovery)
+		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
 		s.Require().NoError(err)
 		_, err = NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil, m.templateEnvironmentHCL)
 		s.Error(err)
@@ -145,9 +142,6 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 }
 
 func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
-	disableRecovery, cancel := context.WithCancel(context.Background())
-	cancel()
-
 	apiMock := &nomad.ExecutorAPIMock{}
 	mockWatchAllocations(s.TestCtx, apiMock)
 	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
@@ -158,7 +152,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 	})
 
 	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
-	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "", disableRecovery)
+	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
 	s.Require().NoError(err)
 
 	s.Run("Returns error when not found", func() {
@@ -177,7 +171,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 		s.NoError(err)
 		s.Equal(expectedEnvironment, environment)
 
-		err = environment.Delete(false)
+		err = environment.Delete(tests.ErrCleanupDestroyReason)
 		s.Require().NoError(err)
 	})
 
@@ -211,11 +205,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 			s.NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
-			err = fetchedEnvironment.Delete(false)
+			err = fetchedEnvironment.Delete(tests.ErrCleanupDestroyReason)
 			s.Require().NoError(err)
-			err = environment.Delete(false)
+			err = environment.Delete(tests.ErrCleanupDestroyReason)
 			s.Require().NoError(err)
-			err = localEnvironment.Delete(false)
+			err = localEnvironment.Delete(tests.ErrCleanupDestroyReason)
 			s.Require().NoError(err)
 		})
 		runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
@@ -237,18 +231,15 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 			s.NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
-			err = fetchedEnvironment.Delete(false)
+			err = fetchedEnvironment.Delete(tests.ErrCleanupDestroyReason)
 			s.Require().NoError(err)
-			err = environment.Delete(false)
+			err = environment.Delete(tests.ErrCleanupDestroyReason)
 			s.Require().NoError(err)
 		})
 	})
 }
 
 func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
-	disableRecovery, cancel := context.WithCancel(context.Background())
-	cancel()
-
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
@@ -259,7 +250,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 	})
 
 	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
-	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "", disableRecovery)
+	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
 	s.Require().NoError(err)
 
 	s.Run("with no environments", func() {
@@ -279,7 +270,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 		s.Equal(1, len(environments))
 		s.Equal(localEnvironment, environments[0])
 
-		err = localEnvironment.Delete(false)
+		err = localEnvironment.Delete(tests.ErrCleanupDestroyReason)
 		s.Require().NoError(err)
 	})
 	runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
@@ -306,9 +297,9 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 		s.True(ok)
 		s.Equal(fetchedEnvironment.job, nomadEnvironment.job)
 
-		err = fetchedEnvironment.Delete(false)
+		err = fetchedEnvironment.Delete(tests.ErrCleanupDestroyReason)
 		s.Require().NoError(err)
-		err = nomadEnvironment.Delete(false)
+		err = nomadEnvironment.Delete(tests.ErrCleanupDestroyReason)
 		s.Require().NoError(err)
 	})
 }
@@ -331,14 +322,17 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 		_, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
 		s.Require().False(ok)
 
-		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "", s.TestCtx)
+		m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+		s.Require().NoError(err)
+
+		err = m.load()
 		s.Require().NoError(err)
 
 		environment, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
 		s.Require().True(ok)
 		s.Equal("python:latest", environment.Image())
 
-		err = environment.Delete(false)
+		err = environment.Delete(tests.ErrCleanupDestroyReason)
 		s.Require().NoError(err)
 	})
 
@@ -352,7 +346,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 		_, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
 		s.Require().False(ok)
 
-		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "", context.Background())
+		_, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
 		s.Require().NoError(err)
 
 		_, ok = runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)

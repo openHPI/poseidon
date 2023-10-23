@@ -25,13 +25,14 @@ const (
 	AnotherRunnerID               = AnotherEnvironmentIDAsString + "-" + AnotherUUID
 	DefaultExecutionID            = "s0m3-3x3cu710n-1d"
 	DefaultMockID                 = "m0ck-1d"
-	TinyTimeout                   = 10 * time.Millisecond
 	ShortTimeout                  = 100 * time.Millisecond
 	DefaultTestTimeout            = 10 * time.Minute
 )
 
 var (
-	ErrDefault          = errors.New("an error occurred")
+	ErrDefault              = errors.New("an error occurred")
+	ErrCleanupDestroyReason = errors.New("destruction required for cleanup")
+
 	DefaultPortMappings = []nomadApi.PortMapping{{To: 42, Value: 1337, Label: "lit", HostIP: "127.0.0.1"}}
 	DefaultMappedPorts  = []*dto.MappedPort{{ExposedPort: 42, HostAddress: "127.0.0.1:1337"}}
 )

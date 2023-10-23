@@ -45,7 +45,7 @@ func (a *AWSEnvironment) SetImage(awsEndpoint string) {
 	a.awsEndpoint = awsEndpoint
 }
 
-func (a *AWSEnvironment) Delete(_ bool) error {
+func (a *AWSEnvironment) Delete(_ runner.DestroyReason) error {
 	return nil
 }
 

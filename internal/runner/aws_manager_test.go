@@ -111,5 +111,6 @@ func createBasicEnvironmentMock(id dto.EnvironmentID) *ExecutionEnvironmentMock 
 	environment.On("MemoryLimit").Return(uint(0))
 	environment.On("NetworkAccess").Return(false, nil)
 	environment.On("DeleteRunner", mock.AnythingOfType("string")).Return(false)
+	environment.On("ApplyPrewarmingPoolSize").Return(nil)
 	return environment
 }

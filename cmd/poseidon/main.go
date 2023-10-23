@@ -193,20 +193,20 @@ func createManagerHandler(handler managerCreator, enabled bool,
 	return runnerManager, environmentManager
 }
 
-func createNomadManager(ctx context.Context) (
-	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+func createNomadManager(ctx context.Context) (runner.Manager, environment.ManagerHandler) {
 	// API initialization
 	nomadAPIClient, err := nomad.NewExecutorAPI(&config.Config.Nomad)
 	if err != nil {
 		log.WithError(err).WithField("nomad config", config.Config.Nomad).Fatal("Error creating Nomad API client")
 	}
 
-	runnerManager = runner.NewNomadRunnerManager(nomadAPIClient, ctx)
-	environmentManager, err = environment.
-		NewNomadEnvironmentManager(runnerManager, nomadAPIClient, config.Config.Server.TemplateJobFile, ctx)
+	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient, ctx)
+	environmentManager, err := environment.
+		NewNomadEnvironmentManager(runnerManager, nomadAPIClient, config.Config.Server.TemplateJobFile)
 	if err != nil {
 		log.WithError(err).Fatal("Error initializing environment manager")
 	}
+	go environmentManager.KeepEnvironmentsSynced(runnerManager.SynchronizeRunners, ctx)
 	return runnerManager, environmentManager
 }
 

@@ -41,9 +41,12 @@ var (
 	ErrorUnknownExecution                  = errors.New("unknown execution")
 	ErrorFileCopyFailed                    = errors.New("file copy failed")
 	ErrFileNotFound                        = errors.New("file not found or insufficient permissions")
+	ErrLocalDestruction      DestroyReason = nomad.ErrorLocalDestruction
 	ErrOOMKilled             DestroyReason = nomad.ErrorOOMKilled
 	ErrDestroyedByAPIRequest DestroyReason = errors.New("the client wants to stop the runner")
 	ErrCannotStopExecution   DestroyReason = errors.New("the execution did not stop after SIGQUIT")
+	ErrDestroyedAndReplaced  DestroyReason = fmt.Errorf("the runner will be destroyed and replaced: %w", ErrLocalDestruction)
+	ErrEnvironmentUpdated    DestroyReason = errors.New("the environment will be destroyed and updated")
 )
 
 // NomadJob is an abstraction to communicate with Nomad environments.
@@ -258,10 +261,7 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 		}
 	}
 
-	// local determines if a reason is present that the runner should only be removed locally (without requesting Nomad).
-	local := errors.Is(reason, nomad.ErrorAllocationRescheduled) ||
-		errors.Is(reason, ErrOOMKilled)
-	if local {
+	if errors.Is(reason, ErrLocalDestruction) {
 		log.WithContext(r.ctx).Debug("Runner destroyed locally")
 		return nil
 	}

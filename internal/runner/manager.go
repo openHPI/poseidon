@@ -51,8 +51,4 @@ type Accessor interface {
 	// Return signals that the runner is no longer used by the caller and can be claimed by someone else.
 	// The runner is deleted or cleaned up for reuse depending on the used executor.
 	Return(r Runner) error
-
-	// Load fetches all already created runners from the executor and registers them.
-	// It should be called during the startup process (e.g. on creation of the Manager).
-	Load()
 }

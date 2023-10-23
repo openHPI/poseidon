@@ -219,13 +219,15 @@ func (n *NomadEnvironment) Register() error {
 	return nil
 }
 
-func (n *NomadEnvironment) Delete(local bool) error {
+func (n *NomadEnvironment) Delete(reason runner.DestroyReason) error {
 	n.cancel()
-	if !local {
-		err := n.removeRunners()
-		if err != nil {
-			return err
-		}
+
+	err := n.removeRunners(reason)
+	if err != nil {
+		return err
+	}
+
+	if !errors.Is(reason, runner.ErrLocalDestruction) {
 		err = n.apiClient.DeleteJob(*n.job.ID)
 		if err != nil {
 			return fmt.Errorf("couldn't delete environment job: %w", err)
@@ -238,7 +240,10 @@ func (n *NomadEnvironment) ApplyPrewarmingPoolSize() error {
 	required := int(n.PrewarmingPoolSize()) - int(n.idleRunners.Length())
 
 	if required < 0 {
-		return fmt.Errorf("%w. Runners to remove: %d", ErrScaleDown, -required)
+		log.WithError(ErrScaleDown).
+			WithField(dto.KeyEnvironmentID, n.ID().ToString()).
+			WithField("offset", -required).Warn("Too many idle runner")
+		return nil
 	}
 	return n.createRunners(uint(required), true)
 }
@@ -260,6 +265,12 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 }
 
 func (n *NomadEnvironment) AddRunner(r runner.Runner) {
+	if replacedRunner, ok := n.idleRunners.Get(r.ID()); ok {
+		err := replacedRunner.Destroy(runner.ErrDestroyedAndReplaced)
+		if err != nil {
+			log.WithError(err).Warn("failed removing runner before replacing it")
+		}
+	}
 	n.idleRunners.Add(r.ID(), r)
 }
 
@@ -364,10 +375,19 @@ func (n *NomadEnvironment) createRunner(forcePull bool) error {
 }
 
 // removeRunners removes all (idle and used) runners for the given environment n.
-func (n *NomadEnvironment) removeRunners() error {
+func (n *NomadEnvironment) removeRunners(reason runner.DestroyReason) error {
 	// This prevents a race condition where the number of required runners is miscalculated in the up-scaling process
 	// based on the number of allocation that has been stopped at the moment of the scaling.
-	n.idleRunners.Purge()
+	for _, r := range n.idleRunners.List() {
+		n.idleRunners.Delete(r.ID())
+		if err := r.Destroy(runner.ErrLocalDestruction); err != nil {
+			log.WithError(err).Warn("failed to remove runner locally")
+		}
+	}
+
+	if errors.Is(reason, runner.ErrLocalDestruction) {
+		return nil
+	}
 
 	ids, err := n.apiClient.LoadRunnerIDs(nomad.RunnerJobID(n.ID(), ""))
 	if err != nil {

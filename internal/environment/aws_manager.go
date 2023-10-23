@@ -15,9 +15,7 @@ type AWSEnvironmentManager struct {
 }
 
 func NewAWSEnvironmentManager(runnerManager runner.Manager) *AWSEnvironmentManager {
-	m := &AWSEnvironmentManager{&AbstractManager{nil, runnerManager}}
-	runnerManager.Load()
-	return m
+	return &AWSEnvironmentManager{&AbstractManager{nil, runnerManager}}
 }
 
 func (a *AWSEnvironmentManager) List(fetch bool) ([]runner.ExecutionEnvironment, error) {

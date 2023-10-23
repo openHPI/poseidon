@@ -39,7 +39,7 @@ type ExecutionEnvironment interface {
 	Register() error
 	// Delete removes this environment and all it's runner from the executor and Poseidon itself.
 	// Iff local the environment is just removed from Poseidon without external escalation.
-	Delete(local bool) error
+	Delete(reason DestroyReason) error
 
 	// Sample returns and removes an arbitrary available runner.
 	// ok is true iff a runner was returned.

@@ -123,5 +123,3 @@ func (n *AbstractManager) Get(runnerID string) (Runner, error) {
 func (n *AbstractManager) Return(_ Runner) error {
 	return nil
 }
-
-func (n *AbstractManager) Load() {}

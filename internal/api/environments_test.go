@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -18,6 +19,8 @@ import (
 	"strings"
 	"testing"
 )
+
+const jobHCLBasicFormat = "job \"%s\" {}"
 
 type EnvironmentControllerTestSuite struct {
 	tests.MemoryLeakTestSuite
@@ -92,10 +95,10 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 
 		call.Run(func(args mock.Arguments) {
 			firstEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
-				"job \""+nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)+"\" {}")
+				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
 			secondEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
-				"job \""+nomad.TemplateJobID(tests.AnotherEnvironmentIDAsInteger)+"\" {}")
+				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{firstEnvironment, secondEnvironment}, nil}
 		})
@@ -156,7 +159,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 
 		call.Run(func(args mock.Arguments) {
 			testEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
-				"job \""+nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)+"\" {}")
+				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{testEnvironment, nil}
 		})

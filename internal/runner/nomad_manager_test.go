@@ -59,6 +59,7 @@ func mockRunnerQueries(ctx context.Context, apiMock *nomad.ExecutorAPIMock, retu
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 	apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
+	apiMock.On("LoadRunnerJobs", mock.AnythingOfType("dto.EnvironmentID")).Return([]*nomadApi.Job{}, nil)
 	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
 	apiMock.On("LoadRunnerIDs", tests.DefaultRunnerID).Return(returnedRunnerIds, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
@@ -258,12 +259,19 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 		})
 	})
 
-	go s.nomadRunnerManager.keepRunnersSynced(s.TestCtx)
+	go func() {
+		err := s.nomadRunnerManager.SynchronizeRunners(s.TestCtx)
+		if err != nil {
+			log.WithError(err).Error("failed to synchronize runners")
+		}
+	}()
 	<-time.After(10 * time.Millisecond)
 
 	s.Require().Equal(1, len(hook.Entries))
 	s.Equal(logrus.ErrorLevel, hook.LastEntry().Level)
-	s.Equal(hook.LastEntry().Data[logrus.ErrorKey], tests.ErrDefault)
+	err, ok := hook.LastEntry().Data[logrus.ErrorKey].(error)
+	s.Require().True(ok)
+	s.ErrorIs(err, tests.ErrDefault)
 }
 
 func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
@@ -285,7 +293,12 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 		})
 	})
 
-	go s.nomadRunnerManager.keepRunnersSynced(s.TestCtx)
+	go func() {
+		err := s.nomadRunnerManager.SynchronizeRunners(s.TestCtx)
+		if err != nil {
+			log.WithError(err).Error("failed to synchronize runners")
+		}
+	}()
 	<-time.After(10 * time.Millisecond)
 
 	r, ok := environment.Sample()
@@ -313,7 +326,12 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 		})
 	})
 
-	go s.nomadRunnerManager.keepRunnersSynced(s.TestCtx)
+	go func() {
+		err := s.nomadRunnerManager.SynchronizeRunners(s.TestCtx)
+		if err != nil {
+			log.WithError(err).Error("failed to synchronize runners")
+		}
+	}()
 	<-time.After(tests.ShortTimeout)
 
 	_, ok = environment.Sample()
@@ -515,7 +533,8 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		s.ExpectedGoroutingIncrease++ // We dont care about destroying the created runner.
 		call.Return([]*nomadApi.Job{job}, nil)
 
-		runnerManager.Load()
+		err := runnerManager.load()
+		s.NoError(err)
 
 		environmentMock.AssertExpectations(s.T())
 	})
@@ -533,7 +552,8 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 
 		s.Require().Zero(runnerManager.usedRunners.Length())
 
-		runnerManager.Load()
+		err := runnerManager.load()
+		s.NoError(err)
 
 		_, ok := runnerManager.usedRunners.Get(tests.DefaultRunnerID)
 		s.True(ok)
@@ -557,7 +577,8 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 
 		s.Require().Zero(runnerManager.usedRunners.Length())
 
-		runnerManager.Load()
+		err := runnerManager.load()
+		s.NoError(err)
 
 		s.Require().NotZero(runnerManager.usedRunners.Length())
 

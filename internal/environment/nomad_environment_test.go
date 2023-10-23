@@ -165,7 +165,7 @@ func (s *MainTestSuite) TestParseJob() {
 		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.NoError(err)
 		s.NotNil(environment.job)
-		s.NoError(environment.Delete(false))
+		s.NoError(environment.Delete(tests.ErrCleanupDestroyReason))
 	})
 
 	s.Run("returns error when given wrong job", func() {
@@ -231,7 +231,7 @@ func (s *MainTestSuite) TestNomadEnvironment_DeleteLocally() {
 	environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 	s.Require().NoError(err)
 
-	err = environment.Delete(true)
+	err = environment.Delete(runner.ErrLocalDestruction)
 	s.NoError(err)
 	apiMock.AssertExpectations(s.T())
 }

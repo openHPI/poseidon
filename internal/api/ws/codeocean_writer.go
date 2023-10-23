@@ -107,7 +107,7 @@ func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
 	case errors.Is(info.Err, context.DeadlineExceeded) || errors.Is(info.Err, runner.ErrorRunnerInactivityTimeout):
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout})
 	case errors.Is(info.Err, runner.ErrOOMKilled):
-		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: runner.ErrOOMKilled.Error()})
+		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: dto.ErrOOMKilled.Error()})
 	case errors.Is(info.Err, nomad.ErrorAllocationCompleted), errors.Is(info.Err, runner.ErrDestroyedByAPIRequest):
 		message := "the allocation stopped as expected"
 		log.WithContext(cw.ctx).WithError(info.Err).Trace(message)

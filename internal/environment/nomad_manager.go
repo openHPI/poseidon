@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -13,6 +14,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/pkg/util"
+	"math"
 	"os"
 	"time"
 )
@@ -36,7 +38,6 @@ func NewNomadEnvironmentManager(
 	runnerManager runner.Manager,
 	apiClient nomad.ExecutorAPI,
 	templateJobFile string,
-	ctx context.Context,
 ) (*NomadEnvironmentManager, error) {
 	if err := loadTemplateEnvironmentJobHCL(templateJobFile); err != nil {
 		return nil, err
@@ -44,10 +45,6 @@ func NewNomadEnvironmentManager(
 
 	m := &NomadEnvironmentManager{&AbstractManager{nil, runnerManager},
 		apiClient, templateEnvironmentJobHCL}
-	if err := util.RetryExponentialWithContext(ctx, func() error { return m.Load() }); err != nil {
-		log.WithError(err).Error("Error recovering the execution environments")
-	}
-	runnerManager.Load()
 	return m, nil
 }
 
@@ -72,7 +69,8 @@ func (m *NomadEnvironmentManager) Get(id dto.EnvironmentID, fetch bool) (
 			ok = true
 		default:
 			executionEnvironment.SetConfigFrom(fetchedEnvironment)
-			err = fetchedEnvironment.Delete(true)
+			// We destroy only this (second) local reference to the environment.
+			err = fetchedEnvironment.Delete(runner.ErrDestroyedAndReplaced)
 			if err != nil {
 				log.WithError(err).Warn("Failed to remove environment locally")
 			}
@@ -113,7 +111,7 @@ func (m *NomadEnvironmentManager) fetchEnvironments() error {
 			fetchedEnvironment := newNomadEnvironmentFromJob(job, m.api)
 			localEnvironment.SetConfigFrom(fetchedEnvironment)
 			// We destroy only this (second) local reference to the environment.
-			if err = fetchedEnvironment.Delete(true); err != nil {
+			if err = fetchedEnvironment.Delete(runner.ErrDestroyedAndReplaced); err != nil {
 				log.WithError(err).Warn("Failed to remove environment locally")
 			}
 		} else {
@@ -124,7 +122,7 @@ func (m *NomadEnvironmentManager) fetchEnvironments() error {
 	// Remove local environments that are not remote environments.
 	for _, localEnvironment := range m.runnerManager.ListEnvironments() {
 		if _, ok := remoteEnvironments[localEnvironment.ID().ToString()]; !ok {
-			err := localEnvironment.Delete(true)
+			err := localEnvironment.Delete(runner.ErrLocalDestruction)
 			log.WithError(err).Warn("Failed to remove environment locally")
 		}
 	}
@@ -138,7 +136,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	if isExistingEnvironment {
 		// Remove existing environment to force downloading the newest Docker image.
 		// See https://github.com/openHPI/poseidon/issues/69
-		err = environment.Delete(false)
+		err = environment.Delete(runner.ErrEnvironmentUpdated)
 		if err != nil {
 			return false, fmt.Errorf("failed to remove the environment: %w", err)
 		}
@@ -172,7 +170,39 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	return !isExistingEnvironment, nil
 }
 
-func (m *NomadEnvironmentManager) Load() error {
+// KeepEnvironmentsSynced loads all environments, runner existing at Nomad, and watches Nomad events to handle further changes.
+func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(synchronizeRunners func(ctx context.Context) error, ctx context.Context) {
+	err := util.RetryConstantAttemptsWithContext(math.MaxInt, ctx, func() error {
+		// Load Environments
+		if err := m.load(); err != nil {
+			log.WithContext(ctx).WithError(err).Warn("Loading Environments failed! Retrying...")
+			return err
+		}
+
+		// Load Runners and keep them synchronized.
+		if err := synchronizeRunners(ctx); err != nil {
+			log.WithContext(ctx).WithError(err).Warn("Loading and synchronizing Runners failed! Retrying...")
+			return err
+		}
+
+		return nil
+	})
+	if err != nil && !(errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
+		log.WithContext(ctx).WithError(err).Fatal("Stopped KeepEnvironmentsSynced")
+	}
+}
+
+// Load recovers all environments from the Jobs in Nomad.
+// As it replaces the environments the idle runners stored are not tracked anymore.
+func (m *NomadEnvironmentManager) load() error {
+	// We have to destroy the environments first as otherwise they would just be replaced and old goroutines might stay running.
+	for _, environment := range m.runnerManager.ListEnvironments() {
+		err := environment.Delete(runner.ErrDestroyedAndReplaced)
+		if err != nil {
+			log.WithError(err).Warn("Failed deleting environment locally. Possible memory leak")
+		}
+	}
+
 	templateJobs, err := m.api.LoadEnvironmentJobs()
 	if err != nil {
 		return fmt.Errorf("couldn't load template jobs: %w", err)

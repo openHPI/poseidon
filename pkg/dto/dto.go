@@ -216,10 +216,12 @@ const (
 
 var (
 	ErrUnknownWebSocketMessageType = errors.New("unknown WebSocket message type")
-	ErrMissingType                 = errors.New("type is missing")
-	ErrMissingData                 = errors.New("data is missing")
-	ErrInvalidType                 = errors.New("invalid type")
-	ErrNotSupported                = errors.New("not supported")
+	// ErrOOMKilled is the exact message that CodeOcean expects to further handle these specific cases.
+	ErrOOMKilled    = errors.New("the allocation was OOM Killed")
+	ErrMissingType  = errors.New("type is missing")
+	ErrMissingData  = errors.New("data is missing")
+	ErrInvalidType  = errors.New("invalid type")
+	ErrNotSupported = errors.New("not supported")
 )
 
 // WebSocketMessage is the type for all messages send in the WebSocket to the client.

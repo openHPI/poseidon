@@ -27,8 +27,9 @@ var (
 	ErrorPlacingAllocations                                    = errors.New("failed to place all allocations")
 	ErrorLoadingJob                                            = errors.New("failed to load job")
 	ErrorNoAllocatedResourcesFound                             = errors.New("no allocated resources found")
-	ErrorOOMKilled                         RunnerDeletedReason = errors.New("the allocation was OOM Killed")
-	ErrorAllocationRescheduled             RunnerDeletedReason = errors.New("the allocation was rescheduled")
+	ErrorLocalDestruction                  RunnerDeletedReason = errors.New("the destruction should not cause external changes")
+	ErrorOOMKilled                         RunnerDeletedReason = fmt.Errorf("%s: %w", dto.ErrOOMKilled.Error(), ErrorLocalDestruction)
+	ErrorAllocationRescheduled             RunnerDeletedReason = fmt.Errorf("the allocation was rescheduled: %w", ErrorLocalDestruction)
 	ErrorAllocationStopped                 RunnerDeletedReason = errors.New("the allocation was stopped")
 	ErrorAllocationStoppedUnexpectedly     RunnerDeletedReason = fmt.Errorf("%w unexpectedly", ErrorAllocationStopped)
 	ErrorAllocationRescheduledUnexpectedly RunnerDeletedReason = fmt.Errorf(

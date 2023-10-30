@@ -263,7 +263,9 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 		defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil, context.Background())
 	s.Require().NoError(err)
 
-	<-time.After(executionTimeoutGracePeriod + time.Duration(timeLimit)*time.Second + tests.ShortTimeout)
+	<-time.After(executionTimeoutGracePeriod + time.Duration(timeLimit)*time.Second)
+	// Even if we expect the timeout to be exceeded now, Poseidon sometimes take a couple of hundred ms longer.
+	<-time.After(2 * tests.ShortTimeout)
 	s.manager.AssertNotCalled(s.T(), "Return", s.runner)
 	s.apiMock.AssertCalled(s.T(), "DeleteJob", s.runner.ID())
 	s.True(runnerDestroyed)

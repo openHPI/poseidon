@@ -342,6 +342,9 @@ func (r *NomadJob) handleExit(exitInfo ExitInfo, exitInternal <-chan ExitInfo, e
 func (r *NomadJob) handleContextDone(exitInternal <-chan ExitInfo, exit chan<- ExitInfo,
 	stdin io.ReadWriter, ctx context.Context) {
 	err := ctx.Err()
+	if errors.Is(err, context.DeadlineExceeded) {
+		err = ErrorExecutionTimeout
+	} // for errors.Is(err, context.Canceled) the user likely disconnected from the execution.
 	if reason, ok := r.ctx.Value(destroyReasonContextKey).(error); ok {
 		err = reason
 		if r.TimeoutPassed() && !errors.Is(err, ErrorRunnerInactivityTimeout) {

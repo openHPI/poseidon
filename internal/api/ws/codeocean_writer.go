@@ -95,7 +95,7 @@ func (cw *codeOceanOutputWriter) StdErr() io.Writer {
 
 // Close forwards the kind of exit (timeout, error, normal) to CodeOcean.
 // This results in the closing of the WebSocket connection.
-// The call of Close is mandantory!
+// The call of Close is mandatory!
 func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
 	defer func() { cw.queue <- &writingLoopMessage{done: true} }()
 	// Mask the internal stop reason before disclosing/forwarding it externally/to CodeOcean.
@@ -104,7 +104,7 @@ func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
 		return
 	case info.Err == nil:
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: info.Code})
-	case errors.Is(info.Err, context.DeadlineExceeded) || errors.Is(info.Err, runner.ErrorRunnerInactivityTimeout):
+	case errors.Is(info.Err, runner.ErrorExecutionTimeout) || errors.Is(info.Err, runner.ErrorRunnerInactivityTimeout):
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout})
 	case errors.Is(info.Err, runner.ErrOOMKilled):
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: dto.ErrOOMKilled.Error()})

@@ -31,7 +31,10 @@ const (
 	TimerExpired  TimerState = 2
 )
 
-var ErrorRunnerInactivityTimeout DestroyReason = errors.New("runner inactivity timeout exceeded")
+var (
+	ErrorRunnerInactivityTimeout DestroyReason = errors.New("runner inactivity timeout exceeded")
+	ErrorExecutionTimeout                      = errors.New("execution timeout exceeded")
+)
 
 type InactivityTimerImplementation struct {
 	timer     *time.Timer

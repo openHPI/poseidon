@@ -79,16 +79,17 @@ func (m *NomadRunnerManager) Return(r Runner) error {
 
 // SynchronizeRunners loads all runners and keeps them synchronized (without a retry mechanism).
 func (m *NomadRunnerManager) SynchronizeRunners(ctx context.Context) error {
-	// Load Runners
+	log.Info("Loading runners")
 	if err := m.load(); err != nil {
 		return fmt.Errorf("failed loading runners: %w", err)
 	}
 
 	// Watch for changes regarding the existing or new runners.
+	log.Info("Watching Event Stream")
 	err := m.apiClient.WatchEventStream(ctx,
 		&nomad.AllocationProcessing{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
 
-	if err != nil && !(errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
+	if err != nil && ctx.Err() == nil {
 		err = fmt.Errorf("nomad Event Stream failed!: %w", err)
 	}
 	return err
@@ -97,7 +98,6 @@ func (m *NomadRunnerManager) SynchronizeRunners(ctx context.Context) error {
 // Load recovers all runners for all existing environments.
 func (m *NomadRunnerManager) load() error {
 	newUsedRunners := storage.NewLocalStorage[Runner]()
-
 	for _, environment := range m.environments.List() {
 		environmentLogger := log.WithField(dto.KeyEnvironmentID, environment.ID().ToString())
 

@@ -235,3 +235,30 @@ func (s *MainTestSuite) TestNomadEnvironment_DeleteLocally() {
 	s.NoError(err)
 	apiMock.AssertExpectations(s.T())
 }
+
+func (s *MainTestSuite) TestNomadEnvironment_AddRunner() {
+	s.Run("Destroys runner before replacing it", func() {
+		apiMock := &nomad.ExecutorAPIMock{}
+		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+		s.Require().NoError(err)
+		r := &runner.RunnerMock{}
+		r.On("ID").Return(tests.DefaultRunnerID)
+		r.On("Destroy", mock.Anything).Run(func(args mock.Arguments) {
+			err, ok := args[0].(error)
+			s.Require().True(ok)
+			s.ErrorIs(err, runner.ErrLocalDestruction)
+		}).Return(nil).Once()
+		r2 := &runner.RunnerMock{}
+		r2.On("ID").Return(tests.DefaultRunnerID)
+
+		environment.AddRunner(r)
+		environment.AddRunner(r2)
+		r.AssertExpectations(s.T())
+
+		// Teardown test case
+		r2.On("Destroy", mock.Anything).Return(nil)
+		apiMock.On("LoadRunnerIDs", mock.Anything).Return([]string{}, nil)
+		apiMock.On("DeleteJob", mock.Anything).Return(nil)
+		s.NoError(environment.Delete(tests.ErrCleanupDestroyReason))
+	})
+}

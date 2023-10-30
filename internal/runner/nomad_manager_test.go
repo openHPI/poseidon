@@ -267,7 +267,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 	}()
 	<-time.After(10 * time.Millisecond)
 
-	s.Require().Equal(1, len(hook.Entries))
+	s.Require().Equal(3, len(hook.Entries))
 	s.Equal(logrus.ErrorLevel, hook.LastEntry().Level)
 	err, ok := hook.LastEntry().Data[logrus.ErrorKey].(error)
 	s.Require().True(ok)

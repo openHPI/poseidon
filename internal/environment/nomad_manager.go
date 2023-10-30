@@ -3,7 +3,6 @@ package environment
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,6 +13,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/pkg/util"
+	"github.com/sirupsen/logrus"
 	"math"
 	"os"
 	"time"
@@ -187,14 +187,17 @@ func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(synchronizeRunners func
 
 		return nil
 	})
-	if err != nil && !(errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
-		log.WithContext(ctx).WithError(err).Fatal("Stopped KeepEnvironmentsSynced")
+	level := logrus.InfoLevel
+	if err != nil && ctx.Err() == nil {
+		level = logrus.FatalLevel
 	}
+	log.WithContext(ctx).WithError(err).Log(level, "Stopped KeepEnvironmentsSynced")
 }
 
 // Load recovers all environments from the Jobs in Nomad.
 // As it replaces the environments the idle runners stored are not tracked anymore.
 func (m *NomadEnvironmentManager) load() error {
+	log.Info("Loading environments")
 	// We have to destroy the environments first as otherwise they would just be replaced and old goroutines might stay running.
 	for _, environment := range m.runnerManager.ListEnvironments() {
 		err := environment.Delete(runner.ErrDestroyedAndReplaced)

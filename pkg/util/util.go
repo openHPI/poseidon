@@ -3,7 +3,6 @@ package util
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"time"
 )
@@ -14,6 +13,7 @@ var (
 	MaxConnectionRetriesExponential = 18
 	// InitialWaitingDuration is the default initial duration of waiting after a failed time.
 	InitialWaitingDuration = time.Second
+	ErrRetryContextDone    = errors.New("the retry context is done")
 )
 
 func retryExponential(ctx context.Context, sleep time.Duration, f func() error) func() error {
@@ -23,6 +23,7 @@ func retryExponential(ctx context.Context, sleep time.Duration, f func() error) 
 		if err != nil {
 			select {
 			case <-ctx.Done():
+				err = ErrRetryContextDone
 			case <-time.After(sleep):
 				sleep *= 2
 			}
@@ -39,7 +40,7 @@ func retryConstant(ctx context.Context, sleep time.Duration, f func() error) fun
 		if err != nil {
 			select {
 			case <-ctx.Done():
-				return fmt.Errorf("stopped retrying: %w", ctx.Err())
+				return ErrRetryContextDone
 			case <-time.After(sleep):
 			}
 		}
@@ -53,7 +54,7 @@ func retryAttempts(maxAttempts int, f func() error) (err error) {
 		err = f()
 		if err == nil {
 			return nil
-		} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		} else if errors.Is(err, ErrRetryContextDone) {
 			return err
 		}
 		log.WithField("count", i).WithError(err).Debug("retrying after error")

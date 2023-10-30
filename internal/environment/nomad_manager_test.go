@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"os"
 	"testing"
+	"time"
 )
 
 type CreateOrUpdateTestSuite struct {
@@ -315,6 +316,26 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 
 	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
 
+	s.Run("deletes local environments before loading Nomad environments", func() {
+		call.Return([]*nomadApi.Job{}, nil)
+		environment := &runner.ExecutionEnvironmentMock{}
+		environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+		environment.On("Image").Return("")
+		environment.On("CPULimit").Return(uint(0))
+		environment.On("MemoryLimit").Return(uint(0))
+		environment.On("NetworkAccess").Return(false, nil)
+		environment.On("Delete", mock.Anything).Return(nil)
+		runnerManager.StoreEnvironment(environment)
+
+		m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+		s.Require().NoError(err)
+
+		err = m.load()
+		s.Require().NoError(err)
+		environment.AssertExpectations(s.T())
+	})
+	runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
+
 	s.Run("Stores fetched environments", func() {
 		_, job := helpers.CreateTemplateJob()
 		call.Return([]*nomadApi.Job{job}, nil)
@@ -351,6 +372,66 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 
 		_, ok = runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
 		s.Require().False(ok)
+	})
+}
+
+func (s *MainTestSuite) TestNomadEnvironmentManager_KeepEnvironmentsSynced() {
+	apiMock := &nomad.ExecutorAPIMock{}
+	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
+	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	s.Require().NoError(err)
+
+	s.Run("stops when context is done", func() {
+		apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, context.DeadlineExceeded)
+		ctx, cancel := context.WithCancel(s.TestCtx)
+		cancel()
+
+		var done bool
+		go func() {
+			<-time.After(tests.ShortTimeout)
+			if !done {
+				s.FailNow("KeepEnvironmentsSynced is ignoring the context")
+			}
+		}()
+
+		m.KeepEnvironmentsSynced(func(_ context.Context) error { return nil }, ctx)
+		done = true
+	})
+	apiMock.ExpectedCalls = []*mock.Call{}
+	apiMock.Calls = []mock.Call{}
+
+	s.Run("retries loading environments", func() {
+		ctx, cancel := context.WithCancel(s.TestCtx)
+
+		apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, context.DeadlineExceeded).Once()
+		apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil).Run(func(_ mock.Arguments) {
+			cancel()
+		}).Once()
+
+		m.KeepEnvironmentsSynced(func(_ context.Context) error { return nil }, ctx)
+		apiMock.AssertExpectations(s.T())
+	})
+	apiMock.ExpectedCalls = []*mock.Call{}
+	apiMock.Calls = []mock.Call{}
+
+	s.Run("retries synchronizing runners", func() {
+		apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
+		ctx, cancel := context.WithCancel(s.TestCtx)
+
+		count := 0
+		synchronizeRunners := func(ctx context.Context) error {
+			count++
+			if count >= 2 {
+				cancel()
+				return nil
+			}
+			return context.DeadlineExceeded
+		}
+		m.KeepEnvironmentsSynced(synchronizeRunners, ctx)
+
+		if count < 2 {
+			s.Fail("KeepEnvironmentsSynced is not retrying to synchronize the runners")
+		}
 	})
 }
 

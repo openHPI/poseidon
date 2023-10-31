@@ -29,8 +29,9 @@ var (
 				CertFile: "",
 				KeyFile:  "",
 			},
-			InteractiveStderr: true,
-			TemplateJobFile:   "",
+			InteractiveStderr:            true,
+			TemplateJobFile:              "",
+			PrewarmingPoolAlertThreshold: 0,
 		},
 		Nomad: Nomad{
 			Enabled: true,
@@ -81,12 +82,13 @@ var (
 
 // server configures the Poseidon webserver.
 type server struct {
-	Address           string
-	Port              int
-	Token             string
-	TLS               TLS
-	InteractiveStderr bool
-	TemplateJobFile   string
+	Address                      string
+	Port                         int
+	Token                        string
+	TLS                          TLS
+	InteractiveStderr            bool
+	TemplateJobFile              string
+	PrewarmingPoolAlertThreshold float64
 }
 
 // URL returns the URL of the Poseidon webserver.

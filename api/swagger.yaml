@@ -142,6 +142,7 @@ components:
                       - NOMAD_UNREACHABLE
                       - NOMAD_OVERLOAD
                       - NOMAD_INTERNAL_SERVER_ERROR
+                      - PREWARMING_POOL_DEPLETING
                       - UNKNOWN
                     example: NOMAD_UNREACHABLE
 
@@ -162,7 +163,8 @@ paths:
       responses:
         "204":
           description: Everything okay
-
+        "503":
+          $ref: "#/components/responses/InternalServerError"
   /version:
     get:
       summary: Retrieve the version of Poseidon

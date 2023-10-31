@@ -328,5 +328,6 @@ const (
 	ErrorNomadUnreachable         ErrorCode = "NOMAD_UNREACHABLE"
 	ErrorNomadOverload            ErrorCode = "NOMAD_OVERLOAD"
 	ErrorNomadInternalServerError ErrorCode = "NOMAD_INTERNAL_SERVER_ERROR"
+	PrewarmingPoolDepleting       ErrorCode = "PREWARMING_POOL_DEPLETING"
 	ErrorUnknown                  ErrorCode = "UNKNOWN"
 )

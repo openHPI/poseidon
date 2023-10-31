@@ -60,8 +60,9 @@ func (a *AWSEnvironment) Sample() (r runner.Runner, ok bool) {
 // The following methods are not supported at this moment.
 
 // IdleRunnerCount is not supported as we have no information about the AWS managed prewarming pool.
+// For the Poseidon Health check we default to 1.
 func (a *AWSEnvironment) IdleRunnerCount() uint {
-	return 0
+	return 1
 }
 
 // PrewarmingPoolSize is neither supported nor required. It is handled transparently by AWS.

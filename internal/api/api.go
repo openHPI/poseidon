@@ -46,7 +46,7 @@ func configureV1Router(router *mux.Router,
 		w.WriteHeader(http.StatusNotFound)
 	})
 	v1 := router.PathPrefix(BasePath).Subrouter()
-	v1.HandleFunc(HealthPath, Health).Methods(http.MethodGet).Name(HealthPath)
+	v1.HandleFunc(HealthPath, Health(environmentManager)).Methods(http.MethodGet).Name(HealthPath)
 	v1.HandleFunc(VersionPath, Version).Methods(http.MethodGet).Name(VersionPath)
 
 	runnerController := &RunnerController{manager: runnerManager}

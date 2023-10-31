@@ -236,8 +236,8 @@ github.com/hashicorp/logutils v1.0.0/go.mod h1:QIAnNjmIWmVIIkWDTG1z5v++HQmx9WQRO
 github.com/hashicorp/mdns v1.0.4/go.mod h1:mtBihi+LeNXGtG8L9dX59gAEa12BDtBQSp4v/YAJqrc=
 github.com/hashicorp/memberlist v0.5.0 h1:EtYPN8DpAURiapus508I4n9CzHs2W+8NZGbmmR/prTM=
 github.com/hashicorp/memberlist v0.5.0/go.mod h1:yvyXLpo0QaGE59Y7hDTsTzDD25JYBZ4mHgHUZ8lrOI0=
-github.com/hashicorp/nomad v1.6.2 h1:7weYUl9zqP7S32RWQNJFpqNS1FjJClJUY7+HnfFWTe8=
-github.com/hashicorp/nomad v1.6.2/go.mod h1:+3qVd8Gv7prncAasOCU3StGpDejqR0Wb7vX5vnTgyXs=
+github.com/hashicorp/nomad v1.6.3 h1:M22raG/TH11N5XNRd/uQn64R/oeqQkwvQ/fvpoCvRCQ=
+github.com/hashicorp/nomad v1.6.3/go.mod h1:B1H0umrJZPs5dBqjwMKmBkjKpsH9HhMOW6S8rnpXu44=
 github.com/hashicorp/nomad/api v0.0.0-20230922145839-20eadc7b296c h1:490JV2SypUJ/nvtjxSdDXy6voQ9pv8BK6fwG5gJ7nMg=
 github.com/hashicorp/nomad/api v0.0.0-20230922145839-20eadc7b296c/go.mod h1:glQSmiY2VCQDT0MBiWKr5YDU9PpwVNOcrovlDczoKoI=
 github.com/hashicorp/raft v1.2.0/go.mod h1:vPAJM8Asw6u8LxC3eJCUZmRP/E4QmUGE1R7g7k8sG/8=

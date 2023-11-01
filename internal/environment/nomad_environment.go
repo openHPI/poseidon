@@ -242,7 +242,7 @@ func (n *NomadEnvironment) ApplyPrewarmingPoolSize() error {
 	if required < 0 {
 		log.WithError(ErrScaleDown).
 			WithField(dto.KeyEnvironmentID, n.ID().ToString()).
-			WithField("offset", -required).Warn("Too many idle runner")
+			WithField("offset", -required).Info("Too many idle runner")
 		return nil
 	}
 	return n.createRunners(uint(required), true)
@@ -259,7 +259,7 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 			}
 		}()
 	} else if ok {
-		log.WithField(dto.KeyEnvironmentID, n.ID().ToString()).Warn("Too many idle runner")
+		log.WithField(dto.KeyEnvironmentID, n.ID().ToString()).Info("Too many idle runner")
 	}
 	return r, ok
 }

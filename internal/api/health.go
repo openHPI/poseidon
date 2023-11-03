@@ -30,7 +30,7 @@ func Health(manager environment.Manager) http.HandlerFunc {
 func checkPrewarmingPool(manager environment.Manager) error {
 	var depletingEnvironments []int
 	for _, data := range manager.Statistics() {
-		if float64(data.IdleRunners)/float64(data.PrewarmingPoolSize) < config.Config.Server.PrewarmingPoolAlertThreshold {
+		if float64(data.IdleRunners)/float64(data.PrewarmingPoolSize) < config.Config.Server.Alert.PrewarmingPoolThreshold {
 			depletingEnvironments = append(depletingEnvironments, data.ID)
 		}
 	}

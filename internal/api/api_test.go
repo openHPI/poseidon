@@ -3,6 +3,8 @@ package api
 import (
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/internal/environment"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
 	"net/http"
@@ -25,7 +27,9 @@ func TestMainTestSuite(t *testing.T) {
 func (s *MainTestSuite) TestNewRouterV1WithAuthenticationDisabled() {
 	config.Config.Server.Token = ""
 	router := mux.NewRouter()
-	configureV1Router(router, nil, nil)
+	m := &environment.ManagerHandlerMock{}
+	m.On("Statistics").Return(make(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData))
+	configureV1Router(router, nil, m)
 
 	s.Run("health route is accessible", func() {
 		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", http.NoBody)
@@ -52,7 +56,9 @@ func (s *MainTestSuite) TestNewRouterV1WithAuthenticationDisabled() {
 func (s *MainTestSuite) TestNewRouterV1WithAuthenticationEnabled() {
 	config.Config.Server.Token = "TestToken"
 	router := mux.NewRouter()
-	configureV1Router(router, nil, nil)
+	m := &environment.ManagerHandlerMock{}
+	m.On("Statistics").Return(make(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData))
+	configureV1Router(router, nil, m)
 
 	s.Run("health route is accessible", func() {
 		request, err := http.NewRequest(http.MethodGet, "/api/v1/health", http.NoBody)

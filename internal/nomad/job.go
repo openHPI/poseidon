@@ -30,11 +30,13 @@ const (
 	ConfigMetaPoolSizeKey = "prewarmingPoolSize"
 	TemplateJobNameParts  = 2
 	RegisterTimeout       = 10 * time.Second
+	RunnerTimeoutFallback = 60 * time.Second
 )
 
 var (
-	ErrorInvalidJobID = errors.New("invalid job id")
-	TaskArgs          = []string{"infinity"}
+	ErrorInvalidJobID     = errors.New("invalid job id")
+	ErrorMissingTaskGroup = errors.New("couldn't find config task group in job")
+	TaskArgs              = []string{"infinity"}
 )
 
 func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {

@@ -39,7 +39,7 @@ func (s *MainTestSuite) TestHealth() {
 					IdleRunners:        1,
 				},
 			})
-			config.Config.Server.PrewarmingPoolAlertThreshold = 0.5
+			config.Config.Server.Alert.PrewarmingPoolThreshold = 0.5
 
 			Health(manager).ServeHTTP(recorder, request)
 			s.Equal(http.StatusServiceUnavailable, recorder.Code)

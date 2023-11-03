@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/storage"
@@ -533,13 +534,12 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		s.ExpectedGoroutingIncrease++ // We dont care about destroying the created runner.
 		call.Return([]*nomadApi.Job{job}, nil)
 
-		err := runnerManager.load()
-		s.NoError(err)
-
+		runnerManager.load()
 		environmentMock.AssertExpectations(s.T())
 	})
 
 	s.Run("Stores used runner", func() {
+		apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
 		_, job := helpers.CreateTemplateJob()
 		jobID := tests.DefaultRunnerID
 		job.ID = &jobID
@@ -547,14 +547,11 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
 		s.Require().NotNil(configTaskGroup)
 		configTaskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUsedValue
-		s.ExpectedGoroutingIncrease++ // We dont care about destroying the created runner.
+		s.ExpectedGoroutingIncrease++ // We don't care about destroying the created runner.
 		call.Return([]*nomadApi.Job{job}, nil)
 
 		s.Require().Zero(runnerManager.usedRunners.Length())
-
-		err := runnerManager.load()
-		s.NoError(err)
-
+		runnerManager.load()
 		_, ok := runnerManager.usedRunners.Get(tests.DefaultRunnerID)
 		s.True(ok)
 	})
@@ -576,15 +573,138 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		call.Return([]*nomadApi.Job{job}, nil)
 
 		s.Require().Zero(runnerManager.usedRunners.Length())
-
-		err := runnerManager.load()
-		s.NoError(err)
-
+		runnerManager.load()
 		s.Require().NotZero(runnerManager.usedRunners.Length())
 
 		<-time.After(time.Duration(timeout*2) * time.Second)
 		s.Require().Zero(runnerManager.usedRunners.Length())
 	})
+}
+
+func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
+	timeout := uint(1)
+	config.Config.Server.Alert.PrewarmingPoolReloadTimeout = timeout
+	config.Config.Server.Alert.PrewarmingPoolThreshold = 0.5
+	environment := &ExecutionEnvironmentMock{}
+	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+	environment.On("Image").Return("")
+	environment.On("CPULimit").Return(uint(0))
+	environment.On("MemoryLimit").Return(uint(0))
+	environment.On("NetworkAccess").Return(false, nil)
+	apiMock := &nomad.ExecutorAPIMock{}
+	m := NewNomadRunnerManager(apiMock, s.TestCtx)
+	m.StoreEnvironment(environment)
+
+	s.Run("does not allow concurrent calls", func() {
+		environment.On("PrewarmingPoolSize").Return(uint(1)).Once()
+
+		secondCallDone := make(chan struct{})
+		environment.On("IdleRunnerCount").Run(func(_ mock.Arguments) {
+			<-secondCallDone
+		}).Return(uint(1)).Once()
+
+		go m.checkPrewarmingPoolAlert(environment)
+		<-time.After(tests.ShortTimeout)
+		go func() {
+			m.checkPrewarmingPoolAlert(environment)
+			close(secondCallDone)
+		}()
+
+		<-time.After(tests.ShortTimeout)
+		environment.AssertExpectations(s.T())
+	})
+	s.Run("checks the alert condition again after the reload timeout", func() {
+		environment.On("PrewarmingPoolSize").Return(uint(1)).Once()
+		environment.On("IdleRunnerCount").Return(uint(0)).Once()
+		environment.On("PrewarmingPoolSize").Return(uint(1)).Once()
+		environment.On("IdleRunnerCount").Return(uint(1)).Once()
+
+		checkDone := make(chan struct{})
+		go func() {
+			m.checkPrewarmingPoolAlert(environment)
+			close(checkDone)
+		}()
+
+		select {
+		case <-checkDone:
+			s.Fail("checkPrewarmingPoolAlert returned before the reload timeout")
+		case <-time.After(time.Duration(timeout) * time.Second / 2):
+		}
+
+		select {
+		case <-time.After(time.Duration(timeout) * time.Second):
+			s.Fail("checkPrewarmingPoolAlert did not return after checking the alert condition again")
+		case <-checkDone:
+		}
+		environment.AssertExpectations(s.T())
+	})
+	s.Run("checks the alert condition again after the reload timeout", func() {
+		environment.On("PrewarmingPoolSize").Return(uint(1)).Twice()
+		environment.On("IdleRunnerCount").Return(uint(0)).Twice()
+		apiMock.On("LoadRunnerJobs", environment.ID()).Return([]*nomadApi.Job{}, nil).Once()
+		environment.On("ApplyPrewarmingPoolSize").Return(nil).Once()
+
+		checkDone := make(chan struct{})
+		go func() {
+			m.checkPrewarmingPoolAlert(environment)
+			close(checkDone)
+		}()
+
+		select {
+		case <-time.After(time.Duration(timeout) * time.Second * 2):
+			s.Fail("checkPrewarmingPoolAlert did not return")
+		case <-checkDone:
+		}
+		environment.AssertExpectations(s.T())
+	})
+}
+
+func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert_reloadsRunners() {
+	config.Config.Server.Alert.PrewarmingPoolReloadTimeout = uint(1)
+	config.Config.Server.Alert.PrewarmingPoolThreshold = 0.5
+	environment := &ExecutionEnvironmentMock{}
+	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
+	environment.On("Image").Return("")
+	environment.On("CPULimit").Return(uint(0))
+	environment.On("MemoryLimit").Return(uint(0))
+	environment.On("NetworkAccess").Return(false, nil)
+	apiMock := &nomad.ExecutorAPIMock{}
+	m := NewNomadRunnerManager(apiMock, s.TestCtx)
+	m.StoreEnvironment(environment)
+
+	environment.On("PrewarmingPoolSize").Return(uint(1)).Twice()
+	environment.On("IdleRunnerCount").Return(uint(0)).Twice()
+	environment.On("DeleteRunner", mock.Anything).Return(false).Once()
+
+	s.Require().Empty(m.usedRunners.Length())
+	_, usedJob := helpers.CreateTemplateJob()
+	id := tests.DefaultRunnerID
+	usedJob.ID = &id
+	configTaskGroup := nomad.FindTaskGroup(usedJob, nomad.ConfigTaskGroupName)
+	configTaskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUsedValue
+	configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey] = "42"
+	_, idleJob := helpers.CreateTemplateJob()
+	idleID := tests.AnotherRunnerID
+	idleJob.ID = &idleID
+	nomad.FindTaskGroup(idleJob, nomad.ConfigTaskGroupName).Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUnusedValue
+	apiMock.On("LoadRunnerJobs", environment.ID()).Return([]*nomadApi.Job{usedJob, idleJob}, nil).Once()
+	apiMock.On("LoadRunnerPortMappings", mock.Anything).Return(nil, nil).Twice()
+	environment.On("ApplyPrewarmingPoolSize").Return(nil).Once()
+	environment.On("AddRunner", mock.Anything).Run(func(args mock.Arguments) {
+		job, ok := args[0].(*NomadJob)
+		s.Require().True(ok)
+		err := job.Destroy(ErrLocalDestruction)
+		s.NoError(err)
+	}).Return().Once()
+
+	m.checkPrewarmingPoolAlert(environment)
+
+	r, ok := m.usedRunners.Get(tests.DefaultRunnerID)
+	s.Require().True(ok)
+	err := r.Destroy(ErrLocalDestruction)
+	s.NoError(err)
+
+	environment.AssertExpectations(s.T())
 }
 
 func mockWatchAllocations(ctx context.Context, apiMock *nomad.ExecutorAPIMock) {

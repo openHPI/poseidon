@@ -29,9 +29,12 @@ var (
 				CertFile: "",
 				KeyFile:  "",
 			},
-			InteractiveStderr:            true,
-			TemplateJobFile:              "",
-			PrewarmingPoolAlertThreshold: 0,
+			InteractiveStderr: true,
+			TemplateJobFile:   "",
+			Alert: alert{
+				PrewarmingPoolThreshold:     0,
+				PrewarmingPoolReloadTimeout: 0,
+			},
 		},
 		Nomad: Nomad{
 			Enabled: true,
@@ -80,15 +83,20 @@ var (
 	ErrConfigInitialized = errors.New("configuration is already initialized")
 )
 
+type alert struct {
+	PrewarmingPoolThreshold     float64
+	PrewarmingPoolReloadTimeout uint
+}
+
 // server configures the Poseidon webserver.
 type server struct {
-	Address                      string
-	Port                         int
-	Token                        string
-	TLS                          TLS
-	InteractiveStderr            bool
-	TemplateJobFile              string
-	PrewarmingPoolAlertThreshold float64
+	Address           string
+	Port              int
+	Token             string
+	TLS               TLS
+	InteractiveStderr bool
+	TemplateJobFile   string
+	Alert             alert
 }
 
 // URL returns the URL of the Poseidon webserver.

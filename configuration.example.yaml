@@ -19,10 +19,16 @@ server:
   interactivestderr: true
   # If set, the file at the given path overwrites the default Nomad job file in internal/environment/template-environment-job.hcl
   # templatejobfile: ./poseidon.hcl
-  # The prewarming pool alert threshold [0, 1) defines which part of the prewarming pool should always be filled.
-  # Setting it to 0 will disable the alert.
-  # If the prewarming pool is filled for less than, i.e., 50%, the health route of Poseidon will return a warning.
-  prewarmingpoolalertthreshold: 0.5
+  # alert defines how poseidon should handle specific risks.
+  alert:
+    # The prewarming pool threshold [0, 1) defines which part of the prewarming pool should always be filled.
+    # Setting it to 0 will disable the alert.
+    # If the prewarming pool is filled for less than, i.e., 50%, the health route of Poseidon will return a warning.
+    prewarmingpoolthreshold: 0.5
+    # The prewarming pool reload timeout (in seconds) defines for how long the low prewarming pool warning (above)
+    # should be active before Poseidon automatically reloads the environment.
+    # Setting it to 0 will disable the automatic reload.
+    prewarmingpoolreloadtimeout: 300
 
 # Configuration of the used Nomad cluster
 nomad:

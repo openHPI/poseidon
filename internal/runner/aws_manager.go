@@ -17,7 +17,7 @@ func NewAWSRunnerManager(ctx context.Context) *AWSRunnerManager {
 }
 
 func (a AWSRunnerManager) Claim(id dto.EnvironmentID, duration int) (Runner, error) {
-	environment, ok := a.environments.Get(id.ToString())
+	environment, ok := a.GetEnvironment(id)
 	if !ok {
 		r, err := a.NextHandler().Claim(id, duration)
 		if err != nil {

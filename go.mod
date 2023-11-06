@@ -5,7 +5,7 @@ go 1.21.1
 require (
 	github.com/getsentry/sentry-go v0.25.0
 	github.com/google/uuid v1.4.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/nomad v1.6.3
 	github.com/hashicorp/nomad/api v0.0.0-20230922145839-20eadc7b296c

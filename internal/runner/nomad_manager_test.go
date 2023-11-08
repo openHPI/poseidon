@@ -594,25 +594,6 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	m := NewNomadRunnerManager(apiMock, s.TestCtx)
 	m.StoreEnvironment(environment)
-
-	s.Run("does not allow concurrent calls", func() {
-		environment.On("PrewarmingPoolSize").Return(uint(1)).Once()
-
-		secondCallDone := make(chan struct{})
-		environment.On("IdleRunnerCount").Run(func(_ mock.Arguments) {
-			<-secondCallDone
-		}).Return(uint(1)).Once()
-
-		go m.checkPrewarmingPoolAlert(environment)
-		<-time.After(tests.ShortTimeout)
-		go func() {
-			m.checkPrewarmingPoolAlert(environment)
-			close(secondCallDone)
-		}()
-
-		<-time.After(tests.ShortTimeout)
-		environment.AssertExpectations(s.T())
-	})
 	s.Run("checks the alert condition again after the reload timeout", func() {
 		environment.On("PrewarmingPoolSize").Return(uint(1)).Once()
 		environment.On("IdleRunnerCount").Return(uint(0)).Once()
@@ -621,7 +602,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
 
 		checkDone := make(chan struct{})
 		go func() {
-			m.checkPrewarmingPoolAlert(environment)
+			m.checkPrewarmingPoolAlert(environment, false)
 			close(checkDone)
 		}()
 
@@ -646,13 +627,35 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
 
 		checkDone := make(chan struct{})
 		go func() {
-			m.checkPrewarmingPoolAlert(environment)
+			m.checkPrewarmingPoolAlert(environment, false)
 			close(checkDone)
 		}()
 
 		select {
 		case <-time.After(time.Duration(timeout) * time.Second * 2):
 			s.Fail("checkPrewarmingPoolAlert did not return")
+		case <-checkDone:
+		}
+		environment.AssertExpectations(s.T())
+	})
+	s.Run("is canceled by an added runner", func() {
+		environment.On("PrewarmingPoolSize").Return(uint(1)).Twice()
+		environment.On("IdleRunnerCount").Return(uint(0)).Once()
+		environment.On("IdleRunnerCount").Return(uint(1)).Once()
+
+		checkDone := make(chan struct{})
+		go func() {
+			m.checkPrewarmingPoolAlert(environment, false)
+			close(checkDone)
+		}()
+
+		<-time.After(tests.ShortTimeout)
+		go m.checkPrewarmingPoolAlert(environment, true)
+		<-time.After(tests.ShortTimeout)
+
+		select {
+		case <-time.After(100 * time.Duration(timeout) * time.Second):
+			s.Fail("checkPrewarmingPoolAlert was not canceled")
 		case <-checkDone:
 		}
 		environment.AssertExpectations(s.T())
@@ -697,7 +700,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert_reloadsR
 		s.NoError(err)
 	}).Return().Once()
 
-	m.checkPrewarmingPoolAlert(environment)
+	m.checkPrewarmingPoolAlert(environment, false)
 
 	r, ok := m.usedRunners.Get(tests.DefaultRunnerID)
 	s.Require().True(ok)

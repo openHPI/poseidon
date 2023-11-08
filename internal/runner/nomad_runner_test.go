@@ -221,7 +221,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 		s.Require().True(ok)
 		buffer := make([]byte, 1) //nolint:makezero,lll // If the length is zero, the Read call never reads anything. gofmt want this alignment.
 		for n := 0; !(n == 1 && buffer[0] == SIGQUIT); {
-			time.After(tests.ShortTimeout)
+			<-time.After(tests.ShortTimeout)
 			n, _ = stdin.Read(buffer) //nolint:errcheck,lll // Read returns EOF errors but that is expected. This nolint makes the line too long.
 			if n > 0 {
 				log.WithField("buffer", fmt.Sprintf("%x", buffer[0])).Info("Received Stdin")

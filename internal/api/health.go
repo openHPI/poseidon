@@ -35,7 +35,7 @@ func checkPrewarmingPool(manager environment.Manager) error {
 		}
 	}
 	if len(depletingEnvironments) > 0 {
-		arrayToString := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(depletingEnvironments)), ","), "[]")
+		arrayToString := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(depletingEnvironments)), ", "), "[]")
 		return fmt.Errorf("%w: environments %s", ErrorPrewarmingPoolDepleting, arrayToString)
 	}
 	return nil

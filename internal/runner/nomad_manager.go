@@ -110,8 +110,8 @@ func (m *NomadRunnerManager) DeleteEnvironment(id dto.EnvironmentID) {
 	m.reloadingEnvironment.Delete(id.ToString())
 }
 
-// checkPrewarmingPoolAlert checks if the prewarming pool contains enough idle runners as specified by the PrewarmingPoolThreshold
-// if not it starts an environment reload mechanism according to the PrewarmingPoolReloadTimeout.
+// checkPrewarmingPoolAlert checks if the prewarming pool contains enough idle runners as specified by the PrewarmingPoolThreshold.
+// If not, it starts an environment reload mechanism according to the PrewarmingPoolReloadTimeout.
 func (m *NomadRunnerManager) checkPrewarmingPoolAlert(environment ExecutionEnvironment, runnerAdded bool) {
 	data, ok := m.reloadingEnvironment.Get(environment.ID().ToString())
 	if !ok {
@@ -126,8 +126,8 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(environment ExecutionEnvir
 		return
 	}
 
-	// With this hard lock we collect/block goroutines waiting for one reload to be done.
-	// However, in practice its likely that only up to PrewarmingPoolSize/2 goroutines are waiting.
+	// With this hard lock, we collect/block goroutines waiting for one reload to be done.
+	// However, in practice, it's likely that only up to PrewarmingPoolSize/2 goroutines are waiting.
 	// We could avoid the waiting, but we use it to solve the race conditions of the recursive call above.
 	data.Lock()
 	defer data.Unlock()
@@ -142,7 +142,7 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(environment ExecutionEnvir
 	ctx, cancel := context.WithCancel(context.Background())
 	data.cancel = cancel
 
-	log.WithField(dto.KeyEnvironmentID, environment.ID()).Info("Prewarming Pool Alert. Checking again..")
+	log.WithField(dto.KeyEnvironmentID, environment.ID()).Info("Prewarming Pool Alert. Checking again...")
 	select {
 	case <-ctx.Done():
 		return

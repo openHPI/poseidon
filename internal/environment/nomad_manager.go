@@ -214,7 +214,7 @@ func (m *NomadEnvironmentManager) load() error {
 	for _, job := range templateJobs {
 		jobLogger := log.WithField("jobID", *job.ID)
 		if *job.Status != structs.JobStatusRunning {
-			jobLogger.Info("Job not running, skipping ...")
+			jobLogger.Info("Job not running, skipping...")
 			continue
 		}
 		configTaskGroup := nomad.FindAndValidateConfigTaskGroup(job)

@@ -130,7 +130,7 @@ type UpdateFileSystemRequest struct {
 // FilePath specifies the path of a file and is part of the UpdateFileSystemRequest.
 type FilePath string
 
-// EntryType specifies the type of the object (file/link/directory/..)
+// EntryType specifies the type of the object (file/link/directory/...)
 type EntryType string
 
 // These are the common entry types. You find others in the man pages `info ls`.

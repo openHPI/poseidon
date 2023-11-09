@@ -174,7 +174,7 @@ func (m *NomadRunnerManager) load() {
 		usedRunners, err := m.loadEnvironment(environment)
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyEnvironmentID, environment.ID().ToString()).
-				Warn("Failed loading environment. Skipping ...")
+				Warn("Failed loading environment. Skipping...")
 			continue
 		}
 		for _, r := range usedRunners.List() {
@@ -195,7 +195,7 @@ func (m *NomadRunnerManager) loadEnvironment(environment ExecutionEnvironment) (
 		r, isUsed, err := m.loadSingleJob(job, environment)
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyEnvironmentID, environment.ID().ToString()).
-				WithField("used", isUsed).Warn("Failed loading job. Skipping ...")
+				WithField("used", isUsed).Warn("Failed loading job. Skipping...")
 			continue
 		} else if isUsed {
 			used.Add(r.ID(), r)

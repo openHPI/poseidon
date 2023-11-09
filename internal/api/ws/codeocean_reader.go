@@ -32,7 +32,7 @@ type codeOceanToRawReader struct {
 	executorCtx context.Context
 
 	// A buffered channel of bytes is used to store data coming from CodeOcean via WebSocket
-	// and retrieve it when Read(..) is called. Since channels are thread-safe, we use one here
+	// and retrieve it when Read(...) is called. Since channels are thread-safe, we use one here
 	// instead of bytes.Buffer.
 	buffer chan byte
 	// The priorityBuffer is a buffer for injecting data into stdin of the execution from Poseidon,

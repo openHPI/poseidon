@@ -253,13 +253,13 @@ func shutdownOnOSSignal(server *http.Server, ctx context.Context, stopProfiling 
 	case <-ctx.Done():
 		os.Exit(1)
 	case <-writeProfileSignal:
-		log.Info("Received SIGUSR1 ...")
+		log.Info("Received SIGUSR1...")
 
 		stopProfiling()
 		// Continue listening on signals and replace `stopProfiling` with an empty function
 		shutdownOnOSSignal(server, ctx, func() {})
 	case <-shutdownSignals:
-		log.Info("Received SIGINT, shutting down ...")
+		log.Info("Received SIGINT, shutting down...")
 
 		defer stopProfiling()
 		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownWait)

@@ -39,6 +39,8 @@ type MemoryLeakTestSuite struct {
 }
 
 func (s *MemoryLeakTestSuite) SetupTest() {
+	// Without this first line we observed some goroutines just closing.
+	runtime.Gosched()
 	s.ExpectedGoroutingIncrease = 0
 	s.goroutinesBefore = &bytes.Buffer{}
 

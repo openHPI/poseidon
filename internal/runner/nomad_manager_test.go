@@ -260,13 +260,10 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 		})
 	})
 
-	go func() {
-		err := s.nomadRunnerManager.SynchronizeRunners(s.TestCtx)
-		if err != nil {
-			log.WithError(err).Error("failed to synchronize runners")
-		}
-	}()
-	<-time.After(10 * time.Millisecond)
+	err := s.nomadRunnerManager.SynchronizeRunners(s.TestCtx)
+	if err != nil {
+		log.WithError(err).Error("failed to synchronize runners")
+	}
 
 	s.Require().Equal(3, len(hook.Entries))
 	s.Equal(logrus.ErrorLevel, hook.LastEntry().Level)

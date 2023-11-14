@@ -7,8 +7,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	"io"
 	"os"
+	"regexp"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"time"
 )
 
@@ -23,6 +25,8 @@ func ChannelReceivesSomething(ch chan bool, timeout time.Duration) bool {
 	}
 }
 
+var numGoroutines = regexp.MustCompile(`^goroutine profile: total (\d*)\n`)
+
 // MemoryLeakTestSuite adds an assertion for checking Goroutine leaks.
 // Be aware not to overwrite the SetupTest or TearDownTest function!
 type MemoryLeakTestSuite struct {
@@ -35,12 +39,21 @@ type MemoryLeakTestSuite struct {
 }
 
 func (s *MemoryLeakTestSuite) SetupTest() {
-	s.goroutineCountBefore = runtime.NumGoroutine()
 	s.ExpectedGoroutingIncrease = 0
 	s.goroutinesBefore = &bytes.Buffer{}
 
 	err := pprof.Lookup("goroutine").WriteTo(s.goroutinesBefore, 1)
-	s.NoError(err)
+	s.Require().NoError(err)
+	match := numGoroutines.FindSubmatch(s.goroutinesBefore.Bytes())
+	if match == nil {
+		s.Fail("gouroutines could not be parsed: " + s.goroutinesBefore.String())
+	}
+
+	// We do not use runtime.NumGoroutine() to not create inconsistency to the Lookup.
+	s.goroutineCountBefore, err = strconv.Atoi(string(match[1]))
+	if err != nil {
+		s.Fail("number of goroutines could not be parsed: " + err.Error())
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.TestCtx = ctx

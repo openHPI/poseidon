@@ -180,7 +180,7 @@ func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(synchronizeRunners func
 		}
 
 		// Load Runners and keep them synchronized.
-		if err := synchronizeRunners(ctx); err != nil {
+		if err := synchronizeRunners(ctx); err != nil && ctx.Err() == nil {
 			log.WithContext(ctx).WithError(err).Warn("Loading and synchronizing Runners failed! Retrying...")
 			return err
 		}

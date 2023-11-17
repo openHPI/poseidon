@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
@@ -324,8 +325,14 @@ func parseLogFile(t *testing.T, name string, start time.Time, end time.Time) (lo
 func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {
 	allocListStub, _, err := nomadClient.Jobs().Allocations(runnerID, true, nil)
 	s.Require().NoError(err)
-	s.Require().Equal(1, len(allocListStub))
-	alloc, _, err := nomadClient.Allocations().Info(allocListStub[0].ID, nil)
+	var runningAllocStub *api.AllocationListStub
+	for _, stub := range allocListStub {
+		if stub.ClientStatus == api.AllocClientStatusRunning && stub.DesiredStatus == api.AllocDesiredStatusRun {
+			runningAllocStub = stub
+			break
+		}
+	}
+	alloc, _, err := nomadClient.Allocations().Info(runningAllocStub.ID, nil)
 	s.Require().NoError(err)
 
 	var stdout, stderr bytes.Buffer

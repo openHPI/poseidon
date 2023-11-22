@@ -134,12 +134,14 @@ func addEnvironmentID(r *http.Request, id dto.EnvironmentID) {
 func AddRequestSize(r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.WithContext(r.Context()).WithError(err).Warn("Failed to read request body")
+		log.WithContext(r.Context()).WithError(err).Debug("Failed to read request body")
+		return
 	}
 
 	err = r.Body.Close()
 	if err != nil {
-		log.WithContext(r.Context()).WithError(err).Warn("Failed to close request body")
+		log.WithContext(r.Context()).WithError(err).Debug("Failed to close request body")
+		return
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 

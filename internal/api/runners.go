@@ -226,7 +226,7 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 			// See https://github.com/openHPI/poseidon/issues/54
 			_, readErr := io.ReadAll(request.Body)
 			if readErr != nil {
-				log.WithContext(request.Context()).WithError(readErr).Warn("Failed to discard the request body")
+				log.WithContext(request.Context()).WithError(readErr).Debug("Failed to discard the request body")
 			}
 			writeClientError(writer, err, http.StatusGone, request.Context())
 			return

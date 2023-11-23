@@ -696,7 +696,6 @@ func prepareCommandTTY(command string, currentNanoTime int64, privilegedExecutio
 	// Take the command to be executed and wrap it to redirect stderr.
 	stderrFifoPath := stderrFifo(currentNanoTime)
 	command = fmt.Sprintf(stderrWrapperCommandFormat, stderrFifoPath, command, stderrFifoPath)
-	command = injectStartDebugMessage(command, 0, 1)
 
 	command = setUserCommand(command, privilegedExecution)
 	command = unsetEnvironmentVariables(command)

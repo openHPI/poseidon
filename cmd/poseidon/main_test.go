@@ -6,7 +6,7 @@ import (
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
-	"syscall"
+	"golang.org/x/sys/unix"
 	"testing"
 	"time"
 )
@@ -57,7 +57,7 @@ func (s *MainTestSuite) TestShutdownOnOSSignal_Profiling() {
 	})
 
 	<-time.After(tests.ShortTimeout)
-	err := syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+	err := unix.Kill(unix.Getpid(), unix.SIGUSR1)
 	s.Require().NoError(err)
 	<-time.After(tests.ShortTimeout)
 

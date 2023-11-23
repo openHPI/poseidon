@@ -12,6 +12,7 @@ import (
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
+	"golang.org/x/sys/unix"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,7 +20,6 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
-	"syscall"
 	"time"
 )
 
@@ -243,11 +243,11 @@ func initServer(ctx context.Context) *http.Server {
 func shutdownOnOSSignal(server *http.Server, ctx context.Context, stopProfiling func()) {
 	// wait for SIGINT
 	shutdownSignals := make(chan os.Signal, 1)
-	signal.Notify(shutdownSignals, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(shutdownSignals, unix.SIGINT, unix.SIGTERM)
 
 	// wait for SIGUSR1
 	writeProfileSignal := make(chan os.Signal, 1)
-	signal.Notify(writeProfileSignal, syscall.SIGUSR1)
+	signal.Notify(writeProfileSignal, unix.SIGUSR1)
 
 	select {
 	case <-ctx.Done():

@@ -322,11 +322,15 @@ func handleEvaluationEvent(evaluations map[string]chan error, event *nomadApi.Ev
 	case structs.EvalStatusComplete, structs.EvalStatusCancelled, structs.EvalStatusFailed:
 		resultChannel, ok := evaluations[eval.ID]
 		if ok {
+			evalErr := checkEvaluation(eval)
 			select {
-			case resultChannel <- checkEvaluation(eval):
+			case resultChannel <- evalErr:
 				close(resultChannel)
 			case <-time.After(resultChannelWriteTimeout):
-				log.WithField("eval", eval).Error("Full evaluation channel")
+				log.WithField("length", len(resultChannel)).
+					WithField("eval", eval).
+					WithError(evalErr).
+					Error("Sending to the evaluation channel timed out")
 			}
 		}
 	}

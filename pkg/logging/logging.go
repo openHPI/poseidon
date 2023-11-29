@@ -93,11 +93,7 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 			"duration":   latency,
 			"user_agent": RemoveNewlineSymbol(r.UserAgent()),
 		})
-		if lrw.StatusCode >= http.StatusInternalServerError {
-			logEntry.Error("Failing " + path)
-		} else {
-			logEntry.Debug()
-		}
+		logEntry.Debug()
 	})
 }
 

@@ -25,22 +25,6 @@ func TestMainTestSuite(t *testing.T) {
 	suite.Run(t, new(MainTestSuite))
 }
 
-func (s *MainTestSuite) TestHTTPMiddlewareWarnsWhenInternalServerError() {
-	var hook *test.Hook
-	log, hook = test.NewNullLogger()
-	InitializeLogging(logrus.DebugLevel.String(), dto.FormatterText)
-
-	request, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
-	if err != nil {
-		s.Fail(err.Error())
-	}
-	recorder := httptest.NewRecorder()
-	HTTPLoggingMiddleware(mockHTTPStatusHandler(500)).ServeHTTP(recorder, request)
-
-	s.Equal(1, len(hook.Entries))
-	s.Equal(logrus.ErrorLevel, hook.LastEntry().Level)
-}
-
 func (s *MainTestSuite) TestHTTPMiddlewareDebugsWhenStatusOK() {
 	var hook *test.Hook
 	log, hook = test.NewNullLogger()

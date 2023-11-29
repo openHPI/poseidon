@@ -57,18 +57,21 @@ func InitializeInfluxDB(db *config.InfluxDB) (cancel func()) {
 		return func() {}
 	}
 
+	// How often to retry to write data.
+	const maxRetries = 50
 	// How long to wait before retrying to write data.
-	const retryInterval = 30 * time.Second
+	const retryInterval = 5 * time.Second
 	// How old the data can be before we stop retrying to write it. Should be larger than maxRetries * retryInterval.
 	const retryExpire = 10 * time.Minute
-	// How often to retry to write data.
-	const maxRetries = 10
+	// How many batches are buffered before dropping the oldest.
+	const retryBufferLimit = 100_000
 
 	// Set options for retrying with the influx client.
 	options := influxdb2.DefaultOptions()
 	options.SetRetryInterval(uint(retryInterval.Milliseconds()))
 	options.SetMaxRetries(maxRetries)
 	options.SetMaxRetryTime(uint(retryExpire.Milliseconds()))
+	options.SetRetryBufferLimit(retryBufferLimit)
 
 	// Create a new influx client.
 	client := influxdb2.NewClientWithOptions(db.URL, db.Token, options)

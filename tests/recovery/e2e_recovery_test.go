@@ -1,7 +1,6 @@
 package recovery
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	nomadApi "github.com/hashicorp/nomad/api"
@@ -29,7 +28,6 @@ import (
 var (
 	log             = logging.GetLogger("e2e-recovery")
 	testDockerImage = flag.String("dockerImage", "", "Docker image to use in E2E tests")
-	poseidonBinary  = flag.String("poseidonPath", "", "The path to the Poseidon binary")
 	nomadClient     *nomadApi.Client
 	nomadNamespace  string
 )
@@ -42,18 +40,13 @@ const (
 
 type E2ERecoveryTestSuite struct {
 	suite.Suite
-	runnerID       string
-	poseidonCancel context.CancelFunc
+	runnerID string
 }
 
 // Overwrite TestMain for custom setup.
 func TestMain(m *testing.M) {
 	if err := config.InitConfig(); err != nil {
 		log.WithError(err).Fatal("Could not initialize configuration")
-	}
-
-	if *poseidonBinary == "" {
-		log.Fatal("You must specify the -path to the Poseidon binary!")
 	}
 	if *testDockerImage == "" {
 		log.Fatal("You must specify the -dockerImage flag!")
@@ -77,20 +70,12 @@ func TestMain(m *testing.M) {
 func TestE2ERecoveryTests(t *testing.T) {
 	testSuite := new(E2ERecoveryTestSuite)
 
-	ctx, cancelPoseidon := context.WithCancel(context.Background())
-	testSuite.poseidonCancel = cancelPoseidon
-
-	startPoseidon(ctx, cancelPoseidon)
-	waitForPoseidon()
-
 	e2e.CreateDefaultEnvironment(PrewarmingPoolSize, *testDockerImage)
 	e2e.WaitForDefaultEnvironment()
 
 	suite.Run(t, testSuite)
 
 	TearDown()
-	testSuite.poseidonCancel()
-	<-time.After(tests.ShortTimeout)
 }
 
 func (s *E2ERecoveryTestSuite) TestInactivityTimer_Valid() {
@@ -99,6 +84,7 @@ func (s *E2ERecoveryTestSuite) TestInactivityTimer_Valid() {
 }
 
 func (s *E2ERecoveryTestSuite) TestInactivityTimer_Expired() {
+	waitForPoseidon() // The timeout begins only when the runner is recovered.
 	<-time.After(InactivityTimeout * time.Second)
 	_, err := e2e.ProvideWebSocketURL(s.runnerID, &dto.ExecutionRequest{Command: "true"})
 	s.Error(err)

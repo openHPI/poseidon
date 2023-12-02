@@ -5,6 +5,10 @@ server:
   address: 127.0.0.1
   # Port on which the webserver listens
   port: 7200
+  # When using Systemd socket activation, Poseidon tries to connect to an existing systemd socket instead of creating its own.
+  # This is useful for zero downtime deployments as the systemd sockets hold up the connections while Poseidon is restarting.
+  # Iff systemdsocketactivation, the configured address and port will not be used, instead the provided systemd socket will be.
+  systemdsocketactivation: false
   # If set, this token is required in the `Poseidon-Token` header for each route except /health
   # token: SECRET
   # Configuration of TLS between the web client and Poseidon.

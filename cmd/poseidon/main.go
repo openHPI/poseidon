@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/coreos/go-systemd/v22/activation"
 	"github.com/getsentry/sentry-go"
 	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/openHPI/poseidon/internal/api"
@@ -14,6 +15,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"golang.org/x/sys/unix"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +23,7 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -156,24 +159,58 @@ func runServer(server *http.Server, cancel context.CancelFunc) {
 	defer cancel()
 	defer shutdownSentry() // shutdownSentry must be executed in the main goroutine.
 
-	log.WithField("address", server.Addr).Info("Starting server")
+	httpListeners := getHTTPListeners(server)
+	serveHTTPListeners(server, httpListeners)
+}
+
+func getHTTPListeners(server *http.Server) (httpListeners []net.Listener) {
+	var err error
+	if config.Config.Server.SystemdSocketActivation {
+		httpListeners, err = activation.Listeners()
+	} else {
+		var httpListener net.Listener
+		httpListener, err = net.Listen("tcp", server.Addr)
+		httpListeners = append(httpListeners, httpListener)
+	}
+	if err != nil || httpListeners == nil || len(httpListeners) == 0 {
+		log.WithError(err).
+			WithField("listeners", httpListeners).
+			WithField("systemd_socket", config.Config.Server.SystemdSocketActivation).
+			Fatal("Failed listening to any socket")
+		return nil
+	}
+	return httpListeners
+}
+
+func serveHTTPListeners(server *http.Server, httpListeners []net.Listener) {
+	var wg sync.WaitGroup
+	wg.Add(len(httpListeners))
+	for _, l := range httpListeners {
+		go func(listener net.Listener) {
+			defer wg.Done()
+			log.WithField("address", listener.Addr()).Info("Serving Listener")
+			serveHTTPListener(server, listener)
+		}(l)
+	}
+	wg.Wait()
+}
+
+func serveHTTPListener(server *http.Server, l net.Listener) {
 	var err error
 	if config.Config.Server.TLS.Active {
 		server.TLSConfig = config.TLSConfig
-		log.
-			WithField("CertFile", config.Config.Server.TLS.CertFile).
+		log.WithField("CertFile", config.Config.Server.TLS.CertFile).
 			WithField("KeyFile", config.Config.Server.TLS.KeyFile).
 			Debug("Using TLS")
-		err = server.ListenAndServeTLS(config.Config.Server.TLS.CertFile, config.Config.Server.TLS.KeyFile)
+		err = server.ServeTLS(l, config.Config.Server.TLS.CertFile, config.Config.Server.TLS.KeyFile)
 	} else {
-		err = server.ListenAndServe()
+		err = server.Serve(l)
 	}
-	if err != nil {
-		if errors.Is(err, http.ErrServerClosed) {
-			log.WithError(err).Info("Server closed")
-		} else {
-			log.WithError(err).Fatal("Error during listening and serving")
-		}
+
+	if errors.Is(err, http.ErrServerClosed) {
+		log.WithError(err).WithField("listener", l).Info("Server closed")
+	} else {
+		log.WithError(err).WithField("listener", l).Error("Error during listening and serving")
 	}
 }
 

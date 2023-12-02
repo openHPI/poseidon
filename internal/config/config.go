@@ -21,9 +21,10 @@ import (
 var (
 	Config = &configuration{
 		Server: server{
-			Address: "127.0.0.1",
-			Port:    7200,
-			Token:   "",
+			Address:                 "127.0.0.1",
+			Port:                    7200,
+			SystemdSocketActivation: false,
+			Token:                   "",
 			TLS: TLS{
 				Active:   false,
 				CertFile: "",
@@ -90,13 +91,14 @@ type alert struct {
 
 // server configures the Poseidon webserver.
 type server struct {
-	Address           string
-	Port              int
-	Token             string
-	TLS               TLS
-	InteractiveStderr bool
-	TemplateJobFile   string
-	Alert             alert
+	Address                 string
+	Port                    int
+	SystemdSocketActivation bool
+	Token                   string
+	TLS                     TLS
+	InteractiveStderr       bool
+	TemplateJobFile         string
+	Alert                   alert
 }
 
 // URL returns the URL of the Poseidon webserver.

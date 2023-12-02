@@ -208,9 +208,20 @@ jobs:
           ./poseidon | tee poseidon.log &
           until curl -s --fail http://localhost:7200/api/v1/health ; do sleep 1; done
           make e2e-test
-      - name: Run e2e recovery tests
+      - name: Setup Poseidon Socket
         run: |
           killall poseidon
+          mkdir -p ~/.config/systemd/user
+          cp ./.github/workflows/resources/poseidon-minimal.socket ~/.config/systemd/user/poseidon.socket
+          cat ./.github/workflows/resources/poseidon-minimal.service | envsubst > ~/.config/systemd/user/poseidon.service
+          systemctl --user daemon-reload
+          systemctl --user start poseidon.socket
+      - name: Print Poseidon Failure logs
+        if: failure()
+        run: journalctl -xen --no-pager
+      - name: Run e2e recovery tests
+        run: |
+          tail -f /var/log/syslog &
           make e2e-test-recovery
         if: ${{ success() || failure() }}
       - name: Convert coverage reports

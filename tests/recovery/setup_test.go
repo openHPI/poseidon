@@ -1,15 +1,13 @@
 package recovery
 
 import (
-	"context"
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/e2e"
 	"github.com/openHPI/poseidon/tests/helpers"
+	"github.com/shirou/gopsutil/v3/process"
 	"net/http"
-	"os"
-	"os/exec"
 	"time"
 )
 
@@ -27,12 +25,8 @@ func (s *E2ERecoveryTestSuite) SetupTest() {
 	}
 
 	<-time.After(tests.ShortTimeout)
-	s.poseidonCancel()
+	killPoseidon()
 	<-time.After(tests.ShortTimeout)
-	ctx, cancelPoseidon := context.WithCancel(context.Background())
-	s.poseidonCancel = cancelPoseidon
-	startPoseidon(ctx, cancelPoseidon)
-	waitForPoseidon()
 }
 
 func TearDown() {
@@ -43,21 +37,32 @@ func TearDown() {
 	}
 }
 
-func startPoseidon(ctx context.Context, cancelPoseidon context.CancelFunc) {
-	poseidon := exec.CommandContext(ctx, *poseidonBinary) //nolint:gosec // We accept that another binary can be executed.
-	poseidon.Stdout = os.Stdout
-	poseidon.Stderr = os.Stderr
-	if err := poseidon.Start(); err != nil {
-		cancelPoseidon()
-		log.WithError(err).Fatal("Failed to start Poseidon")
-	}
-}
-
 func waitForPoseidon() {
 	done := false
 	for !done {
 		<-time.After(time.Second)
 		resp, err := http.Get(helpers.BuildURL(api.BasePath, api.HealthPath))
 		done = err == nil && resp.StatusCode == http.StatusNoContent
+	}
+}
+
+func killPoseidon() {
+	processes, err := process.Processes()
+	if err != nil {
+		log.WithError(err).Error("Error listing processes")
+	}
+	for _, p := range processes {
+		n, err := p.Name()
+		if err != nil {
+			continue
+		}
+		if n == "poseidon" {
+			err = p.Kill()
+			if err != nil {
+				log.WithError(err).Error("Error killing Poseidon")
+			} else {
+				log.Info("Killed Poseidon")
+			}
+		}
 	}
 }

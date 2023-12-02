@@ -1,0 +1,4 @@
+# This is a minimal socket definition to provide a systemd socket for the Poseidon e2e tests.
+
+[Socket]
+ListenStream = 7200

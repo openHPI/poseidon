@@ -121,6 +121,11 @@ run-with-coverage: build-cover ## Run binary and capture code coverage (during e
 	@mkdir -p $(GOCOVERDIR)
 	@GOCOVERDIR=$(GOCOVERDIR) ./$(PROJECT_NAME)
 
+## This target uses `systemd-socket-activate` (only Linux) to create a systemd socket and makes it accessible to a new Poseidon execution.
+.PHONY: run-with-socket
+run-with-socket: build
+	@systemd-socket-activate -l 7200 ./$(PROJECT_NAME)
+
 .PHONY: convert-run-coverage
 convert-run-coverage: ## Convert coverage data (created by `run-with-coverage`) to legacy text format
 	@go tool covdata textfmt -i $(GOCOVERDIR) -o $(GOCOVERDIR)/coverage_run.cov
@@ -138,7 +143,7 @@ e2e-test: deps ## Run e2e tests
 
 .PHONY: e2e-test-recovery
 e2e-test-recovery: deps ## Run recovery e2e tests
-	@go test -count=1 ./tests/recovery -v -args -poseidonPath="../../poseidon" -dockerImage="$(E2E_TEST_DOCKER_IMAGE)"
+	@go test -count=1 ./tests/recovery -v -args -dockerImage="$(E2E_TEST_DOCKER_IMAGE)"
 
 .PHONY: e2e-docker
 e2e-docker: docker ## Run e2e tests against the Docker container

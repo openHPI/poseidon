@@ -208,9 +208,9 @@ func serveHTTPListener(server *http.Server, l net.Listener) {
 	}
 
 	if errors.Is(err, http.ErrServerClosed) {
-		log.WithError(err).WithField("listener", l).Info("Server closed")
+		log.WithError(err).WithField("listener", l.Addr()).Info("Server closed")
 	} else {
-		log.WithError(err).WithField("listener", l).Error("Error during listening and serving")
+		log.WithError(err).WithField("listener", l.Addr()).Error("Error during listening and serving")
 	}
 }
 

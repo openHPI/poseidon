@@ -84,11 +84,27 @@ func (m *NomadRunnerManager) Return(r Runner) error {
 	return err
 }
 
-// SynchronizeRunners loads all runners and keeps them synchronized (without a retry mechanism).
-func (m *NomadRunnerManager) SynchronizeRunners(ctx context.Context) error {
+// Load recovers all runners for all existing environments.
+func (m *NomadRunnerManager) Load() {
 	log.Info("Loading runners")
-	m.load()
+	newUsedRunners := storage.NewLocalStorage[Runner]()
+	for _, environment := range m.ListEnvironments() {
+		usedRunners, err := m.loadEnvironment(environment)
+		if err != nil {
+			log.WithError(err).WithField(dto.KeyEnvironmentID, environment.ID().ToString()).
+				Warn("Failed loading environment. Skipping...")
+			continue
+		}
+		for _, r := range usedRunners.List() {
+			newUsedRunners.Add(r.ID(), r)
+		}
+	}
 
+	m.updateUsedRunners(newUsedRunners, true)
+}
+
+// SynchronizeRunners connect once (without retry) to Nomad to receive status updates regarding runners.
+func (m *NomadRunnerManager) SynchronizeRunners(ctx context.Context) error {
 	// Watch for changes regarding the existing or new runners.
 	log.Info("Watching Event Stream")
 	err := m.apiClient.WatchEventStream(ctx,
@@ -165,24 +181,6 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(environment ExecutionEnvir
 	if err != nil {
 		log.WithField(dto.KeyEnvironmentID, environment.ID()).Error("Failed to reload environment")
 	}
-}
-
-// Load recovers all runners for all existing environments.
-func (m *NomadRunnerManager) load() {
-	newUsedRunners := storage.NewLocalStorage[Runner]()
-	for _, environment := range m.ListEnvironments() {
-		usedRunners, err := m.loadEnvironment(environment)
-		if err != nil {
-			log.WithError(err).WithField(dto.KeyEnvironmentID, environment.ID().ToString()).
-				Warn("Failed loading environment. Skipping...")
-			continue
-		}
-		for _, r := range usedRunners.List() {
-			newUsedRunners.Add(r.ID(), r)
-		}
-	}
-
-	m.updateUsedRunners(newUsedRunners, true)
 }
 
 func (m *NomadRunnerManager) loadEnvironment(environment ExecutionEnvironment) (used storage.Storage[Runner], err error) {

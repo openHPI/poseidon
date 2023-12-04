@@ -265,7 +265,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 		log.WithError(err).Error("failed to synchronize runners")
 	}
 
-	s.Require().Equal(3, len(hook.Entries))
+	s.Require().Equal(2, len(hook.Entries))
 	s.Equal(logrus.ErrorLevel, hook.LastEntry().Level)
 	err, ok := hook.LastEntry().Data[logrus.ErrorKey].(error)
 	s.Require().True(ok)
@@ -531,7 +531,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		s.ExpectedGoroutingIncrease++ // We dont care about destroying the created runner.
 		call.Return([]*nomadApi.Job{job}, nil)
 
-		runnerManager.load()
+		runnerManager.Load()
 		environmentMock.AssertExpectations(s.T())
 	})
 
@@ -548,7 +548,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		call.Return([]*nomadApi.Job{job}, nil)
 
 		s.Require().Zero(runnerManager.usedRunners.Length())
-		runnerManager.load()
+		runnerManager.Load()
 		_, ok := runnerManager.usedRunners.Get(tests.DefaultRunnerID)
 		s.True(ok)
 	})
@@ -570,7 +570,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		call.Return([]*nomadApi.Job{job}, nil)
 
 		s.Require().Zero(runnerManager.usedRunners.Length())
-		runnerManager.load()
+		runnerManager.Load()
 		s.Require().NotZero(runnerManager.usedRunners.Length())
 
 		<-time.After(time.Duration(timeout*2) * time.Second)

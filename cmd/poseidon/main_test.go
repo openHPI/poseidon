@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/environment"
+	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/tests"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sys/unix"
 	"testing"
@@ -62,4 +65,19 @@ func (s *MainTestSuite) TestShutdownOnOSSignal_Profiling() {
 	<-time.After(tests.ShortTimeout)
 
 	s.True(called)
+}
+
+func (s *MainTestSuite) TestLoadNomadEnvironmentsBeforeStartingWebserver() {
+	apiMock := &nomad.ExecutorAPIMock{}
+	apiMock.On("LoadEnvironmentJobs").Return([]*api.Job{}, nil)
+	apiMock.On("WatchEventStream", mock.Anything, mock.Anything).Run(func(_ mock.Arguments) {
+		<-s.TestCtx.Done()
+	}).Return(nil).Maybe()
+
+	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
+	environmentManager, err := environment.NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	s.Require().NoError(err)
+
+	synchronizeNomad(s.TestCtx, environmentManager, runnerManager)
+	apiMock.AssertExpectations(s.T())
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/getsentry/sentry-go"
 	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/openHPI/poseidon/internal/api"
@@ -197,7 +198,7 @@ func createNomadManager(ctx context.Context) (runner.Manager, environment.Manage
 	// API initialization
 	nomadAPIClient, err := nomad.NewExecutorAPI(&config.Config.Nomad)
 	if err != nil {
-		log.WithError(err).WithField("nomad config", config.Config.Nomad).Fatal("Error creating Nomad API client")
+		log.WithError(err).WithField("nomad_config", config.Config.Nomad).Fatal("Error creating Nomad API client")
 	}
 
 	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient, ctx)
@@ -206,8 +207,33 @@ func createNomadManager(ctx context.Context) (runner.Manager, environment.Manage
 	if err != nil {
 		log.WithError(err).Fatal("Error initializing environment manager")
 	}
-	go environmentManager.KeepEnvironmentsSynced(runnerManager.SynchronizeRunners, ctx)
+
+	synchronizeNomad(ctx, environmentManager, runnerManager)
 	return runnerManager, environmentManager
+}
+
+// synchronizeNomad starts the asynchronous synchronization background task and waits for the first environment and runner recovery.
+func synchronizeNomad(ctx context.Context, environmentManager *environment.NomadEnvironmentManager, runnerManager *runner.NomadRunnerManager) {
+	firstRecoveryDone := make(chan struct{})
+	go environmentManager.KeepEnvironmentsSynced(func(ctx context.Context) error {
+		runnerManager.Load()
+
+		select {
+		case firstRecoveryDone <- struct{}{}:
+			log.Info("First Recovery Done")
+		default:
+		}
+
+		if err := runnerManager.SynchronizeRunners(ctx); err != nil {
+			return fmt.Errorf("synchronize runners failed: %w", err)
+		}
+		return nil
+	}, ctx)
+
+	select {
+	case <-firstRecoveryDone:
+	case <-ctx.Done():
+	}
 }
 
 func createAWSManager(ctx context.Context) (

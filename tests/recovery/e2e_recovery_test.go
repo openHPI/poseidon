@@ -14,6 +14,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -119,4 +122,20 @@ func (s *E2ERecoveryTestSuite) TestEnvironmentStatistics() {
 	s.Equal(uint(PrewarmingPoolSize), environmentStatistics.PrewarmingPoolSize)
 	s.Equal(uint(PrewarmingPoolSize), environmentStatistics.IdleRunners)
 	s.Equal(uint(1), environmentStatistics.UsedRunners)
+}
+
+func (s *E2ERecoveryTestSuite) TestWatchdogNotifications() {
+	// Wait for `WatchdogSec` to be passed.
+	<-time.After((5 + 1) * time.Second)
+
+	// If the Watchdog has not received the notification by now it will restart Poseidon.
+	cmd := exec.Command("/usr/bin/systemctl", "--user", "show", "poseidon.service", "-p", "NRestarts")
+	s.Require().NoError(cmd.Err)
+	out, err := cmd.Output()
+	s.Require().NoError(err)
+
+	restarts, err := strconv.Atoi(strings.Trim(strings.ReplaceAll(string(out), "NRestarts=", ""), "\n"))
+	s.Require().NoError(err)
+	// If Poseidon would not notify the systemd watchdog, we would have one more restart than expected.
+	s.Equal(PoseidonRestartCount, restarts)
 }

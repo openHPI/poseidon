@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/coreos/go-systemd/v22/activation"
+	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/getsentry/sentry-go"
 	sentryhttp "github.com/getsentry/sentry-go/http"
+	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
@@ -155,11 +158,12 @@ func watchMemoryAndAlert(options config.Profiling) {
 	}
 }
 
-func runServer(server *http.Server, cancel context.CancelFunc) {
+func runServer(router *mux.Router, server *http.Server, cancel context.CancelFunc) {
 	defer cancel()
 	defer shutdownSentry() // shutdownSentry must be executed in the main goroutine.
 
 	httpListeners := getHTTPListeners(server)
+	notifySystemd(router)
 	serveHTTPListeners(server, httpListeners)
 }
 
@@ -211,6 +215,67 @@ func serveHTTPListener(server *http.Server, l net.Listener) {
 		log.WithError(err).WithField("listener", l.Addr()).Info("Server closed")
 	} else {
 		log.WithError(err).WithField("listener", l.Addr()).Error("Error during listening and serving")
+	}
+}
+
+func notifySystemd(router *mux.Router) {
+	notify, err := daemon.SdNotify(false, daemon.SdNotifyReady)
+	switch {
+	case err == nil && !notify:
+		log.Debug("Systemd Readiness Notification not supported")
+	case err != nil:
+		log.WithError(err).WithField("notify", notify).Warn("Failed notifying Readiness to Systemd")
+	default:
+		log.Trace("Notified Readiness to Systemd")
+	}
+
+	interval, err := daemon.SdWatchdogEnabled(false)
+	if err != nil || interval == 0 {
+		log.WithError(err).Error("Systemd Watchdog not supported")
+		return
+	}
+	go notifyWatchdog(context.Background(), router, interval)
+}
+
+func notifyWatchdog(ctx context.Context, router *mux.Router, interval time.Duration) {
+	healthRoute, err := router.Get(api.HealthPath).URL()
+	if err != nil {
+		log.WithError(err).Error("Failed to parse Health route")
+		return
+	}
+	// We do not verify the certificate as we (intend to) perform only requests to the local server.
+	tlsConfig := &tls.Config{InsecureSkipVerify: true} // #nosec G402 The default min tls version is secure.
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}
+
+	// notificationIntervalFactor defines how many more notifications we send than required.
+	const notificationIntervalFactor = 2
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(interval / notificationIntervalFactor):
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, config.Config.Server.URL().String()+healthRoute.String(), http.NoBody)
+			if err != nil {
+				continue
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				// We do not check for resp.StatusCode == 503 as Poseidon's error recovery will try to handle such errors
+				// by itself. The Watchdog should just check that Poseidon handles http requests at all.
+				continue
+			}
+			_ = resp.Body.Close()
+
+			notify, err := daemon.SdNotify(false, daemon.SdNotifyWatchdog)
+			switch {
+			case err == nil && !notify:
+				log.Debug("Systemd Watchdog Notification not supported")
+			case err != nil:
+				log.WithError(err).WithField("notify", notify).Warn("Failed notifying Systemd Watchdog")
+			default:
+				log.Trace("Notified Systemd Watchdog")
+			}
+		}
 	}
 }
 
@@ -279,15 +344,19 @@ func createAWSManager(ctx context.Context) (
 	return runnerManager, environment.NewAWSEnvironmentManager(runnerManager)
 }
 
-// initServer builds the http server and configures it with the chain of responsibility for multiple managers.
-func initServer(ctx context.Context) *http.Server {
+// initRouter builds a router that serves the API with the chain of responsibility for multiple managers.
+func initRouter(ctx context.Context) *mux.Router {
 	runnerManager, environmentManager := createManagerHandler(createNomadManager, config.Config.Nomad.Enabled,
 		nil, nil, ctx)
 	runnerManager, environmentManager = createManagerHandler(createAWSManager, config.Config.AWS.Enabled,
 		runnerManager, environmentManager, ctx)
 
-	handler := api.NewRouter(runnerManager, environmentManager)
-	sentryHandler := sentryhttp.New(sentryhttp.Options{}).Handle(handler)
+	return api.NewRouter(runnerManager, environmentManager)
+}
+
+// initServer creates a server that serves the routes provided by the router.
+func initServer(router *mux.Router) *http.Server {
+	sentryHandler := sentryhttp.New(sentryhttp.Options{}).Handle(router)
 
 	return &http.Server{
 		Addr: config.Config.Server.URL().Host,
@@ -347,7 +416,8 @@ func main() {
 	go watchMemoryAndAlert(config.Config.Profiling)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	server := initServer(ctx)
-	go runServer(server, cancel)
+	router := initRouter(ctx)
+	server := initServer(router)
+	go runServer(router, server, cancel)
 	shutdownOnOSSignal(server, ctx, stopProfiling)
 }

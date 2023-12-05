@@ -54,7 +54,7 @@ func (s *MainTestSuite) TestShutdownOnOSSignal_Profiling() {
 	s.ExpectedGoroutingIncrease++ // The shutdownOnOSSignal waits for an exit after stopping the profiling.
 	s.ExpectedGoroutingIncrease++ // The shutdownOnOSSignal triggers a os.Signal Goroutine.
 
-	server := initServer(disableRecovery)
+	server := initServer(initRouter(disableRecovery))
 	go shutdownOnOSSignal(server, context.Background(), func() {
 		called = true
 	})

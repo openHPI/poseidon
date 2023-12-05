@@ -8,5 +8,10 @@ Requires=poseidon.socket
 [Service]
 WorkingDirectory=${GITHUB_WORKSPACE}
 ExecStart=${GITHUB_WORKSPACE}/poseidon
-Restart=always
 Environment="POSEIDON_SERVER_SYSTEMDSOCKETACTIVATION=TRUE"
+
+Restart=always
+StartLimitBurst=0
+
+Type=notify
+WatchdogSec=5

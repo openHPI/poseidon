@@ -46,6 +46,8 @@ func waitForPoseidon() {
 	}
 }
 
+var PoseidonRestartCount = 0
+
 func killPoseidon() {
 	processes, err := process.Processes()
 	if err != nil {
@@ -62,6 +64,7 @@ func killPoseidon() {
 				log.WithError(err).Error("Error killing Poseidon")
 			} else {
 				log.Info("Killed Poseidon")
+				PoseidonRestartCount++
 			}
 		}
 	}

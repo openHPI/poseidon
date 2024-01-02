@@ -30,7 +30,7 @@ jobs:
         run: pipenv run python main.py
         working-directory: deploy/grafana-dashboard
       - name: Upload Grafana Dashboard JSON
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: grafana-dashboard.json
           path: deploy/grafana-dashboard/main.json

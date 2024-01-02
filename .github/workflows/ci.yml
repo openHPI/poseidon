@@ -181,7 +181,7 @@ jobs:
           cp ./docs/resources/secure-bridge.conflist ./cni/secure-bridge.conflist
           echo "server { default_scheduler_config { memory_oversubscription_enabled = true } }, client { cni_path = \"${{ github.workspace }}/cni/bin\", cni_config_dir = \"${{ github.workspace }}/cni\" }" > e2e-config.hcl
       - name: Download Poseidon binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: poseidon
       - name: Get current branch name

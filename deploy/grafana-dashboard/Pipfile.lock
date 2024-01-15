@@ -16,19 +16,19 @@
     "default": {
         "attrs": {
             "hashes": [
-                "sha256:29e95c7f6778868dbd49170f98f8818f78f3dc5e0e37c0b1f474e3561b240836",
-                "sha256:c9227bfc2f01993c03f68db37d1d15c9690188323c067c641f1a35ca58185f99"
+                "sha256:935dc3b529c262f6cf76e50877d35a4bd3c1de194fd41f47a2b7ae8f19971f30",
+                "sha256:99b87a485a5820b23b879f04c2305b44b951b502fd64be915879d77a7e8fc6f1"
             ],
-            "markers": "python_version >= '3.6'",
-            "version": "==22.2.0"
+            "markers": "python_version >= '3.7'",
+            "version": "==23.2.0"
         },
         "grafanalib": {
             "hashes": [
-                "sha256:8ae9fc62ee3c28e924ecb0d89ffbb5d18b1193bb1401cde59e01b3e184db9b42",
-                "sha256:b479e9c72e39705aef114b2d73b4328c16b81bfa3e1c423a85a13d4c912b57b5"
+                "sha256:3d92bb4e92ae78fe4e21c5b252ab51f4fdcacd8523ba5a44545b897b2a375b83",
+                "sha256:6fab5d7b837a1f2d1322ef762cd52e565ec0422707a7512765c59f668bdceb58"
             ],
             "index": "pypi",
-            "version": "==0.7.0"
+            "version": "==0.7.1"
         }
     },
     "develop": {}

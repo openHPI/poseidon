@@ -27,6 +27,7 @@ var (
 			Token:                   "",
 			TLS: TLS{
 				Active:   false,
+				CAFile:   "",
 				CertFile: "",
 				KeyFile:  "",
 			},

@@ -7,6 +7,7 @@ import (
 	"github.com/openHPI/poseidon/tests/e2e"
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/shirou/gopsutil/v3/process"
+	"golang.org/x/sys/unix"
 	"net/http"
 	"time"
 )
@@ -59,7 +60,7 @@ func killPoseidon() {
 			continue
 		}
 		if n == "poseidon" {
-			err = p.Kill()
+			err = p.SendSignal(unix.SIGTERM)
 			if err != nil {
 				log.WithError(err).Error("Error killing Poseidon")
 			} else {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/coreos/go-systemd/v22/activation"
@@ -26,6 +27,7 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -234,18 +236,30 @@ func notifySystemd(router *mux.Router) {
 		log.WithError(err).Error("Systemd Watchdog not supported")
 		return
 	}
-	go notifyWatchdog(context.Background(), router, interval)
+	go systemdWatchdogLoop(context.Background(), router, interval)
 }
 
-func notifyWatchdog(ctx context.Context, router *mux.Router, interval time.Duration) {
+func systemdWatchdogLoop(ctx context.Context, router *mux.Router, interval time.Duration) {
 	healthRoute, err := router.Get(api.HealthPath).URL()
 	if err != nil {
 		log.WithError(err).Error("Failed to parse Health route")
 		return
 	}
-	// We do not verify the certificate as we (intend to) perform only requests to the local server.
-	tlsConfig := &tls.Config{InsecureSkipVerify: true} // #nosec G402 The default min tls version is secure.
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}
+	healthURL := config.Config.Server.URL().String() + healthRoute.String()
+	healthURL = strings.ReplaceAll(healthURL, "0.0.0.0", "localhost") // Workaround for certificate subject names
+
+	client := &http.Client{}
+	if config.Config.Server.TLS.Active {
+		tlsConfig := &tls.Config{RootCAs: x509.NewCertPool()} // #nosec G402 The default MinTLSVersion is secure.
+		caCertBytes, err := os.ReadFile(config.Config.Server.TLS.CAFile)
+		if err != nil {
+			log.WithError(err).Warn("Cannot read tls ca file")
+		} else {
+			ok := tlsConfig.RootCAs.AppendCertsFromPEM(caCertBytes)
+			log.WithField("success", ok).Trace("Loaded CA certificate")
+		}
+		client.Transport = &http.Transport{TLSClientConfig: tlsConfig}
+	}
 
 	// notificationIntervalFactor defines how many more notifications we send than required.
 	const notificationIntervalFactor = 2
@@ -254,28 +268,33 @@ func notifyWatchdog(ctx context.Context, router *mux.Router, interval time.Durat
 		case <-ctx.Done():
 			return
 		case <-time.After(interval / notificationIntervalFactor):
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, config.Config.Server.URL().String()+healthRoute.String(), http.NoBody)
-			if err != nil {
-				continue
-			}
-			resp, err := client.Do(req)
-			if err != nil {
-				// We do not check for resp.StatusCode == 503 as Poseidon's error recovery will try to handle such errors
-				// by itself. The Watchdog should just check that Poseidon handles http requests at all.
-				continue
-			}
-			_ = resp.Body.Close()
-
-			notify, err := daemon.SdNotify(false, daemon.SdNotifyWatchdog)
-			switch {
-			case err == nil && !notify:
-				log.Debug("Systemd Watchdog Notification not supported")
-			case err != nil:
-				log.WithError(err).WithField("notify", notify).Warn("Failed notifying Systemd Watchdog")
-			default:
-				log.Trace("Notified Systemd Watchdog")
-			}
+			notifySystemdWatchdog(ctx, healthURL, client)
 		}
+	}
+}
+
+func notifySystemdWatchdog(ctx context.Context, healthURL string, client *http.Client) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, http.NoBody)
+	if err != nil {
+		return
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.WithError(err).Debug("Failed watchdog health check")
+		// We do not check for resp.StatusCode == 503 as Poseidon's error recovery will try to handle such errors
+		// by itself. The Watchdog should just check that Poseidon handles http requests at all.
+		return
+	}
+	_ = resp.Body.Close()
+
+	notify, err := daemon.SdNotify(false, daemon.SdNotifyWatchdog)
+	switch {
+	case err == nil && !notify:
+		log.Debug("Systemd Watchdog Notification not supported")
+	case err != nil:
+		log.WithError(err).WithField("notify", notify).Warn("Failed notifying Systemd Watchdog")
+	default:
+		log.Trace("Notified Systemd Watchdog")
 	}
 }
 
@@ -375,7 +394,7 @@ func initServer(router *mux.Router) *http.Server {
 func shutdownOnOSSignal(server *http.Server, ctx context.Context, stopProfiling func()) {
 	// wait for SIGINT
 	shutdownSignals := make(chan os.Signal, 1)
-	signal.Notify(shutdownSignals, unix.SIGINT, unix.SIGTERM)
+	signal.Notify(shutdownSignals, unix.SIGINT, unix.SIGTERM, unix.SIGABRT)
 
 	// wait for SIGUSR1
 	writeProfileSignal := make(chan os.Signal, 1)

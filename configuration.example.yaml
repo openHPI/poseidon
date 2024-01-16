@@ -15,6 +15,8 @@ server:
   tls:
     # If set, the API uses TLS for all incoming connections.
     active: false
+    # The path to the certificate of the CA authority used for TLS
+    # cafile: ./ca.crt
     # The path to the certificate file used for TLS
     # certfile: ./poseidon.crt
     # The path to the key file used for TLS

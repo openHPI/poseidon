@@ -16,6 +16,7 @@ import (
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"golang.org/x/sys/unix"
@@ -40,7 +41,7 @@ var (
 	pgoEnabled = "false"
 )
 
-func getVcsRevision() string {
+func getVcsRevision(short bool) string {
 	vcsRevision := "unknown"
 	vcsModified := false
 
@@ -59,6 +60,10 @@ func getVcsRevision() string {
 		}
 	}
 
+	if short {
+		vcsRevision = vcsRevision[:7]
+	}
+
 	if vcsModified {
 		return vcsRevision + "-modified"
 	} else {
@@ -66,9 +71,15 @@ func getVcsRevision() string {
 	}
 }
 
+func initializeUserAgent() {
+	dto.UserAgentOut = strings.ReplaceAll(dto.UserAgentOut, dto.UserAgentVCSPlaceholder, getVcsRevision(true))
+	dto.UserAgentFiltered = strings.ReplaceAll(dto.UserAgentFiltered, dto.UserAgentVCSPlaceholder, getVcsRevision(true))
+	dto.UserAgentFiltered = strings.ReplaceAll(dto.UserAgentFiltered, dto.UserAgentFilterTokenPlaceholder, config.Config.Server.LoggingFilterToken)
+}
+
 func initSentry(options *sentry.ClientOptions, profilingEnabled bool) {
 	if options.Release == "" {
-		commit := getVcsRevision()
+		commit := getVcsRevision(false)
 		options.Release = commit
 	}
 
@@ -278,6 +289,8 @@ func notifySystemdWatchdog(ctx context.Context, healthURL string, client *http.C
 	if err != nil {
 		return
 	}
+
+	req.Header.Set("User-Agent", dto.UserAgentFiltered)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.WithError(err).Debug("Failed watchdog health check")
@@ -425,6 +438,7 @@ func main() {
 	if err := config.InitConfig(); err != nil {
 		log.WithError(err).Warn("Could not initialize configuration")
 	}
+	initializeUserAgent()
 	logging.InitializeLogging(config.Config.Logger.Level, config.Config.Logger.Formatter)
 	initSentry(&config.Config.Sentry, config.Config.Profiling.CPUEnabled)
 

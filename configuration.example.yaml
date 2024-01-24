@@ -25,6 +25,11 @@ server:
   interactivestderr: true
   # If set, the file at the given path overwrites the default Nomad job file in internal/environment/template-environment-job.hcl
   # templatejobfile: ./poseidon.hcl
+  # The LoggingFilterToken filters out Systemd Watchdog requests from the logs and is preconfigured with a random value.
+  # It can also be manually configured to hide additional requests from the logs, such as those from monitoring systems.
+  # To use this feature, the respective user agent must be set according to `dto.UserAgentFiltered`.
+  # However, it is important to consider the security implications of using this expert-level setting for manual values.
+  # loggingfiltertoken: secret
   # alert defines how poseidon should handle specific risks.
   alert:
     # The prewarming pool threshold [0, 1) defines which part of the prewarming pool should always be filled.

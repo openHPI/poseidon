@@ -9,6 +9,17 @@ import (
 	"strings"
 )
 
+var (
+	// UserAgentOut for outgoing requests (without libraries). The Git Hash will be replaced by main.go.
+	UserAgentOut      = "Poseidon/" + UserAgentVCSPlaceholder + " Go-http-client/1.1"
+	UserAgentFiltered = "Poseidon/" + UserAgentVCSPlaceholder + " (" + UserAgentFilterTokenPlaceholder + ") Go-http-client/1.1"
+)
+
+const (
+	UserAgentVCSPlaceholder         = "<7 Git Hash>"
+	UserAgentFilterTokenPlaceholder = "FilterToken"
+)
+
 // RunnerRequest is the expected json structure of the request body for the ProvideRunner function.
 type RunnerRequest struct {
 	ExecutionEnvironmentID int `json:"executionEnvironmentId"`

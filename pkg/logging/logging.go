@@ -93,7 +93,11 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 			"duration":   latency,
 			"user_agent": RemoveNewlineSymbol(r.UserAgent()),
 		})
-		logEntry.Debug()
+		if r.UserAgent() == dto.UserAgentFiltered {
+			logEntry.Trace()
+		} else {
+			logEntry.Debug()
+		}
 	})
 }
 

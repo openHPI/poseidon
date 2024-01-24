@@ -1,7 +1,9 @@
 package config
 
 import (
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -37,6 +39,7 @@ var (
 				PrewarmingPoolThreshold:     0,
 				PrewarmingPoolReloadTimeout: 0,
 			},
+			LoggingFilterToken: randomFilterToken(),
 		},
 		Nomad: Nomad{
 			Enabled: true,
@@ -100,6 +103,7 @@ type server struct {
 	InteractiveStderr       bool
 	TemplateJobFile         string
 	Alert                   alert
+	LoggingFilterToken      string
 }
 
 // URL returns the URL of the Poseidon webserver.
@@ -279,4 +283,15 @@ func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
 		logEntry.WithField("type", value.Type().Name()).
 			Warn("Setting configuration option via environment variables is not supported")
 	}
+}
+
+func randomFilterToken() string {
+	const tokenLength = 32
+	randomBytes := make([]byte, tokenLength) //nolint:all // length required to be filled by rand.Read.
+	n, err := rand.Read(randomBytes)
+	if n != tokenLength || err != nil {
+		log.WithError(err).WithField("byteCount", n).Fatal("Failed to generate random token")
+	}
+
+	return base64.URLEncoding.EncodeToString(randomBytes)
 }

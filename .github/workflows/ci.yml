@@ -125,16 +125,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ compile, test ]
     env:
-      POSEIDON_AWS_ENABLED: false
       POSEIDON_AWS_ENDPOINT: ${{ secrets.POSEIDON_AWS_ENDPOINT }}
-      POSEIDON_AWS_FUNCTIONS: ""
-      POSEIDON_LOGGER_FORMATTER: "JSONFormatter"
-      POSEIDON_LOG_FILE: "../../poseidon.log"
-      POSEIDON_NOMAD_DISABLEFORCEPULL: true
-      GOCOVERDIR: coverage
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Write secrets to environment file
+        run: cat ./.github/workflows/resources/.env | envsubst > ./.env
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -203,6 +199,7 @@ jobs:
         run: make e2e-test-docker-image
       - name: Run e2e tests
         run: |
+          export $(cat ./.env | xargs)
           sudo ./nomad agent -dev -log-level=WARN -config e2e-config.hcl &
           until curl -s --fail http://localhost:4646/v1/agent/health ; do sleep 1; done
           chmod +x ./poseidon
@@ -210,16 +207,15 @@ jobs:
           ./poseidon | tee poseidon.log &
           until curl -s --fail http://localhost:7200/api/v1/health ; do sleep 1; done
           make e2e-test
-      - name: Write Environment Variables to file
-        run: |
-          echo "${{ vars }}"
         if: ${{ success() || failure() }}
       - name: Setup Poseidon Socket
         run: |
+          export $(cat ./.env | xargs)
           killall poseidon
           mkdir -p ~/.config/systemd/user
           cp ./.github/workflows/resources/poseidon-minimal.socket ~/.config/systemd/user/poseidon.socket
           cat ./.github/workflows/resources/poseidon-minimal.service | envsubst > ~/.config/systemd/user/poseidon.service
+          echo "POSEIDON_SERVER_SYSTEMDSOCKETACTIVATION=TRUE" >> ./.env
           systemctl --user daemon-reload
           systemctl --user start poseidon.socket
         if: ${{ success() || failure() }}
@@ -235,9 +231,7 @@ jobs:
           journalctl --user -xe -u poseidon.service --no-pager
         if: failure()
       - name: Stop Poseidon to flush the coverage file
-        run: |
-          systemctl --user stop poseidon.service poseidon.socket
-          ls -lah ${GOCOVERDIR}
+        run: systemctl --user stop poseidon.service poseidon.socket
         if: ${{ success() || failure() }}
       - name: Convert coverage reports
         run: make convert-run-coverage

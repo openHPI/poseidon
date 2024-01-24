@@ -8,8 +8,7 @@ Requires=poseidon.socket
 [Service]
 WorkingDirectory=${GITHUB_WORKSPACE}
 ExecStart=${GITHUB_WORKSPACE}/poseidon
-Environment="POSEIDON_SERVER_SYSTEMDSOCKETACTIVATION=TRUE"
-Environment="GOCOVERDIR=${GITHUB_WORKSPACE}/${GOCOVERDIR}"
+EnvironmentFile=${GITHUB_WORKSPACE}/.env
 
 Restart=always
 StartLimitBurst=0

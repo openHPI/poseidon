@@ -2,16 +2,13 @@ package logging
 
 import (
 	"bufio"
-	"context"
 	"fmt"
-	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/getsentry/sentry-go"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"os"
-	"runtime/pprof"
 	"strings"
 	"time"
 )
@@ -85,12 +82,6 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now().UTC()
 		path := RemoveNewlineSymbol(r.URL.Path)
 
-		if path == "/api/v1/health" {
-			ctx, cancel := context.WithCancel(r.Context())
-			defer cancel()
-			go debugGoroutines(ctx)
-		}
-
 		lrw := NewLoggingResponseWriter(w)
 		next.ServeHTTP(lrw, r)
 
@@ -115,25 +106,4 @@ func RemoveNewlineSymbol(data string) string {
 	data = strings.ReplaceAll(data, "\r", "")
 	data = strings.ReplaceAll(data, "\n", "")
 	return data
-}
-
-// debugGoroutines temporarily debugs a behavior where we observe long latencies in the Health route.
-func debugGoroutines(ctx context.Context) {
-	interval, err := daemon.SdWatchdogEnabled(false)
-	if err != nil || interval == 0 {
-		return
-	}
-	log.Trace("Starting timeout for debugging the Goroutines")
-
-	const notificationIntervalFactor = 3
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(interval / notificationIntervalFactor):
-		log.Warn("Health route latency is too high")
-		err := pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
-		if err != nil {
-			log.WithError(err).Warn("Failed to log the goroutines")
-		}
-	}
 }

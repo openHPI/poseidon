@@ -164,7 +164,8 @@ func ChangedPrewarmingPoolSize(id dto.EnvironmentID, count uint) {
 func WriteInfluxPoint(p *write.Point) {
 	if influxClient != nil {
 		p.AddTag("stage", config.Config.InfluxDB.Stage)
-		influxClient.WritePoint(p)
+		// We identified that the influxClient is not truly asynchronous. See #541.
+		go func() { influxClient.WritePoint(p) }()
 	} else {
 		entry := log.WithField("name", p.Name())
 		for _, tag := range p.TagList() {

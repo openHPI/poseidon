@@ -86,7 +86,7 @@ jobs:
       - name: Run tests
         run: make coverhtml
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         if: ${{ success() || failure() }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -237,7 +237,7 @@ jobs:
         run: make convert-run-coverage
         if: ${{ success() || failure() }}
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         if: ${{ success() || failure() }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -23,14 +23,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - name: Update last trim for Go build cache
         # Go usually trims all builds not used for at least five days. We simulate that the last trim just occurred recently.
         # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.
@@ -66,6 +58,9 @@ jobs:
         with:
           version: latest
           args: --timeout=3m
+          # We rely on the setup-go action to cache the Go pkg and build directories.
+          skip-pkg-cache: true
+          skip-build-cache: true
 
   test:
     runs-on: ubuntu-latest
@@ -76,14 +71,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - name: Update last trim for Go build cache
         # Go usually trims all builds not used for at least five days. We simulate that the last trim just occurred recently.
         # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.
@@ -142,15 +129,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - name: Update last trim for Go build cache
         # Go usually trims all builds not used for at least five days. We simulate that the last trim just occurred recently.
         # Otherwise, the cache restored in the previous step would not be used for the build resulting in a longer workflow run.

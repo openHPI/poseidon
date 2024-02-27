@@ -90,14 +90,16 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 	})
 
 	s.Run("returns multiple environments", func() {
-		s.ExpectedGoroutingIncrease++ // We dont care to delete the created environment.
-		s.ExpectedGoroutingIncrease++ // Also not about the second.
+		apiMock := &nomad.ExecutorAPIMock{}
+		apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
+		var firstEnvironment, secondEnvironment *environment.NomadEnvironment
 		call.Run(func(args mock.Arguments) {
-			firstEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
+			firstEnvironment, err = environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
-			secondEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
+			secondEnvironment, err = environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{firstEnvironment, secondEnvironment}, nil}
@@ -114,6 +116,11 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 		environments, ok := environmentsInterface.([]interface{})
 		s.Require().True(ok)
 		s.Equal(2, len(environments))
+
+		err = firstEnvironment.Delete(tests.ErrCleanupDestroyReason)
+		s.NoError(err)
+		err = secondEnvironment.Delete(tests.ErrCleanupDestroyReason)
+		s.NoError(err)
 	})
 }
 
@@ -155,10 +162,13 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 	s.manager.Calls = []mock.Call{}
 
 	s.Run("returns environment", func() {
-		s.ExpectedGoroutingIncrease++ // We dont care to delete the created environment.
+		apiMock := &nomad.ExecutorAPIMock{}
+		apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
+		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
+		var testEnvironment *environment.NomadEnvironment
 		call.Run(func(args mock.Arguments) {
-			testEnvironment, err := environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil,
+			testEnvironment, err = environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{testEnvironment, nil}
@@ -176,6 +186,9 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 		idFloat, ok := idInterface.(float64)
 		s.Require().True(ok)
 		s.Equal(tests.DefaultEnvironmentIDAsInteger, int(idFloat))
+
+		err = testEnvironment.Delete(tests.ErrCleanupDestroyReason)
+		s.NoError(err)
 	})
 }
 

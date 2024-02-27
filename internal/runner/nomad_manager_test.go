@@ -528,7 +528,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		jobID := tests.DefaultRunnerID
 		job.ID = &jobID
 		job.Name = &jobID
-		s.ExpectedGoroutingIncrease++ // We dont care about destroying the created runner.
+		s.ExpectedGoroutineIncrease++ // We dont care about destroying the created runner.
 		call.Return([]*nomadApi.Job{job}, nil)
 
 		runnerManager.Load()
@@ -544,7 +544,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
 		s.Require().NotNil(configTaskGroup)
 		configTaskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUsedValue
-		s.ExpectedGoroutingIncrease++ // We don't care about destroying the created runner.
+		s.ExpectedGoroutineIncrease++ // We don't care about destroying the created runner.
 		call.Return([]*nomadApi.Job{job}, nil)
 
 		s.Require().Zero(runnerManager.usedRunners.Length())

@@ -59,7 +59,7 @@ func (s *CreateOrUpdateTestSuite) TestReturnsErrorIfCreatesOrUpdateEnvironmentRe
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.runnerManagerMock.On("GetEnvironment", mock.AnythingOfType("dto.EnvironmentID")).Return(nil, false)
 	s.runnerManagerMock.On("StoreEnvironment", mock.AnythingOfType("*environment.NomadEnvironment")).Return(true)
-	s.ExpectedGoroutingIncrease++ // We don't care about removing the created environment.
+	s.ExpectedGoroutineIncrease++ // We don't care about removing the created environment.
 	_, err := s.manager.CreateOrUpdate(
 		dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request, context.Background())
 	s.ErrorIs(err, tests.ErrDefault)
@@ -89,7 +89,7 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 
 		call.ReturnArguments = mock.Arguments{nil}
 	})
-	s.ExpectedGoroutingIncrease++ // We dont care about removing the created environment at this point.
+	s.ExpectedGoroutineIncrease++ // We dont care about removing the created environment at this point.
 	_, err := s.manager.CreateOrUpdate(
 		dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request, context.Background())
 	s.NoError(err)

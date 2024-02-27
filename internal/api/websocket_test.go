@@ -294,7 +294,8 @@ func (s *MainTestSuite) TestWebsocketTLS() {
 func (s *MainTestSuite) TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	executionID := tests.DefaultExecutionID
-	r, wsURL := newRunnerWithNotMockedRunnerManager(s, apiMock, executionID)
+	r, wsURL, cleanup := newRunnerWithNotMockedRunnerManager(s, apiMock, executionID)
+	defer cleanup()
 
 	logger, hook := test.NewNullLogger()
 	log = logger.WithField("pkg", "api")
@@ -329,9 +330,10 @@ func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nom
 }
 
 func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.ExecutorAPIMock, executionID string) (
-	r runner.Runner, wsURL *url.URL) {
+	r runner.Runner, wsURL *url.URL, cleanup func()) {
 	s.T().Helper()
 	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
+	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
@@ -342,13 +344,11 @@ func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.Execut
 
 	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
 	router := NewRouter(runnerManager, nil)
-	s.ExpectedGoroutingIncrease++ // We don't care about closing the server at this point.
+	s.ExpectedGoroutineIncrease++ // The server is not closing properly. Therefore, we don't even try.
 	server := httptest.NewServer(router)
 
 	runnerID := tests.DefaultRunnerID
-	s.ExpectedGoroutingIncrease++ // We don't care about removing the runner at this place.
 	runnerJob := runner.NewNomadJob(runnerID, nil, apiMock, nil)
-	s.ExpectedGoroutingIncrease++ // We don't care about removing the environment at this place.
 	e, err := environment.NewNomadEnvironment(0, apiMock, "job \"template-0\" {}")
 	s.Require().NoError(err)
 	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
@@ -362,7 +362,13 @@ func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.Execut
 	s.Require().NoError(err)
 	wsURL, err = webSocketURL("ws", server, router, r.ID(), executionID)
 	s.Require().NoError(err)
-	return r, wsURL
+
+	return r, wsURL, func() {
+		err = r.Destroy(tests.ErrCleanupDestroyReason)
+		s.NoError(err)
+		err = e.Delete(tests.ErrCleanupDestroyReason)
+		s.NoError(err)
+	}
 }
 
 func webSocketURL(scheme string, server *httptest.Server, router *mux.Router,

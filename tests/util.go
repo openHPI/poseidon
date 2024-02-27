@@ -31,31 +31,35 @@ var numGoroutines = regexp.MustCompile(`^goroutine profile: total (\d*)\n`)
 // Be aware not to overwrite the SetupTest or TearDownTest function!
 type MemoryLeakTestSuite struct {
 	suite.Suite
-	ExpectedGoroutingIncrease int
+	ExpectedGoroutineIncrease int
 	TestCtx                   context.Context
 	testCtxCancel             context.CancelFunc
 	goroutineCountBefore      int
 	goroutinesBefore          *bytes.Buffer
 }
 
-func (s *MemoryLeakTestSuite) SetupTest() {
-	// Without this first line we observed some goroutines just closing.
-	runtime.Gosched()
-	s.ExpectedGoroutingIncrease = 0
-	s.goroutinesBefore = &bytes.Buffer{}
-
-	err := pprof.Lookup("goroutine").WriteTo(s.goroutinesBefore, 1)
+func (s *MemoryLeakTestSuite) lookupGoroutines() (debugOutput *bytes.Buffer, goroutineCount int) {
+	debugOutput = &bytes.Buffer{}
+	err := pprof.Lookup("goroutine").WriteTo(debugOutput, 1)
 	s.Require().NoError(err)
-	match := numGoroutines.FindSubmatch(s.goroutinesBefore.Bytes())
+	match := numGoroutines.FindSubmatch(debugOutput.Bytes())
 	if match == nil {
-		s.Fail("gouroutines could not be parsed: " + s.goroutinesBefore.String())
+		s.Fail("gouroutines could not be parsed: " + debugOutput.String())
 	}
 
 	// We do not use runtime.NumGoroutine() to not create inconsistency to the Lookup.
-	s.goroutineCountBefore, err = strconv.Atoi(string(match[1]))
+	goroutineCount, err = strconv.Atoi(string(match[1]))
 	if err != nil {
 		s.Fail("number of goroutines could not be parsed: " + err.Error())
 	}
+	return debugOutput, goroutineCount
+}
+
+func (s *MemoryLeakTestSuite) SetupTest() {
+	runtime.Gosched()          // Flush done Goroutines
+	<-time.After(ShortTimeout) // Just to make sure
+	s.ExpectedGoroutineIncrease = 0
+	s.goroutinesBefore, s.goroutineCountBefore = s.lookupGoroutines()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.TestCtx = ctx
@@ -66,13 +70,13 @@ func (s *MemoryLeakTestSuite) TearDownTest() {
 	s.testCtxCancel()
 	runtime.Gosched()          // Flush done Goroutines
 	<-time.After(ShortTimeout) // Just to make sure
-	goroutinesAfter := runtime.NumGoroutine()
-	s.Equal(s.goroutineCountBefore+s.ExpectedGoroutingIncrease, goroutinesAfter)
 
-	if s.goroutineCountBefore+s.ExpectedGoroutingIncrease != goroutinesAfter {
+	goroutinesAfter, goroutineCountAfter := s.lookupGoroutines()
+	s.Equal(s.goroutineCountBefore+s.ExpectedGoroutineIncrease, goroutineCountAfter)
+	if s.goroutineCountBefore+s.ExpectedGoroutineIncrease != goroutineCountAfter {
 		_, err := io.Copy(os.Stderr, s.goroutinesBefore)
 		s.NoError(err)
-		err = pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
+		_, err = io.Copy(os.Stderr, goroutinesAfter)
 		s.NoError(err)
 	}
 }

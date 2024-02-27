@@ -273,7 +273,7 @@ func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
 		}
 		value.SetBool(boolean)
 	case reflect.Slice:
-		if len(content) > 0 && content[0] == '"' && content[len(content)-1] == '"' {
+		if content != "" && content[0] == '"' && content[len(content)-1] == '"' {
 			content = content[1 : len(content)-1] // remove wrapping quotes
 		}
 		parts := strings.Fields(content)

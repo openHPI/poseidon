@@ -77,7 +77,7 @@ func configureV1Router(router *mux.Router,
 // It responds the release information stored in the configuration.
 func Version(writer http.ResponseWriter, request *http.Request) {
 	release := config.Config.Sentry.Release
-	if len(release) > 0 {
+	if release != "" {
 		sendJSON(writer, release, http.StatusOK, request.Context())
 	} else {
 		writer.WriteHeader(http.StatusNotFound)

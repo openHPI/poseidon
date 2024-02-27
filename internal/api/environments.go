@@ -149,7 +149,7 @@ func parseEnvironmentID(request *http.Request) (dto.EnvironmentID, error) {
 
 func parseFetchParameter(request *http.Request) (fetch bool, err error) {
 	fetchString := request.FormValue(fetchEnvironmentKey)
-	if len(fetchString) > 0 {
+	if fetchString != "" {
 		fetch, err = strconv.ParseBool(fetchString)
 		if err != nil {
 			return false, fmt.Errorf("could not parse fetch parameter: %w", err)

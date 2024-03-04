@@ -14,7 +14,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/shirou/gopsutil/v3 v3.24.2
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	golang.org/x/sys v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -89,7 +89,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
-	github.com/stretchr/objx v0.5.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.13 // indirect
 	github.com/tklauser/numcpus v0.7.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect

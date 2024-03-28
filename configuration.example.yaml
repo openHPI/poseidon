@@ -65,6 +65,16 @@ nomad:
   # namespace: poseidon
   # Prefer local Docker images over pulling them from a registry. Images with the `latest` tag will always be force pulled by Nomad regardless of this configuration.
   disableforcepull: true
+  # Network configuration for network-enabled runners. See https://developer.hashicorp.com/nomad/docs/job-specification/network.
+  # Prefer "bridge" network over "host" to have an isolated network namespace with bridged interface instead of joining the host network namespace.
+  network:
+    mode: "cni/secure-bridge"
+    dns:
+      servers:
+        - "8.8.8.8"
+        - "8.8.4.4"
+      searches:
+        - "poseidon.internal"
 
 aws:
   # Specifies whether AWS should be used as executor.

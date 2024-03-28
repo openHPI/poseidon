@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/storage"
@@ -32,14 +33,14 @@ func (s *MainTestSuite) TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkEx
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 	environment := &NomadEnvironment{nil, "", job, nil, context.Background(), nil}
 
-	networkResource := &nomadApi.NetworkResource{Mode: "cni/secure-bridge"}
-	defaultTaskGroup.Networks = []*nomadApi.NetworkResource{networkResource}
+	networkResource := config.Config.Nomad.Network
+	defaultTaskGroup.Networks = []*nomadApi.NetworkResource{&networkResource}
 
 	if s.Equal(1, len(defaultTaskGroup.Networks)) {
 		environment.SetNetworkAccess(true, []uint16{})
 
 		s.Equal(1, len(defaultTaskGroup.Networks))
-		s.Equal(networkResource, defaultTaskGroup.Networks[0])
+		s.Equal(&networkResource, defaultTaskGroup.Networks[0])
 	}
 }
 
@@ -80,7 +81,7 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 			s.Require().Equal(1, len(testTaskGroup.Networks))
 
 			networkResource := testTaskGroup.Networks[0]
-			s.Equal("cni/secure-bridge", networkResource.Mode)
+			s.Equal(config.Config.Nomad.Network.Mode, networkResource.Mode)
 			s.Require().Equal(len(ports), len(networkResource.DynamicPorts))
 
 			assertExpectedPorts(s.T(), ports, networkResource)

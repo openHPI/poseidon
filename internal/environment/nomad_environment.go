@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec2"
+	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
@@ -170,22 +171,18 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 	}
 
 	if allow {
-		var networkResource *nomadApi.NetworkResource
-		if len(defaultTaskGroup.Networks) == 0 {
-			networkResource = &nomadApi.NetworkResource{}
-			defaultTaskGroup.Networks = []*nomadApi.NetworkResource{networkResource}
-		} else {
-			networkResource = defaultTaskGroup.Networks[0]
-		}
-		// Prefer "bridge" network over "host" to have an isolated network namespace with bridged interface
-		// instead of joining the host network namespace.
-		networkResource.Mode = "cni/secure-bridge"
+		networkResource := config.Config.Nomad.Network
 		for _, portNumber := range exposedPorts {
 			port := nomadApi.Port{
 				Label: strconv.FormatUint(uint64(portNumber), portNumberBase),
 				To:    int(portNumber),
 			}
 			networkResource.DynamicPorts = append(networkResource.DynamicPorts, port)
+		}
+		if len(defaultTaskGroup.Networks) == 0 {
+			defaultTaskGroup.Networks = []*nomadApi.NetworkResource{&networkResource}
+		} else {
+			defaultTaskGroup.Networks[0] = &networkResource
 		}
 
 		// Explicitly set mode to override existing settings when updating job from without to with network.
@@ -332,12 +329,12 @@ func (n *NomadEnvironment) SetConfigFrom(environment runner.ExecutionEnvironment
 }
 
 func parseJob(jobHCL string) (*nomadApi.Job, error) {
-	config := jobspec2.ParseConfig{
+	jobConfig := jobspec2.ParseConfig{
 		Body:    []byte(jobHCL),
 		AllowFS: false,
 		Strict:  true,
 	}
-	job, err := jobspec2.ParseWithConfig(&config)
+	job, err := jobspec2.ParseWithConfig(&jobConfig)
 	if err != nil {
 		return job, fmt.Errorf("couldn't parse job HCL: %w", err)
 	}

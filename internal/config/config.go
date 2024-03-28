@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/getsentry/sentry-go"
+	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/sirupsen/logrus"
@@ -54,6 +55,10 @@ var (
 			},
 			Namespace:        "default",
 			DisableForcePull: false,
+			Network: nomadApi.NetworkResource{
+				Mode: "bridge",
+				DNS:  nil,
+			},
 		},
 		AWS: AWS{
 			Enabled:   false,
@@ -120,6 +125,7 @@ type Nomad struct {
 	TLS              TLS
 	Namespace        string
 	DisableForcePull bool
+	Network          nomadApi.NetworkResource
 }
 
 // URL returns the URL for the configured Nomad cluster.

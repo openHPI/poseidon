@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
@@ -257,7 +258,10 @@ func systemdWatchdogLoop(ctx context.Context, router *mux.Router, interval time.
 		return
 	}
 	healthURL := config.Config.Server.URL().String() + healthRoute.String()
-	healthURL = strings.ReplaceAll(healthURL, "0.0.0.0", "localhost") // Workaround for certificate subject names
+
+	// Workaround for certificate subject names
+	unspecifiedAddresses := regexp.MustCompile(`0\.0\.0\.0|\[::]`)
+	healthURL = unspecifiedAddresses.ReplaceAllString(healthURL, "localhost")
 
 	client := &http.Client{}
 	if config.Config.Server.TLS.Active {

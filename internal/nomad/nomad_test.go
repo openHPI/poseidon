@@ -183,7 +183,7 @@ func asynchronouslyMonitorEvaluation(stream <-chan *nomadApi.Events) chan error 
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.AnythingOfType("*context.cancelCtx")).
 		Return(readOnlyStream, nil)
-	apiClient := &APIClient{apiMock, map[string]chan error{}, storage.NewLocalStorage[*allocationData](), false}
+	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
 
 	errChan := make(chan error)
 	go func() {
@@ -211,7 +211,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsErrorWhenStreamRet
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.AnythingOfType("*context.cancelCtx")).
 		Return(nil, tests.ErrDefault)
-	apiClient := &APIClient{apiMock, map[string]chan error{}, storage.NewLocalStorage[*allocationData](), false}
+	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
 	err := apiClient.MonitorEvaluation("id", context.Background())
 	s.ErrorIs(err, tests.ErrDefault)
 }
@@ -677,7 +677,7 @@ func (s *MainTestSuite) TestHandleAllocationEvent_ReportsOOMKilledStatus() {
 func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved() {
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.Anything).Return(nil, tests.ErrDefault)
-	apiClient := &APIClient{apiMock, map[string]chan error{}, storage.NewLocalStorage[*allocationData](), false}
+	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
 
 	err := apiClient.WatchEventStream(context.Background(), noopAllocationProcessing)
 	s.ErrorIs(err, tests.ErrDefault)
@@ -752,7 +752,7 @@ func asynchronouslyWatchAllocations(stream chan *nomadApi.Events, callbacks *All
 
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", ctx).Return(readOnlyStream, nil)
-	apiClient := &APIClient{apiMock, map[string]chan error{}, storage.NewLocalStorage[*allocationData](), false}
+	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
 
 	errChan := make(chan error)
 	go func() {

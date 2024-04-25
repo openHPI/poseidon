@@ -87,6 +87,17 @@ Additionally, we provide a [secure-bridge](./resources/secure-bridge.conflist) c
 
 If the path is not set up correctly or with a different name, the placement of allocations will fail in Nomad: `Constraint missing network filtered [all] nodes`. Be sure to set the "dns" and "dns-search" options in `/etc/docker/daemon.json` with reasonable defaults, for example with those shown in our [example configuration for Docker](./resources/docker.daemon.json).
 
+### Network range
+
+The default subnet range for Docker containers can be adjusted.
+This can be done both in the Docker daemon configuration and the CNI secure-bridge configuration.
+Accordingly, every container using the secure-bridge will receive an IP of the CNI configuration.
+Both subnet range configurations should not be overlapping.
+
+An example configuration could use `10.151.0.0/20` for all containers without the CNI secure-bridge and `10.151.16.0/20`
+for all containers using the CNI secure bridge.
+This would grant 4096 IPs to both subnets and keep 14 network range blocks of the `10.151.0.0/16` network free for future use (e.g., in other CNI configs).
+
 ### Use gVisor as a sandbox
 
 We recommend using gVisor as a sandbox for the execution environments. First, [install gVisor following the official documentation](https://gvisor.dev/docs/user_guide/install/) and second, adapt the `/etc/docker/daemon.json` with reasonable defaults as shown in our [example configuration for Docker](./resources/docker.daemon.json).

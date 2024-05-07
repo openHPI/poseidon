@@ -393,15 +393,17 @@ func initRouter(ctx context.Context) *mux.Router {
 // initServer creates a server that serves the routes provided by the router.
 func initServer(router *mux.Router) *http.Server {
 	sentryHandler := sentryhttp.New(sentryhttp.Options{}).Handle(router)
+	const readTimeout = 15 * time.Second
+	const idleTimeout = 60 * time.Second
 
 	return &http.Server{
 		Addr: config.Config.Server.URL().Host,
 		// A WriteTimeout would prohibit long-running requests such as creating an execution environment.
 		// See also https://github.com/openHPI/poseidon/pull/68.
 		// WriteTimeout: time.Second * 15,
-		ReadHeaderTimeout: time.Second * 15,
-		ReadTimeout:       time.Second * 15,
-		IdleTimeout:       time.Second * 60,
+		ReadHeaderTimeout: readTimeout,
+		ReadTimeout:       readTimeout,
+		IdleTimeout:       idleTimeout,
 		Handler:           sentryHandler,
 	}
 }

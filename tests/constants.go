@@ -27,12 +27,15 @@ const (
 	DefaultMockID                 = "m0ck-1d"
 	ShortTimeout                  = 100 * time.Millisecond
 	DefaultTestTimeout            = 10 * time.Minute
+
+	defaultPort = 42
+	anotherPort = 1337
 )
 
 var (
 	ErrDefault              = errors.New("an error occurred")
 	ErrCleanupDestroyReason = errors.New("destruction required for cleanup")
 
-	DefaultPortMappings = []nomadApi.PortMapping{{To: 42, Value: 1337, Label: "lit", HostIP: "127.0.0.1"}}
-	DefaultMappedPorts  = []*dto.MappedPort{{ExposedPort: 42, HostAddress: "127.0.0.1:1337"}}
+	DefaultPortMappings = []nomadApi.PortMapping{{To: defaultPort, Value: anotherPort, Label: "lit", HostIP: "127.0.0.1"}}
+	DefaultMappedPorts  = []*dto.MappedPort{{ExposedPort: defaultPort, HostAddress: "127.0.0.1:1337"}}
 )

@@ -16,10 +16,13 @@ var log = logging.GetLogger("e2e-helpers")
 
 func CreateDefaultEnvironment(prewarmingPoolSize uint, image string) dto.ExecutionEnvironmentRequest {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.DefaultEnvironmentIDAsString)
+	const smallCPULimit uint = 20
+	const smallMemoryLimit uint = 100
+
 	defaultNomadEnvironment := dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: prewarmingPoolSize,
-		CPULimit:           20,
-		MemoryLimit:        100,
+		CPULimit:           smallCPULimit,
+		MemoryLimit:        smallMemoryLimit,
 		Image:              image,
 		NetworkAccess:      false,
 		ExposedPorts:       nil,

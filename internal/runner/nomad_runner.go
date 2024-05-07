@@ -435,17 +435,21 @@ func fileDeletionCommand(pathsToDelete []dto.FilePath) string {
 }
 
 func tarHeader(file dto.File) *tar.Header {
+	// See #236. Sticky bit is to allow creating files next to write-protected files.
+	const directoryPermission int64 = 0o1777
+	const filePermission int64 = 0o744
+
 	if file.IsDirectory() {
 		return &tar.Header{
 			Typeflag: tar.TypeDir,
 			Name:     file.CleanedPath(),
-			Mode:     0o1777, // See #236. Sticky bit is to allow creating files next to write-protected files.
+			Mode:     directoryPermission,
 		}
 	} else {
 		return &tar.Header{
 			Typeflag: tar.TypeReg,
 			Name:     file.CleanedPath(),
-			Mode:     0o744,
+			Mode:     filePermission,
 			Size:     int64(len(file.Content)),
 		}
 	}

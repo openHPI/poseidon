@@ -55,13 +55,13 @@ func killPoseidon() {
 	if err != nil {
 		log.WithError(err).Error("Error listing processes")
 	}
-	for _, p := range processes {
-		n, err := p.Name()
+	for _, proc := range processes {
+		n, err := proc.Name()
 		if err != nil {
 			continue
 		}
 		if n == "poseidon" {
-			err = p.SendSignal(unix.SIGTERM)
+			err = proc.SendSignal(unix.SIGTERM)
 			if err != nil {
 				log.WithError(err).Error("Error killing Poseidon")
 			} else {

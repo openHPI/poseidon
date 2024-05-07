@@ -65,13 +65,13 @@ type NomadJob struct {
 // NewNomadJob creates a new NomadJob with the provided id.
 // The InactivityTimer is used actively. It executes onDestroy when it has expired.
 // The InactivityTimer is persisted in Nomad by the runner manager's Claim Function.
-func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
+func NewNomadJob(jobID string, portMappings []nomadApi.PortMapping,
 	apiClient nomad.ExecutorAPI, onDestroy DestroyRunnerHandler,
 ) *NomadJob {
-	ctx := context.WithValue(context.Background(), dto.ContextKey(dto.KeyRunnerID), id)
+	ctx := context.WithValue(context.Background(), dto.ContextKey(dto.KeyRunnerID), jobID)
 	ctx, cancel := context.WithCancel(ctx)
 	job := &NomadJob{
-		id:           id,
+		id:           jobID,
 		portMappings: portMappings,
 		api:          apiClient,
 		onDestroy:    onDestroy,
@@ -79,7 +79,7 @@ func NewNomadJob(id string, portMappings []nomadApi.PortMapping,
 		cancel:       cancel,
 	}
 	job.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
-		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), id), time.Minute, ctx)
+		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), jobID), time.Minute, ctx)
 	job.InactivityTimer = NewInactivityTimer(job, func(r Runner) error {
 		err := r.Destroy(ErrorRunnerInactivityTimeout)
 		if err != nil {
@@ -224,14 +224,14 @@ func (r *NomadJob) GetFileContent(
 	r.ResetTimeout()
 
 	contentLengthWriter := &nullio.ContentLengthWriter{Target: content}
-	p := influxdb2.NewPointWithMeasurement(monitoring.MeasurementFileDownload)
-	p.AddTag(monitoring.InfluxKeyRunnerID, r.ID())
+	dataPoint := influxdb2.NewPointWithMeasurement(monitoring.MeasurementFileDownload)
+	dataPoint.AddTag(monitoring.InfluxKeyRunnerID, r.ID())
 	environmentID, err := nomad.EnvironmentIDFromRunnerID(r.ID())
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Warn("can not parse environment id")
 	}
-	p.AddTag(monitoring.InfluxKeyEnvironmentID, environmentID.ToString())
-	defer contentLengthWriter.SendMonitoringData(p)
+	dataPoint.AddTag(monitoring.InfluxKeyEnvironmentID, environmentID.ToString())
+	defer contentLengthWriter.SendMonitoringData(dataPoint)
 
 	retrieveCommand := (&dto.ExecutionRequest{
 		Command: fmt.Sprintf("%s %q && cat %q", lsCommand, path, path),

@@ -16,7 +16,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
-	"github.com/stretchr/testify/require"
 )
 
 func (s *E2ETestSuite) TestProvideRunnerRoute() {
@@ -100,7 +99,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 	runnerID, err := ProvideRunner(&dto.RunnerRequest{
 		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
 	})
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	s.Run("No files", func() {
 		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath))
@@ -140,7 +139,6 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 	})
 }
 
-//nolint:funlen // there are a lot of tests for the files route, this function can be a little longer than 100 lines ;)
 func (s *E2ETestSuite) TestCopyFilesRoute() {
 	for _, environmentID := range environmentIDs {
 		s.Run(environmentID.ToString(), func() {
@@ -400,7 +398,7 @@ func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 	runnerID, err := ProvideRunner(&dto.RunnerRequest{
 		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
 	})
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	s.Run("Not Found", func() {
 		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.FileContentRawPath))
@@ -447,16 +445,16 @@ func (s *E2ETestSuite) TestRunnerGetsDestroyedAfterInactivityTimeout() {
 			var lastMessage *dto.WebSocketMessage
 			go func() {
 				webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{Command: "sleep infinity"})
-				s.Require().NoError(err)
+				s.NoError(err)
 				connection, err := ConnectToWebSocket(webSocketURL)
-				s.Require().NoError(err)
+				s.NoError(err)
 
 				messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 				if !s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err) {
 					s.Fail("websocket abnormal closure")
 				}
 				controlMessages := helpers.WebSocketControlMessages(messages)
-				s.Require().NotEmpty(controlMessages)
+				s.NotEmpty(controlMessages)
 				lastMessage = controlMessages[len(controlMessages)-1]
 				log.Warn("")
 				executionTerminated <- true
@@ -475,7 +473,7 @@ func (s *E2ETestSuite) assertFileContent(runnerID, fileName, expectedContent str
 
 func (s *E2ETestSuite) PrintContentOfFileOnRunner(runnerID, filename string) (stdout, stderr string) {
 	webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{
-		Command:   fmt.Sprintf("cat %s", filename),
+		Command:   "cat " + filename,
 		TimeLimit: int(tests.DefaultTestTimeout.Seconds()),
 	})
 	s.Require().NoError(err)

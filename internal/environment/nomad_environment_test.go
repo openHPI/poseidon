@@ -22,10 +22,10 @@ func (s *MainTestSuite) TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 	environment := &NomadEnvironment{nil, "", job, nil, context.Background(), nil}
 
-	if s.Equal(0, len(defaultTaskGroup.Networks)) {
+	if s.Empty(defaultTaskGroup.Networks) {
 		environment.SetNetworkAccess(true, []uint16{})
 
-		s.Equal(1, len(defaultTaskGroup.Networks))
+		s.Len(defaultTaskGroup.Networks, 1)
 	}
 }
 
@@ -37,10 +37,10 @@ func (s *MainTestSuite) TestConfigureNetworkDoesNotCreateNewNetworkWhenNetworkEx
 	networkResource := config.Config.Nomad.Network
 	defaultTaskGroup.Networks = []*nomadApi.NetworkResource{&networkResource}
 
-	if s.Equal(1, len(defaultTaskGroup.Networks)) {
+	if s.Len(defaultTaskGroup.Networks, 1) {
 		environment.SetNetworkAccess(true, []uint16{})
 
-		s.Equal(1, len(defaultTaskGroup.Networks))
+		s.Len(defaultTaskGroup.Networks, 1)
 		s.Equal(&networkResource, defaultTaskGroup.Networks[0])
 	}
 }
@@ -53,7 +53,7 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 	mode, ok := defaultTask.Config["network_mode"]
 	s.True(ok)
 	s.Equal("none", mode)
-	s.Equal(0, len(defaultTaskGroup.Networks))
+	s.Empty(defaultTaskGroup.Networks)
 
 	exposedPortsTests := [][]uint16{{}, {1337}, {42, 1337}}
 	s.Run("with no network access", func() {
@@ -67,7 +67,7 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 			mode, ok := testTask.Config["network_mode"]
 			s.True(ok)
 			s.Equal("none", mode)
-			s.Equal(0, len(testTaskGroup.Networks))
+			s.Empty(testTaskGroup.Networks)
 		}
 	})
 
@@ -79,7 +79,7 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 			testEnvironment := &NomadEnvironment{nil, "", testJob, nil, context.Background(), nil}
 
 			testEnvironment.SetNetworkAccess(true, ports)
-			s.Require().Equal(1, len(testTaskGroup.Networks))
+			s.Require().Len(testTaskGroup.Networks, 1)
 
 			networkResource := testTaskGroup.Networks[0]
 			s.Equal(config.Config.Nomad.Network.Mode, networkResource.Mode)
@@ -89,7 +89,7 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 
 			mode, ok := testTask.Config["network_mode"]
 			s.True(ok)
-			s.Equal(mode, "")
+			s.Equal("", mode)
 		}
 	})
 }
@@ -234,7 +234,7 @@ func (s *MainTestSuite) TestNomadEnvironment_DeleteLocally() {
 	s.Require().NoError(err)
 
 	err = environment.Delete(runner.ErrLocalDestruction)
-	s.NoError(err)
+	s.Require().NoError(err)
 	apiMock.AssertExpectations(s.T())
 }
 

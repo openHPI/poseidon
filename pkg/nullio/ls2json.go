@@ -49,19 +49,19 @@ func (w *Ls2JsonWriter) HasStartedWriting() bool {
 	return w.jsonStartSent
 }
 
-func (w *Ls2JsonWriter) Write(p []byte) (int, error) {
+func (w *Ls2JsonWriter) Write(lsData []byte) (int, error) {
 	i, err := w.initializeJSONObject()
 	if err != nil {
 		return i, err
 	}
 
 	start := 0
-	for i, char := range p {
+	for charIndex, char := range lsData {
 		if char != '\n' {
 			continue
 		}
 
-		line := p[start:i]
+		line := lsData[start:charIndex]
 		if len(w.remaining) > 0 {
 			line = append(w.remaining, line...)
 			w.remaining = []byte("")
@@ -74,14 +74,14 @@ func (w *Ls2JsonWriter) Write(p []byte) (int, error) {
 				return count, err
 			}
 		}
-		start = i + 1
+		start = charIndex + 1
 	}
 
-	if start < len(p) {
-		w.remaining = p[start:]
+	if start < len(lsData) {
+		w.remaining = lsData[start:]
 	}
 
-	return len(p), nil
+	return len(lsData), nil
 }
 
 func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {

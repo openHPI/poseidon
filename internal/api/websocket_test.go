@@ -131,7 +131,7 @@ func (s *WebSocketTestSuite) TestWebsocketConnection() {
 
 	s.Run("Receives exit message", func() {
 		controlMessages := helpers.WebSocketControlMessages(messages)
-		s.Require().Equal(1, len(controlMessages))
+		s.Require().Len(controlMessages, 1)
 		s.Equal(dto.WebSocketExit, controlMessages[0].Type)
 	})
 }
@@ -236,7 +236,7 @@ func (s *WebSocketTestSuite) TestWebsocketError() {
 	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 
 	_, _, errMessages := helpers.WebSocketOutputMessages(messages)
-	s.Require().Equal(1, len(errMessages))
+	s.Require().Len(errMessages, 1)
 	s.Equal("Error executing the request", errMessages[0])
 }
 
@@ -255,7 +255,7 @@ func (s *WebSocketTestSuite) TestWebsocketNonZeroExit() {
 	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
 
 	controlMessages := helpers.WebSocketControlMessages(messages)
-	s.Equal(2, len(controlMessages))
+	s.Len(controlMessages, 2)
 	s.Equal(&dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: 42}, controlMessages[1])
 }
 
@@ -295,6 +295,7 @@ func (s *MainTestSuite) TestWebsocketTLS() {
 func (s *MainTestSuite) TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	executionID := tests.DefaultExecutionID
+
 	r, wsURL, cleanup := newRunnerWithNotMockedRunnerManager(s, apiMock, executionID)
 	defer cleanup()
 
@@ -330,45 +331,45 @@ func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nom
 	return r, executorAPIMock
 }
 
-func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.ExecutorAPIMock, executionID string) (
+func newRunnerWithNotMockedRunnerManager(suite *MainTestSuite, apiMock *nomad.ExecutorAPIMock, executionID string) (
 	r runner.Runner, wsURL *url.URL, cleanup func()) {
-	s.T().Helper()
+	suite.T().Helper()
 	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
 	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
 	call.Run(func(args mock.Arguments) {
-		<-s.TestCtx.Done()
+		<-suite.TestCtx.Done()
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 
-	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
+	runnerManager := runner.NewNomadRunnerManager(apiMock, suite.TestCtx)
 	router := NewRouter(runnerManager, nil)
-	s.ExpectedGoroutineIncrease++ // The server is not closing properly. Therefore, we don't even try.
+	suite.ExpectedGoroutineIncrease++ // The server is not closing properly. Therefore, we don't even try.
 	server := httptest.NewServer(router)
 
 	runnerID := tests.DefaultRunnerID
 	runnerJob := runner.NewNomadJob(runnerID, nil, apiMock, nil)
-	e, err := environment.NewNomadEnvironment(0, apiMock, "job \"template-0\" {}")
-	s.Require().NoError(err)
+	nomadEnvironment, err := environment.NewNomadEnvironment(0, apiMock, "job \"template-0\" {}")
+	suite.Require().NoError(err)
 	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
-	s.Require().NoError(err)
-	e.SetID(eID)
-	e.SetPrewarmingPoolSize(0)
-	runnerManager.StoreEnvironment(e)
-	e.AddRunner(runnerJob)
+	suite.Require().NoError(err)
+	nomadEnvironment.SetID(eID)
+	nomadEnvironment.SetPrewarmingPoolSize(0)
+	runnerManager.StoreEnvironment(nomadEnvironment)
+	nomadEnvironment.AddRunner(runnerJob)
 
-	r, err = runnerManager.Claim(e.ID(), int(tests.DefaultTestTimeout.Seconds()))
-	s.Require().NoError(err)
+	r, err = runnerManager.Claim(nomadEnvironment.ID(), int(tests.DefaultTestTimeout.Seconds()))
+	suite.Require().NoError(err)
 	wsURL, err = webSocketURL("ws", server, router, r.ID(), executionID)
-	s.Require().NoError(err)
+	suite.Require().NoError(err)
 
 	return r, wsURL, func() {
 		err = r.Destroy(tests.ErrCleanupDestroyReason)
-		s.NoError(err)
-		err = e.Delete(tests.ErrCleanupDestroyReason)
-		s.NoError(err)
+		suite.Require().NoError(err)
+		err = nomadEnvironment.Delete(tests.ErrCleanupDestroyReason)
+		suite.NoError(err)
 	}
 }
 
@@ -385,7 +386,7 @@ func webSocketURL(scheme string, server *httptest.Server, router *mux.Router,
 	}
 	websocketURL.Scheme = scheme
 	websocketURL.Path = path.Path
-	websocketURL.RawQuery = fmt.Sprintf("executionID=%s", executionID)
+	websocketURL.RawQuery = "executionID=" + executionID
 	return websocketURL, nil
 }
 
@@ -436,6 +437,7 @@ func mockAPIExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 		) (int, error) {
 			var err error
 			buffer := make([]byte, 1) //nolint:makezero // if the length is zero, the Read call never reads anything
+
 			for n := 0; !(n == 1 && buffer[0] == runner.SIGQUIT); n, err = stdin.Read(buffer) {
 				if err != nil {
 					return 0, fmt.Errorf("error while reading stdin: %w", err)

@@ -46,9 +46,9 @@ func configureV1Router(router *mux.Router,
 		log.WithContext(r.Context()).WithField("request", r).Debug("Not Found Handler")
 		w.WriteHeader(http.StatusNotFound)
 	})
-	v1 := router.PathPrefix(BasePath).Subrouter()
-	v1.HandleFunc(HealthPath, Health(environmentManager)).Methods(http.MethodGet).Name(HealthPath)
-	v1.HandleFunc(VersionPath, Version).Methods(http.MethodGet).Name(VersionPath)
+	v1SubRouter := router.PathPrefix(BasePath).Subrouter()
+	v1SubRouter.HandleFunc(HealthPath, Health(environmentManager)).Methods(http.MethodGet).Name(HealthPath)
+	v1SubRouter.HandleFunc(VersionPath, Version).Methods(http.MethodGet).Name(VersionPath)
 
 	runnerController := &RunnerController{manager: runnerManager}
 	environmentController := &EnvironmentController{manager: environmentManager}
@@ -64,13 +64,13 @@ func configureV1Router(router *mux.Router,
 	}
 
 	if auth.InitializeAuthentication() {
-		// Create new authenticated subrouter.
+		// Create new authenticated sub router.
 		// All routes added to v1 after this require authentication.
-		authenticatedV1Router := v1.PathPrefix("").Subrouter()
+		authenticatedV1Router := v1SubRouter.PathPrefix("").Subrouter()
 		authenticatedV1Router.Use(auth.HTTPAuthenticationMiddleware)
 		configureRoutes(authenticatedV1Router)
 	} else {
-		configureRoutes(v1)
+		configureRoutes(v1SubRouter)
 	}
 }
 

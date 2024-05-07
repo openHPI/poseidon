@@ -87,16 +87,16 @@ func (s *MainTestSuite) TestCodeOceanOutputWriter_SendExitInfo() {
 	}
 }
 
-func buildConnectionMock(s *tests.MemoryLeakTestSuite) (conn *ConnectionMock, messages <-chan []byte) {
-	s.T().Helper()
+func buildConnectionMock(suite *tests.MemoryLeakTestSuite) (conn *ConnectionMock, messages <-chan []byte) {
+	suite.T().Helper()
 	message := make(chan []byte)
 	connectionMock := &ConnectionMock{}
 	connectionMock.On("WriteMessage", mock.AnythingOfType("int"), mock.AnythingOfType("[]uint8")).
 		Run(func(args mock.Arguments) {
 			m, ok := args.Get(1).([]byte)
-			s.Require().True(ok)
+			suite.Require().True(ok)
 			select {
-			case <-s.TestCtx.Done():
+			case <-suite.TestCtx.Done():
 			case message <- m:
 			}
 		}).

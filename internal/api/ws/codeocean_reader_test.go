@@ -31,7 +31,7 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead()
 		//nolint:makezero // we can't make zero initial length here as the reader otherwise doesn't block
 		p := make([]byte, 10)
 		_, err := reader.Read(p)
-		s.Require().NoError(err)
+		s.NoError(err)
 		read <- true
 	}()
 
@@ -69,7 +69,7 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFr
 	message := make([]byte, 10)
 	go func() {
 		_, err := reader.Read(message)
-		s.Require().NoError(err)
+		s.NoError(err)
 		read <- true
 	}()
 

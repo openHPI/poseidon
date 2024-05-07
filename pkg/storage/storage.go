@@ -111,13 +111,13 @@ func (s *localStorage[T]) Get(id string) (o T, ok bool) {
 	return
 }
 
-func (s *localStorage[T]) Delete(id string) {
+func (s *localStorage[T]) Delete(objectID string) {
 	s.Lock()
 	defer s.Unlock()
-	o, ok := s.objects[id]
+	o, ok := s.objects[objectID]
 	if ok {
-		delete(s.objects, id)
-		s.sendMonitoringData(id, o, Deletion, s.unsafeLength())
+		delete(s.objects, objectID)
+		s.sendMonitoringData(objectID, o, Deletion, s.unsafeLength())
 	}
 }
 
@@ -158,18 +158,18 @@ func (s *localStorage[T]) unsafeLength() uint {
 	return uint(length)
 }
 
-func (s *localStorage[T]) sendMonitoringData(id string, o T, eventType EventType, count uint) {
+func (s *localStorage[T]) sendMonitoringData(id string, object T, eventType EventType, count uint) {
 	if s.measurement != "" {
-		p := influxdb2.NewPointWithMeasurement(s.measurement)
-		p.AddTag("id", id)
-		p.AddTag("event_type", string(eventType))
-		p.AddField("count", count)
+		dataPoint := influxdb2.NewPointWithMeasurement(s.measurement)
+		dataPoint.AddTag("id", id)
+		dataPoint.AddTag("event_type", string(eventType))
+		dataPoint.AddField("count", count)
 
 		if s.callback != nil {
-			s.callback(p, o, eventType)
+			s.callback(dataPoint, object, eventType)
 		}
 
-		monitoring.WriteInfluxPoint(p)
+		monitoring.WriteInfluxPoint(dataPoint)
 	}
 }
 

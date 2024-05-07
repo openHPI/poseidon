@@ -102,7 +102,7 @@ func (s *E2ERecoveryTestSuite) TestRunnerCount() {
 		Namespace: nomadNamespace,
 	})
 	s.Require().NoError(err)
-	s.Equal(PrewarmingPoolSize+1, len(jobListStubs))
+	s.Len(jobListStubs, PrewarmingPoolSize+1)
 }
 
 func (s *E2ERecoveryTestSuite) TestEnvironmentStatistics() {

@@ -94,7 +94,7 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 	_, err := s.manager.CreateOrUpdate(
 		dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request, context.Background())
 	s.NoError(err)
-	s.True(count > 1)
+	s.Greater(count, 1)
 }
 
 func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
@@ -122,7 +122,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 		defer os.Remove(f.Name())
 
 		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotNil(m)
 		s.Equal(templateJobHCL, m.templateEnvironmentHCL)
 
@@ -154,11 +154,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 	})
 
 	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
-	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	environmentManager, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
 	s.Require().NoError(err)
 
 	s.Run("Returns error when not found", func() {
-		_, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		_, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
 		s.Error(err)
 	})
 
@@ -169,8 +169,8 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 		s.Require().NoError(err)
 		runnerManager.StoreEnvironment(expectedEnvironment)
 
-		environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
-		s.NoError(err)
+		environment, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		s.Require().NoError(err)
 		s.Equal(expectedEnvironment, environment)
 
 		err = environment.Delete(tests.ErrCleanupDestroyReason)
@@ -180,7 +180,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 	s.Run("Fetch", func() {
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 		s.Run("Returns error when not found", func() {
-			_, err := m.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			_, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, true)
 			s.Error(err)
 		})
 
@@ -199,11 +199,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 			localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 			runnerManager.StoreEnvironment(localEnvironment)
 
-			environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, false)
+			environment, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
 			s.NoError(err)
 			s.NotEqual(fetchedEnvironment.Image(), environment.Image())
 
-			environment, err = m.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			environment, err = environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, true)
 			s.NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
@@ -226,11 +226,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 				call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
 			})
 
-			_, err = m.Get(tests.DefaultEnvironmentIDAsInteger, false)
-			s.Error(err)
+			_, err = environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+			s.Require().Error(err)
 
-			environment, err := m.Get(tests.DefaultEnvironmentIDAsInteger, true)
-			s.NoError(err)
+			environment, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			s.Require().NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
 			err = fetchedEnvironment.Delete(tests.ErrCleanupDestroyReason)
@@ -252,11 +252,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 	})
 
 	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
-	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	environmentManager, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
 	s.Require().NoError(err)
 
 	s.Run("with no environments", func() {
-		environments, err := m.List(true)
+		environments, err := environmentManager.List(true)
 		s.NoError(err)
 		s.Empty(environments)
 	})
@@ -267,9 +267,9 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 		localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(localEnvironment)
 
-		environments, err := m.List(false)
+		environments, err := environmentManager.List(false)
 		s.NoError(err)
-		s.Equal(1, len(environments))
+		s.Len(environments, 1)
 		s.Equal(localEnvironment, environments[0])
 
 		err = localEnvironment.Delete(tests.ErrCleanupDestroyReason)
@@ -288,13 +288,13 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 			call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
 		})
 
-		environments, err := m.List(false)
+		environments, err := environmentManager.List(false)
 		s.NoError(err)
 		s.Empty(environments)
 
-		environments, err = m.List(true)
+		environments, err = environmentManager.List(true)
 		s.NoError(err)
-		s.Equal(1, len(environments))
+		s.Len(environments, 1)
 		nomadEnvironment, ok := environments[0].(*NomadEnvironment)
 		s.True(ok)
 		s.Equal(fetchedEnvironment.job, nomadEnvironment.job)
@@ -379,7 +379,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 func (s *MainTestSuite) TestNomadEnvironmentManager_KeepEnvironmentsSynced() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
-	m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
+	environmentManager, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
 	s.Require().NoError(err)
 
 	s.Run("stops when context is done", func() {
@@ -391,11 +391,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_KeepEnvironmentsSynced() {
 		go func() {
 			<-time.After(tests.ShortTimeout)
 			if !done {
-				s.FailNow("KeepEnvironmentsSynced is ignoring the context")
+				s.Fail("KeepEnvironmentsSynced is ignoring the context")
 			}
 		}()
 
-		m.KeepEnvironmentsSynced(func(_ context.Context) error { return nil }, ctx)
+		environmentManager.KeepEnvironmentsSynced(func(_ context.Context) error { return nil }, ctx)
 		done = true
 	})
 	apiMock.ExpectedCalls = []*mock.Call{}
@@ -409,7 +409,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_KeepEnvironmentsSynced() {
 			cancel()
 		}).Once()
 
-		m.KeepEnvironmentsSynced(func(_ context.Context) error { return nil }, ctx)
+		environmentManager.KeepEnvironmentsSynced(func(_ context.Context) error { return nil }, ctx)
 		apiMock.AssertExpectations(s.T())
 	})
 	apiMock.ExpectedCalls = []*mock.Call{}
@@ -428,7 +428,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_KeepEnvironmentsSynced() {
 			}
 			return context.DeadlineExceeded
 		}
-		m.KeepEnvironmentsSynced(synchronizeRunners, ctx)
+		environmentManager.KeepEnvironmentsSynced(synchronizeRunners, ctx)
 
 		if count < 2 {
 			s.Fail("KeepEnvironmentsSynced is not retrying to synchronize the runners")
@@ -446,11 +446,11 @@ func mockWatchAllocations(ctx context.Context, apiMock *nomad.ExecutorAPIMock) {
 
 func createTempFile(t *testing.T, content string) *os.File {
 	t.Helper()
-	f, err := os.CreateTemp("", "test")
+	file, err := os.CreateTemp("", "test")
 	require.NoError(t, err)
-	n, err := f.WriteString(content)
+	n, err := file.WriteString(content)
 	require.NoError(t, err)
 	require.Equal(t, len(content), n)
 
-	return f
+	return file
 }

@@ -32,7 +32,7 @@ func (m mergeContext) Deadline() (deadline time.Time, ok bool) {
 
 // Done notifies when the first context is done.
 func (m mergeContext) Done() <-chan struct{} {
-	ch := make(chan struct{})
+	mergeContextDoneChannel := make(chan struct{})
 	cases := make([]reflect.SelectCase, 0, len(m.contexts))
 	for _, ctx := range m.contexts {
 		cases = append(cases, reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ctx.Done())})
@@ -40,8 +40,8 @@ func (m mergeContext) Done() <-chan struct{} {
 	go func(cases []reflect.SelectCase, ch chan struct{}) {
 		_, _, _ = reflect.Select(cases)
 		close(ch)
-	}(cases, ch)
-	return ch
+	}(cases, mergeContextDoneChannel)
+	return mergeContextDoneChannel
 }
 
 // Err returns the error of any (random) context and nil iff no context has an error.

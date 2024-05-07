@@ -27,7 +27,7 @@ func TestCreateOrUpdateEnvironment(t *testing.T) {
 
 	t.Run("returns bad request with empty body", func(t *testing.T) {
 		resp, err := helpers.HTTPPut(path, strings.NewReader(""))
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
 		_ = resp.Body.Close()
@@ -108,7 +108,7 @@ func TestListEnvironments(t *testing.T) {
 				require.Equal(t, http.StatusOK, response.StatusCode)
 
 				environmentsArray := assertEnvironmentArrayInResponse(t, response)
-				require.Equal(t, len(environmentIDs)+1, len(environmentsArray))
+				require.Len(t, environmentsArray, len(environmentIDs)+1)
 				foundIDs := parseIDsFromEnvironments(t, environmentsArray)
 				assert.Contains(t, foundIDs, dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger))
 			})
@@ -136,11 +136,11 @@ func TestListEnvironments(t *testing.T) {
 		assert.Contains(t, foundIDs, dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 
 		// List with fetch should include the added environment
-		response, err = http.Get(path + "?fetch=true") //nolint:gosec // because we build this path right above
+		response, err = http.Get(path + "?fetch=true")
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, response.StatusCode)
 		environmentsArray = assertEnvironmentArrayInResponse(t, response)
-		require.Equal(t, len(environmentIDs)+1, len(environmentsArray))
+		require.Len(t, environmentsArray, len(environmentIDs)+1)
 		foundIDs = parseIDsFromEnvironments(t, environmentsArray)
 		assert.Contains(t, foundIDs, dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger))
 	})
@@ -192,7 +192,7 @@ func TestGetEnvironment(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, response.StatusCode)
 
 		// List with fetch should include the added environment
-		response, err = http.Get(path + "?fetch=true") //nolint:gosec // because we build this path right above
+		response, err = http.Get(path + "?fetch=true")
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, response.StatusCode)
 		environment := getEnvironmentFromResponse(t, response)
@@ -288,7 +288,6 @@ func getEnvironmentFromResponse(t *testing.T, response *http.Response) interface
 	return environment
 }
 
-//nolint:unparam // Because its more clear if the environment id is written in the real test
 func deleteEnvironment(t *testing.T, id string) {
 	t.Helper()
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, id)
@@ -337,7 +336,7 @@ func assertPutReturnsStatusAndZeroContent(t *testing.T, path string,
 	request dto.ExecutionEnvironmentRequest, status int) {
 	t.Helper()
 	resp, err := helpers.HTTPPutJSON(path, request)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, status, resp.StatusCode)
 	assert.Equal(t, int64(0), resp.ContentLength)
 	content, err := io.ReadAll(resp.Body)
@@ -352,7 +351,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 
 	assertEqualValueStringPointer(t, nomadNamespace, job.Namespace)
 	assertEqualValueStringPointer(t, "batch", job.Type)
-	require.Equal(t, 2, len(job.TaskGroups))
+	require.Len(t, job.TaskGroups, 2)
 
 	taskGroup := job.TaskGroups[0]
 	require.NotNil(t, taskGroup.Count)
@@ -361,7 +360,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 	taskGroupCount := *taskGroup.Count
 	assert.True(t, prewarmingPoolSizeInt == taskGroupCount || prewarmingPoolSizeInt+1 == taskGroupCount)
 	assertEqualValueIntPointer(t, int(expected.PrewarmingPoolSize), taskGroup.Count)
-	require.Equal(t, 1, len(taskGroup.Tasks))
+	require.Len(t, taskGroup.Tasks, 1)
 
 	task := taskGroup.Tasks[0]
 	assertEqualValueIntPointer(t, int(expected.CPULimit), task.Resources.CPU)
@@ -370,7 +369,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 
 	if expected.NetworkAccess {
 		assert.Equal(t, "", task.Config["network_mode"])
-		require.Equal(t, 1, len(taskGroup.Networks))
+		require.Len(t, taskGroup.Networks, 1)
 		network := taskGroup.Networks[0]
 		assert.Equal(t, len(expected.ExposedPorts), len(network.DynamicPorts))
 		for _, port := range network.DynamicPorts {
@@ -378,7 +377,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 		}
 	} else {
 		assert.Equal(t, "none", task.Config["network_mode"])
-		assert.Equal(t, 0, len(taskGroup.Networks))
+		assert.Empty(t, taskGroup.Networks)
 	}
 }
 

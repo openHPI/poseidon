@@ -56,12 +56,12 @@ type ExecutionEnvironment interface {
 }
 
 // monitorEnvironmentData passes the configuration of the environment e into the monitoring Point p.
-func monitorEnvironmentData(p *write.Point, e ExecutionEnvironment, eventType storage.EventType) {
+func monitorEnvironmentData(dataPoint *write.Point, e ExecutionEnvironment, eventType storage.EventType) {
 	if eventType == storage.Creation && e != nil {
-		p.AddTag("image", e.Image())
-		p.AddTag("cpu_limit", strconv.Itoa(int(e.CPULimit())))
-		p.AddTag("memory_limit", strconv.Itoa(int(e.MemoryLimit())))
+		dataPoint.AddTag("image", e.Image())
+		dataPoint.AddTag("cpu_limit", strconv.Itoa(int(e.CPULimit())))
+		dataPoint.AddTag("memory_limit", strconv.Itoa(int(e.MemoryLimit())))
 		hasNetworkAccess, _ := e.NetworkAccess()
-		p.AddTag("network_access", strconv.FormatBool(hasNetworkAccess))
+		dataPoint.AddTag("network_access", strconv.FormatBool(hasNetworkAccess))
 	}
 }

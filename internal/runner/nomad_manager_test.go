@@ -88,16 +88,16 @@ func mockIdleRunners(environmentMock *ExecutionEnvironmentMock) {
 	})
 	deleteCall := environmentMock.On("DeleteRunner", mock.AnythingOfType("string"))
 	deleteCall.Run(func(args mock.Arguments) {
-		id, ok := args.Get(0).(string)
+		runnerID, ok := args.Get(0).(string)
 		if !ok {
 			log.Fatal("Cannot parse ID")
 		}
-		r, ok := idleRunner.Get(id)
+		r, ok := idleRunner.Get(runnerID)
 		deleteCall.ReturnArguments = mock.Arguments{r, ok}
 		if !ok {
 			return
 		}
-		idleRunner.Delete(id)
+		idleRunner.Delete(runnerID)
 	})
 }
 
@@ -203,7 +203,7 @@ func (s *ManagerTestSuite) TestReturnRemovesRunnerFromUsedRunners() {
 	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return(nil, false)
 	s.nomadRunnerManager.usedRunners.Add(s.exerciseRunner.ID(), s.exerciseRunner)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
-	s.Nil(err)
+	s.NoError(err)
 	_, ok := s.nomadRunnerManager.usedRunners.Get(s.exerciseRunner.ID())
 	s.False(ok)
 }
@@ -212,7 +212,7 @@ func (s *ManagerTestSuite) TestReturnCallsDeleteRunnerApiMethod() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return(nil, false)
 	err := s.nomadRunnerManager.Return(s.exerciseRunner)
-	s.Nil(err)
+	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "DeleteJob", s.exerciseRunner.ID())
 }
 
@@ -266,7 +266,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 		log.WithError(err).Error("failed to synchronize runners")
 	}
 
-	s.Require().Equal(2, len(hook.Entries))
+	s.Require().Len(hook.Entries, 2)
 	s.Equal(logrus.ErrorLevel, hook.LastEntry().Level)
 	err, ok := hook.LastEntry().Data[logrus.ErrorKey].(error)
 	s.Require().True(ok)
@@ -394,7 +394,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 			s.NoError(err)
 			nomadJob, ok := runner.(*NomadJob)
 			s.True(ok)
-			s.Equal(nomadJob.id, tests.DefaultRunnerID)
+			s.Equal(tests.DefaultRunnerID, nomadJob.id)
 			s.Empty(nomadJob.portMappings)
 
 			s.Run("but not again", func() {
@@ -424,7 +424,7 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 			s.True(ok)
 			nomadJob, ok := runner.(*NomadJob)
 			s.True(ok)
-			s.Equal(nomadJob.id, tests.DefaultRunnerID)
+			s.Equal(tests.DefaultRunnerID, nomadJob.id)
 			s.Equal(nomadJob.portMappings, tests.DefaultPortMappings)
 
 			err := runner.Destroy(nil)
@@ -481,29 +481,29 @@ func (s *ManagerTestSuite) TestOnAllocationStopped() {
 	})
 }
 
-func testStoppedInactivityTimer(s *ManagerTestSuite) (r Runner, destroyed chan struct{}) {
-	s.T().Helper()
-	environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
-	s.Require().True(ok)
+func testStoppedInactivityTimer(suite *ManagerTestSuite) (r Runner, destroyed chan struct{}) {
+	suite.T().Helper()
+	environment, ok := suite.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
+	suite.Require().True(ok)
 	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
 
 	runnerDestroyed := make(chan struct{})
-	environment.AddRunner(NewNomadJob(tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(r Runner) error {
+	environment.AddRunner(NewNomadJob(tests.DefaultRunnerID, []nomadApi.PortMapping{}, suite.apiMock, func(runner Runner) error {
 		go func() {
 			select {
 			case runnerDestroyed <- struct{}{}:
-			case <-s.TestCtx.Done():
+			case <-suite.TestCtx.Done():
 			}
 		}()
-		return s.nomadRunnerManager.onRunnerDestroyed(r)
+		return suite.nomadRunnerManager.onRunnerDestroyed(runner)
 	}))
 
-	runner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, 1)
-	s.Require().NoError(err)
-	s.Require().False(runner.TimeoutPassed())
+	runner, err := suite.nomadRunnerManager.Claim(defaultEnvironmentID, 1)
+	suite.Require().NoError(err)
+	suite.Require().False(runner.TimeoutPassed())
 	select {
 	case runnerDestroyed <- struct{}{}:
-		s.Fail("The runner should not be removed by now")
+		suite.Fail("The runner should not be removed by now")
 	case <-time.After(tests.ShortTimeout):
 	}
 
@@ -590,8 +590,8 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
 	environment.On("MemoryLimit").Return(uint(0))
 	environment.On("NetworkAccess").Return(false, nil)
 	apiMock := &nomad.ExecutorAPIMock{}
-	m := NewNomadRunnerManager(apiMock, s.TestCtx)
-	m.StoreEnvironment(environment)
+	runnerManager := NewNomadRunnerManager(apiMock, s.TestCtx)
+	runnerManager.StoreEnvironment(environment)
 	s.Run("checks the alert condition again after the reload timeout", func() {
 		environment.On("PrewarmingPoolSize").Return(uint(1)).Once()
 		environment.On("IdleRunnerCount").Return(uint(0)).Once()
@@ -600,7 +600,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
 
 		checkDone := make(chan struct{})
 		go func() {
-			m.checkPrewarmingPoolAlert(environment, false)
+			runnerManager.checkPrewarmingPoolAlert(environment, false)
 			close(checkDone)
 		}()
 
@@ -625,7 +625,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
 
 		checkDone := make(chan struct{})
 		go func() {
-			m.checkPrewarmingPoolAlert(environment, false)
+			runnerManager.checkPrewarmingPoolAlert(environment, false)
 			close(checkDone)
 		}()
 
@@ -643,12 +643,12 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
 
 		checkDone := make(chan struct{})
 		go func() {
-			m.checkPrewarmingPoolAlert(environment, false)
+			runnerManager.checkPrewarmingPoolAlert(environment, false)
 			close(checkDone)
 		}()
 
 		<-time.After(tests.ShortTimeout)
-		go m.checkPrewarmingPoolAlert(environment, true)
+		go runnerManager.checkPrewarmingPoolAlert(environment, true)
 		<-time.After(tests.ShortTimeout)
 
 		select {
@@ -670,14 +670,14 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert_reloadsR
 	environment.On("MemoryLimit").Return(uint(0))
 	environment.On("NetworkAccess").Return(false, nil)
 	apiMock := &nomad.ExecutorAPIMock{}
-	m := NewNomadRunnerManager(apiMock, s.TestCtx)
-	m.StoreEnvironment(environment)
+	runnerManager := NewNomadRunnerManager(apiMock, s.TestCtx)
+	runnerManager.StoreEnvironment(environment)
 
 	environment.On("PrewarmingPoolSize").Return(uint(1)).Twice()
 	environment.On("IdleRunnerCount").Return(uint(0)).Twice()
 	environment.On("DeleteRunner", mock.Anything).Return(nil, false).Once()
 
-	s.Require().Empty(m.usedRunners.Length())
+	s.Require().Empty(runnerManager.usedRunners.Length())
 	_, usedJob := helpers.CreateTemplateJob()
 	id := tests.DefaultRunnerID
 	usedJob.ID = &id
@@ -698,9 +698,9 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert_reloadsR
 		s.NoError(err)
 	}).Return().Once()
 
-	m.checkPrewarmingPoolAlert(environment, false)
+	runnerManager.checkPrewarmingPoolAlert(environment, false)
 
-	r, ok := m.usedRunners.Get(tests.DefaultRunnerID)
+	r, ok := runnerManager.usedRunners.Get(tests.DefaultRunnerID)
 	s.Require().True(ok)
 	err := r.Destroy(ErrLocalDestruction)
 	s.NoError(err)

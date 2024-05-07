@@ -18,20 +18,20 @@ import (
 func (s *MainTestSuite) TestAWSExecutionRequestIsStored() {
 	environment := &ExecutionEnvironmentMock{}
 	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
-	r, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
+	runner, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
 	s.NoError(err)
 	executionRequest := &dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,
 		Environment: nil,
 	}
-	r.StoreExecution(tests.DefaultEnvironmentIDAsString, executionRequest)
-	s.True(r.ExecutionExists(tests.DefaultEnvironmentIDAsString))
-	storedExecutionRunner, ok := r.executions.Pop(tests.DefaultEnvironmentIDAsString)
+	runner.StoreExecution(tests.DefaultEnvironmentIDAsString, executionRequest)
+	s.True(runner.ExecutionExists(tests.DefaultEnvironmentIDAsString))
+	storedExecutionRunner, ok := runner.executions.Pop(tests.DefaultEnvironmentIDAsString)
 	s.True(ok, "Getting an execution should not return ok false")
 	s.Equal(executionRequest, storedExecutionRunner)
 
-	err = r.Destroy(nil)
+	err = runner.Destroy(nil)
 	s.NoError(err)
 }
 
@@ -43,15 +43,15 @@ type awsEndpointMock struct {
 
 func (a *awsEndpointMock) handler(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{}
-	c, err := upgrader.Upgrade(w, r, nil)
+	connection, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
-	defer c.Close()
+	defer connection.Close()
 
 	a.hasConnected = true
 	for a.ctx.Err() == nil {
-		_, message, err := c.ReadMessage()
+		_, message, err := connection.ReadMessage()
 		if err != nil {
 			break
 		}
@@ -63,7 +63,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 	environment := &ExecutionEnvironmentMock{}
 	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	environment.On("Image").Return("testImage or AWS endpoint")
-	r, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
+	runnerWorkload, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
 	s.Require().NoError(err)
 
 	var cancel context.CancelFunc
@@ -77,8 +77,8 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 		awsMock.ctx, cancel = context.WithCancel(context.Background())
 		cancel()
 
-		r.StoreExecution(tests.DefaultEnvironmentIDAsString, &dto.ExecutionRequest{})
-		exit, _, err := r.ExecuteInteractively(
+		runnerWorkload.StoreExecution(tests.DefaultEnvironmentIDAsString, &dto.ExecutionRequest{})
+		exit, _, err := runnerWorkload.ExecuteInteractively(
 			tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, s.TestCtx)
 		s.Require().NoError(err)
 		<-exit
@@ -91,9 +91,9 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 		defer cancel()
 		command := "sl"
 		request := &dto.ExecutionRequest{Command: command}
-		r.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
+		runnerWorkload.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
 
-		_, cancel, err := r.ExecuteInteractively(
+		_, cancel, err := runnerWorkload.ExecuteInteractively(
 			tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, s.TestCtx)
 		s.Require().NoError(err)
 		<-time.After(tests.ShortTimeout)
@@ -105,7 +105,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 		s.Equal(expectedRequestData, awsMock.receivedData)
 	})
 
-	err = r.Destroy(nil)
+	err = runnerWorkload.Destroy(nil)
 	s.NoError(err)
 }
 
@@ -115,7 +115,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_UpdateFileSystem() {
 	environment := &ExecutionEnvironmentMock{}
 	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	environment.On("Image").Return("testImage or AWS endpoint")
-	r, err := NewAWSFunctionWorkload(environment, nil)
+	runnerWorkload, err := NewAWSFunctionWorkload(environment, nil)
 	s.Require().NoError(err)
 
 	var cancel context.CancelFunc
@@ -129,12 +129,12 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_UpdateFileSystem() {
 	defer cancel()
 	command := "sl"
 	request := &dto.ExecutionRequest{Command: command}
-	r.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
+	runnerWorkload.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
 	myFile := dto.File{Path: "myPath", Content: []byte("myContent")}
 
-	err = r.UpdateFileSystem(&dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}}, s.TestCtx)
+	err = runnerWorkload.UpdateFileSystem(&dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}}, s.TestCtx)
 	s.NoError(err)
-	_, execCancel, err := r.ExecuteInteractively(
+	_, execCancel, err := runnerWorkload.ExecuteInteractively(
 		tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, s.TestCtx)
 	s.Require().NoError(err)
 	<-time.After(tests.ShortTimeout)
@@ -145,7 +145,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_UpdateFileSystem() {
 		`\""],"files":{"` + string(myFile.Path) + `":"` + base64.StdEncoding.EncodeToString(myFile.Content) + `"}}`
 	s.Equal(expectedRequestData, awsMock.receivedData)
 
-	err = r.Destroy(nil)
+	err = runnerWorkload.Destroy(nil)
 	s.NoError(err)
 }
 
@@ -153,14 +153,14 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_Destroy() {
 	environment := &ExecutionEnvironmentMock{}
 	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	hasDestroyBeenCalled := false
-	r, err := NewAWSFunctionWorkload(environment, func(_ Runner) error {
+	runnerWorkload, err := NewAWSFunctionWorkload(environment, func(_ Runner) error {
 		hasDestroyBeenCalled = true
 		return nil
 	})
 	s.Require().NoError(err)
 
 	var reason error
-	err = r.Destroy(reason)
+	err = runnerWorkload.Destroy(reason)
 	s.NoError(err)
 	s.True(hasDestroyBeenCalled)
 }

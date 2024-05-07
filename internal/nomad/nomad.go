@@ -183,13 +183,13 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 
 	var occurredError error
 	jobs := make([]*nomadApi.Job, 0, len(runnerIDs))
-	for _, id := range runnerIDs {
-		job, err := a.apiQuerier.job(id)
+	for _, runnerID := range runnerIDs {
+		job, err := a.apiQuerier.job(runnerID)
 		if err != nil {
 			if occurredError == nil {
 				occurredError = ErrorLoadingJob
 			}
-			occurredError = fmt.Errorf("%w: couldn't load job info for runner %s - %v", occurredError, id, err)
+			occurredError = fmt.Errorf("%w: couldn't load job info for runner %s - %v", occurredError, runnerID, err)
 			continue
 		}
 		jobs = append(jobs, job)
@@ -250,13 +250,13 @@ func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationP
 }
 
 func dumpNomadEventToInflux(event *nomadApi.Event) {
-	p := influxdb2.NewPointWithMeasurement(monitoring.MeasurementNomadEvents)
-	p.AddTag("topic", event.Topic.String())
-	p.AddTag("type", event.Type)
-	p.AddTag("key", event.Key)
-	p.AddField("payload", event.Payload)
-	p.AddTag("timestamp", time.Now().Format("03:04:05.000000000"))
-	monitoring.WriteInfluxPoint(p)
+	dataPoint := influxdb2.NewPointWithMeasurement(monitoring.MeasurementNomadEvents)
+	dataPoint.AddTag("topic", event.Topic.String())
+	dataPoint.AddTag("type", event.Type)
+	dataPoint.AddTag("key", event.Key)
+	dataPoint.AddField("payload", event.Payload)
+	dataPoint.AddTag("timestamp", time.Now().Format("03:04:05.000000000"))
+	monitoring.WriteInfluxPoint(dataPoint)
 }
 
 func (a *APIClient) initializeAllocations(environmentID dto.EnvironmentID) {

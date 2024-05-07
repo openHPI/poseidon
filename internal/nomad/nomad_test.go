@@ -154,22 +154,22 @@ func NomadTestConfig(address string) *config.Nomad {
 func (s *MainTestSuite) TestApiClient_init() {
 	client := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := client.init(NomadTestConfig(TestDefaultAddress))
-	s.Require().Nil(err)
+	s.Require().NoError(err)
 }
 
 func (s *MainTestSuite) TestApiClientCanNotBeInitializedWithInvalidUrl() {
 	client := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := client.init(NomadTestConfig("http://" + TestDefaultAddress))
-	s.NotNil(err)
+	s.Error(err)
 }
 
 func (s *MainTestSuite) TestNewExecutorApiCanBeCreatedWithoutError() {
 	expectedClient := &APIClient{apiQuerier: &nomadAPIClient{}}
 	err := expectedClient.init(NomadTestConfig(TestDefaultAddress))
-	s.Require().Nil(err)
+	s.Require().NoError(err)
 
 	_, err = NewExecutorAPI(NomadTestConfig(TestDefaultAddress))
-	s.Require().Nil(err)
+	s.Require().NoError(err)
 }
 
 // asynchronouslyMonitorEvaluation creates an APIClient with mocked Nomad API and
@@ -205,7 +205,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClo
 	case <-time.After(time.Millisecond * 10):
 		s.T().Fatal("MonitorEvaluation didn't finish as expected")
 	}
-	s.Nil(err)
+	s.NoError(err)
 }
 
 func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsErrorWhenStreamReturnsError() {
@@ -280,7 +280,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithSuccessfulEvent() {
 	pendingEval := nomadApi.Evaluation{Status: structs.EvalStatusPending}
 
 	// make sure that the tested function can complete
-	s.Require().Nil(checkEvaluation(&eval))
+	s.Require().NoError(checkEvaluation(&eval))
 
 	events := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(s.T(), &eval)}}
 	pendingEvaluationEvents := nomadApi.Events{Events: []nomadApi.Event{eventForEvaluation(s.T(), &pendingEval)}}
@@ -308,7 +308,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithSuccessfulEvent() {
 	for _, c := range cases {
 		s.Run(c.name, func() {
 			eventsProcessed, err := runEvaluationMonitoring(s.TestCtx, c.streamedEvents)
-			s.Nil(err)
+			s.NoError(err)
 			s.Equal(c.expectedEventsProcessed, eventsProcessed)
 		})
 	}
@@ -317,7 +317,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithSuccessfulEvent() {
 func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithFailingEvent() {
 	eval := nomadApi.Evaluation{ID: evaluationID, Status: structs.EvalStatusFailed}
 	evalErr := checkEvaluation(&eval)
-	s.Require().NotNil(evalErr)
+	s.Require().Error(evalErr)
 
 	pendingEval := nomadApi.Evaluation{Status: structs.EvalStatusPending}
 
@@ -349,7 +349,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithFailingEvent() {
 	for _, c := range cases {
 		s.Run(c.name, func() {
 			eventsProcessed, err := runEvaluationMonitoring(s.TestCtx, c.streamedEvents)
-			s.Require().NotNil(err)
+			s.Require().Error(err)
 			s.Contains(err.Error(), c.expectedError.Error())
 			s.Equal(c.expectedEventsProcessed, eventsProcessed)
 		})
@@ -363,7 +363,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationFailsWhenFailingToDecodeE
 		Payload: map[string]interface{}{"Evaluation": map[string]interface{}{"Status": 1}},
 	}
 	_, err := event.Evaluation()
-	s.Require().NotNil(err)
+	s.Require().Error(err)
 	eventsProcessed, err := runEvaluationMonitoring(s.TestCtx, []*nomadApi.Events{{Events: []nomadApi.Event{event}}})
 	s.Error(err)
 	s.Equal(1, eventsProcessed)
@@ -385,7 +385,7 @@ func (s *MainTestSuite) TestCheckEvaluationWithFailedAllocations() {
 	var msgWithoutBlockedEval, msgWithBlockedEval string
 	s.Run("without blocked eval", func() {
 		err := checkEvaluation(&evaluation)
-		s.Require().NotNil(err)
+		s.Require().Error(err)
 		msgWithoutBlockedEval = err.Error()
 		assertMessageContainsCorrectStrings(msgWithoutBlockedEval)
 	})
@@ -393,7 +393,7 @@ func (s *MainTestSuite) TestCheckEvaluationWithFailedAllocations() {
 	s.Run("with blocked eval", func() {
 		evaluation.BlockedEval = "blocking-eval"
 		err := checkEvaluation(&evaluation)
-		s.Require().NotNil(err)
+		s.Require().Error(err)
 		msgWithBlockedEval = err.Error()
 		assertMessageContainsCorrectStrings(msgWithBlockedEval)
 	})
@@ -407,7 +407,7 @@ func (s *MainTestSuite) TestCheckEvaluationWithoutFailedAllocations() {
 	s.Run("when evaluation status complete", func() {
 		evaluation.Status = structs.EvalStatusComplete
 		err := checkEvaluation(&evaluation)
-		s.Nil(err)
+		s.NoError(err)
 	})
 
 	s.Run("when evaluation status not complete", func() {
@@ -416,7 +416,7 @@ func (s *MainTestSuite) TestCheckEvaluationWithoutFailedAllocations() {
 		for _, status := range incompleteStates {
 			evaluation.Status = status
 			err := checkEvaluation(&evaluation)
-			s.Require().NotNil(err)
+			s.Require().Error(err)
 			s.Contains(err.Error(), status, "error should contain the evaluation status")
 		}
 	})
@@ -708,9 +708,9 @@ func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEO
 	s.Equal(1, eventsProcessed)
 }
 
-func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
+func assertWatchAllocation(suite *MainTestSuite, events []*nomadApi.Events,
 	expectedNewAllocations []*nomadApi.Allocation, expectedDeletedAllocations []string) {
-	s.T().Helper()
+	suite.T().Helper()
 	var newAllocations []*nomadApi.Allocation
 	var deletedAllocations []string
 	callbacks := &AllocationProcessing{
@@ -723,12 +723,12 @@ func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
 		},
 	}
 
-	eventsProcessed, err := runAllocationWatching(s, events, callbacks)
-	s.NoError(err)
-	s.Equal(len(events), eventsProcessed)
+	eventsProcessed, err := runAllocationWatching(suite, events, callbacks)
+	suite.NoError(err)
+	suite.Equal(len(events), eventsProcessed)
 
-	s.Equal(expectedNewAllocations, newAllocations)
-	s.Equal(expectedDeletedAllocations, deletedAllocations)
+	suite.Equal(expectedNewAllocations, newAllocations)
+	suite.Equal(expectedDeletedAllocations, deletedAllocations)
 }
 
 // runAllocationWatching simulates events streamed from the Nomad event stream

@@ -5,6 +5,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/environment"
@@ -17,12 +24,6 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
-	"time"
 )
 
 func TestWebSocketTestSuite(t *testing.T) {

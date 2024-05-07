@@ -1,12 +1,13 @@
 package runner
 
 import (
+	"testing"
+
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type MainTestSuite struct {

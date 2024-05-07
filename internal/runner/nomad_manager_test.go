@@ -2,6 +2,10 @@ package runner
 
 import (
 	"context"
+	"strconv"
+	"testing"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -14,9 +18,6 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"strconv"
-	"testing"
-	"time"
 )
 
 func TestGetNextRunnerTestSuite(t *testing.T) {

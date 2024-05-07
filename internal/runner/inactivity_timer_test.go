@@ -1,11 +1,12 @@
 package runner
 
 import (
+	"testing"
+	"time"
+
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 func TestInactivityTimerTestSuite(t *testing.T) {

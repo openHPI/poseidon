@@ -3,8 +3,9 @@ package runner
 import (
 	"context"
 	"fmt"
-	"github.com/openHPI/poseidon/pkg/dto"
 	"time"
+
+	"github.com/openHPI/poseidon/pkg/dto"
 )
 
 type AWSRunnerManager struct {

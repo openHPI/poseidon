@@ -2,13 +2,14 @@ package environment
 
 import (
 	"context"
+	"testing"
+
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type MainTestSuite struct {

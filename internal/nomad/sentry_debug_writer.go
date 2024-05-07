@@ -3,11 +3,12 @@ package nomad
 import (
 	"context"
 	"fmt"
-	"github.com/getsentry/sentry-go"
 	"io"
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/getsentry/sentry-go"
 )
 
 var (

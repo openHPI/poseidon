@@ -1,15 +1,16 @@
 package api
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func mockHTTPHandler(writer http.ResponseWriter, _ *http.Request) {

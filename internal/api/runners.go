@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/config"
@@ -11,11 +17,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
-	"io"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
 )
 
 const (

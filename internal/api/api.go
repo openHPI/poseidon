@@ -1,6 +1,8 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/api/auth"
 	"github.com/openHPI/poseidon/internal/config"
@@ -9,7 +11,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
-	"net/http"
 )
 
 var log = logging.GetLogger("api")

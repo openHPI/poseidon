@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"

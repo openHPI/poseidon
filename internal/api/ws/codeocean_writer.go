@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"io"
 )
 
 // CodeOceanOutputWriterBufferSize defines the number of messages.

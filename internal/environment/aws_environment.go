@@ -3,6 +3,7 @@ package environment
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 )

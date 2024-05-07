@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	nomadApi "github.com/hashicorp/nomad/api"
-	"github.com/openHPI/poseidon/internal/config"
-	"github.com/openHPI/poseidon/pkg/dto"
 	"strconv"
 	"strings"
 	"time"
+
+	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/pkg/dto"
 )
 
 const (

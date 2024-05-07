@@ -7,13 +7,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
-	nomadApi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/openHPI/poseidon/internal/config"
-	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/tests"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +14,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/tests"
 )
 
 // BuildURL joins multiple route paths.

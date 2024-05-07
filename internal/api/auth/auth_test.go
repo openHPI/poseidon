@@ -1,15 +1,16 @@
 package auth
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 const testToken = "C0rr3ctT0k3n"

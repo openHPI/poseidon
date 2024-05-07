@@ -1,11 +1,12 @@
 package e2e
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"testing"
 )
 
 func TestHealthRoute(t *testing.T) {

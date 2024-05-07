@@ -2,6 +2,10 @@ package environment
 
 import (
 	"context"
+	"os"
+	"testing"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -12,9 +16,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"os"
-	"testing"
-	"time"
 )
 
 type CreateOrUpdateTestSuite struct {

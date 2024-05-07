@@ -7,17 +7,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
+	"os"
+	"reflect"
+	"strconv"
+	"strings"
+
 	"github.com/getsentry/sentry-go"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"net/url"
-	"os"
-	"reflect"
-	"strconv"
-	"strings"
 )
 
 const (

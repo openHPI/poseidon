@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/openHPI/poseidon/internal/api"
-	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/tests"
-	"github.com/openHPI/poseidon/tests/helpers"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/openHPI/poseidon/internal/api"
+	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/tests"
+	"github.com/openHPI/poseidon/tests/helpers"
+	"github.com/stretchr/testify/require"
 )
 
 func (s *E2ETestSuite) TestProvideRunnerRoute() {

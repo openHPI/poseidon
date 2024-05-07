@@ -2,11 +2,12 @@ package storage
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/pkg/monitoring"
-	"sync"
-	"time"
 )
 
 // Storage is an interface for storing objects.

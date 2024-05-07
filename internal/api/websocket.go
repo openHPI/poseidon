@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/api/ws"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
-	"net/http"
 )
 
 var ErrUnknownExecutionID = errors.New("execution id unknown")

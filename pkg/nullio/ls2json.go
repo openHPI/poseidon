@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/getsentry/sentry-go"
-	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/pkg/logging"
 	"io"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/getsentry/sentry-go"
+	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/logging"
 )
 
 var (

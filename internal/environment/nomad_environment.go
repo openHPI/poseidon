@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/google/uuid"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec2"
@@ -15,9 +19,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/pkg/util"
-	"strconv"
-	"sync"
-	"time"
 )
 
 const portNumberBase = 10

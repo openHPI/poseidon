@@ -3,6 +3,12 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"testing"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/config"
@@ -12,11 +18,6 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"strings"
-	"testing"
-	"time"
 )
 
 var isAWSEnvironment = []bool{false}

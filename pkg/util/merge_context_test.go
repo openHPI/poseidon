@@ -2,11 +2,12 @@ package util
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type MainTestSuite struct {

@@ -3,8 +3,6 @@ package tests
 import (
 	"bytes"
 	"context"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"os"
 	"regexp"
@@ -12,6 +10,9 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"time"
+
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 // ChannelReceivesSomething waits timeout seconds for something to be received from channel ch.

@@ -71,7 +71,7 @@ func TestMainTestSuite(t *testing.T) {
 func (s *MainTestSuite) TestCallingInitConfigTwiceReturnsError() {
 	configurationInitialized = false
 	err := InitConfig()
-	s.NoError(err)
+	s.Require().NoError(err)
 	err = InitConfig()
 	s.Error(err)
 }
@@ -128,7 +128,7 @@ func (s *MainTestSuite) TestReadEnvironmentIgnoresNotSupportedType() {
 	_ = os.Setenv("POSEIDON_TEST_TIMEOUT", "2.5")
 	readFromEnvironment("POSEIDON_TEST", reflect.ValueOf(config).Elem())
 	_ = os.Unsetenv("POSEIDON_TEST_TIMEOUT")
-	s.Equal(1.0, config.Timeout)
+	s.Equal(1, int(config.Timeout))
 }
 
 func (s *MainTestSuite) TestUnsetEnvironmentVariableDoesNotChangeConfig() {
@@ -166,15 +166,16 @@ func (s *MainTestSuite) TestInvalidYamlExitsProgram() {
 	log = logger.WithField("package", "config_test")
 	config := newTestConfiguration()
 	config.mergeYaml([]byte("logger: level: DEBUG"))
-	s.Equal(1, len(hook.Entries))
+	s.Len(hook.Entries, 1)
 	s.Equal(logrus.FatalLevel, hook.LastEntry().Level)
 }
 
 func (s *MainTestSuite) TestReadConfigFileOverwritesConfig() {
 	Config = newTestConfiguration()
-	filePath := writeConfigurationFile(s.T(), "test.yaml", []byte("server:\n  port: 5000\n"))
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
+
+	filePath := writeConfigurationFile(s.T(), "test.yaml", []byte("server:\n  port: 5000\n"))
 	os.Args = append(os.Args, "-config", filePath)
 	configurationInitialized = false
 	err := InitConfig()
@@ -186,6 +187,7 @@ func (s *MainTestSuite) TestReadNonExistingConfigFileDoesNotOverwriteConfig() {
 	Config = newTestConfiguration()
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
+
 	os.Args = append(os.Args, "-config", "file_does_not_exist.yaml")
 	configurationInitialized = false
 	err := InitConfig()

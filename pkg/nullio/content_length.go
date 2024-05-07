@@ -40,13 +40,13 @@ func (w *ContentLengthWriter) handleDataForwarding(p []byte) (int, error) {
 	return count, err
 }
 
-func (w *ContentLengthWriter) handleContentLengthParsing(p []byte) (count int, err error) {
-	for i, char := range p {
+func (w *ContentLengthWriter) handleContentLengthParsing(dataWithContentLength []byte) (count int, err error) {
+	for charIndex, char := range dataWithContentLength {
 		if char != '\n' {
 			continue
 		}
 
-		w.firstLine = append(w.firstLine, p[:i]...)
+		w.firstLine = append(w.firstLine, dataWithContentLength[:charIndex]...)
 		matches := headerLineRegex.FindSubmatch(w.firstLine)
 		if len(matches) < headerLineGroupName {
 			log.WithField("line", string(w.firstLine)).Error(ErrRegexMatching.Error())
@@ -60,21 +60,21 @@ func (w *ContentLengthWriter) handleContentLengthParsing(p []byte) (count int, e
 		w.Target.Header().Set("Content-Length", size)
 		w.contentLengthSet = true
 
-		if i < len(p)-1 {
-			count, err = w.Target.Write(p[i+1:])
+		if charIndex < len(dataWithContentLength)-1 {
+			count, err = w.Target.Write(dataWithContentLength[charIndex+1:])
 			if err != nil {
 				err = fmt.Errorf("could not write to target: %w", err)
 			}
 		}
 
-		return len(p[:i]) + 1 + count, err
+		return len(dataWithContentLength[:charIndex]) + 1 + count, err
 	}
 
 	if !w.contentLengthSet {
-		w.firstLine = append(w.firstLine, p...)
+		w.firstLine = append(w.firstLine, dataWithContentLength...)
 	}
 
-	return len(p), nil
+	return len(dataWithContentLength), nil
 }
 
 // SendMonitoringData will send a monitoring event of the content length read and written.

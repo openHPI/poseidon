@@ -41,9 +41,27 @@ linters-settings:
     locale: US
   nakedret:
     max-func-lines: 5
+  varnamelen:
+    ignore-decls:
+      - err error
+      - ok bool
+      - r *http.Request
+      - w http.ResponseWriter
+      - r runner.Runner
+      - r Runner
+      - wg sync.WaitGroup
 
 linters:
   enable-all: true
+  disable:
+    - execinquery
+    - ireturn
+    - gomnd
+    - nlreturn
+    - nonamedreturns
+    - paralleltest
+    - testpackage
+    - wsl
 
 issues:
   exclude-rules:

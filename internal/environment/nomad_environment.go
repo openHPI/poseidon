@@ -34,7 +34,7 @@ type NomadEnvironment struct {
 	cancel      context.CancelFunc
 }
 
-func NewNomadEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
+func NewNomadEnvironment(environmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
 	job, err := parseJob(jobHCL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
@@ -43,18 +43,18 @@ func NewNomadEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobH
 	ctx, cancel := context.WithCancel(context.Background())
 	e := &NomadEnvironment{apiClient, jobHCL, job, nil, ctx, cancel}
 	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
-		runner.MonitorEnvironmentID[runner.Runner](id), time.Minute, ctx)
+		runner.MonitorEnvironmentID[runner.Runner](environmentID), time.Minute, ctx)
 	return e, nil
 }
 
 func NewNomadEnvironmentFromRequest(
-	apiClient nomad.ExecutorAPI, jobHCL string, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
+	apiClient nomad.ExecutorAPI, jobHCL string, environmentID dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
 	*NomadEnvironment, error) {
-	environment, err := NewNomadEnvironment(id, apiClient, jobHCL)
+	environment, err := NewNomadEnvironment(environmentID, apiClient, jobHCL)
 	if err != nil {
 		return nil, err
 	}
-	environment.SetID(id)
+	environment.SetID(environmentID)
 
 	// Set options according to request
 	environment.SetPrewarmingPoolSize(request.PrewarmingPoolSize)
@@ -150,8 +150,8 @@ func (n *NomadEnvironment) SetImage(image string) {
 func (n *NomadEnvironment) NetworkAccess() (allowed bool, ports []uint16) {
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
-
 	allowed = defaultTask.Config["network_mode"] != "none"
+
 	if len(defaultTaskGroup.Networks) > 0 {
 		networkResource := defaultTaskGroup.Networks[0]
 		for _, port := range networkResource.DynamicPorts {
@@ -262,14 +262,14 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 	return r, ok
 }
 
-func (n *NomadEnvironment) AddRunner(r runner.Runner) {
-	if replacedRunner, ok := n.idleRunners.Get(r.ID()); ok {
+func (n *NomadEnvironment) AddRunner(object runner.Runner) {
+	if replacedRunner, ok := n.idleRunners.Get(object.ID()); ok {
 		err := replacedRunner.Destroy(runner.ErrDestroyedAndReplaced)
 		if err != nil {
 			log.WithError(err).Warn("failed removing runner before replacing it")
 		}
 	}
-	n.idleRunners.Add(r.ID(), r)
+	n.idleRunners.Add(object.ID(), object)
 }
 
 func (n *NomadEnvironment) DeleteRunner(id string) (r runner.Runner, ok bool) {
@@ -344,7 +344,7 @@ func parseJob(jobHCL string) (*nomadApi.Job, error) {
 
 func (n *NomadEnvironment) createRunners(count uint, forcePull bool) error {
 	log.WithField("runnersRequired", count).WithField(dto.KeyEnvironmentID, n.ID()).Debug("Creating new runners")
-	for i := 0; i < int(count); i++ {
+	for range count {
 		err := n.createRunner(forcePull)
 		if err != nil {
 			return fmt.Errorf("couldn't create new runner: %w", err)
@@ -394,15 +394,16 @@ func (n *NomadEnvironment) removeRunners(reason runner.DestroyReason) error {
 
 	// Block execution until Nomad confirmed all deletion requests.
 	var wg sync.WaitGroup
-	for _, id := range ids {
+	for _, runnerID := range ids {
 		wg.Add(1)
+
 		go func(jobID string) {
 			defer wg.Done()
 			deleteErr := n.apiClient.DeleteJob(jobID)
 			if deleteErr != nil {
 				err = deleteErr
 			}
-		}(id)
+		}(runnerID)
 	}
 	wg.Wait()
 	return err

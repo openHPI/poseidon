@@ -44,9 +44,9 @@ func NewSentryDebugWriter(target io.Writer, ctx context.Context) *SentryDebugWri
 }
 
 // Improve: Handling of a split debug messages (usually, p is exactly one debug message, not less and not more).
-func (s *SentryDebugWriter) Write(p []byte) (n int, err error) {
+func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 	if s.Ctx.Err() != nil {
-		return 0, err
+		return 0, fmt.Errorf("SentryDebugWriter context error: %w", s.Ctx.Err())
 	}
 	// Peaking if the target is able to write.
 	// If not we should not process the data (see #325).
@@ -54,17 +54,17 @@ func (s *SentryDebugWriter) Write(p []byte) (n int, err error) {
 		return 0, fmt.Errorf("SentryDebugWriter cannot write to target: %w", err)
 	}
 
-	if !timeDebugMessagePatternStart.Match(p) {
-		count, err := s.Target.Write(p)
+	if !timeDebugMessagePatternStart.Match(debugData) {
+		count, err := s.Target.Write(debugData)
 		if err != nil {
 			err = fmt.Errorf("SentryDebugWriter Forwarded Error: %w", err)
 		}
 		return count, err
 	}
 
-	match := matchAndMapTimeDebugMessage(p)
+	match := matchAndMapTimeDebugMessage(debugData)
 	if match == nil {
-		log.WithContext(s.Ctx).WithField("data", p).Warn("Exec debug message could not be read completely")
+		log.WithContext(s.Ctx).WithField("data", debugData).Warn("Exec debug message could not be read completely")
 		return 0, nil
 	}
 
@@ -75,7 +75,7 @@ func (s *SentryDebugWriter) Write(p []byte) (n int, err error) {
 	}
 
 	s.handleTimeDebugMessage(match)
-	n += len(p) - len(match["before"]) - len(match["after"])
+	n += len(debugData) - len(match["before"]) - len(match["after"])
 
 	if len(match["after"]) > 0 {
 		var count int

@@ -44,22 +44,22 @@ func (n *AbstractManager) CreateOrUpdate(_ dto.EnvironmentID, _ dto.ExecutionEnv
 	return false, nil
 }
 
-func (n *AbstractManager) Delete(id dto.EnvironmentID) (bool, error) {
+func (n *AbstractManager) Delete(environmentID dto.EnvironmentID) (bool, error) {
 	if n.runnerManager == nil {
 		return false, nil
 	}
 
-	e, ok := n.runnerManager.GetEnvironment(id)
+	executionEnvironment, ok := n.runnerManager.GetEnvironment(environmentID)
 	if !ok {
-		isFound, err := n.NextHandler().Delete(id)
+		isFound, err := n.NextHandler().Delete(environmentID)
 		if err != nil {
 			return false, fmt.Errorf("abstract wrapped: %w", err)
 		}
 		return isFound, nil
 	}
 
-	n.runnerManager.DeleteEnvironment(id)
-	if err := e.Delete(runner.ErrDestroyedByAPIRequest); err != nil {
+	n.runnerManager.DeleteEnvironment(environmentID)
+	if err := executionEnvironment.Delete(runner.ErrDestroyedByAPIRequest); err != nil {
 		return true, fmt.Errorf("could not delete environment: %w", err)
 	}
 	return true, nil

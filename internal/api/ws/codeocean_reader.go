@@ -129,6 +129,7 @@ func inputContainsError(messageType int, err error, ctx context.Context) (done b
 func (cr *codeOceanToRawReader) Start() {
 	ctx, cancel := context.WithCancel(cr.readCtx)
 	cr.cancelReadCtx = cancel
+
 	go cr.readInputLoop(ctx)
 }
 
@@ -139,8 +140,8 @@ func (cr *codeOceanToRawReader) Stop() {
 
 // Read implements the io.Reader interface.
 // It returns bytes from the buffer or priorityBuffer.
-func (cr *codeOceanToRawReader) Read(p []byte) (int, error) {
-	if len(p) == 0 {
+func (cr *codeOceanToRawReader) Read(rawData []byte) (int, error) {
+	if len(rawData) == 0 {
 		return 0, nil
 	}
 
@@ -148,19 +149,20 @@ func (cr *codeOceanToRawReader) Read(p []byte) (int, error) {
 	select {
 	case <-cr.executorCtx.Done():
 		return 0, io.EOF
-	case p[0] = <-cr.priorityBuffer:
-	case p[0] = <-cr.buffer:
+	case rawData[0] = <-cr.priorityBuffer:
+	case rawData[0] = <-cr.buffer:
 	}
-	var n int
-	for n = 1; n < len(p); n++ {
+
+	var bytesWritten int
+	for bytesWritten = 1; bytesWritten < len(rawData); bytesWritten++ {
 		select {
-		case p[n] = <-cr.priorityBuffer:
-		case p[n] = <-cr.buffer:
+		case rawData[bytesWritten] = <-cr.priorityBuffer:
+		case rawData[bytesWritten] = <-cr.buffer:
 		default:
-			return n, nil
+			return bytesWritten, nil
 		}
 	}
-	return n, nil
+	return bytesWritten, nil
 }
 
 // Write implements the io.Writer interface.

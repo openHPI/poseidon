@@ -117,12 +117,12 @@ func (s *E2ETestSuite) TestCommandHead() {
 	s.Require().NoError(err)
 	s.Equal(dto.WebSocketMetaStart, startMessage.Type)
 
-	err = connection.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("%s\n", hello)))
+	err = connection.WriteMessage(websocket.TextMessage, []byte(hello+"\n"))
 	s.Require().NoError(err)
 
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 	s.Require().Error(err)
-	s.Equal(err, &websocket.CloseError{Code: websocket.CloseNormalClosure})
+	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
 	stdout, _, _ := helpers.WebSocketOutputMessages(messages)
 	s.Regexp(fmt.Sprintf(`(%s\r\n?){2}`, hello), stdout)
 }
@@ -191,20 +191,20 @@ func (s *E2ETestSuite) TestCommandReturnsAfterTimeout() {
 				&dto.ExecutionRequest{Command: "sleep 4", TimeLimit: 1}, nil)
 			s.Require().NoError(err)
 
-			c := make(chan bool)
+			timeoutTestChannel := make(chan bool)
 			var messages []*dto.WebSocketMessage
 			go func() {
 				messages, err = helpers.ReceiveAllWebSocketMessages(connection)
 				if !s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err) {
 					s.T().Fail()
 				}
-				close(c)
+				close(timeoutTestChannel)
 			}()
 
 			select {
 			case <-time.After(2 * time.Second):
 				s.T().Fatal("The execution should have returned by now")
-			case <-c:
+			case <-timeoutTestChannel:
 				if s.Equal(&dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout}, messages[len(messages)-1]) {
 					return
 				}
@@ -277,9 +277,9 @@ func (s *E2ETestSuite) TestTerminatedByClient() {
 			<-time.After(time.Millisecond)
 			err := connection.WriteControl(websocket.CloseMessage,
 				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-			s.Require().NoError(err)
+			s.NoError(err)
 			err = connection.Close()
-			s.Require().NoError(err)
+			s.NoError(err)
 		}()
 
 		_, err = helpers.ReceiveAllWebSocketMessages(connection)
@@ -358,10 +358,10 @@ func ExecuteNonInteractive(s *suite.Suite, environmentID dto.EnvironmentID, exec
 
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 	s.Require().Error(err)
-	s.Equal(err, &websocket.CloseError{Code: websocket.CloseNormalClosure})
+	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
 
 	controlMessages := helpers.WebSocketControlMessages(messages)
-	s.Require().Equal(1, len(controlMessages))
+	s.Require().Len(controlMessages, 1)
 	exitMessage := controlMessages[0]
 	s.Require().Equal(dto.WebSocketExit, exitMessage.Type)
 
@@ -371,7 +371,7 @@ func ExecuteNonInteractive(s *suite.Suite, environmentID dto.EnvironmentID, exec
 }
 
 // ProvideWebSocketConnection establishes a client WebSocket connection to run the passed ExecutionRequest.
-func ProvideWebSocketConnection(s *suite.Suite, environmentID dto.EnvironmentID, executionRequest *dto.ExecutionRequest,
+func ProvideWebSocketConnection(suite *suite.Suite, environmentID dto.EnvironmentID, executionRequest *dto.ExecutionRequest,
 	copyRequest *dto.UpdateFileSystemRequest) (*websocket.Conn, error) {
 	runnerID, err := ProvideRunner(&dto.RunnerRequest{ExecutionEnvironmentID: int(environmentID)})
 	if err != nil {
@@ -379,11 +379,11 @@ func ProvideWebSocketConnection(s *suite.Suite, environmentID dto.EnvironmentID,
 	}
 	if copyRequest != nil {
 		resp, err := CopyFiles(runnerID, copyRequest)
-		s.Require().NoError(err)
-		s.Require().Equal(http.StatusNoContent, resp.StatusCode)
+		suite.Require().NoError(err)
+		suite.Require().Equal(http.StatusNoContent, resp.StatusCode)
 	}
 	webSocketURL, err := ProvideWebSocketURL(runnerID, executionRequest)
-	s.Require().NoError(err)
+	suite.Require().NoError(err)
 	connection, err := ConnectToWebSocket(webSocketURL)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to WebSocket: %w", err)

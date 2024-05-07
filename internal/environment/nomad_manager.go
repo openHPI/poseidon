@@ -49,17 +49,18 @@ func NewNomadEnvironmentManager(
 	return m, nil
 }
 
-func (m *NomadEnvironmentManager) Get(id dto.EnvironmentID, fetch bool) (
+func (m *NomadEnvironmentManager) Get(environmentID dto.EnvironmentID, fetch bool) (
 	executionEnvironment runner.ExecutionEnvironment, err error) {
-	executionEnvironment, ok := m.runnerManager.GetEnvironment(id)
+	executionEnvironment, ok := m.runnerManager.GetEnvironment(environmentID)
 
 	if fetch {
-		fetchedEnvironment, err := fetchEnvironment(id, m.api)
+		fetchedEnvironment, err := fetchEnvironment(environmentID, m.api)
+
 		switch {
 		case err != nil:
 			return nil, err
 		case fetchedEnvironment == nil:
-			_, err = m.Delete(id)
+			_, err = m.Delete(environmentID)
 			if err != nil {
 				return nil, err
 			}
@@ -259,19 +260,19 @@ func loadTemplateEnvironmentJobHCL(path string) error {
 	return nil
 }
 
-func fetchEnvironment(id dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner.ExecutionEnvironment, error) {
+func fetchEnvironment(requestedEnvironmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner.ExecutionEnvironment, error) {
 	environments, err := apiClient.LoadEnvironmentJobs()
 	if err != nil {
 		return nil, fmt.Errorf("error fetching the environment jobs: %w", err)
 	}
 	var fetchedEnvironment runner.ExecutionEnvironment
 	for _, job := range environments {
-		environmentID, err := nomad.EnvironmentIDFromTemplateJobID(*job.ID)
+		fetchedEnvironmentID, err := nomad.EnvironmentIDFromTemplateJobID(*job.ID)
 		if err != nil {
 			log.WithError(err).Warn("Cannot parse environment id of loaded environment")
 			continue
 		}
-		if id == environmentID {
+		if requestedEnvironmentID == fetchedEnvironmentID {
 			fetchedEnvironment = newNomadEnvironmentFromJob(job, apiClient)
 		}
 	}

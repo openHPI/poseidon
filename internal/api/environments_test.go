@@ -116,12 +116,12 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 		s.Require().True(ok)
 		environments, ok := environmentsInterface.([]interface{})
 		s.Require().True(ok)
-		s.Equal(2, len(environments))
+		s.Len(environments, 2)
 
 		err = firstEnvironment.Delete(tests.ErrCleanupDestroyReason)
-		s.NoError(err)
+		s.Require().NoError(err)
 		err = secondEnvironment.Delete(tests.ErrCleanupDestroyReason)
-		s.NoError(err)
+		s.Require().NoError(err)
 	})
 }
 

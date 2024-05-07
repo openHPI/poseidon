@@ -38,6 +38,6 @@ func (s *MainTestSuite) TestHTTPMiddlewareDebugsWhenStatusOK() {
 	recorder := httptest.NewRecorder()
 	HTTPLoggingMiddleware(mockHTTPStatusHandler(200)).ServeHTTP(recorder, request)
 
-	s.Equal(1, len(hook.Entries))
+	s.Len(hook.Entries, 1)
 	s.Equal(logrus.DebugLevel, hook.LastEntry().Level)
 }

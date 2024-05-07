@@ -53,8 +53,8 @@ var (
 	influxClient influxdb2API.WriteAPI
 )
 
-func InitializeInfluxDB(db *config.InfluxDB) (cancel func()) {
-	if db.URL == "" {
+func InitializeInfluxDB(influxConfiguration *config.InfluxDB) (cancel func()) {
+	if influxConfiguration.URL == "" {
 		return func() {}
 	}
 
@@ -75,14 +75,14 @@ func InitializeInfluxDB(db *config.InfluxDB) (cancel func()) {
 	options.SetRetryBufferLimit(retryBufferLimit)
 
 	// Create a new influx client.
-	client := influxdb2.NewClientWithOptions(db.URL, db.Token, options)
-	influxClient = client.WriteAPI(db.Organization, db.Bucket)
-	influxClient.SetWriteFailedCallback(func(_ string, error http2.Error, retryAttempts uint) bool {
-		log.WithError(&error).WithField("retryAttempts", retryAttempts).Trace("Retrying to write influx data...")
+	client := influxdb2.NewClientWithOptions(influxConfiguration.URL, influxConfiguration.Token, options)
+	influxClient = client.WriteAPI(influxConfiguration.Organization, influxConfiguration.Bucket)
+	influxClient.SetWriteFailedCallback(func(_ string, err http2.Error, retryAttempts uint) bool {
+		log.WithError(&err).WithField("retryAttempts", retryAttempts).Trace("Retrying to write influx data...")
 
 		// retryAttempts means number of retries, 0 if it failed during first write.
 		if retryAttempts == options.MaxRetries() {
-			log.WithError(&error).Warn("Could not write influx data.")
+			log.WithError(&err).Warn("Could not write influx data.")
 			return false // Disable retry. We failed to retry writing the data in time.
 		}
 		return true // Enable retry (default)
@@ -101,20 +101,20 @@ func InitializeInfluxDB(db *config.InfluxDB) (cancel func()) {
 func InfluxDB2Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		route := mux.CurrentRoute(r).GetName()
-		p := influxdb2.NewPointWithMeasurement(measurementPrefix + route)
+		dataPoint := influxdb2.NewPointWithMeasurement(measurementPrefix + route)
 
 		start := time.Now().UTC()
-		p.SetTime(time.Now())
+		dataPoint.SetTime(time.Now())
 
-		ctx := context.WithValue(r.Context(), influxdbContextKey, p)
+		ctx := context.WithValue(r.Context(), influxdbContextKey, dataPoint)
 		requestWithPoint := r.WithContext(ctx)
 		lrw := logging.NewLoggingResponseWriter(w)
 		next.ServeHTTP(lrw, requestWithPoint)
 
-		p.AddField(InfluxKeyDuration, time.Now().UTC().Sub(start).Nanoseconds())
-		p.AddTag("status", strconv.Itoa(lrw.StatusCode))
+		dataPoint.AddField(InfluxKeyDuration, time.Now().UTC().Sub(start).Nanoseconds())
+		dataPoint.AddTag("status", strconv.Itoa(lrw.StatusCode))
 
-		WriteInfluxPoint(p)
+		WriteInfluxPoint(dataPoint)
 	})
 }
 
@@ -162,20 +162,20 @@ func ChangedPrewarmingPoolSize(id dto.EnvironmentID, count uint) {
 }
 
 // WriteInfluxPoint schedules the influx data point to be sent.
-func WriteInfluxPoint(p *write.Point) {
+func WriteInfluxPoint(dataPoint *write.Point) {
 	if influxClient != nil {
-		p.AddTag("stage", config.Config.InfluxDB.Stage)
+		dataPoint.AddTag("stage", config.Config.InfluxDB.Stage)
 		// We identified that the influxClient is not truly asynchronous. See #541.
-		go func() { influxClient.WritePoint(p) }()
+		go func() { influxClient.WritePoint(dataPoint) }()
 	} else {
-		entry := log.WithField("name", p.Name())
-		for _, tag := range p.TagList() {
+		entry := log.WithField("name", dataPoint.Name())
+		for _, tag := range dataPoint.TagList() {
 			if tag.Key == "event_type" && tag.Value == "periodically" {
 				return
 			}
 			entry = entry.WithField(tag.Key, tag.Value)
 		}
-		for _, field := range p.FieldList() {
+		for _, field := range dataPoint.FieldList() {
 			entry = entry.WithField(field.Key, field.Value)
 		}
 		entry.Trace("Influx data point")

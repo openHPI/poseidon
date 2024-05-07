@@ -19,36 +19,36 @@ func TestMainTestSuite(t *testing.T) {
 }
 
 func (s *MainTestSuite) TestAWSRunnerManager_EnvironmentAccessor() {
-	m := NewAWSRunnerManager(s.TestCtx)
+	runnerManager := NewAWSRunnerManager(s.TestCtx)
 
-	environments := m.ListEnvironments()
+	environments := runnerManager.ListEnvironments()
 	s.Empty(environments)
 
 	environment := createBasicEnvironmentMock(defaultEnvironmentID)
-	m.StoreEnvironment(environment)
+	runnerManager.StoreEnvironment(environment)
 
-	environments = m.ListEnvironments()
+	environments = runnerManager.ListEnvironments()
 	s.Len(environments, 1)
 	s.Equal(environments[0].ID(), dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 
-	e, ok := m.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
+	e, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)
 	s.True(ok)
 	s.Equal(environment, e)
 
-	_, ok = m.GetEnvironment(tests.AnotherEnvironmentIDAsInteger)
+	_, ok = runnerManager.GetEnvironment(tests.AnotherEnvironmentIDAsInteger)
 	s.False(ok)
 }
 
 func (s *MainTestSuite) TestAWSRunnerManager_Claim() {
-	m := NewAWSRunnerManager(s.TestCtx)
+	runnerManager := NewAWSRunnerManager(s.TestCtx)
 	environment := createBasicEnvironmentMock(defaultEnvironmentID)
-	r, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
+	runnerWorkload, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
 	s.NoError(err)
-	environment.On("Sample").Return(r, true)
-	m.StoreEnvironment(environment)
+	environment.On("Sample").Return(runnerWorkload, true)
+	runnerManager.StoreEnvironment(environment)
 
 	s.Run("returns runner for AWS environment", func() {
-		r, err := m.Claim(tests.DefaultEnvironmentIDAsInteger, 60)
+		r, err := runnerManager.Claim(tests.DefaultEnvironmentIDAsInteger, 60)
 		s.NoError(err)
 		s.NotNil(r)
 	})
@@ -57,42 +57,42 @@ func (s *MainTestSuite) TestAWSRunnerManager_Claim() {
 		nextHandler := &ManagerMock{}
 		nextHandler.On("Claim", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("int")).
 			Return(nil, nil)
-		m.SetNextHandler(nextHandler)
+		runnerManager.SetNextHandler(nextHandler)
 
-		_, err := m.Claim(tests.AnotherEnvironmentIDAsInteger, 60)
-		s.Nil(err)
+		_, err := runnerManager.Claim(tests.AnotherEnvironmentIDAsInteger, 60)
+		s.NoError(err)
 		nextHandler.AssertCalled(s.T(), "Claim", dto.EnvironmentID(tests.AnotherEnvironmentIDAsInteger), 60)
 	})
 
-	err = r.Destroy(nil)
+	err = runnerWorkload.Destroy(nil)
 	s.NoError(err)
 }
 
 func (s *MainTestSuite) TestAWSRunnerManager_Return() {
-	m := NewAWSRunnerManager(s.TestCtx)
+	runnerManager := NewAWSRunnerManager(s.TestCtx)
 	environment := createBasicEnvironmentMock(defaultEnvironmentID)
-	m.StoreEnvironment(environment)
-	r, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
+	runnerManager.StoreEnvironment(environment)
+	runnerWorkload, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
 	s.NoError(err)
 
 	s.Run("removes usedRunner", func() {
-		m.usedRunners.Add(r.ID(), r)
-		s.Contains(m.usedRunners.List(), r)
+		runnerManager.usedRunners.Add(runnerWorkload.ID(), runnerWorkload)
+		s.Contains(runnerManager.usedRunners.List(), runnerWorkload)
 
-		err := m.Return(r)
+		err := runnerManager.Return(runnerWorkload)
 		s.NoError(err)
-		s.NotContains(m.usedRunners.List(), r)
+		s.NotContains(runnerManager.usedRunners.List(), runnerWorkload)
 	})
 
 	s.Run("calls nextHandler for non-AWS runner", func() {
 		nextHandler := &ManagerMock{}
 		nextHandler.On("Return", mock.AnythingOfType("*runner.NomadJob")).Return(nil)
-		m.SetNextHandler(nextHandler)
+		runnerManager.SetNextHandler(nextHandler)
 
 		apiMock := &nomad.ExecutorAPIMock{}
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 		nonAWSRunner := NewNomadJob(tests.DefaultRunnerID, nil, apiMock, nil)
-		err := m.Return(nonAWSRunner)
+		err := runnerManager.Return(nonAWSRunner)
 		s.NoError(err)
 		nextHandler.AssertCalled(s.T(), "Return", nonAWSRunner)
 
@@ -100,7 +100,7 @@ func (s *MainTestSuite) TestAWSRunnerManager_Return() {
 		s.NoError(err)
 	})
 
-	err = r.Destroy(nil)
+	err = runnerWorkload.Destroy(nil)
 	s.NoError(err)
 }
 

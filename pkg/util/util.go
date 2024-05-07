@@ -3,8 +3,9 @@ package util
 import (
 	"context"
 	"errors"
-	"github.com/openHPI/poseidon/pkg/logging"
 	"time"
+
+	"github.com/openHPI/poseidon/pkg/logging"
 )
 
 var (

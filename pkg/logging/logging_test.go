@@ -1,14 +1,15 @@
 package logging
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func mockHTTPStatusHandler(status int) http.Handler {

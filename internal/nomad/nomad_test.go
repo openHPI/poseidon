@@ -5,6 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"regexp"
+	"strings"
+	"testing"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
@@ -14,11 +20,6 @@ import (
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"io"
-	"regexp"
-	"strings"
-	"testing"
-	"time"
 )
 
 var (

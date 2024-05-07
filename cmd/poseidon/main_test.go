@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -10,8 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sys/unix"
-	"testing"
-	"time"
 )
 
 type MainTestSuite struct {

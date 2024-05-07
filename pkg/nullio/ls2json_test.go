@@ -3,9 +3,10 @@ package nullio
 import (
 	"bytes"
 	"context"
+	"testing"
+
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 func TestLs2JsonTestSuite(t *testing.T) {

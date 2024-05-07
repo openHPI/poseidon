@@ -2,10 +2,11 @@ package runner
 
 import (
 	"encoding/json"
+	"strconv"
+
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/storage"
-	"strconv"
 )
 
 // ExecutionEnvironment are groups of runner that share the configuration stored in the environment.

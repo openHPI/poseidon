@@ -3,15 +3,16 @@ package runner
 import (
 	"context"
 	"encoding/base64"
-	"github.com/gorilla/websocket"
-	"github.com/openHPI/poseidon/internal/config"
-	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/openHPI/poseidon/tests"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/tests"
 )
 
 func (s *MainTestSuite) TestAWSExecutionRequestIsStored() {

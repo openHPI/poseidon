@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
-	"io"
-	"net/http"
-	"time"
 )
 
 var ErrWrongMessageType = errors.New("received message that is not a text message")

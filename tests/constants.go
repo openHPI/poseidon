@@ -2,9 +2,10 @@ package tests
 
 import (
 	"errors"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"time"
 )
 
 const (

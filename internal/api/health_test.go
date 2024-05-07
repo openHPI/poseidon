@@ -2,13 +2,14 @@ package api
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
-	"io"
-	"net/http"
-	"net/http/httptest"
 )
 
 func (s *MainTestSuite) TestHealth() {

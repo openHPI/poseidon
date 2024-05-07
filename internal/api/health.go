@@ -3,11 +3,12 @@ package api
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"net/http"
-	"strings"
 )
 
 var ErrorPrewarmingPoolDepleting = errors.New("the prewarming pool is depleting")

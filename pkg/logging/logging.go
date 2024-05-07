@@ -3,14 +3,15 @@ package logging
 import (
 	"bufio"
 	"fmt"
-	"github.com/getsentry/sentry-go"
-	"github.com/openHPI/poseidon/pkg/dto"
-	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/getsentry/sentry-go"
+	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/sirupsen/logrus"
 )
 
 const TimestampFormat = "2006-01-02T15:04:05.000000Z"

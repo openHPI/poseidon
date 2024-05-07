@@ -2,9 +2,10 @@ package auth
 
 import (
 	"crypto/subtle"
+	"net/http"
+
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/logging"
-	"net/http"
 )
 
 var log = logging.GetLogger("api/auth")

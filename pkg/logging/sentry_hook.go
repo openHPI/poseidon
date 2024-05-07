@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"errors"
+
 	"github.com/getsentry/sentry-go"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/sirupsen/logrus"

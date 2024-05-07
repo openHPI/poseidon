@@ -4,6 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"testing"
+
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -12,12 +19,6 @@ import (
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"math"
-	"net/http"
-	"net/http/httptest"
-	"strconv"
-	"strings"
-	"testing"
 )
 
 const jobHCLBasicFormat = "job \"%s\" {}"

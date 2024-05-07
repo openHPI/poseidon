@@ -4,6 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
+	"strings"
+	"testing"
+
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -12,12 +19,6 @@ import (
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"strconv"
-	"strings"
-	"testing"
 )
 
 const invalidID = "some-invalid-runner-id"

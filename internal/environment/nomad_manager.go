@@ -4,6 +4,10 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"math"
+	"os"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -14,9 +18,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/pkg/util"
 	"github.com/sirupsen/logrus"
-	"math"
-	"os"
-	"time"
 )
 
 // templateEnvironmentJobHCL holds our default job in HCL format.

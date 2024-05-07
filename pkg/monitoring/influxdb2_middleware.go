@@ -3,6 +3,11 @@ package monitoring
 import (
 	"bytes"
 	"context"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/gorilla/mux"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2API "github.com/influxdata/influxdb-client-go/v2/api"
@@ -11,10 +16,6 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
-	"io"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 const (

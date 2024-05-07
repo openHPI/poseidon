@@ -2,13 +2,14 @@ package ws
 
 import (
 	"context"
+	"io"
+	"strings"
+	"testing"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"io"
-	"strings"
-	"testing"
 )
 
 type MainTestSuite struct {

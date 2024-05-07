@@ -3,10 +3,11 @@ package nullio
 import (
 	"errors"
 	"fmt"
-	"github.com/influxdata/influxdb-client-go/v2/api/write"
-	"github.com/openHPI/poseidon/pkg/monitoring"
 	"net/http"
 	"strconv"
+
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/openHPI/poseidon/pkg/monitoring"
 )
 
 var ErrRegexMatching = errors.New("could not match content length")

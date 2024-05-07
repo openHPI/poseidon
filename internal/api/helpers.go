@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/openHPI/poseidon/pkg/dto"
 	"net/http"
+
+	"github.com/openHPI/poseidon/pkg/dto"
 )
 
 func writeInternalServerError(writer http.ResponseWriter, err error, errorCode dto.ErrorCode, ctx context.Context) {

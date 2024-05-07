@@ -6,6 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"regexp"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
@@ -14,11 +20,6 @@ import (
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"io"
-	"regexp"
-	"strings"
-	"testing"
-	"time"
 )
 
 const defaultExecutionID = "execution-id"

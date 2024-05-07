@@ -8,6 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -16,10 +21,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/nullio"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/pkg/util"
-	"io"
-	"net/http"
-	"strings"
-	"time"
 )
 
 const (

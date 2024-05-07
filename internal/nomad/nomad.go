@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -14,10 +19,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/nullio"
 	"github.com/openHPI/poseidon/pkg/storage"
-	"io"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (

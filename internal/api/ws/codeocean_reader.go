@@ -2,9 +2,10 @@ package ws
 
 import (
 	"context"
+	"io"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/pkg/logging"
-	"io"
 )
 
 const CodeOceanToRawReaderBufferSize = 1024

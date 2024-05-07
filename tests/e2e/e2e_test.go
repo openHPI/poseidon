@@ -2,6 +2,11 @@ package e2e
 
 import (
 	"flag"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/config"
@@ -9,10 +14,6 @@ import (
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"os"
-	"testing"
-	"time"
 )
 
 /*

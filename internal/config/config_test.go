@@ -2,15 +2,16 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+
 	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"os"
-	"path/filepath"
-	"reflect"
-	"testing"
 )
 
 var (

@@ -3,6 +3,9 @@ package environment
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -12,8 +15,6 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
-	"time"
 )
 
 func (s *MainTestSuite) TestConfigureNetworkCreatesNewNetworkWhenNoNetworkExists() {

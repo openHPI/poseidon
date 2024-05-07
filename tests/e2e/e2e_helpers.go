@@ -3,13 +3,14 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
-	"net/http"
-	"time"
 )
 
 var log = logging.GetLogger("e2e-helpers")

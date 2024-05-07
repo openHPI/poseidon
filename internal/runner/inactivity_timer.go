@@ -2,9 +2,10 @@ package runner
 
 import (
 	"errors"
-	"github.com/openHPI/poseidon/pkg/dto"
 	"sync"
 	"time"
+
+	"github.com/openHPI/poseidon/pkg/dto"
 )
 
 // InactivityTimer is a wrapper around a timer that is used to delete a a Runner after some time of inactivity.

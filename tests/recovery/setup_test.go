@@ -1,6 +1,9 @@
 package recovery
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
@@ -8,8 +11,6 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/sys/unix"
-	"net/http"
-	"time"
 )
 
 func (s *E2ERecoveryTestSuite) SetupTest() {

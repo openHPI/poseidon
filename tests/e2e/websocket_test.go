@@ -6,6 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -15,13 +23,6 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"os"
-	"regexp"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 const (

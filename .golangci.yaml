@@ -1,3 +1,6 @@
+run:
+  go: "1.22"
+
 linters-settings:
   errcheck:
     check-type-assertions: true
@@ -7,8 +10,6 @@ linters-settings:
     statements: 50
   gocognit:
     min-complexity: 15
-  goconst:
-    min-occurences: 2
   gocritic:
     enabled-tags:
       - diagnostic
@@ -25,35 +26,26 @@ linters-settings:
   gocyclo:
     min-complexity: 15
   gomnd:
-    settings:
-      mnd:
-        # don't include "assign"
-        checks:
-        - argument
-        - case
-        - condition
-        - operation
-        - return
-  importas:
-    unaliased: false
+    # don't include "assign"
+    checks:
+    - argument
+    - case
+    - condition
+    - operation
+    - return
   lll:
     line-length: 150
   makezero:
     always: true
-  maligned:
-    suggest-new: true
   misspell:
     locale: US
   nakedret:
     max-func-lines: 5
-  stylecheck:
-    go: "1.22"
 
 linters:
   disable-all: true
   enable:
     # default
-    - deadcode
     - errcheck
     - gosimple
     - govet
@@ -61,7 +53,6 @@ linters:
     - staticcheck
     - typecheck
     - unused
-    - varcheck
     # additional linters, see https://golangci-lint.run/usage/linters
     - bodyclose
     - dogsled
@@ -75,9 +66,9 @@ linters:
     - gocritic
     - gocyclo
     - godot
-    - goerr113
+    - err113
     - gofmt
-    - gomnd
+    - mnd
     - goprintffuncname
     - gosec
     - importas

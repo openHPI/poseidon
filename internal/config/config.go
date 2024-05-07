@@ -20,12 +20,18 @@ import (
 	"strings"
 )
 
+const (
+	defaultPoseidonPort              = 7200
+	defaultNomadPort                 = 4646
+	defaultMemoryUsageAlertThreshold = 1_000
+)
+
 // Config contains the default configuration of Poseidon.
 var (
 	Config = &configuration{
 		Server: server{
 			Address:                 "127.0.0.1",
-			Port:                    7200,
+			Port:                    defaultPoseidonPort,
 			SystemdSocketActivation: false,
 			Token:                   "",
 			TLS: TLS{
@@ -45,7 +51,7 @@ var (
 		Nomad: Nomad{
 			Enabled: true,
 			Address: "127.0.0.1",
-			Port:    4646,
+			Port:    defaultNomadPort,
 			Token:   "",
 			TLS: TLS{
 				Active:   false,
@@ -70,7 +76,7 @@ var (
 			Formatter: dto.FormatterText,
 		},
 		Profiling: Profiling{
-			MemoryThreshold: 1_000,
+			MemoryThreshold: defaultMemoryUsageAlertThreshold,
 		},
 		Sentry: sentry.ClientOptions{
 			AttachStacktrace: true,

@@ -312,8 +312,8 @@ func (m *NomadRunnerManager) onAllocationStopped(runnerID string, reason error) 
 		return false
 	}
 
-	r, stillActive := m.usedRunners.Get(runnerID)
-	if stillActive {
+	r, stillUsed := m.usedRunners.Get(runnerID)
+	if stillUsed {
 		m.usedRunners.Delete(runnerID)
 		if err := r.Destroy(reason); err != nil {
 			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
@@ -321,12 +321,19 @@ func (m *NomadRunnerManager) onAllocationStopped(runnerID string, reason error) 
 	}
 
 	environment, ok := m.GetEnvironment(environmentID)
-	if ok {
-		stillActive = stillActive || environment.DeleteRunner(runnerID)
-		go m.checkPrewarmingPoolAlert(environment, false)
+	if !ok {
+		return !stillUsed
 	}
 
-	return !stillActive
+	r, stillIdle := environment.DeleteRunner(runnerID)
+	if stillIdle {
+		if err := r.Destroy(reason); err != nil {
+			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
+		}
+	}
+	go m.checkPrewarmingPoolAlert(environment, false)
+
+	return !(stillUsed || stillIdle)
 }
 
 // onRunnerDestroyed is the callback when the runner destroys itself.

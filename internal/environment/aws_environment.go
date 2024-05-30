@@ -116,6 +116,6 @@ func (a *AWSEnvironment) AddRunner(_ runner.Runner) {
 	panic("not supported")
 }
 
-func (a *AWSEnvironment) DeleteRunner(_ string) (ok bool) {
+func (a *AWSEnvironment) DeleteRunner(_ string) (r runner.Runner, ok bool) {
 	panic("not supported")
 }

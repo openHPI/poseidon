@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
+
 	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/websocket"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/pkg/logging"
-	"io"
-	"strings"
 )
 
 var (

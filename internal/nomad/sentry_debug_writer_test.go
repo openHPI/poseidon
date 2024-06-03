@@ -41,12 +41,12 @@ func (s *MainTestSuite) TestSentryDebugWriter_Close() {
 
 func (s *MainTestSuite) TestSentryDebugWriter_handleTimeDebugMessage() {
 	buf := &bytes.Buffer{}
-	w := NewSentryDebugWriter(buf, s.TestCtx)
-	s.Require().Equal("nomad.execute.connect", w.lastSpan.Op)
+	debugWriter := NewSentryDebugWriter(buf, s.TestCtx)
+	s.Require().Equal("nomad.execute.connect", debugWriter.lastSpan.Op)
 
 	description := "TestDebugMessageDescription"
 	match := map[string][]byte{"time": []byte("1676646791482"), "text": []byte(description)}
-	w.handleTimeDebugMessage(match)
-	s.Equal("nomad.execute.bash", w.lastSpan.Op)
-	s.Equal(description, w.lastSpan.Description)
+	debugWriter.handleTimeDebugMessage(match)
+	s.Equal("nomad.execute.bash", debugWriter.lastSpan.Op)
+	s.Equal(description, debugWriter.lastSpan.Description)
 }

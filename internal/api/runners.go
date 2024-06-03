@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/config"
@@ -11,11 +17,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
-	"io"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -66,8 +67,10 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	}
 	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
 
-	var nextRunner runner.Runner
-	var err error
+	var (
+		nextRunner runner.Runner
+		err        error
+	)
 	logging.StartSpan("api.runner.claim", "Claim Runner", request.Context(), func(_ context.Context) {
 		nextRunner, err = r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
 	})
@@ -200,16 +203,16 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
 	}
-	id := newUUID.String()
+	executionID := newUUID.String()
 
 	logging.StartSpan("api.runner.exec", "Store Execution", request.Context(), func(ctx context.Context) {
-		targetRunner.StoreExecution(id, executionRequest)
+		targetRunner.StoreExecution(executionID, executionRequest)
 	})
 	webSocketURL := url.URL{
 		Scheme:   scheme,
 		Host:     request.Host,
 		Path:     path.String(),
-		RawQuery: fmt.Sprintf("%s=%s", ExecutionIDKey, id),
+		RawQuery: fmt.Sprintf("%s=%s", ExecutionIDKey, executionID),
 	}
 
 	sendJSON(writer, &dto.ExecutionResponse{WebSocketURL: webSocketURL.String()}, http.StatusOK, request.Context())

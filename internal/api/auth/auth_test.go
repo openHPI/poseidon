@@ -1,15 +1,16 @@
 package auth
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 const testToken = "C0rr3ctT0k3n"
@@ -43,13 +44,13 @@ func (s *AuthenticationMiddlewareTestSuite) TearDownTest() {
 
 func (s *AuthenticationMiddlewareTestSuite) TestReturns401WhenHeaderUnset() {
 	s.httpAuthenticationMiddleware.ServeHTTP(s.recorder, s.request)
-	assert.Equal(s.T(), http.StatusUnauthorized, s.recorder.Code)
+	s.Equal(http.StatusUnauthorized, s.recorder.Code)
 }
 
 func (s *AuthenticationMiddlewareTestSuite) TestReturns401WhenTokenWrong() {
 	s.request.Header.Set(TokenHeader, "Wr0ngT0k3n")
 	s.httpAuthenticationMiddleware.ServeHTTP(s.recorder, s.request)
-	assert.Equal(s.T(), http.StatusUnauthorized, s.recorder.Code)
+	s.Equal(http.StatusUnauthorized, s.recorder.Code)
 }
 
 func (s *AuthenticationMiddlewareTestSuite) TestWarnsWhenUnauthorized() {
@@ -60,16 +61,16 @@ func (s *AuthenticationMiddlewareTestSuite) TestWarnsWhenUnauthorized() {
 	s.request.Header.Set(TokenHeader, "Wr0ngT0k3n")
 	s.httpAuthenticationMiddleware.ServeHTTP(s.recorder, s.request)
 
-	assert.Equal(s.T(), http.StatusUnauthorized, s.recorder.Code)
-	assert.Equal(s.T(), logrus.WarnLevel, hook.LastEntry().Level)
-	assert.Equal(s.T(), hook.LastEntry().Data["token"], "Wr0ngT0k3n")
+	s.Equal(http.StatusUnauthorized, s.recorder.Code)
+	s.Equal(logrus.WarnLevel, hook.LastEntry().Level)
+	s.Equal("Wr0ngT0k3n", hook.LastEntry().Data["token"])
 }
 
 func (s *AuthenticationMiddlewareTestSuite) TestPassesWhenTokenCorrect() {
 	s.request.Header.Set(TokenHeader, testToken)
 	s.httpAuthenticationMiddleware.ServeHTTP(s.recorder, s.request)
 
-	assert.Equal(s.T(), http.StatusOK, s.recorder.Code)
+	s.Equal(http.StatusOK, s.recorder.Code)
 }
 
 func TestHTTPAuthenticationMiddleware(t *testing.T) {
@@ -80,13 +81,13 @@ func TestInitializeAuthentication(t *testing.T) {
 	t.Run("if token unset", func(t *testing.T) {
 		config.Config.Server.Token = ""
 		initialized := InitializeAuthentication()
-		assert.Equal(t, false, initialized)
+		assert.False(t, initialized)
 		assert.Equal(t, []byte(nil), correctAuthenticationToken, "it should not set correctAuthenticationToken")
 	})
 	t.Run("if token set", func(t *testing.T) {
 		config.Config.Server.Token = testToken
 		initialized := InitializeAuthentication()
-		assert.Equal(t, true, initialized)
+		assert.True(t, initialized)
 		assert.Equal(t, []byte(testToken), correctAuthenticationToken, "it should set correctAuthenticationToken")
 		config.Config.Server.Token = ""
 		correctAuthenticationToken = []byte(nil)

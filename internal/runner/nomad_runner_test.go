@@ -6,6 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
@@ -14,11 +21,6 @@ import (
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"io"
-	"regexp"
-	"strings"
-	"testing"
-	"time"
 )
 
 const defaultExecutionID = "execution-id"
@@ -219,12 +221,12 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
 		stdin, ok := args.Get(5).(io.Reader)
 		s.Require().True(ok)
-		buffer := make([]byte, 1) //nolint:makezero,lll // If the length is zero, the Read call never reads anything. gofmt want this alignment.
+		buffer := make([]byte, 1) //nolint:makezero // If the length is zero, the Read call never reads anything. gofmt want this alignment.
 		for n := 0; !(n == 1 && buffer[0] == SIGQUIT); {
 			<-time.After(tests.ShortTimeout)
-			n, _ = stdin.Read(buffer) //nolint:errcheck,lll // Read returns EOF errors but that is expected. This nolint makes the line too long.
+			n, _ = stdin.Read(buffer) //nolint:errcheck // Read returns EOF errors but that is expected.
 			if n > 0 {
-				log.WithField("buffer", fmt.Sprintf("%x", buffer[0])).Info("Received Stdin")
+				log.WithField("buffer", strconv.FormatUint(uint64(buffer[0]), 16)).Info("Received Stdin")
 			}
 		}
 		log.Info("After loop")
@@ -349,7 +351,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSuspectedOOMKilledExecutionWaitsForV
 			s.FailNow("Poseidon should not wait too long for verifying the OOM Kill assumption.")
 		case exit := <-exitChannel:
 			s.Equal(uint8(128), exit.Code)
-			s.Nil(exit.Err)
+			s.NoError(exit.Err)
 		}
 	})
 }
@@ -452,7 +454,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLoc
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
 	s.Len(tarFiles, 1)
-	s.Equal(tarFiles[0].Name, tests.FileNameWithAbsolutePath)
+	s.Equal(tests.FileNameWithAbsolutePath, tarFiles[0].Name)
 }
 
 func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {

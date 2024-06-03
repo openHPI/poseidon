@@ -2,13 +2,14 @@ package ws
 
 import (
 	"context"
+	"io"
+	"strings"
+	"testing"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"io"
-	"strings"
-	"testing"
 )
 
 type MainTestSuite struct {
@@ -30,7 +31,7 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead()
 		//nolint:makezero // we can't make zero initial length here as the reader otherwise doesn't block
 		p := make([]byte, 10)
 		_, err := reader.Read(p)
-		s.Require().NoError(err)
+		s.NoError(err)
 		read <- true
 	}()
 
@@ -68,7 +69,7 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFr
 	message := make([]byte, 10)
 	go func() {
 		_, err := reader.Read(message)
-		s.Require().NoError(err)
+		s.NoError(err)
 		read <- true
 	}()
 

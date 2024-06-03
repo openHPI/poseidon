@@ -7,17 +7,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
+	"os"
+	"reflect"
+	"strconv"
+	"strings"
+
 	"github.com/getsentry/sentry-go"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"net/url"
-	"os"
-	"reflect"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -179,13 +180,13 @@ type InfluxDB struct {
 
 // configuration contains the complete configuration of Poseidon.
 type configuration struct {
-	Server    server
-	Nomad     Nomad
-	AWS       AWS
-	Logger    Logger
-	Profiling Profiling
-	Sentry    sentry.ClientOptions
-	InfluxDB  InfluxDB
+	Server    server               `yaml:"server"`
+	Nomad     Nomad                `yaml:"nomad"`
+	AWS       AWS                  `yaml:"aws"`
+	Logger    Logger               `yaml:"logger"`
+	Profiling Profiling            `yaml:"profiling"`
+	Sentry    sentry.ClientOptions `yaml:"sentry"`
+	InfluxDB  InfluxDB             `yaml:"influxdb"`
 }
 
 // InitConfig merges configuration options from environment variables and
@@ -252,7 +253,7 @@ func readFromEnvironment(prefix string, value reflect.Value) {
 	if value.Kind() != reflect.Struct {
 		loadValue(prefix, value, logEntry)
 	} else {
-		for i := 0; i < value.NumField(); i++ {
+		for i := range value.NumField() {
 			fieldName := value.Type().Field(i).Name
 			newPrefix := fmt.Sprintf("%s_%s", prefix, strings.ToUpper(fieldName))
 			readFromEnvironment(newPrefix, value.Field(i))

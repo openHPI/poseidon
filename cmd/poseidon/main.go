@@ -6,6 +6,19 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"regexp"
+	"runtime"
+	"runtime/debug"
+	"runtime/pprof"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/coreos/go-systemd/v22/activation"
 	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/getsentry/sentry-go"
@@ -20,18 +33,6 @@ import (
 	"github.com/openHPI/poseidon/pkg/logging"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"golang.org/x/sys/unix"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"regexp"
-	"runtime"
-	"runtime/debug"
-	"runtime/pprof"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 var (
@@ -213,22 +214,22 @@ func serveHTTPListeners(server *http.Server, httpListeners []net.Listener) {
 	wg.Wait()
 }
 
-func serveHTTPListener(server *http.Server, l net.Listener) {
+func serveHTTPListener(server *http.Server, listener net.Listener) {
 	var err error
 	if config.Config.Server.TLS.Active {
 		server.TLSConfig = config.TLSConfig
 		log.WithField("CertFile", config.Config.Server.TLS.CertFile).
 			WithField("KeyFile", config.Config.Server.TLS.KeyFile).
 			Debug("Using TLS")
-		err = server.ServeTLS(l, config.Config.Server.TLS.CertFile, config.Config.Server.TLS.KeyFile)
+		err = server.ServeTLS(listener, config.Config.Server.TLS.CertFile, config.Config.Server.TLS.KeyFile)
 	} else {
-		err = server.Serve(l)
+		err = server.Serve(listener)
 	}
 
 	if errors.Is(err, http.ErrServerClosed) {
-		log.WithError(err).WithField("listener", l.Addr()).Info("Server closed")
+		log.WithError(err).WithField("listener", listener.Addr()).Info("Server closed")
 	} else {
-		log.WithError(err).WithField("listener", l.Addr()).Error("Error during listening and serving")
+		log.WithError(err).WithField("listener", listener.Addr()).Error("Error during listening and serving")
 	}
 }
 

@@ -2,11 +2,12 @@ package storage
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 func TestRunnerPoolTestSuite(t *testing.T) {

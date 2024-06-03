@@ -25,7 +25,7 @@ linters-settings:
       - paramTypeCombine # |
   gocyclo:
     min-complexity: 15
-  gomnd:
+  mnd:
     # don't include "assign"
     checks:
     - argument
@@ -41,50 +41,27 @@ linters-settings:
     locale: US
   nakedret:
     max-func-lines: 5
+  varnamelen:
+    ignore-decls:
+      - err error
+      - ok bool
+      - r *http.Request
+      - w http.ResponseWriter
+      - r runner.Runner
+      - r Runner
+      - wg sync.WaitGroup
 
 linters:
-  disable-all: true
-  enable:
-    # default
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - typecheck
-    - unused
-    # additional linters, see https://golangci-lint.run/usage/linters
-    - bodyclose
-    - dogsled
-    - dupl
-    - durationcheck
-    - exportloopref
-    - funlen
-    - gochecknoinits
-    - gocognit
-    - goconst
-    - gocritic
-    - gocyclo
-    - godot
-    - err113
-    - gofmt
-    - mnd
-    - goprintffuncname
-    - gosec
-    - importas
-    - lll
-    - makezero
-    - misspell
-    - nakedret
-    - noctx
-    - prealloc
-    - stylecheck
-    - thelper
-    - unconvert
-    - unparam
-    - wastedassign
-    - whitespace
-    - wrapcheck
+  enable-all: true
+  disable:
+    - execinquery
+    - ireturn
+    - gomnd
+    - nlreturn
+    - nonamedreturns
+    - paralleltest
+    - testpackage
+    - wsl
 
 issues:
   exclude-rules:

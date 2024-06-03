@@ -2,6 +2,11 @@ package e2e
 
 import (
 	"flag"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/config"
@@ -9,10 +14,6 @@ import (
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"os"
-	"testing"
-	"time"
 )
 
 /*
@@ -64,14 +65,14 @@ func TestMain(m *testing.M) {
 func initAWS() {
 	for i, function := range config.Config.AWS.Functions {
 		log.WithField("function", function[0:3]).Info("Yes, we do have AWS functions.")
-		id := dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger + i + 1)
-		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, id.ToString())
+		environmentID := dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger + i + 1)
+		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, environmentID.ToString())
 		request := dto.ExecutionEnvironmentRequest{Image: function}
 		resp, err := helpers.HTTPPutJSON(path, request)
 		if err != nil || resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
 			log.WithField("function", function).WithError(err).Fatal("Couldn't create default environment for e2e tests")
 		}
-		environmentIDs = append(environmentIDs, id)
+		environmentIDs = append(environmentIDs, environmentID)
 		err = resp.Body.Close()
 		if err != nil {
 			log.Fatal("Failed closing body")

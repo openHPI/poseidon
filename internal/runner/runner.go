@@ -2,12 +2,13 @@ package runner
 
 import (
 	"context"
+	"io"
+	"net/http"
+
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/monitoring"
 	"github.com/openHPI/poseidon/pkg/storage"
-	"io"
-	"net/http"
 )
 
 type ExitInfo struct {

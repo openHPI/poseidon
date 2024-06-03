@@ -26,7 +26,7 @@ default: help
 all: build
 
 .PHONY: bootstrap
-bootstrap: deps lint-deps git-hooks ## Install all dependencies
+bootstrap: deps lint-deps gci-deps git-hooks ## Install all dependencies
 
 .PHONY: deps
 deps: ## Get the dependencies
@@ -81,6 +81,14 @@ golangci-lint: ## Lint the source code using golangci-lint
 
 .PHONY: lint
 lint: golangci-lint ## Lint the source code using all linters
+
+.PHONY: gci-deps
+gci-deps: ## Install gci dependencies
+	@go install github.com/daixiang0/gci@latest
+
+.PHONY: gci
+gci: ## Apply GCI to sort imports#
+	@gci write --skip-generated -s standard -s default ./
 
 .PHONY: mock
 snaked_name=$(shell sed -e "s/\([a-z]\)\([A-Z]\)/\1_\2/g" -e "s/\([A-Z]\)/\L\1/g" -e "s/^_//" <<< "$(name)")

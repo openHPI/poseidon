@@ -3,8 +3,9 @@ package util
 import (
 	"context"
 	"errors"
-	"github.com/openHPI/poseidon/pkg/logging"
 	"time"
+
+	"github.com/openHPI/poseidon/pkg/logging"
 )
 
 var (
@@ -50,7 +51,7 @@ func retryConstant(ctx context.Context, sleep time.Duration, f func() error) fun
 }
 
 func retryAttempts(maxAttempts int, f func() error) (err error) {
-	for i := 0; i < maxAttempts; i++ {
+	for i := range maxAttempts {
 		err = f()
 		if err == nil {
 			return nil

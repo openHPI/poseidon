@@ -3,10 +3,11 @@ package nomad
 import (
 	"errors"
 	"fmt"
+	"testing"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type MainTestSuite struct {

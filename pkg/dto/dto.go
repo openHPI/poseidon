@@ -28,10 +28,10 @@ type RunnerRequest struct {
 
 // ExecutionRequest is the expected json structure of the request body for the ExecuteCommand function.
 type ExecutionRequest struct {
-	Command             string
-	PrivilegedExecution bool
-	TimeLimit           int
-	Environment         map[string]string
+	Command             string            `json:"command"`
+	PrivilegedExecution bool              `json:"privilegedExecution"`
+	TimeLimit           int               `json:"timeLimit"`
+	Environment         map[string]string `json:"environment"`
 }
 
 // FullCommand joins the environment variables.
@@ -48,7 +48,7 @@ func (er *ExecutionRequest) FullCommand() string {
 	for variable, value := range er.Environment {
 		command += fmt.Sprintf(" %s=%s", variable, value)
 	}
-	command += fmt.Sprintf(" %s", WrapBashCommand(er.Command))
+	command += " " + WrapBashCommand(er.Command)
 	return command
 }
 
@@ -65,7 +65,7 @@ func BashEscapeCommand(command string) string {
 
 // WrapBashCommand escapes the passed command and wraps it into a new bash command.
 func WrapBashCommand(command string) string {
-	return fmt.Sprintf("/bin/bash -c %s", BashEscapeCommand(command))
+	return "/bin/bash -c " + BashEscapeCommand(command)
 }
 
 // EnvironmentID is an id of an environment.

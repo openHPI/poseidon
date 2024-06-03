@@ -1,6 +1,9 @@
 package recovery
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
@@ -8,8 +11,6 @@ import (
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/sys/unix"
-	"net/http"
-	"time"
 )
 
 func (s *E2ERecoveryTestSuite) SetupTest() {
@@ -54,13 +55,13 @@ func killPoseidon() {
 	if err != nil {
 		log.WithError(err).Error("Error listing processes")
 	}
-	for _, p := range processes {
-		n, err := p.Name()
+	for _, proc := range processes {
+		n, err := proc.Name()
 		if err != nil {
 			continue
 		}
 		if n == "poseidon" {
-			err = p.SendSignal(unix.SIGTERM)
+			err = proc.SendSignal(unix.SIGTERM)
 			if err != nil {
 				log.WithError(err).Error("Error killing Poseidon")
 			} else {

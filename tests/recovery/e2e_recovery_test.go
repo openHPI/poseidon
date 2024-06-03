@@ -3,6 +3,14 @@ package recovery
 import (
 	"encoding/json"
 	"flag"
+	"net/http"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/api"
 	"github.com/openHPI/poseidon/internal/config"
@@ -12,13 +20,6 @@ import (
 	"github.com/openHPI/poseidon/tests/e2e"
 	"github.com/openHPI/poseidon/tests/helpers"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"os"
-	"os/exec"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 /*
@@ -101,7 +102,7 @@ func (s *E2ERecoveryTestSuite) TestRunnerCount() {
 		Namespace: nomadNamespace,
 	})
 	s.Require().NoError(err)
-	s.Equal(PrewarmingPoolSize+1, len(jobListStubs))
+	s.Len(jobListStubs, PrewarmingPoolSize+1)
 }
 
 func (s *E2ERecoveryTestSuite) TestEnvironmentStatistics() {

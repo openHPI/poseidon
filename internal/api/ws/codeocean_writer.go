@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
-	"io"
 )
 
 // CodeOceanOutputWriterBufferSize defines the number of messages.
@@ -23,15 +24,15 @@ type rawToCodeOceanWriter struct {
 }
 
 // Write implements the io.Writer interface.
-func (rc *rawToCodeOceanWriter) Write(p []byte) (int, error) {
+func (rc *rawToCodeOceanWriter) Write(rawData []byte) (int, error) {
 	switch {
 	case rc.ctx.Err() != nil:
 		return 0, fmt.Errorf("CodeOceanWriter context done: %w", rc.ctx.Err())
-	case len(p) == 0:
+	case len(rawData) == 0:
 		return 0, nil
 	default:
-		rc.sendMessage(&dto.WebSocketMessage{Type: rc.outputType, Data: string(p)})
-		return len(p), nil
+		rc.sendMessage(&dto.WebSocketMessage{Type: rc.outputType, Data: string(rawData)})
+		return len(rawData), nil
 	}
 }
 

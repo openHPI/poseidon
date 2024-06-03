@@ -2,11 +2,12 @@ package nullio
 
 import (
 	"context"
-	"github.com/openHPI/poseidon/tests"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/openHPI/poseidon/tests"
+	"github.com/stretchr/testify/suite"
 )
 
 type MainTestSuite struct {

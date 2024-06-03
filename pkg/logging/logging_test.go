@@ -1,14 +1,15 @@
 package logging
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func mockHTTPStatusHandler(status int) http.Handler {
@@ -37,6 +38,6 @@ func (s *MainTestSuite) TestHTTPMiddlewareDebugsWhenStatusOK() {
 	recorder := httptest.NewRecorder()
 	HTTPLoggingMiddleware(mockHTTPStatusHandler(200)).ServeHTTP(recorder, request)
 
-	s.Equal(1, len(hook.Entries))
+	s.Len(hook.Entries, 1)
 	s.Equal(logrus.DebugLevel, hook.LastEntry().Level)
 }

@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/api/ws"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
-	"net/http"
 )
 
 var ErrUnknownExecutionID = errors.New("execution id unknown")
@@ -93,6 +94,7 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 
 	// We do not inherit from the request.Context() here because we rely on the WebSocket Close Handler.
 	proxyCtx := context.WithoutCancel(request.Context())
+
 	proxyCtx, cancelProxy := context.WithCancel(proxyCtx)
 	defer cancelProxy()
 	proxy := newWebSocketProxy(connection, proxyCtx)

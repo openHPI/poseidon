@@ -11,11 +11,6 @@ job "template-0" {
       sticky  = false
     }
     count = 1
-    scaling {
-      enabled = true
-      min = 0
-      max = 300
-    }
     spread {
       // see https://www.nomadproject.io/docs/job-specification/spread#even-spread-across-data-center
       // This spreads the load evenly amongst our nodes

@@ -18,11 +18,18 @@ job "template-0" {
       weight = 100
     }
     restart {
-      delay = "0s"
+      attempts = 3
+      delay = "15s"
+      interval = "1h"
+      mode = "fail"
     }
     reschedule {
-      unlimited = true
-      attempts = 0
+      unlimited = false
+      attempts = 3
+      interval = "6h"
+      delay = "1m"
+      max_delay = "4m"
+      delay_function = "exponential"
     }
 
     task "default-task" {

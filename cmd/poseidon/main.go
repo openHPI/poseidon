@@ -354,13 +354,21 @@ func createNomadManager(ctx context.Context) (runner.Manager, environment.Manage
 func synchronizeNomad(ctx context.Context, environmentManager *environment.NomadEnvironmentManager, runnerManager *runner.NomadRunnerManager) {
 	firstRecoveryDone := make(chan struct{})
 	go environmentManager.KeepEnvironmentsSynced(func(ctx context.Context) error {
-		runnerManager.Load()
+		go func() {
+			// `Load` not only recover existing runners, but also applies the prewarming pool size which creates runners.
+			// Therefore, the Nomad Event Stream has to be started before.
+			runnerManager.Load()
 
-		select {
-		case firstRecoveryDone <- struct{}{}:
-			log.Info("First Recovery Done")
-		default:
-		}
+			select {
+			case firstRecoveryDone <- struct{}{}:
+				log.Info("First Recovery Done")
+			default:
+			}
+		}()
+
+		// The Race Condition between the startup of the event stream and the recovery of missing runners is uncritical
+		// because setting the start time of the stream is the first thing done in `SynchronizeRunners` while `Load`
+		// first starts an HTTP request for each individual existing runner.
 
 		if err := runnerManager.SynchronizeRunners(ctx); err != nil {
 			return fmt.Errorf("synchronize runners failed: %w", err)

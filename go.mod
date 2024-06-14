@@ -7,7 +7,7 @@ require (
 	github.com/getsentry/sentry-go v0.28.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/gorilla/websocket v1.5.2
+	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/nomad v1.8.0
 	github.com/hashicorp/nomad/api v0.0.0-20240606055710-c3c2240304e5
 	github.com/influxdata/influxdb-client-go/v2 v2.13.0

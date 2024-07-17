@@ -36,7 +36,8 @@ const (
 // Ls2JsonWriter implements io.Writer.
 // It streams the passed data to the Target and transforms the data into the json format.
 type Ls2JsonWriter struct {
-	Target         io.Writer
+	Target io.Writer
+	//nolint:containedctx // See #630.
 	Ctx            context.Context
 	jsonStartSent  bool
 	setCommaPrefix bool

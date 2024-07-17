@@ -27,9 +27,11 @@ type codeOceanToRawReader struct {
 	connection Connection
 
 	// readCtx is the context in that messages from CodeOcean are read.
+	//nolint:containedctx // See #630.
 	readCtx       context.Context
 	cancelReadCtx context.CancelFunc
 	// executorCtx is the context in that messages are forwarded to the executor.
+	//nolint:containedctx // See #630.
 	executorCtx context.Context
 
 	// A buffered channel of bytes is used to store data coming from CodeOcean via WebSocket

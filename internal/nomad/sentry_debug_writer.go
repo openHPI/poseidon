@@ -28,7 +28,8 @@ var (
 // For matches, it creates a Sentry Span. Otherwise, the data will be forwarded to the Target.
 // The passed context Ctx should contain the Sentry data.
 type SentryDebugWriter struct {
-	Target   io.Writer
+	Target io.Writer
+	//nolint:containedctx // See #630.
 	Ctx      context.Context
 	lastSpan *sentry.Span
 }

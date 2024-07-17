@@ -16,6 +16,7 @@ import (
 // Why should the reader not just always return 0, nil? Because Nomad reads in an endless loop and thus a busy waiting
 // is avoided.
 type Reader struct {
+	//nolint:containedctx // See #630.
 	Ctx context.Context
 }
 

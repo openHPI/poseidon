@@ -802,7 +802,8 @@ func TestExecuteCommandTestSuite(t *testing.T) {
 
 type ExecuteCommandTestSuite struct {
 	tests.MemoryLeakTestSuite
-	allocationID   string
+	allocationID string
+	//nolint:containedctx // See #630.
 	ctx            context.Context
 	testCommand    string
 	expectedStdout string

@@ -37,6 +37,7 @@ func (s *MainTestSuite) TestAWSExecutionRequestIsStored() {
 
 type awsEndpointMock struct {
 	hasConnected bool
+	//nolint:containedctx // See #630.
 	ctx          context.Context
 	receivedData string
 }

@@ -58,8 +58,9 @@ type NomadJob struct {
 	portMappings []nomadApi.PortMapping
 	api          nomad.ExecutorAPI
 	onDestroy    DestroyRunnerHandler
-	ctx          context.Context
-	cancel       context.CancelFunc
+	//nolint:containedctx // See #630.
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewNomadJob creates a new NomadJob with the provided id.

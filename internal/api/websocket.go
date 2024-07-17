@@ -17,6 +17,7 @@ var ErrUnknownExecutionID = errors.New("execution id unknown")
 
 // webSocketProxy is an encapsulation of logic for forwarding between Runners and CodeOcean.
 type webSocketProxy struct {
+	//nolint:containedctx // See #630.
 	ctx    context.Context
 	Input  ws.WebSocketReader
 	Output ws.WebSocketWriter

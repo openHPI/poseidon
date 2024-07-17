@@ -33,10 +33,11 @@ var numGoroutines = regexp.MustCompile(`^goroutine profile: total (\d*)\n`)
 type MemoryLeakTestSuite struct {
 	suite.Suite
 	ExpectedGoroutineIncrease int
-	TestCtx                   context.Context
-	testCtxCancel             context.CancelFunc
-	goroutineCountBefore      int
-	goroutinesBefore          *bytes.Buffer
+	//nolint:containedctx // We have to embed the context into the struct because we have no control over the parameters of testify.
+	TestCtx              context.Context
+	testCtxCancel        context.CancelFunc
+	goroutineCountBefore int
+	goroutinesBefore     *bytes.Buffer
 }
 
 func (s *MemoryLeakTestSuite) lookupGoroutines() (debugOutput *bytes.Buffer, goroutineCount int) {

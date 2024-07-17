@@ -30,8 +30,9 @@ type NomadEnvironment struct {
 	jobHCL      string
 	job         *nomadApi.Job
 	idleRunners storage.Storage[runner.Runner]
-	ctx         context.Context
-	cancel      context.CancelFunc
+	//nolint:containedctx // See #630.
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func NewNomadEnvironment(environmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {

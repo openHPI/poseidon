@@ -20,7 +20,8 @@ const CodeOceanOutputWriterBufferSize = 64
 type rawToCodeOceanWriter struct {
 	outputType  dto.WebSocketMessageType
 	sendMessage func(*dto.WebSocketMessage)
-	ctx         context.Context
+	//nolint:containedctx // See #630.
+	ctx context.Context
 }
 
 // Write implements the io.Writer interface.
@@ -50,7 +51,8 @@ type codeOceanOutputWriter struct {
 	stdOut     *rawToCodeOceanWriter
 	stdErr     *rawToCodeOceanWriter
 	queue      chan *writingLoopMessage
-	ctx        context.Context
+	//nolint:containedctx // See #630.
+	ctx context.Context
 }
 
 // writingLoopMessage is an internal data structure to notify the writing loop when it should stop.

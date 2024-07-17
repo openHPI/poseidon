@@ -37,8 +37,9 @@ type AWSFunctionWorkload struct {
 	runningExecutions map[string]context.CancelFunc
 	onDestroy         DestroyRunnerHandler
 	environment       ExecutionEnvironment
-	ctx               context.Context
-	cancel            context.CancelFunc
+	//nolint:containedctx // See #630.
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewAWSFunctionWorkload creates a new AWSFunctionWorkload with the provided id.

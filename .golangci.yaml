@@ -63,6 +63,7 @@ linters:
     - gochecknoglobals
     - gomoddirectives
     - gomodguard
+    - ireturn
 
 issues:
   exclude-rules:

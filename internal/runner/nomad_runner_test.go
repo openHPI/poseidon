@@ -28,7 +28,7 @@ const defaultExecutionID = "execution-id"
 func (s *MainTestSuite) TestIdIsStored() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	runner := NewNomadJob(tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
+	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	s.Equal(tests.DefaultRunnerID, runner.ID())
 	s.NoError(runner.Destroy(nil))
 }
@@ -37,11 +37,11 @@ func (s *MainTestSuite) TestMappedPortsAreStoredCorrectly() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	runner := NewNomadJob(tests.DefaultRunnerID, tests.DefaultPortMappings, apiMock, func(_ Runner) error { return nil })
+	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, tests.DefaultPortMappings, apiMock, func(_ Runner) error { return nil })
 	s.Equal(tests.DefaultMappedPorts, runner.MappedPorts())
 	s.NoError(runner.Destroy(nil))
 
-	runner = NewNomadJob(tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
+	runner = NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	s.Empty(runner.MappedPorts())
 	s.NoError(runner.Destroy(nil))
 }
@@ -49,7 +49,7 @@ func (s *MainTestSuite) TestMappedPortsAreStoredCorrectly() {
 func (s *MainTestSuite) TestMarshalRunner() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	runner := NewNomadJob(tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
+	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	marshal, err := json.Marshal(runner)
 	s.NoError(err)
 	s.Equal("{\"runnerId\":\""+tests.DefaultRunnerID+"\"}", string(marshal))
@@ -59,7 +59,7 @@ func (s *MainTestSuite) TestMarshalRunner() {
 func (s *MainTestSuite) TestExecutionRequestIsStored() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	runner := NewNomadJob(tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
+	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	executionRequest := &dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,
@@ -77,7 +77,7 @@ func (s *MainTestSuite) TestExecutionRequestIsStored() {
 func (s *MainTestSuite) TestNewContextReturnsNewContextWithRunner() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	runner := NewNomadJob(tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
+	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	ctx := context.Background()
 	newCtx := NewContext(ctx, runner)
 	storedRunner, ok := newCtx.Value(runnerContextKey).(Runner)
@@ -91,7 +91,7 @@ func (s *MainTestSuite) TestNewContextReturnsNewContextWithRunner() {
 func (s *MainTestSuite) TestFromContextReturnsRunner() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	runner := NewNomadJob(tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
+	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	ctx := NewContext(context.Background(), runner)
 	storedRunner, ok := FromContext(ctx)
 

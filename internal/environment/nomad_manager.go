@@ -49,12 +49,12 @@ func NewNomadEnvironmentManager(
 	return m, nil
 }
 
-func (m *NomadEnvironmentManager) Get(environmentID dto.EnvironmentID, fetch bool) (
+func (m *NomadEnvironmentManager) Get(ctx context.Context, environmentID dto.EnvironmentID, fetch bool) (
 	executionEnvironment runner.ExecutionEnvironment, err error) {
 	executionEnvironment, ok := m.runnerManager.GetEnvironment(environmentID)
 
 	if fetch {
-		fetchedEnvironment, err := fetchEnvironment(environmentID, m.api)
+		fetchedEnvironment, err := fetchEnvironment(ctx, environmentID, m.api)
 
 		switch {
 		case err != nil:
@@ -85,16 +85,16 @@ func (m *NomadEnvironmentManager) Get(environmentID dto.EnvironmentID, fetch boo
 	return executionEnvironment, err
 }
 
-func (m *NomadEnvironmentManager) List(fetch bool) ([]runner.ExecutionEnvironment, error) {
+func (m *NomadEnvironmentManager) List(ctx context.Context, fetch bool) ([]runner.ExecutionEnvironment, error) {
 	if fetch {
-		if err := m.fetchEnvironments(); err != nil {
+		if err := m.fetchEnvironments(ctx); err != nil {
 			return nil, err
 		}
 	}
 	return m.runnerManager.ListEnvironments(), nil
 }
 
-func (m *NomadEnvironmentManager) fetchEnvironments() error {
+func (m *NomadEnvironmentManager) fetchEnvironments(ctx context.Context) error {
 	remoteEnvironmentList, err := m.api.LoadEnvironmentJobs()
 	if err != nil {
 		return fmt.Errorf("failed fetching environments: %w", err)
@@ -110,14 +110,14 @@ func (m *NomadEnvironmentManager) fetchEnvironments() error {
 		}
 
 		if localEnvironment, ok := m.runnerManager.GetEnvironment(id); ok {
-			fetchedEnvironment := newNomadEnvironmentFromJob(job, m.api)
+			fetchedEnvironment := newNomadEnvironmentFromJob(ctx, job, m.api)
 			localEnvironment.SetConfigFrom(fetchedEnvironment)
 			// We destroy only this (second) local reference to the environment.
 			if err = fetchedEnvironment.Delete(runner.ErrDestroyedAndReplaced); err != nil {
 				log.WithError(err).Warn("Failed to remove environment locally")
 			}
 		} else {
-			m.runnerManager.StoreEnvironment(newNomadEnvironmentFromJob(job, m.api))
+			m.runnerManager.StoreEnvironment(newNomadEnvironmentFromJob(ctx, job, m.api))
 		}
 	}
 
@@ -145,7 +145,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	}
 
 	// Create a new environment with the given request options.
-	environment, err = NewNomadEnvironmentFromRequest(m.api, m.templateEnvironmentHCL, id, request)
+	environment, err = NewNomadEnvironmentFromRequest(ctx, m.api, m.templateEnvironmentHCL, id, request)
 	if err != nil {
 		return false, fmt.Errorf("error creating Nomad environment: %w", err)
 	}
@@ -176,7 +176,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(synchronizeRunners func(ctx context.Context) error, ctx context.Context) {
 	err := util.RetryConstantAttemptsWithContext(math.MaxInt, ctx, func() error {
 		// Load Environments
-		if err := m.load(); err != nil {
+		if err := m.load(ctx); err != nil {
 			log.WithContext(ctx).WithError(err).Warn("Loading Environments failed! Retrying...")
 			return err
 		}
@@ -198,7 +198,7 @@ func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(synchronizeRunners func
 
 // Load recovers all environments from the Jobs in Nomad.
 // As it replaces the environments the idle runners stored are not tracked anymore.
-func (m *NomadEnvironmentManager) load() error {
+func (m *NomadEnvironmentManager) load(ctx context.Context) error {
 	log.Info("Loading environments")
 	// We have to destroy the environments first as otherwise they would just be replaced and old goroutines might stay running.
 	for _, environment := range m.runnerManager.ListEnvironments() {
@@ -224,7 +224,7 @@ func (m *NomadEnvironmentManager) load() error {
 			jobLogger.Error("FindAndValidateConfigTaskGroup is not creating the task group")
 			continue
 		}
-		environment := newNomadEnvironmentFromJob(job, m.api)
+		environment := newNomadEnvironmentFromJob(ctx, job, m.api)
 		m.runnerManager.StoreEnvironment(environment)
 		jobLogger.Info("Successfully recovered environment")
 	}
@@ -232,8 +232,9 @@ func (m *NomadEnvironmentManager) load() error {
 }
 
 // newNomadEnvironmentFromJob creates a Nomad environment from the passed Nomad job definition.
-func newNomadEnvironmentFromJob(job *nomadApi.Job, apiClient nomad.ExecutorAPI) *NomadEnvironment {
-	ctx, cancel := context.WithCancel(context.Background())
+// Be aware that the passed context does not cancel the environment. The environment needs to be `Delete`d.
+func newNomadEnvironmentFromJob(ctx context.Context, job *nomadApi.Job, apiClient nomad.ExecutorAPI) *NomadEnvironment {
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	e := &NomadEnvironment{
 		apiClient: apiClient,
 		jobHCL:    templateEnvironmentJobHCL,
@@ -260,7 +261,7 @@ func loadTemplateEnvironmentJobHCL(path string) error {
 	return nil
 }
 
-func fetchEnvironment(requestedEnvironmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner.ExecutionEnvironment, error) {
+func fetchEnvironment(ctx context.Context, requestedEnvironmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner.ExecutionEnvironment, error) {
 	environments, err := apiClient.LoadEnvironmentJobs()
 	if err != nil {
 		return nil, fmt.Errorf("error fetching the environment jobs: %w", err)
@@ -273,7 +274,7 @@ func fetchEnvironment(requestedEnvironmentID dto.EnvironmentID, apiClient nomad.
 			continue
 		}
 		if requestedEnvironmentID == fetchedEnvironmentID {
-			fetchedEnvironment = newNomadEnvironmentFromJob(job, apiClient)
+			fetchedEnvironment = newNomadEnvironmentFromJob(ctx, job, apiClient)
 		}
 	}
 	return fetchedEnvironment, nil

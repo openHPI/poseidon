@@ -66,11 +66,12 @@ type NomadJob struct {
 // NewNomadJob creates a new NomadJob with the provided id.
 // The InactivityTimer is used actively. It executes onDestroy when it has expired.
 // The InactivityTimer is persisted in Nomad by the runner manager's Claim Function.
-func NewNomadJob(jobID string, portMappings []nomadApi.PortMapping,
+// The passed context does not define the lifespan of the Runner, instead use Destroy.
+func NewNomadJob(ctx context.Context, jobID string, portMappings []nomadApi.PortMapping,
 	apiClient nomad.ExecutorAPI, onDestroy DestroyRunnerHandler,
 ) *NomadJob {
-	ctx := context.WithValue(context.Background(), dto.ContextKey(dto.KeyRunnerID), jobID)
-	ctx, cancel := context.WithCancel(ctx)
+	ctx = context.WithValue(ctx, dto.ContextKey(dto.KeyRunnerID), jobID)
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	job := &NomadJob{
 		id:           jobID,
 		portMappings: portMappings,
@@ -142,7 +143,7 @@ func (r *NomadJob) ExecuteInteractively(
 	// - executionCtx: The context of the execution (execution timeout)
 	// -> The executionCtx cancel that might be triggered (when the client connection breaks)
 
-	command, executionCtx, cancel := prepareExecution(request, r.ctx)
+	command, executionCtx, cancel := prepareExecution(r.ctx, request)
 	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)
 	ctxExecute, cancelExecute := context.WithCancel(requestCtx)
@@ -281,7 +282,7 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 	return nil
 }
 
-func prepareExecution(request *dto.ExecutionRequest, environmentCtx context.Context) (
+func prepareExecution(environmentCtx context.Context, request *dto.ExecutionRequest) (
 	command string, ctx context.Context, cancel context.CancelFunc,
 ) {
 	command = request.FullCommand()

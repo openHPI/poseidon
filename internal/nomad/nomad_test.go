@@ -24,8 +24,8 @@ import (
 
 var (
 	noopAllocationProcessing = &AllocationProcessing{
-		OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ string, _ error) bool { return false },
+		OnNew:     func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
+		OnDeleted: func(_ context.Context, _ string, _ error) bool { return false },
 	}
 	ErrUnexpectedEOF = errors.New("unexpected EOF")
 )
@@ -557,7 +557,7 @@ func (s *MainTestSuite) TestHandleAllocationEventBuffersPendingAllocation() {
 		newPendingEvent := eventForAllocation(s.T(), newPendingAllocation)
 
 		allocations := storage.NewLocalStorage[*allocationData]()
-		err := handleAllocationEvent(
+		err := handleAllocationEvent(s.TestCtx,
 			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
 		s.Require().NoError(err)
 
@@ -570,7 +570,7 @@ func (s *MainTestSuite) TestHandleAllocationEventBuffersPendingAllocation() {
 		newPendingEvent.Type = structs.TypePlanResult
 
 		allocations := storage.NewLocalStorage[*allocationData]()
-		err := handleAllocationEvent(
+		err := handleAllocationEvent(s.TestCtx,
 			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
 		s.Require().NoError(err)
 
@@ -638,10 +638,10 @@ func (s *MainTestSuite) TestHandleAllocationEvent_RegressionTest_14_09_2023() {
 
 	idleRunner := make(map[string]bool)
 	callbacks := &AllocationProcessing{
-		OnNew: func(alloc *nomadApi.Allocation, _ time.Duration) {
+		OnNew: func(_ context.Context, alloc *nomadApi.Allocation, _ time.Duration) {
 			idleRunner[alloc.JobID] = true
 		},
-		OnDeleted: func(jobID string, _ error) bool {
+		OnDeleted: func(_ context.Context, jobID string, _ error) bool {
 			_, ok := idleRunner[jobID]
 			delete(idleRunner, jobID)
 			return !ok
@@ -664,9 +664,9 @@ func (s *MainTestSuite) TestHandleAllocationEvent_ReportsOOMKilledStatus() {
 	allocations.Add(restartedAllocation.ID, &allocationData{jobID: restartedAllocation.JobID})
 
 	var reason error
-	err := handleAllocationEvent(time.Now().UnixNano(), allocations, &restartedEvent, &AllocationProcessing{
-		OnNew: func(_ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ string, r error) bool {
+	err := handleAllocationEvent(s.TestCtx, time.Now().UnixNano(), allocations, &restartedEvent, &AllocationProcessing{
+		OnNew: func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
+		OnDeleted: func(_ context.Context, _ string, r error) bool {
 			reason = r
 			return true
 		},
@@ -714,10 +714,10 @@ func assertWatchAllocation(suite *MainTestSuite, events []*nomadApi.Events,
 	var newAllocations []*nomadApi.Allocation
 	var deletedAllocations []string
 	callbacks := &AllocationProcessing{
-		OnNew: func(alloc *nomadApi.Allocation, _ time.Duration) {
+		OnNew: func(_ context.Context, alloc *nomadApi.Allocation, _ time.Duration) {
 			newAllocations = append(newAllocations, alloc)
 		},
-		OnDeleted: func(jobID string, _ error) bool {
+		OnDeleted: func(_ context.Context, jobID string, _ error) bool {
 			deletedAllocations = append(deletedAllocations, jobID)
 			return false
 		},

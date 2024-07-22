@@ -355,17 +355,17 @@ func createNomadManager(ctx context.Context) (runner.Manager, environment.Manage
 func synchronizeNomad(ctx context.Context, environmentManager *environment.NomadEnvironmentManager, runnerManager *runner.NomadRunnerManager) {
 	firstRecoveryDone := make(chan struct{})
 	go environmentManager.KeepEnvironmentsSynced(func(ctx context.Context) error {
-		go func() {
+		go func(ctx context.Context) {
 			// `Load` not only recover existing runners, but also applies the prewarming pool size which creates runners.
 			// Therefore, the Nomad Event Stream has to be started before.
-			runnerManager.Load()
+			runnerManager.Load(ctx)
 
 			select {
 			case firstRecoveryDone <- struct{}{}:
 				log.Info("First Recovery Done")
 			default:
 			}
-		}()
+		}(ctx)
 
 		// The Race Condition between the startup of the event stream and the recovery of missing runners is uncritical
 		// because setting the start time of the stream is the first thing done in `SynchronizeRunners` while `Load`
@@ -441,9 +441,9 @@ func shutdownOnOSSignal(server *http.Server, ctx context.Context, stopProfiling 
 		log.Info("Received SIGINT, shutting down...")
 
 		defer stopProfiling()
-		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownWait)
+		gracefulCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gracefulShutdownWait)
 		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
+		if err := server.Shutdown(gracefulCtx); err != nil {
 			log.WithError(err).Warn("error shutting server down")
 		}
 	}

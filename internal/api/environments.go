@@ -52,7 +52,7 @@ func (e *EnvironmentController) list(writer http.ResponseWriter, request *http.R
 		return
 	}
 
-	environments, err := e.manager.List(fetch)
+	environments, err := e.manager.List(request.Context(), fetch)
 	if err != nil {
 		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
 		return
@@ -75,7 +75,7 @@ func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	executionEnvironment, err := e.manager.Get(environmentID, fetch)
+	executionEnvironment, err := e.manager.Get(request.Context(), environmentID, fetch)
 	if errors.Is(err, runner.ErrUnknownExecutionEnvironment) {
 		writer.WriteHeader(http.StatusNotFound)
 		return

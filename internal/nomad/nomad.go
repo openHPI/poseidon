@@ -52,8 +52,8 @@ type RunnerDeletedReason error
 
 // DeletedAllocationProcessor is a handler that will be called for each deleted allocation.
 // removedByPoseidon should be true iff the Nomad Manager has removed the runner before.
-type DeletedAllocationProcessor func(jobID string, RunnerDeletedReason error) (removedByPoseidon bool)
-type NewAllocationProcessor func(*nomadApi.Allocation, time.Duration)
+type DeletedAllocationProcessor func(ctx context.Context, jobID string, RunnerDeletedReason error) (removedByPoseidon bool)
+type NewAllocationProcessor func(context.Context, *nomadApi.Allocation, time.Duration)
 
 type allocationData struct {
 	// allocClientStatus defines the state defined by Nomad.
@@ -208,8 +208,8 @@ func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) 
 
 		go func() {
 			err = a.WatchEventStream(ctx, &AllocationProcessing{
-				OnNew:     func(_ *nomadApi.Allocation, _ time.Duration) {},
-				OnDeleted: func(_ string, _ error) bool { return false },
+				OnNew:     func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
+				OnDeleted: func(_ context.Context, _ string, _ error) bool { return false },
 			})
 			cancel() // cancel the waiting for an evaluation result if watching the event stream ends.
 		}()
@@ -237,7 +237,7 @@ func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationP
 		case nomadApi.TopicEvaluation:
 			return false, handleEvaluationEvent(a.evaluations, event)
 		case nomadApi.TopicAllocation:
-			return false, handleAllocationEvent(startTime, a.allocations, event, callbacks)
+			return false, handleAllocationEvent(ctx, startTime, a.allocations, event, callbacks)
 		default:
 			return false, nil
 		}
@@ -343,7 +343,7 @@ func handleEvaluationEvent(evaluations storage.Storage[chan error], event *nomad
 // If a new allocation is received, onNewAllocation is called. If an allocation is deleted, onDeletedAllocation
 // is called. The allocations storage is used to track pending and running allocations. Using the
 // storage the state is persisted between multiple calls of this function.
-func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocationData],
+func handleAllocationEvent(ctx context.Context, startTime int64, allocations storage.Storage[*allocationData],
 	event *nomadApi.Event, callbacks *AllocationProcessing) error {
 	alloc, err := event.Allocation()
 	if err != nil {
@@ -374,15 +374,15 @@ func handleAllocationEvent(startTime int64, allocations storage.Storage[*allocat
 
 	switch alloc.ClientStatus {
 	case structs.AllocClientStatusPending:
-		handlePendingAllocationEvent(alloc, allocData, allocations, callbacks)
+		handlePendingAllocationEvent(ctx, alloc, allocData, allocations, callbacks)
 	case structs.AllocClientStatusRunning:
-		handleRunningAllocationEvent(alloc, allocData, allocations, callbacks)
+		handleRunningAllocationEvent(ctx, alloc, allocData, allocations, callbacks)
 	case structs.AllocClientStatusComplete:
-		handleCompleteAllocationEvent(alloc, allocData, allocations, callbacks)
+		handleCompleteAllocationEvent(ctx, alloc, allocData, allocations, callbacks)
 	case structs.AllocClientStatusFailed:
-		handleFailedAllocationEvent(alloc, allocData, allocations, callbacks)
+		handleFailedAllocationEvent(ctx, alloc, allocData, allocations, callbacks)
 	case structs.AllocClientStatusLost:
-		handleLostAllocationEvent(alloc, allocData, allocations, callbacks)
+		handleLostAllocationEvent(ctx, alloc, allocData, allocations, callbacks)
 	default:
 		log.WithField("alloc", alloc).Warn("Other Client Status")
 	}
@@ -428,7 +428,7 @@ func updateAllocationData(
 
 // handlePendingAllocationEvent manages allocation that are currently pending.
 // This allows the handling of startups and re-placements of allocations.
-func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocationData,
+func handlePendingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	var stopExpected bool
 	switch alloc.DesiredStatus {
@@ -439,11 +439,11 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocat
 			if isOOMKilled(alloc) {
 				reason = ErrorOOMKilled
 			}
-			callbacks.OnDeleted(alloc.JobID, reason)
+			callbacks.OnDeleted(ctx, alloc.JobID, reason)
 		} else if alloc.PreviousAllocation != "" {
 			// Handle Runner (/Container) re-allocations.
 			if prevData, ok := allocations.Get(alloc.PreviousAllocation); ok {
-				stopExpected = callbacks.OnDeleted(prevData.jobID, ErrorAllocationRescheduled)
+				stopExpected = callbacks.OnDeleted(ctx, prevData.jobID, ErrorAllocationRescheduled)
 				allocations.Delete(alloc.PreviousAllocation)
 			} else {
 				log.WithField("alloc", alloc).Warn("Previous Allocation not found")
@@ -475,12 +475,12 @@ func handlePendingAllocationEvent(alloc *nomadApi.Allocation, allocData *allocat
 }
 
 // handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
-func handleRunningAllocationEvent(alloc *nomadApi.Allocation, allocData *allocationData,
+func handleRunningAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
 	_ storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
 		startupDuration := time.Since(allocData.start)
-		callbacks.OnNew(alloc, startupDuration)
+		callbacks.OnNew(ctx, alloc, startupDuration)
 	case structs.AllocDesiredStatusStop:
 		// It is normal that running allocations will stop. We will handle it when it is stopped.
 	default:
@@ -489,13 +489,13 @@ func handleRunningAllocationEvent(alloc *nomadApi.Allocation, allocData *allocat
 }
 
 // handleCompleteAllocationEvent handles allocations that stopped.
-func handleCompleteAllocationEvent(alloc *nomadApi.Allocation, _ *allocationData,
+func handleCompleteAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, _ *allocationData,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
 		log.WithField("alloc", alloc).Warn("Complete allocation desires to run")
 	case structs.AllocDesiredStatusStop:
-		callbacks.OnDeleted(alloc.JobID, ErrorAllocationCompleted)
+		callbacks.OnDeleted(ctx, alloc.JobID, ErrorAllocationCompleted)
 		allocations.Delete(alloc.ID)
 	default:
 		log.WithField("alloc", alloc).Warn("Other Desired Status")
@@ -503,22 +503,22 @@ func handleCompleteAllocationEvent(alloc *nomadApi.Allocation, _ *allocationData
 }
 
 // handleFailedAllocationEvent logs only the last of the multiple failure events.
-func handleFailedAllocationEvent(alloc *nomadApi.Allocation, allocData *allocationData,
+func handleFailedAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	// The stop is expected when the allocation desired to stop even before it failed.
 	reschedulingExpected := allocData.allocDesiredStatus != structs.AllocDesiredStatusStop
-	handleStoppingAllocationEvent(alloc, allocations, callbacks, reschedulingExpected)
+	handleStoppingAllocationEvent(ctx, alloc, allocations, callbacks, reschedulingExpected)
 }
 
 // handleLostAllocationEvent logs only the last of the multiple lost events.
-func handleLostAllocationEvent(alloc *nomadApi.Allocation, allocData *allocationData,
+func handleLostAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
 	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
 	// The stop is expected when the allocation desired to stop even before it got lost.
 	reschedulingExpected := allocData.allocDesiredStatus != structs.AllocDesiredStatusStop
-	handleStoppingAllocationEvent(alloc, allocations, callbacks, reschedulingExpected)
+	handleStoppingAllocationEvent(ctx, alloc, allocations, callbacks, reschedulingExpected)
 }
 
-func handleStoppingAllocationEvent(alloc *nomadApi.Allocation, allocations storage.Storage[*allocationData],
+func handleStoppingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocations storage.Storage[*allocationData],
 	callbacks *AllocationProcessing, reschedulingExpected bool) {
 	replacementAllocationScheduled := alloc.NextAllocation != ""
 	correctRescheduling := reschedulingExpected == replacementAllocationScheduled
@@ -531,7 +531,7 @@ func handleStoppingAllocationEvent(alloc *nomadApi.Allocation, allocations stora
 		} else {
 			reason = ErrorAllocationRescheduledUnexpectedly
 		}
-		removedByPoseidon = callbacks.OnDeleted(alloc.JobID, reason)
+		removedByPoseidon = callbacks.OnDeleted(ctx, alloc.JobID, reason)
 		allocations.Delete(alloc.ID)
 	}
 

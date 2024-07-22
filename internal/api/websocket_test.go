@@ -42,7 +42,7 @@ type WebSocketTestSuite struct {
 func (s *WebSocketTestSuite) SetupTest() {
 	s.MemoryLeakTestSuite.SetupTest()
 	runnerID := "runner-id"
-	s.runner, s.apiMock = newNomadAllocationWithMockedAPIClient(runnerID)
+	s.runner, s.apiMock = newNomadAllocationWithMockedAPIClient(s.TestCtx, runnerID)
 
 	// default execution
 	s.executionID = tests.DefaultExecutionID
@@ -261,7 +261,7 @@ func (s *WebSocketTestSuite) TestWebsocketNonZeroExit() {
 
 func (s *MainTestSuite) TestWebsocketTLS() {
 	runnerID := "runner-id"
-	r, apiMock := newNomadAllocationWithMockedAPIClient(runnerID)
+	r, apiMock := newNomadAllocationWithMockedAPIClient(s.TestCtx, runnerID)
 
 	executionID := tests.DefaultExecutionID
 	r.StoreExecution(executionID, &executionRequestLs)
@@ -322,12 +322,12 @@ func (s *MainTestSuite) TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt
 
 // --- Test suite specific test helpers ---
 
-func newNomadAllocationWithMockedAPIClient(runnerID string) (runner.Runner, *nomad.ExecutorAPIMock) {
+func newNomadAllocationWithMockedAPIClient(ctx context.Context, runnerID string) (runner.Runner, *nomad.ExecutorAPIMock) {
 	executorAPIMock := &nomad.ExecutorAPIMock{}
 	executorAPIMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	manager := &runner.ManagerMock{}
 	manager.On("Return", mock.Anything).Return(nil)
-	r := runner.NewNomadJob(runnerID, nil, executorAPIMock, nil)
+	r := runner.NewNomadJob(ctx, runnerID, nil, executorAPIMock, nil)
 	return r, executorAPIMock
 }
 
@@ -350,8 +350,8 @@ func newRunnerWithNotMockedRunnerManager(suite *MainTestSuite, apiMock *nomad.Ex
 	server := httptest.NewServer(router)
 
 	runnerID := tests.DefaultRunnerID
-	runnerJob := runner.NewNomadJob(runnerID, nil, apiMock, nil)
-	nomadEnvironment, err := environment.NewNomadEnvironment(0, apiMock, "job \"template-0\" {}")
+	runnerJob := runner.NewNomadJob(suite.TestCtx, runnerID, nil, apiMock, nil)
+	nomadEnvironment, err := environment.NewNomadEnvironment(suite.TestCtx, 0, apiMock, "job \"template-0\" {}")
 	suite.Require().NoError(err)
 	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
 	suite.Require().NoError(err)

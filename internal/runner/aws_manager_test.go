@@ -91,7 +91,7 @@ func (s *MainTestSuite) TestAWSRunnerManager_Return() {
 
 		apiMock := &nomad.ExecutorAPIMock{}
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-		nonAWSRunner := NewNomadJob(tests.DefaultRunnerID, nil, apiMock, nil)
+		nonAWSRunner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, nil)
 		err := runnerManager.Return(nonAWSRunner)
 		s.NoError(err)
 		nextHandler.AssertCalled(s.T(), "Return", nonAWSRunner)

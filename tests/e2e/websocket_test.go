@@ -371,7 +371,7 @@ func ExecuteNonInteractive(s *suite.Suite, environmentID dto.EnvironmentID, exec
 }
 
 // ProvideWebSocketConnection establishes a client WebSocket connection to run the passed ExecutionRequest.
-func ProvideWebSocketConnection(suite *suite.Suite, environmentID dto.EnvironmentID, executionRequest *dto.ExecutionRequest,
+func ProvideWebSocketConnection(s *suite.Suite, environmentID dto.EnvironmentID, executionRequest *dto.ExecutionRequest,
 	copyRequest *dto.UpdateFileSystemRequest) (*websocket.Conn, error) {
 	runnerID, err := ProvideRunner(&dto.RunnerRequest{ExecutionEnvironmentID: int(environmentID)})
 	if err != nil {
@@ -379,11 +379,11 @@ func ProvideWebSocketConnection(suite *suite.Suite, environmentID dto.Environmen
 	}
 	if copyRequest != nil {
 		resp, err := CopyFiles(runnerID, copyRequest)
-		suite.Require().NoError(err)
-		suite.Require().Equal(http.StatusNoContent, resp.StatusCode)
+		s.Require().NoError(err)
+		s.Require().Equal(http.StatusNoContent, resp.StatusCode)
 	}
 	webSocketURL, err := ProvideWebSocketURL(runnerID, executionRequest)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 	connection, err := ConnectToWebSocket(webSocketURL)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to WebSocket: %w", err)

@@ -25,6 +25,8 @@ linters-settings:
       - rangeValCopy     # ^
       - typeDefFirst     # |
       - paramTypeCombine # |
+  interfacebloat:
+    max: 12
   lll:
     line-length: 150
   makezero:

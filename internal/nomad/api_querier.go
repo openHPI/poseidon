@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrorNoAllocationFound = errors.New("no allocation found")
+	ErrNoAllocationFound = errors.New("no allocation found")
 )
 
 // apiQuerier provides access to the Nomad functionality.
@@ -105,7 +105,7 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 		return 1, fmt.Errorf("error retrieving allocations for runner: %w", err)
 	}
 	if len(allocations) == 0 {
-		return 1, ErrorNoAllocationFound
+		return 1, ErrNoAllocationFound
 	}
 
 	var allocation *nomadApi.Allocation
@@ -247,7 +247,7 @@ func (nc *nomadAPIClient) allocation(jobID string) (alloc *nomadApi.Allocation, 
 		return nil, fmt.Errorf("error requesting Nomad job allocations: %w", err)
 	}
 	if len(allocs) == 0 {
-		return nil, ErrorNoAllocationFound
+		return nil, ErrNoAllocationFound
 	}
 	alloc, _, err = nc.client.Allocations().Info(allocs[0].ID, nil)
 	if err != nil {

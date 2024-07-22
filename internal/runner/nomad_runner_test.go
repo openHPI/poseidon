@@ -128,7 +128,7 @@ func (s *MainTestSuite) TestDestroyDoesNotPropagateToNomadForSomeReasons() {
 	})
 
 	s.Run("destroy removes the runner only locally for rescheduled allocations", func() {
-		err := r.Destroy(nomad.ErrorAllocationRescheduled)
+		err := r.Destroy(nomad.ErrAllocationRescheduled)
 		s.NoError(err)
 		apiMock.AssertExpectations(s.T())
 	})
@@ -175,7 +175,7 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 
 func (s *ExecuteInteractivelyTestSuite) TestReturnsErrorWhenExecutionDoesNotExist() {
 	_, _, err := s.runner.ExecuteInteractively("non-existent-id", nil, nil, nil, context.Background())
-	s.ErrorIs(err, ErrorUnknownExecution)
+	s.ErrorIs(err, ErrUnknownExecution)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestCallsApi() {
@@ -292,10 +292,10 @@ func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut(
 	exitChannel, _, err := s.runner.ExecuteInteractively(
 		defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
 	s.Require().NoError(err)
-	err = s.runner.Destroy(ErrorRunnerInactivityTimeout)
+	err = s.runner.Destroy(ErrRunnerInactivityTimeout)
 	s.Require().NoError(err)
 	exit := <-exitChannel
-	s.ErrorIs(exit.Err, ErrorRunnerInactivityTimeout)
+	s.ErrorIs(exit.Err, ErrRunnerInactivityTimeout)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestDestroyReasonIsPassedToExecution() {
@@ -408,14 +408,14 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfE
 	s.mockedExecuteCommandCall.Return(1, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
-	s.ErrorIs(err, ErrorFileCopyFailed)
+	s.ErrorIs(err, ErrFileCopyFailed)
 }
 
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfApiCallDid() {
 	s.mockedExecuteCommandCall.Return(0, tests.ErrDefault)
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
-	s.ErrorIs(err, nomad.ErrorExecutorCommunicationFailed)
+	s.ErrorIs(err, nomad.ErrExecutorCommunicationFailed)
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {

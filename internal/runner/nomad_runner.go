@@ -39,11 +39,11 @@ const (
 )
 
 var (
-	ErrorUnknownExecution                  = errors.New("unknown execution")
-	ErrorFileCopyFailed                    = errors.New("file copy failed")
+	ErrUnknownExecution                    = errors.New("unknown execution")
+	ErrFileCopyFailed                      = errors.New("file copy failed")
 	ErrFileNotFound                        = errors.New("file not found or insufficient permissions")
-	ErrLocalDestruction      DestroyReason = nomad.ErrorLocalDestruction
-	ErrOOMKilled             DestroyReason = nomad.ErrorOOMKilled
+	ErrLocalDestruction      DestroyReason = nomad.ErrLocalDestruction
+	ErrOOMKilled             DestroyReason = nomad.ErrOOMKilled
 	ErrDestroyedByAPIRequest DestroyReason = errors.New("the client wants to stop the runner")
 	ErrCannotStopExecution   DestroyReason = errors.New("the execution did not stop after SIGQUIT")
 	ErrDestroyedAndReplaced  DestroyReason = fmt.Errorf("the runner will be destroyed and replaced: %w", ErrLocalDestruction)
@@ -83,7 +83,7 @@ func NewNomadJob(ctx context.Context, jobID string, portMappings []nomadApi.Port
 	job.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
 		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), jobID), time.Minute, ctx)
 	job.InactivityTimer = NewInactivityTimer(job, func(r Runner) error {
-		err := r.Destroy(ErrorRunnerInactivityTimeout)
+		err := r.Destroy(ErrRunnerInactivityTimeout)
 		if err != nil {
 			err = fmt.Errorf("NomadJob: %w", err)
 		}
@@ -132,7 +132,7 @@ func (r *NomadJob) ExecuteInteractively(
 ) (<-chan ExitInfo, context.CancelFunc, error) {
 	request, ok := r.executions.Pop(id)
 	if !ok {
-		return nil, nil, ErrorUnknownExecution
+		return nil, nil, ErrUnknownExecution
 	}
 
 	r.ResetTimeout()
@@ -178,11 +178,11 @@ func (r *NomadJob) ListFileSystem(
 		err = nil
 	case err != nil:
 		err = fmt.Errorf("%w: nomad error during retrieve file headers: %v",
-			nomad.ErrorExecutorCommunicationFailed, err)
+			nomad.ErrExecutorCommunicationFailed, err)
 	case exitCode != 0:
 		err = ErrFileNotFound
 	case !ls2json.HasStartedWriting():
-		err = fmt.Errorf("list file system failed silently: %w", nomad.ErrorExecutorCommunicationFailed)
+		err = fmt.Errorf("list file system failed silently: %w", nomad.ErrExecutorCommunicationFailed)
 	}
 	return err
 }
@@ -207,13 +207,13 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, re
 	if err != nil {
 		return fmt.Errorf(
 			"%w: nomad error during file copy: %v",
-			nomad.ErrorExecutorCommunicationFailed,
+			nomad.ErrExecutorCommunicationFailed,
 			err)
 	}
 	if exitCode != 0 {
 		return fmt.Errorf(
 			"%w: stderr output '%s' and stdout output '%s'",
-			ErrorFileCopyFailed,
+			ErrFileCopyFailed,
 			stdErr.String(),
 			stdOut.String())
 	}
@@ -244,7 +244,7 @@ func (r *NomadJob) GetFileContent(
 
 	if err != nil {
 		return fmt.Errorf("%w: nomad error during retrieve file content copy: %v",
-			nomad.ErrorExecutorCommunicationFailed, err)
+			nomad.ErrExecutorCommunicationFailed, err)
 	}
 	if exitCode != 0 {
 		return ErrFileNotFound
@@ -346,11 +346,11 @@ func (r *NomadJob) handleContextDone(exitInternal <-chan ExitInfo, exit chan<- E
 	stdin io.ReadWriter, ctx context.Context) {
 	err := ctx.Err()
 	if errors.Is(err, context.DeadlineExceeded) {
-		err = ErrorExecutionTimeout
+		err = ErrExecutionTimeout
 	} // for errors.Is(err, context.Canceled) the user likely disconnected from the execution.
 	if reason, ok := r.ctx.Value(destroyReasonContextKey).(error); ok {
 		err = reason
-		if r.TimeoutPassed() && !errors.Is(err, ErrorRunnerInactivityTimeout) {
+		if r.TimeoutPassed() && !errors.Is(err, ErrRunnerInactivityTimeout) {
 			log.WithError(err).Warn("Wrong destroy reason for expired runner")
 		}
 	}
@@ -360,7 +360,7 @@ func (r *NomadJob) handleContextDone(exitInternal <-chan ExitInfo, exit chan<- E
 	exit <- ExitInfo{255, err}
 
 	// This condition prevents further interaction with a stopped / dead allocation.
-	if errors.Is(err, nomad.ErrorOOMKilled) {
+	if errors.Is(err, nomad.ErrOOMKilled) {
 		return
 	}
 

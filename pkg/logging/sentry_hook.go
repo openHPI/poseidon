@@ -13,7 +13,7 @@ import (
 // Consider replacing this with a more feature rich, additional dependency: https://github.com/evalphobia/logrus_sentry
 type SentryHook struct{}
 
-var ErrorHubInvalid = errors.New("the hub is invalid")
+var ErrHubInvalid = errors.New("the hub is invalid")
 
 // Fire is triggered on new log entries.
 func (hook *SentryHook) Fire(entry *logrus.Entry) error {
@@ -27,7 +27,7 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	}
 	client, scope := hub.Client(), hub.Scope()
 	if client == nil || scope == nil {
-		return ErrorHubInvalid
+		return ErrHubInvalid
 	}
 
 	scope.SetContext("Poseidon Details", entry.Data)

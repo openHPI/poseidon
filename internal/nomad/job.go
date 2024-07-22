@@ -35,9 +35,9 @@ const (
 )
 
 var (
-	ErrorInvalidJobID     = errors.New("invalid job id")
-	ErrorMissingTaskGroup = errors.New("couldn't find config task group in job")
-	TaskArgs              = []string{"infinity"}
+	ErrInvalidJobID     = errors.New("invalid job id")
+	ErrMissingTaskGroup = errors.New("couldn't find config task group in job")
+	TaskArgs            = []string{"infinity"}
 )
 
 func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
@@ -191,11 +191,11 @@ func EnvironmentIDFromTemplateJobID(id string) (dto.EnvironmentID, error) {
 func partOfJobID(id string, part uint) (dto.EnvironmentID, error) {
 	parts := strings.Split(id, "-")
 	if len(parts) == 0 {
-		return 0, fmt.Errorf("empty job id: %w", ErrorInvalidJobID)
+		return 0, fmt.Errorf("empty job id: %w", ErrInvalidJobID)
 	}
 	environmentID, err := strconv.Atoi(parts[part])
 	if err != nil {
-		return 0, fmt.Errorf("invalid environment id par %v: %w", err, ErrorInvalidJobID)
+		return 0, fmt.Errorf("invalid environment id par %v: %w", err, ErrInvalidJobID)
 	}
 	return dto.EnvironmentID(environmentID), nil
 }

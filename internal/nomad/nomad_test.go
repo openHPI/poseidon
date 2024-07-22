@@ -672,7 +672,7 @@ func (s *MainTestSuite) TestHandleAllocationEvent_ReportsOOMKilledStatus() {
 		},
 	})
 	s.Require().NoError(err)
-	s.ErrorIs(reason, ErrorOOMKilled)
+	s.ErrorIs(reason, ErrOOMKilled)
 }
 
 func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved() {
@@ -967,7 +967,7 @@ func (s *MainTestSuite) TestAPIClient_LoadRunnerPortMappings() {
 	s.Run("should return error when AllocatedResources is nil", func() {
 		mockedCall.Return(&nomadApi.Allocation{AllocatedResources: nil}, nil)
 		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
-		s.ErrorIs(err, ErrorNoAllocatedResourcesFound)
+		s.ErrorIs(err, ErrNoAllocatedResourcesFound)
 		s.Nil(portMappings)
 	})
 

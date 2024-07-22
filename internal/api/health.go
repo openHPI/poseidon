@@ -11,7 +11,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 )
 
-var ErrorPrewarmingPoolDepleting = errors.New("the prewarming pool is depleting")
+var ErrPrewarmingPoolDepleting = errors.New("the prewarming pool is depleting")
 
 // Health handles the health route.
 // It responds that the server is alive.
@@ -39,7 +39,7 @@ func checkPrewarmingPool(manager environment.Manager) error {
 
 	if len(depletingEnvironments) > 0 {
 		arrayToString := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(depletingEnvironments)), ", "), "[]")
-		return fmt.Errorf("%w: environments %s", ErrorPrewarmingPoolDepleting, arrayToString)
+		return fmt.Errorf("%w: environments %s", ErrPrewarmingPoolDepleting, arrayToString)
 	}
 	return nil
 }

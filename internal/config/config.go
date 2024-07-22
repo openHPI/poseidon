@@ -101,21 +101,21 @@ var (
 )
 
 type alert struct {
-	PrewarmingPoolThreshold     float64
-	PrewarmingPoolReloadTimeout uint
+	PrewarmingPoolThreshold     float64 `yaml:"prewarmingpoolthreshold"`
+	PrewarmingPoolReloadTimeout uint    `yaml:"prewarmingpoolreloadtimeout"`
 }
 
 // server configures the Poseidon webserver.
 type server struct {
-	Address                 string
-	Port                    int
-	SystemdSocketActivation bool
-	Token                   string
-	TLS                     TLS
-	InteractiveStderr       bool
-	TemplateJobFile         string
-	Alert                   alert
-	LoggingFilterToken      string
+	Address                 string `yaml:"address"`
+	Port                    int    `yaml:"port"`
+	SystemdSocketActivation bool   `yaml:"systemdsocketactivation"`
+	Token                   string `yaml:"token"`
+	TLS                     TLS    `yaml:"tls"`
+	InteractiveStderr       bool   `yaml:"interactivestderr"`
+	TemplateJobFile         string `yaml:"templatejobfile"`
+	Alert                   alert  `yaml:"alert"`
+	LoggingFilterToken      string `yaml:"loggingfiltertoken"`
 }
 
 // URL returns the URL of the Poseidon webserver.
@@ -125,14 +125,14 @@ func (s *server) URL() *url.URL {
 
 // Nomad configures the used Nomad cluster.
 type Nomad struct {
-	Enabled          bool
-	Address          string
-	Port             int
-	Token            string
-	TLS              TLS
-	Namespace        string
-	DisableForcePull bool
-	Network          nomadApi.NetworkResource
+	Enabled          bool                     `yaml:"enabled"`
+	Address          string                   `yaml:"address"`
+	Port             int                      `yaml:"port"`
+	Token            string                   `yaml:"token"`
+	TLS              TLS                      `yaml:"tls"`
+	Namespace        string                   `yaml:"namespace"`
+	DisableForcePull bool                     `yaml:"disableforcepull"`
+	Network          nomadApi.NetworkResource `yaml:"network"`
 }
 
 // URL returns the URL for the configured Nomad cluster.
@@ -142,40 +142,40 @@ func (n *Nomad) URL() *url.URL {
 
 // AWS configures the AWS Lambda usage.
 type AWS struct {
-	Enabled   bool
-	Endpoint  string
-	Functions []string
+	Enabled   bool     `yaml:"enabled"`
+	Endpoint  string   `yaml:"endpoint"`
+	Functions []string `yaml:"functions"`
 }
 
 // TLS configures TLS on a connection.
 type TLS struct {
-	Active   bool
-	CAFile   string
-	CertFile string
-	KeyFile  string
+	Active   bool   `yaml:"active"`
+	CAFile   string `yaml:"cafile"`
+	CertFile string `yaml:"certfile"`
+	KeyFile  string `yaml:"keyfile"`
 }
 
 // Logger configures the used Logger.
 type Logger struct {
-	Formatter dto.Formatter
-	Level     string
+	Formatter dto.Formatter `yaml:"formatter"`
+	Level     string        `yaml:"level"`
 }
 
 // Profiling configures the usage of a runtime profiler to create optimized binaries.
 type Profiling struct {
-	CPUEnabled      bool
-	CPUFile         string
-	MemoryInterval  uint
-	MemoryThreshold uint
+	CPUEnabled      bool   `yaml:"cpuenabled"`
+	CPUFile         string `yaml:"cpufile"`
+	MemoryInterval  uint   `yaml:"memoryinterval"`
+	MemoryThreshold uint   `yaml:"memorythreshold"`
 }
 
 // InfluxDB configures the usage of an Influx db monitoring.
 type InfluxDB struct {
-	URL          string
-	Token        string
-	Organization string
-	Bucket       string
-	Stage        string
+	URL          string `yaml:"url"`
+	Token        string `yaml:"token"`
+	Organization string `yaml:"organization"`
+	Bucket       string `yaml:"bucket"`
+	Stage        string `yaml:"stage"`
 }
 
 // configuration contains the complete configuration of Poseidon.

@@ -50,7 +50,7 @@ func (s *MainTestSuite) TestHealth() {
 			var details dto.InternalServerError
 			err = json.Unmarshal(b, &details)
 			s.Require().NoError(err)
-			s.Contains(details.Message, ErrorPrewarmingPoolDepleting.Error())
+			s.Contains(details.Message, ErrPrewarmingPoolDepleting.Error())
 		})
 	})
 }

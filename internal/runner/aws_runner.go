@@ -97,7 +97,7 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(
 	w.ResetTimeout()
 	request, ok := w.executions.Pop(id)
 	if !ok {
-		return nil, nil, ErrorUnknownExecution
+		return nil, nil, ErrUnknownExecution
 	}
 	hideEnvironmentVariables(request, "AWS")
 	request.PrivilegedExecution = true // AWS does not support multiple users at this moment.
@@ -181,7 +181,7 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 	exitCode, err := w.receiveOutput(ctx, wsConn, stdout, stderr)
 	// TimeoutPassed checks the runner timeout
 	if w.TimeoutPassed() {
-		err = ErrorRunnerInactivityTimeout
+		err = ErrRunnerInactivityTimeout
 	}
 	exit <- ExitInfo{exitCode, err}
 }
@@ -235,7 +235,7 @@ func (w *AWSFunctionWorkload) handleRunnerTimeout(ctx context.Context,
 	case exitInfo := <-exitInternal:
 		exit <- exitInfo
 	case <-executionCtx.Done():
-		exit <- ExitInfo{255, ErrorRunnerInactivityTimeout}
+		exit <- ExitInfo{255, ErrRunnerInactivityTimeout}
 	}
 }
 

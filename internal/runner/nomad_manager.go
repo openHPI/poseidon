@@ -210,7 +210,7 @@ func (m *NomadRunnerManager) loadEnvironment(ctx context.Context, environment Ex
 func (m *NomadRunnerManager) loadSingleJob(ctx context.Context, job *nomadApi.Job, environment ExecutionEnvironment) (r Runner, isUsed bool, err error) {
 	configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
 	if configTaskGroup == nil {
-		return nil, false, fmt.Errorf("%w, %s", nomad.ErrorMissingTaskGroup, *job.ID)
+		return nil, false, fmt.Errorf("%w, %s", nomad.ErrMissingTaskGroup, *job.ID)
 	}
 	isUsed = configTaskGroup.Meta[nomad.ConfigMetaUsedKey] == nomad.ConfigMetaUsedValue
 	portMappings, err := m.apiClient.LoadRunnerPortMappings(*job.ID)

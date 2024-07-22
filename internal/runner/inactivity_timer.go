@@ -33,8 +33,8 @@ const (
 )
 
 var (
-	ErrorRunnerInactivityTimeout DestroyReason = errors.New("runner inactivity timeout exceeded")
-	ErrorExecutionTimeout                      = errors.New("execution timeout exceeded")
+	ErrRunnerInactivityTimeout DestroyReason = errors.New("runner inactivity timeout exceeded")
+	ErrExecutionTimeout                      = errors.New("execution timeout exceeded")
 )
 
 type InactivityTimerImplementation struct {

@@ -22,22 +22,22 @@ import (
 )
 
 var (
-	log                                                        = logging.GetLogger("nomad")
-	ErrorExecutorCommunicationFailed                           = errors.New("communication with executor failed")
-	ErrorEvaluation                                            = errors.New("evaluation could not complete")
-	ErrorPlacingAllocations                                    = errors.New("failed to place all allocations")
-	ErrorLoadingJob                                            = errors.New("failed to load job")
-	ErrorNoAllocatedResourcesFound                             = errors.New("no allocated resources found")
-	ErrorLocalDestruction                  RunnerDeletedReason = errors.New("the destruction should not cause external changes")
-	ErrorOOMKilled                         RunnerDeletedReason = fmt.Errorf("%s: %w", dto.ErrOOMKilled.Error(), ErrorLocalDestruction)
-	ErrorAllocationRescheduled             RunnerDeletedReason = fmt.Errorf("the allocation was rescheduled: %w", ErrorLocalDestruction)
-	ErrorAllocationStopped                 RunnerDeletedReason = errors.New("the allocation was stopped")
-	ErrorAllocationStoppedUnexpectedly     RunnerDeletedReason = fmt.Errorf("%w unexpectedly", ErrorAllocationStopped)
-	ErrorAllocationRescheduledUnexpectedly RunnerDeletedReason = fmt.Errorf(
-		"%w correctly but rescheduled", ErrorAllocationStopped)
-	// ErrorAllocationCompleted is for reporting the reason for the stopped allocation.
+	log                                                      = logging.GetLogger("nomad")
+	ErrExecutorCommunicationFailed                           = errors.New("communication with executor failed")
+	ErrEvaluation                                            = errors.New("evaluation could not complete")
+	ErrPlacingAllocations                                    = errors.New("failed to place all allocations")
+	ErrLoadingJob                                            = errors.New("failed to load job")
+	ErrNoAllocatedResourcesFound                             = errors.New("no allocated resources found")
+	ErrLocalDestruction                  RunnerDeletedReason = errors.New("the destruction should not cause external changes")
+	ErrOOMKilled                         RunnerDeletedReason = fmt.Errorf("%s: %w", dto.ErrOOMKilled.Error(), ErrLocalDestruction)
+	ErrAllocationRescheduled             RunnerDeletedReason = fmt.Errorf("the allocation was rescheduled: %w", ErrLocalDestruction)
+	ErrAllocationStopped                 RunnerDeletedReason = errors.New("the allocation was stopped")
+	ErrAllocationStoppedUnexpectedly     RunnerDeletedReason = fmt.Errorf("%w unexpectedly", ErrAllocationStopped)
+	ErrAllocationRescheduledUnexpectedly RunnerDeletedReason = fmt.Errorf(
+		"%w correctly but rescheduled", ErrAllocationStopped)
+	// ErrAllocationCompleted is for reporting the reason for the stopped allocation.
 	// We do not consider it as an error but add it anyway for a complete reporting.
-	ErrorAllocationCompleted RunnerDeletedReason = errors.New("the allocation completed")
+	ErrAllocationCompleted RunnerDeletedReason = errors.New("the allocation completed")
 )
 
 // resultChannelWriteTimeout is to detect the error when more element are written into a channel than expected.
@@ -168,7 +168,7 @@ func (a *APIClient) LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapp
 		return nil, fmt.Errorf("error querying allocation for runner %s: %w", runnerID, err)
 	}
 	if alloc.AllocatedResources == nil {
-		return nil, ErrorNoAllocatedResourcesFound
+		return nil, ErrNoAllocatedResourcesFound
 	}
 	return alloc.AllocatedResources.Shared.Ports, nil
 }
@@ -187,7 +187,7 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 		job, err := a.apiQuerier.job(runnerID)
 		if err != nil {
 			if occurredError == nil {
-				occurredError = ErrorLoadingJob
+				occurredError = ErrLoadingJob
 			}
 			occurredError = fmt.Errorf("%w: couldn't load job info for runner %s - %v", occurredError, runnerID, err)
 			continue
@@ -437,13 +437,13 @@ func handlePendingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocatio
 			// Handle Allocation restart.
 			var reason error
 			if isOOMKilled(alloc) {
-				reason = ErrorOOMKilled
+				reason = ErrOOMKilled
 			}
 			callbacks.OnDeleted(ctx, alloc.JobID, reason)
 		} else if alloc.PreviousAllocation != "" {
 			// Handle Runner (/Container) re-allocations.
 			if prevData, ok := allocations.Get(alloc.PreviousAllocation); ok {
-				stopExpected = callbacks.OnDeleted(ctx, prevData.jobID, ErrorAllocationRescheduled)
+				stopExpected = callbacks.OnDeleted(ctx, prevData.jobID, ErrAllocationRescheduled)
 				allocations.Delete(alloc.PreviousAllocation)
 			} else {
 				log.WithField("alloc", alloc).Warn("Previous Allocation not found")
@@ -495,7 +495,7 @@ func handleCompleteAllocationEvent(ctx context.Context, alloc *nomadApi.Allocati
 	case structs.AllocDesiredStatusRun:
 		log.WithField("alloc", alloc).Warn("Complete allocation desires to run")
 	case structs.AllocDesiredStatusStop:
-		callbacks.OnDeleted(ctx, alloc.JobID, ErrorAllocationCompleted)
+		callbacks.OnDeleted(ctx, alloc.JobID, ErrAllocationCompleted)
 		allocations.Delete(alloc.ID)
 	default:
 		log.WithField("alloc", alloc).Warn("Other Desired Status")
@@ -527,9 +527,9 @@ func handleStoppingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocati
 	if !replacementAllocationScheduled {
 		var reason error
 		if correctRescheduling {
-			reason = ErrorAllocationStoppedUnexpectedly
+			reason = ErrAllocationStoppedUnexpectedly
 		} else {
-			reason = ErrorAllocationRescheduledUnexpectedly
+			reason = ErrAllocationRescheduledUnexpectedly
 		}
 		removedByPoseidon = callbacks.OnDeleted(ctx, alloc.JobID, reason)
 		allocations.Delete(alloc.ID)
@@ -548,10 +548,10 @@ func handleStoppingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocati
 func checkEvaluation(eval *nomadApi.Evaluation) (err error) {
 	if len(eval.FailedTGAllocs) == 0 {
 		if eval.Status != structs.EvalStatusComplete {
-			err = fmt.Errorf("%w: %q", ErrorEvaluation, eval.Status)
+			err = fmt.Errorf("%w: %q", ErrEvaluation, eval.Status)
 		}
 	} else {
-		err = fmt.Errorf("evaluation %q finished with status %q but %w", eval.ID, eval.Status, ErrorPlacingAllocations)
+		err = fmt.Errorf("evaluation %q finished with status %q but %w", eval.ID, eval.Status, ErrPlacingAllocations)
 		for taskGroup, metrics := range eval.FailedTGAllocs {
 			err = fmt.Errorf("%w\n%s: %#v", err, taskGroup, metrics)
 		}

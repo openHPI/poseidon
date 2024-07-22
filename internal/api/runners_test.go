@@ -337,7 +337,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemToNonExistingRunner
 func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemReturnsInternalServerErrorWhenCopyFailed() {
 	s.runnerMock.
 		On("UpdateFileSystem", mock.AnythingOfType("*dto.UpdateFileSystemRequest"), mock.Anything).
-		Return(runner.ErrorFileCopyFailed)
+		Return(runner.ErrFileCopyFailed)
 
 	copyRequest := dto.UpdateFileSystemRequest{}
 	body, err := json.Marshal(copyRequest)
@@ -425,7 +425,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestFileContent() {
 
 	s.recorder = httptest.NewRecorder()
 	s.Run("Unknown Error", func() {
-		mockCall.Return(nomad.ErrorExecutorCommunicationFailed)
+		mockCall.Return(nomad.ErrExecutorCommunicationFailed)
 		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
 		s.Require().NoError(err)
 		s.router.ServeHTTP(s.recorder, request)

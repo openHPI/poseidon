@@ -56,7 +56,7 @@ type sendExitInfoTestCase struct {
 
 func (s *MainTestSuite) TestCodeOceanOutputWriter_SendExitInfo() {
 	testCases := []sendExitInfoTestCase{
-		{"Timeout", &runner.ExitInfo{Err: runner.ErrorRunnerInactivityTimeout},
+		{"Timeout", &runner.ExitInfo{Err: runner.ErrRunnerInactivityTimeout},
 			dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout}},
 		{"Error", &runner.ExitInfo{Err: websocket.ErrCloseSent},
 			dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: "Error executing the request"}},

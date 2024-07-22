@@ -708,9 +708,9 @@ func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEO
 	s.Equal(1, eventsProcessed)
 }
 
-func assertWatchAllocation(suite *MainTestSuite, events []*nomadApi.Events,
+func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
 	expectedNewAllocations []*nomadApi.Allocation, expectedDeletedAllocations []string) {
-	suite.T().Helper()
+	s.T().Helper()
 	var newAllocations []*nomadApi.Allocation
 	var deletedAllocations []string
 	callbacks := &AllocationProcessing{
@@ -723,12 +723,12 @@ func assertWatchAllocation(suite *MainTestSuite, events []*nomadApi.Events,
 		},
 	}
 
-	eventsProcessed, err := runAllocationWatching(suite, events, callbacks)
-	suite.NoError(err)
-	suite.Equal(len(events), eventsProcessed)
+	eventsProcessed, err := runAllocationWatching(s, events, callbacks)
+	s.NoError(err)
+	s.Equal(len(events), eventsProcessed)
 
-	suite.Equal(expectedNewAllocations, newAllocations)
-	suite.Equal(expectedDeletedAllocations, deletedAllocations)
+	s.Equal(expectedNewAllocations, newAllocations)
+	s.Equal(expectedDeletedAllocations, deletedAllocations)
 }
 
 // runAllocationWatching simulates events streamed from the Nomad event stream

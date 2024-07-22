@@ -331,45 +331,45 @@ func newNomadAllocationWithMockedAPIClient(ctx context.Context, runnerID string)
 	return r, executorAPIMock
 }
 
-func newRunnerWithNotMockedRunnerManager(suite *MainTestSuite, apiMock *nomad.ExecutorAPIMock, executionID string) (
+func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.ExecutorAPIMock, executionID string) (
 	r runner.Runner, wsURL *url.URL, cleanup func()) {
-	suite.T().Helper()
+	s.T().Helper()
 	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
 	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
 	call.Run(func(args mock.Arguments) {
-		<-suite.TestCtx.Done()
+		<-s.TestCtx.Done()
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 
-	runnerManager := runner.NewNomadRunnerManager(apiMock, suite.TestCtx)
+	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
 	router := NewRouter(runnerManager, nil)
-	suite.ExpectedGoroutineIncrease++ // The server is not closing properly. Therefore, we don't even try.
+	s.ExpectedGoroutineIncrease++ // The server is not closing properly. Therefore, we don't even try.
 	server := httptest.NewServer(router)
 
 	runnerID := tests.DefaultRunnerID
-	runnerJob := runner.NewNomadJob(suite.TestCtx, runnerID, nil, apiMock, nil)
-	nomadEnvironment, err := environment.NewNomadEnvironment(suite.TestCtx, 0, apiMock, "job \"template-0\" {}")
-	suite.Require().NoError(err)
+	runnerJob := runner.NewNomadJob(s.TestCtx, runnerID, nil, apiMock, nil)
+	nomadEnvironment, err := environment.NewNomadEnvironment(s.TestCtx, 0, apiMock, "job \"template-0\" {}")
+	s.Require().NoError(err)
 	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 	nomadEnvironment.SetID(eID)
 	nomadEnvironment.SetPrewarmingPoolSize(0)
 	runnerManager.StoreEnvironment(nomadEnvironment)
 	nomadEnvironment.AddRunner(runnerJob)
 
 	r, err = runnerManager.Claim(nomadEnvironment.ID(), int(tests.DefaultTestTimeout.Seconds()))
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 	wsURL, err = webSocketURL("ws", server, router, r.ID(), executionID)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
 	return r, wsURL, func() {
 		err = r.Destroy(tests.ErrCleanupDestroyReason)
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 		err = nomadEnvironment.Delete(tests.ErrCleanupDestroyReason)
-		suite.NoError(err)
+		s.NoError(err)
 	}
 }
 

@@ -493,31 +493,31 @@ func (s *ManagerTestSuite) TestOnAllocationStopped() {
 	})
 }
 
-func testStoppedInactivityTimer(suite *ManagerTestSuite) (r Runner, destroyed chan struct{}) {
-	suite.T().Helper()
-	environment, ok := suite.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
-	suite.Require().True(ok)
+func testStoppedInactivityTimer(s *ManagerTestSuite) (r Runner, destroyed chan struct{}) {
+	s.T().Helper()
+	environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
+	s.Require().True(ok)
 	environmentMock, ok := environment.(*ExecutionEnvironmentMock)
-	suite.Require().True(ok)
+	s.Require().True(ok)
 	mockIdleRunners(environmentMock)
 
 	runnerDestroyed := make(chan struct{})
-	environment.AddRunner(NewNomadJob(suite.TestCtx, tests.DefaultRunnerID, []nomadApi.PortMapping{}, suite.apiMock, func(runner Runner) error {
+	environment.AddRunner(NewNomadJob(s.TestCtx, tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(runner Runner) error {
 		go func() {
 			select {
 			case runnerDestroyed <- struct{}{}:
-			case <-suite.TestCtx.Done():
+			case <-s.TestCtx.Done():
 			}
 		}()
-		return suite.nomadRunnerManager.onRunnerDestroyed(runner)
+		return s.nomadRunnerManager.onRunnerDestroyed(runner)
 	}))
 
-	runner, err := suite.nomadRunnerManager.Claim(defaultEnvironmentID, 1)
-	suite.Require().NoError(err)
-	suite.Require().False(runner.TimeoutPassed())
+	runner, err := s.nomadRunnerManager.Claim(defaultEnvironmentID, 1)
+	s.Require().NoError(err)
+	s.Require().False(runner.TimeoutPassed())
 	select {
 	case runnerDestroyed <- struct{}{}:
-		suite.Fail("The runner should not be removed by now")
+		s.Fail("The runner should not be removed by now")
 	case <-time.After(tests.ShortTimeout):
 	}
 

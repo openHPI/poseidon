@@ -52,7 +52,8 @@ func NewNomadEnvironment(ctx context.Context, environmentID dto.EnvironmentID, a
 
 func NewNomadEnvironmentFromRequest(ctx context.Context,
 	apiClient nomad.ExecutorAPI, jobHCL string, environmentID dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
-	*NomadEnvironment, error) {
+	*NomadEnvironment, error,
+) {
 	environment, err := NewNomadEnvironment(ctx, environmentID, apiClient, jobHCL)
 	if err != nil {
 		return nil, err

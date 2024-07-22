@@ -155,7 +155,8 @@ func (r *NomadJob) ExecuteInteractively(
 }
 
 func (r *NomadJob) ListFileSystem(
-	path string, recursive bool, content io.Writer, privilegedExecution bool, requestCtx context.Context) error {
+	path string, recursive bool, content io.Writer, privilegedExecution bool, requestCtx context.Context,
+) error {
 	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
 	command := lsCommand
@@ -221,7 +222,8 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, re
 }
 
 func (r *NomadJob) GetFileContent(
-	path string, content http.ResponseWriter, privilegedExecution bool, requestCtx context.Context) error {
+	path string, content http.ResponseWriter, privilegedExecution bool, requestCtx context.Context,
+) error {
 	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
 
@@ -241,7 +243,6 @@ func (r *NomadJob) GetFileContent(
 	// Improve: Instead of using io.Discard use a **fixed-sized** buffer. With that we could improve the error message.
 	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
 		&nullio.Reader{Ctx: ctx}, contentLengthWriter, io.Discard)
-
 	if err != nil {
 		return fmt.Errorf("%w: nomad error during retrieve file content copy: %w",
 			nomad.ErrExecutorCommunicationFailed, err)
@@ -324,7 +325,8 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 }
 
 func (r *NomadJob) handleExit(exitInfo ExitInfo, exitInternal <-chan ExitInfo, exit chan<- ExitInfo,
-	stdin io.ReadWriter, ctx context.Context) {
+	stdin io.ReadWriter, ctx context.Context,
+) {
 	// Special Handling of OOM Killed allocations. See #401.
 	const exitCodeOfLikelyOOMKilledAllocation = 128
 	const gracePeriodForConfirmingOOMKillReason = time.Second
@@ -343,7 +345,8 @@ func (r *NomadJob) handleExit(exitInfo ExitInfo, exitInternal <-chan ExitInfo, e
 }
 
 func (r *NomadJob) handleContextDone(exitInternal <-chan ExitInfo, exit chan<- ExitInfo,
-	stdin io.ReadWriter, ctx context.Context) {
+	stdin io.ReadWriter, ctx context.Context,
+) {
 	err := ctx.Err()
 	if errors.Is(err, context.DeadlineExceeded) {
 		err = ErrExecutionTimeout

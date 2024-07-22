@@ -333,7 +333,8 @@ func createEnvironment(t *testing.T, environmentID string, aws bool) {
 }
 
 func assertPutReturnsStatusAndZeroContent(t *testing.T, path string,
-	request dto.ExecutionEnvironmentRequest, status int) {
+	request dto.ExecutionEnvironmentRequest, status int,
+) {
 	t.Helper()
 	resp, err := helpers.HTTPPutJSON(path, request)
 	require.NoError(t, err)

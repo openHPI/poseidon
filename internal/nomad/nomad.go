@@ -52,8 +52,10 @@ type RunnerDeletedReason error
 
 // DeletedAllocationProcessor is a handler that will be called for each deleted allocation.
 // removedByPoseidon should be true iff the Nomad Manager has removed the runner before.
-type DeletedAllocationProcessor func(ctx context.Context, jobID string, RunnerDeletedReason error) (removedByPoseidon bool)
-type NewAllocationProcessor func(context.Context, *nomadApi.Allocation, time.Duration)
+type (
+	DeletedAllocationProcessor func(ctx context.Context, jobID string, RunnerDeletedReason error) (removedByPoseidon bool)
+	NewAllocationProcessor     func(context.Context, *nomadApi.Allocation, time.Duration)
+)
 
 type allocationData struct {
 	// allocClientStatus defines the state defined by Nomad.
@@ -344,7 +346,8 @@ func handleEvaluationEvent(evaluations storage.Storage[chan error], event *nomad
 // is called. The allocations storage is used to track pending and running allocations. Using the
 // storage the state is persisted between multiple calls of this function.
 func handleAllocationEvent(ctx context.Context, startTime int64, allocations storage.Storage[*allocationData],
-	event *nomadApi.Event, callbacks *AllocationProcessing) error {
+	event *nomadApi.Event, callbacks *AllocationProcessing,
+) error {
 	alloc, err := event.Allocation()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve allocation from event: %w", err)
@@ -413,7 +416,8 @@ func filterDuplicateEvents(alloc *nomadApi.Allocation, allocations storage.Stora
 // updateAllocationData updates the allocation tracking data according to the passed alloc.
 // The allocation data before this allocation update is returned.
 func updateAllocationData(
-	alloc *nomadApi.Allocation, allocations storage.Storage[*allocationData]) (previous *allocationData) {
+	alloc *nomadApi.Allocation, allocations storage.Storage[*allocationData],
+) (previous *allocationData) {
 	allocData, ok := allocations.Get(alloc.ID)
 	if ok {
 		data := *allocData
@@ -429,7 +433,8 @@ func updateAllocationData(
 // handlePendingAllocationEvent manages allocation that are currently pending.
 // This allows the handling of startups and re-placements of allocations.
 func handlePendingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
-	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing,
+) {
 	var stopExpected bool
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
@@ -476,7 +481,8 @@ func handlePendingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocatio
 
 // handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
 func handleRunningAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
-	_ storage.Storage[*allocationData], callbacks *AllocationProcessing) {
+	_ storage.Storage[*allocationData], callbacks *AllocationProcessing,
+) {
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
 		startupDuration := time.Since(allocData.start)
@@ -490,7 +496,8 @@ func handleRunningAllocationEvent(ctx context.Context, alloc *nomadApi.Allocatio
 
 // handleCompleteAllocationEvent handles allocations that stopped.
 func handleCompleteAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, _ *allocationData,
-	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing,
+) {
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
 		log.WithField("alloc", alloc).Warn("Complete allocation desires to run")
@@ -504,7 +511,8 @@ func handleCompleteAllocationEvent(ctx context.Context, alloc *nomadApi.Allocati
 
 // handleFailedAllocationEvent logs only the last of the multiple failure events.
 func handleFailedAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
-	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing,
+) {
 	// The stop is expected when the allocation desired to stop even before it failed.
 	reschedulingExpected := allocData.allocDesiredStatus != structs.AllocDesiredStatusStop
 	handleStoppingAllocationEvent(ctx, alloc, allocations, callbacks, reschedulingExpected)
@@ -512,14 +520,16 @@ func handleFailedAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation
 
 // handleLostAllocationEvent logs only the last of the multiple lost events.
 func handleLostAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
-	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing) {
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing,
+) {
 	// The stop is expected when the allocation desired to stop even before it got lost.
 	reschedulingExpected := allocData.allocDesiredStatus != structs.AllocDesiredStatusStop
 	handleStoppingAllocationEvent(ctx, alloc, allocations, callbacks, reschedulingExpected)
 }
 
 func handleStoppingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocations storage.Storage[*allocationData],
-	callbacks *AllocationProcessing, reschedulingExpected bool) {
+	callbacks *AllocationProcessing, reschedulingExpected bool,
+) {
 	replacementAllocationScheduled := alloc.NextAllocation != ""
 	correctRescheduling := reschedulingExpected == replacementAllocationScheduled
 
@@ -601,7 +611,8 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 // we make sure that stdout and stderr are split correctly.
 func (a *APIClient) ExecuteCommand(jobID string,
 	ctx context.Context, command string, tty bool, privilegedExecution bool,
-	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	stdin io.Reader, stdout, stderr io.Writer,
+) (int, error) {
 	if tty && config.Config.Server.InteractiveStderr {
 		return a.executeCommandInteractivelyWithStderr(jobID, ctx, command, privilegedExecution, stdin, stdout, stderr)
 	}
@@ -619,7 +630,8 @@ func (a *APIClient) ExecuteCommand(jobID string,
 // to be served both over stdout. This function circumvents this by creating a fifo for the stderr
 // of the command and starting a second execution that reads the stderr from that fifo.
 func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, ctx context.Context,
-	command string, privilegedExecution bool, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	command string, privilegedExecution bool, stdin io.Reader, stdout, stderr io.Writer,
+) (int, error) {
 	// Use current nano time to make the stderr fifo kind of unique.
 	currentNanoTime := time.Now().UnixNano()
 

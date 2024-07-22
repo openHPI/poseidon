@@ -44,7 +44,8 @@ type AWSFunctionWorkload struct {
 
 // NewAWSFunctionWorkload creates a new AWSFunctionWorkload with the provided id.
 func NewAWSFunctionWorkload(
-	environment ExecutionEnvironment, onDestroy DestroyRunnerHandler) (*AWSFunctionWorkload, error) {
+	environment ExecutionEnvironment, onDestroy DestroyRunnerHandler,
+) (*AWSFunctionWorkload, error) {
 	newUUID, err := uuid.NewUUID()
 	if err != nil {
 		return nil, fmt.Errorf("failed generating runner id: %w", err)
@@ -93,7 +94,8 @@ func (w *AWSFunctionWorkload) ExecutionExists(id string) bool {
 // It should be further improved by using the passed context to handle lost connections.
 func (w *AWSFunctionWorkload) ExecuteInteractively(
 	id string, _ io.ReadWriter, stdout, stderr io.Writer, _ context.Context) (
-	<-chan ExitInfo, context.CancelFunc, error) {
+	<-chan ExitInfo, context.CancelFunc, error,
+) {
 	w.ResetTimeout()
 	request, ok := w.executions.Pop(id)
 	if !ok {
@@ -187,7 +189,8 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 }
 
 func (w *AWSFunctionWorkload) receiveOutput(ctx context.Context,
-	conn *websocket.Conn, stdout, stderr io.Writer) (uint8, error) {
+	conn *websocket.Conn, stdout, stderr io.Writer,
+) (uint8, error) {
 	for ctx.Err() == nil {
 		messageType, reader, err := conn.NextReader()
 		if err != nil {
@@ -225,7 +228,8 @@ func (w *AWSFunctionWorkload) receiveOutput(ctx context.Context,
 // handleRunnerTimeout listens for a runner timeout and aborts the execution in that case.
 // It listens via a context in runningExecutions that is canceled on the timeout event.
 func (w *AWSFunctionWorkload) handleRunnerTimeout(ctx context.Context,
-	exitInternal <-chan ExitInfo, exit chan<- ExitInfo, executionID string) {
+	exitInternal <-chan ExitInfo, exit chan<- ExitInfo, executionID string,
+) {
 	executionCtx, cancelExecution := context.WithCancel(ctx)
 	w.runningExecutions[executionID] = cancelExecution
 	defer delete(w.runningExecutions, executionID)

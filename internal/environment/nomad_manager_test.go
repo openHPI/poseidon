@@ -165,8 +165,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 	})
 
 	s.Run("Returns environment when it was added before", func() {
-		expectedEnvironment, err :=
-			NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+		expectedEnvironment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		expectedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		s.Require().NoError(err)
 		runnerManager.StoreEnvironment(expectedEnvironment)
@@ -280,8 +279,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 	runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
 
 	s.Run("Fetches new Runners via the api client", func() {
-		fetchedEnvironment, err :=
-			NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+		fetchedEnvironment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.Require().NoError(err)
 		fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		status := structs.JobStatusRunning

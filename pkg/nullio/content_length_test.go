@@ -13,6 +13,7 @@ type responseWriterStub struct {
 func (r *responseWriterStub) Header() http.Header {
 	return r.header
 }
+
 func (r *responseWriterStub) WriteHeader(_ int) {
 }
 

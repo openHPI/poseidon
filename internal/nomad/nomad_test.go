@@ -134,10 +134,12 @@ func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	s.NotContains(returnedIds, s.deadRunner.ID)
 }
 
-const TestNamespace = "unit-tests"
-const TestNomadToken = "n0m4d-t0k3n"
-const TestDefaultAddress = "127.0.0.1"
-const evaluationID = "evaluation-id"
+const (
+	TestNamespace      = "unit-tests"
+	TestNomadToken     = "n0m4d-t0k3n"
+	TestDefaultAddress = "127.0.0.1"
+	evaluationID       = "evaluation-id"
+)
 
 func NomadTestConfig(address string) *config.Nomad {
 	return &config.Nomad{
@@ -288,21 +290,36 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithSuccessfulEvent() {
 		eventForEvaluation(s.T(), &pendingEval), eventForEvaluation(s.T(), &eval),
 	}}
 
-	var cases = []struct {
+	cases := []struct {
 		streamedEvents          []*nomadApi.Events
 		expectedEventsProcessed int
 		name                    string
 	}{
-		{[]*nomadApi.Events{&events}, 1,
-			"it completes with successful event"},
-		{[]*nomadApi.Events{&events, &events}, 2,
-			"it keeps listening after first successful event"},
-		{[]*nomadApi.Events{{}, &events}, 2,
-			"it skips heartbeat and completes"},
-		{[]*nomadApi.Events{&pendingEvaluationEvents, &events}, 2,
-			"it skips pending evaluation and completes"},
-		{[]*nomadApi.Events{&multipleEventsWithPending}, 1,
-			"it handles multiple events per received event"},
+		{
+			[]*nomadApi.Events{&events},
+			1,
+			"it completes with successful event",
+		},
+		{
+			[]*nomadApi.Events{&events, &events},
+			2,
+			"it keeps listening after first successful event",
+		},
+		{
+			[]*nomadApi.Events{{}, &events},
+			2,
+			"it skips heartbeat and completes",
+		},
+		{
+			[]*nomadApi.Events{&pendingEvaluationEvents, &events},
+			2,
+			"it skips pending evaluation and completes",
+		},
+		{
+			[]*nomadApi.Events{&multipleEventsWithPending},
+			1,
+			"it handles multiple events per received event",
+		},
 	}
 
 	for _, c := range cases {
@@ -328,22 +345,37 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithFailingEvent() {
 	}}
 	eventsWithErr := nomadApi.Events{Err: tests.ErrDefault, Events: []nomadApi.Event{{}}}
 
-	var cases = []struct {
+	cases := []struct {
 		streamedEvents          []*nomadApi.Events
 		expectedEventsProcessed int
 		expectedError           error
 		name                    string
 	}{
-		{[]*nomadApi.Events{&events}, 1, evalErr,
-			"it fails with failing event"},
-		{[]*nomadApi.Events{{}, &events}, 2, evalErr,
-			"it skips heartbeat and fail"},
-		{[]*nomadApi.Events{&pendingEvaluationEvents, &events}, 2, evalErr,
-			"it skips pending evaluation and fail"},
-		{[]*nomadApi.Events{&multipleEventsWithPending}, 1, evalErr,
-			"it handles multiple events per received event and fails"},
-		{[]*nomadApi.Events{&eventsWithErr}, 1, tests.ErrDefault,
-			"it fails with event error when event has error"},
+		{
+			[]*nomadApi.Events{&events},
+			1, evalErr,
+			"it fails with failing event",
+		},
+		{
+			[]*nomadApi.Events{{}, &events},
+			2, evalErr,
+			"it skips heartbeat and fail",
+		},
+		{
+			[]*nomadApi.Events{&pendingEvaluationEvents, &events},
+			2, evalErr,
+			"it skips pending evaluation and fail",
+		},
+		{
+			[]*nomadApi.Events{&multipleEventsWithPending},
+			1, evalErr,
+			"it handles multiple events per received event and fails",
+		},
+		{
+			[]*nomadApi.Events{&eventsWithErr},
+			1, tests.ErrDefault,
+			"it fails with event error when event has error",
+		},
 	}
 
 	for _, c := range cases {
@@ -411,8 +443,10 @@ func (s *MainTestSuite) TestCheckEvaluationWithoutFailedAllocations() {
 	})
 
 	s.Run("when evaluation status not complete", func() {
-		incompleteStates := []string{structs.EvalStatusFailed, structs.EvalStatusCancelled,
-			structs.EvalStatusBlocked, structs.EvalStatusPending}
+		incompleteStates := []string{
+			structs.EvalStatusFailed, structs.EvalStatusCancelled,
+			structs.EvalStatusBlocked, structs.EvalStatusPending,
+		}
 		for _, status := range incompleteStates {
 			evaluation.Status = status
 			err := checkEvaluation(&evaluation)
@@ -461,7 +495,8 @@ func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 	startedAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
 	startedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), startedAllocation)}}
 	pendingStartedEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(s.T(), pendingAllocation), eventForAllocation(s.T(), startedAllocation)}}
+		eventForAllocation(s.T(), pendingAllocation), eventForAllocation(s.T(), startedAllocation),
+	}}
 
 	s.Run("it adds allocation with matching events", func() {
 		assertWatchAllocation(s, []*nomadApi.Events{&pendingStartedEvents},
@@ -487,14 +522,18 @@ func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 	})
 
 	s.Run("it ignores duplicate events", func() {
-		assertWatchAllocation(s, []*nomadApi.Events{&pendingEvents, &startedEvents, &startedEvents,
-			&stoppedEvents, &stoppedEvents, &stoppedEvents},
+		assertWatchAllocation(s, []*nomadApi.Events{
+			&pendingEvents, &startedEvents, &startedEvents,
+			&stoppedEvents, &stoppedEvents, &stoppedEvents,
+		},
 			[]*nomadApi.Allocation{startedAllocation}, []string{startedAllocation.JobID})
 	})
 
 	s.Run("it ignores events of unknown allocations", func() {
-		assertWatchAllocation(s, []*nomadApi.Events{&startedEvents, &startedEvents,
-			&stoppedEvents, &stoppedEvents, &stoppedEvents}, []*nomadApi.Allocation(nil), []string(nil))
+		assertWatchAllocation(s, []*nomadApi.Events{
+			&startedEvents, &startedEvents,
+			&stoppedEvents, &stoppedEvents, &stoppedEvents,
+		}, []*nomadApi.Allocation(nil), []string(nil))
 	})
 
 	s.Run("it removes restarted allocations", func() {
@@ -509,7 +548,8 @@ func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 	rescheduleStartedAllocation.ID = tests.AnotherUUID
 	rescheduleAllocation.PreviousAllocation = pendingAllocation.ID
 	rescheduleEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(s.T(), rescheduleAllocation), eventForAllocation(s.T(), rescheduleStartedAllocation)}}
+		eventForAllocation(s.T(), rescheduleAllocation), eventForAllocation(s.T(), rescheduleStartedAllocation),
+	}}
 
 	s.Run("it removes rescheduled allocations", func() {
 		assertWatchAllocation(s, []*nomadApi.Events{&pendingStartedEvents, &rescheduleEvents},
@@ -543,7 +583,8 @@ func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 	rescheduledLostAllocation := createRecentAllocation(structs.AllocClientStatusLost, structs.AllocDesiredStatusStop)
 	rescheduledLostAllocation.NextAllocation = tests.AnotherUUID
 	rescheduledLostEvents := nomadApi.Events{Events: []nomadApi.Event{
-		eventForAllocation(s.T(), rescheduledLostAllocation)}}
+		eventForAllocation(s.T(), rescheduledLostAllocation),
+	}}
 
 	s.Run("it removes lost allocations not before the last restart attempt", func() {
 		assertWatchAllocation(s, []*nomadApi.Events{&pendingStartedEvents, &rescheduledLostEvents},
@@ -709,7 +750,8 @@ func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEO
 }
 
 func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
-	expectedNewAllocations []*nomadApi.Allocation, expectedDeletedAllocations []string) {
+	expectedNewAllocations []*nomadApi.Allocation, expectedDeletedAllocations []string,
+) {
 	s.T().Helper()
 	var newAllocations []*nomadApi.Allocation
 	var deletedAllocations []string
@@ -735,7 +777,8 @@ func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
 // to the MonitorEvaluation method. It starts the MonitorEvaluation function as a goroutine
 // and sequentially transfers the events from the given array to a channel simulating the stream.
 func runAllocationWatching(s *MainTestSuite, events []*nomadApi.Events, callbacks *AllocationProcessing) (
-	eventsProcessed int, err error) {
+	eventsProcessed int, err error,
+) {
 	s.T().Helper()
 	stream := make(chan *nomadApi.Events)
 	errChan := asynchronouslyWatchAllocations(stream, callbacks)
@@ -945,7 +988,8 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError()
 }
 
 func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
-	err error, runFunc func(arguments mock.Arguments)) *mock.Call {
+	err error, runFunc func(arguments mock.Arguments),
+) *mock.Call {
 	return s.apiMock.On("Execute", s.allocationID, mock.Anything, command, withTTY,
 		mock.Anything, mock.Anything, mock.Anything).
 		Run(runFunc).

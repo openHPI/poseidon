@@ -76,7 +76,8 @@ func NewLocalStorage[T any]() *localStorage[T] {
 // Iff callback is set, it will be called on a write operation.
 // Iff additionalEvents not zero, the duration will be used to periodically send additional monitoring events.
 func NewMonitoredLocalStorage[T any](
-	measurement string, callback WriteCallback[T], additionalEvents time.Duration, ctx context.Context) *localStorage[T] {
+	measurement string, callback WriteCallback[T], additionalEvents time.Duration, ctx context.Context,
+) *localStorage[T] {
 	s := &localStorage[T]{
 		objects:     make(map[string]T),
 		measurement: measurement,

@@ -182,6 +182,7 @@ func (s *MainTestSuite) TestNewMonitoredLocalStorage_Callback() {
 		}, 2, 0, 2)
 	})
 }
+
 func (s *MainTestSuite) TestNewMonitoredLocalStorage_Periodically() {
 	callbackCalls := 0
 	NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, eventType EventType) {

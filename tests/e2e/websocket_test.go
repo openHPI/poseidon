@@ -133,9 +133,10 @@ func (s *E2ETestSuite) TestCommandMake() {
 			expectedOutput := "MeinText"
 			request := &dto.UpdateFileSystemRequest{
 				Copy: []dto.File{
-					{Path: "Makefile", Content: []byte(
-						"run:\n\t@echo " + expectedOutput + "\n\n" +
-							"test:\n\t@echo Hi\n"),
+					{
+						Path: "Makefile", Content: []byte(
+							"run:\n\t@echo " + expectedOutput + "\n\n" +
+								"test:\n\t@echo Hi\n"),
 					},
 				},
 			}
@@ -348,7 +349,8 @@ func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {
 
 // ExecuteNonInteractive Executes the passed executionRequest in the required environment without providing input.
 func ExecuteNonInteractive(s *suite.Suite, environmentID dto.EnvironmentID, executionRequest *dto.ExecutionRequest,
-	copyRequest *dto.UpdateFileSystemRequest) (stdout, stderr string, exitCode uint8) {
+	copyRequest *dto.UpdateFileSystemRequest,
+) (stdout, stderr string, exitCode uint8) {
 	connection, err := ProvideWebSocketConnection(s, environmentID, executionRequest, copyRequest)
 	s.Require().NoError(err)
 
@@ -372,7 +374,8 @@ func ExecuteNonInteractive(s *suite.Suite, environmentID dto.EnvironmentID, exec
 
 // ProvideWebSocketConnection establishes a client WebSocket connection to run the passed ExecutionRequest.
 func ProvideWebSocketConnection(s *suite.Suite, environmentID dto.EnvironmentID, executionRequest *dto.ExecutionRequest,
-	copyRequest *dto.UpdateFileSystemRequest) (*websocket.Conn, error) {
+	copyRequest *dto.UpdateFileSystemRequest,
+) (*websocket.Conn, error) {
 	runnerID, err := ProvideRunner(&dto.RunnerRequest{ExecutionEnvironmentID: int(environmentID)})
 	if err != nil {
 		return nil, fmt.Errorf("error providing runner: %w", err)

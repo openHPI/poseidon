@@ -14,9 +14,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/logging"
 )
 
-var (
-	ErrNoAllocationFound = errors.New("no allocation found")
-)
+var ErrNoAllocationFound = errors.New("no allocation found")
 
 // apiQuerier provides access to the Nomad functionality.
 type apiQuerier interface {

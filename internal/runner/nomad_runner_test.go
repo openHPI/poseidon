@@ -420,7 +420,8 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfA
 
 func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
-		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
+		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)},
+	}}
 	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
@@ -436,7 +437,8 @@ func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 
 func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFilePath() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
-		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}}}
+		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)},
+	}}
 	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.Require().NoError(err)
 
@@ -448,7 +450,8 @@ func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFil
 
 func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLocation() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
-		{Path: tests.FileNameWithAbsolutePath, Content: []byte(tests.DefaultFileContent)}}}
+		{Path: tests.FileNameWithAbsolutePath, Content: []byte(tests.DefaultFileContent)},
+	}}
 	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
 	s.Require().NoError(err)
 

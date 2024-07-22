@@ -64,7 +64,8 @@ type writingLoopMessage struct {
 // NewCodeOceanOutputWriter provides an codeOceanOutputWriter for the time the context ctx is active.
 // The codeOceanOutputWriter handles all the messages defined in the websocket.schema.json (start, timeout, stdout, ...).
 func NewCodeOceanOutputWriter(
-	connection Connection, ctx context.Context, done context.CancelFunc) WebSocketWriter {
+	connection Connection, ctx context.Context, done context.CancelFunc,
+) WebSocketWriter {
 	cw := &codeOceanOutputWriter{
 		connection: connection,
 		queue:      make(chan *writingLoopMessage, CodeOceanOutputWriterBufferSize),

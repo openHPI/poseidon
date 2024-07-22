@@ -41,7 +41,8 @@ func (a *AWSEnvironmentManager) Get(ctx context.Context, id dto.EnvironmentID, f
 }
 
 func (a *AWSEnvironmentManager) CreateOrUpdate(
-	id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest, ctx context.Context) (bool, error) {
+	id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest, ctx context.Context,
+) (bool, error) {
 	if !isAWSEnvironment(request) {
 		isCreated, err := a.NextHandler().CreateOrUpdate(id, request, ctx)
 		if err != nil {

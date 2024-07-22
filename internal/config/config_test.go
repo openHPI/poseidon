@@ -91,7 +91,7 @@ func (s *MainTestSuite) TestCallingInitConfigTwiceDoesNotChangeConfig() {
 }
 
 func (s *MainTestSuite) TestReadEnvironmentVariables() {
-	var environmentTests = []struct {
+	environmentTests := []struct {
 		variableSuffix string
 		valueToSet     string
 		expectedValue  interface{}
@@ -138,7 +138,7 @@ func (s *MainTestSuite) TestUnsetEnvironmentVariableDoesNotChangeConfig() {
 }
 
 func (s *MainTestSuite) TestReadYamlConfigFile() {
-	var yamlTests = []struct {
+	yamlTests := []struct {
 		content        []byte
 		expectedValue  interface{}
 		getTargetField func(*configuration) interface{}
@@ -148,8 +148,11 @@ func (s *MainTestSuite) TestReadYamlConfigFile() {
 		{[]byte("nomad:\n  tls:\n    active: true\n"), true, getNomadTLSActive},
 		{[]byte(""), false, getNomadTLSActive},
 		{[]byte("nomad:\n  token:\n"), "SECRET", getNomadToken},
-		{[]byte("aws:\n  functions:\n    - java11Exec\n    - go118Exec\n"),
-			[]string{"java11Exec", "go118Exec"}, getAWSFunctions},
+		{
+			[]byte("aws:\n  functions:\n    - java11Exec\n    - go118Exec\n"),
+			[]string{"java11Exec", "go118Exec"},
+			getAWSFunctions,
+		},
 	}
 	for _, testCase := range yamlTests {
 		config := newTestConfiguration()
@@ -196,7 +199,7 @@ func (s *MainTestSuite) TestReadNonExistingConfigFileDoesNotOverwriteConfig() {
 }
 
 func (s *MainTestSuite) TestURLParsing() {
-	var urlTests = []struct {
+	urlTests := []struct {
 		address        string
 		port           int
 		tls            bool

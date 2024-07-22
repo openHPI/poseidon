@@ -44,13 +44,16 @@ func NewNomadEnvironmentManager(
 		return nil, err
 	}
 
-	m := &NomadEnvironmentManager{&AbstractManager{nil, runnerManager},
-		apiClient, templateEnvironmentJobHCL}
+	m := &NomadEnvironmentManager{
+		&AbstractManager{nil, runnerManager},
+		apiClient, templateEnvironmentJobHCL,
+	}
 	return m, nil
 }
 
 func (m *NomadEnvironmentManager) Get(ctx context.Context, environmentID dto.EnvironmentID, fetch bool) (
-	executionEnvironment runner.ExecutionEnvironment, err error) {
+	executionEnvironment runner.ExecutionEnvironment, err error,
+) {
 	executionEnvironment, ok := m.runnerManager.GetEnvironment(environmentID)
 
 	if fetch {
@@ -132,7 +135,8 @@ func (m *NomadEnvironmentManager) fetchEnvironments(ctx context.Context) error {
 }
 
 func (m *NomadEnvironmentManager) CreateOrUpdate(
-	id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest, ctx context.Context) (created bool, err error) {
+	id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest, ctx context.Context,
+) (created bool, err error) {
 	// Check if execution environment is already existing (in the local memory).
 	environment, isExistingEnvironment := m.runnerManager.GetEnvironment(id)
 	if isExistingEnvironment {

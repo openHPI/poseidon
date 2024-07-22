@@ -2,6 +2,8 @@ run:
   go: "1.22"
 
 linters-settings:
+  cyclop:
+    max-complexity: 15
   errcheck:
     check-type-assertions: true
     check-blank: true
@@ -23,8 +25,12 @@ linters-settings:
       - rangeValCopy     # ^
       - typeDefFirst     # |
       - paramTypeCombine # |
-  cyclop:
-    max-complexity: 15
+  lll:
+    line-length: 150
+  makezero:
+    always: true
+  misspell:
+    locale: US
   mnd:
     # don't include "assign"
     checks:
@@ -33,12 +39,6 @@ linters-settings:
     - condition
     - operation
     - return
-  lll:
-    line-length: 150
-  makezero:
-    always: true
-  misspell:
-    locale: US
   nakedret:
     max-func-lines: 5
   varnamelen:
@@ -55,6 +55,7 @@ linters:
   enable-all: true
   disable:
     - contextcheck
+    - depguard
     - execinquery
     - ireturn
     - gomnd

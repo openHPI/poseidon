@@ -216,7 +216,6 @@ func (nc *nomadAPIClient) JobScale(jobID string) (uint, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error retrieving scale status of job: %w", err)
 	}
-	// ToDo: Consider counting also the placed and desired allocations
 	jobScale := uint(status.TaskGroups[TaskGroupName].Running)
 	return jobScale, nil
 }

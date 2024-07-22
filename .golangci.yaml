@@ -57,6 +57,7 @@ linters:
     - contextcheck
     - depguard
     - exhaustive
+    - exhaustruct
     - execinquery
     - ireturn
     - gomnd

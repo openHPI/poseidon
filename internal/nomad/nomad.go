@@ -466,7 +466,7 @@ func handlePendingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocatio
 		if !allocData.stopExpected {
 			log.WithField("alloc", alloc).Warn("Pending allocation was stopped unexpectedly")
 		} else {
-			// ToDo: This log statement is just for measuring how common the mentioned race condition is. Remove it soon.
+			// This log statement is just for measuring how common the mentioned race condition is.
 			log.WithField("alloc", alloc).Warn("Pending allocation was stopped expectedly")
 		}
 	default:

@@ -87,7 +87,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 	})
 
 	s.Run("sends execution request", func() {
-		s.T().Skip("The AWS runner ignores its context for executions and waits infinetly for the exit message.") // ToDo
+		s.T().Skip("The AWS runner ignores its context for executions and waits infinitely for the exit message.")
 		awsMock.ctx, cancel = context.WithTimeout(context.Background(), tests.ShortTimeout)
 		defer cancel()
 		command := "sl"
@@ -111,7 +111,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 }
 
 func (s *MainTestSuite) TestAWSFunctionWorkload_UpdateFileSystem() {
-	s.T().Skip("The AWS runner ignores its context for executions and waits infinetly for the exit message.") // ToDo
+	s.T().Skip("The AWS runner ignores its context for executions and waits infinitely for the exit message.")
 
 	environment := &ExecutionEnvironmentMock{}
 	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))

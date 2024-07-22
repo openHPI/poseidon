@@ -132,7 +132,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		fileHeader := listFilesResponse.Files[0]
 		s.Equal(dto.FilePath("./"+tests.DefaultFileName), fileHeader.Name)
 		s.Equal(dto.EntryTypeRegularFile, fileHeader.EntryType)
-		// ToDo: Reconsider if those files should be owned by root.
+
 		s.Equal("root", fileHeader.Owner)
 		s.Equal("root", fileHeader.Group)
 		s.Equal("rwxr--r--", fileHeader.Permissions)

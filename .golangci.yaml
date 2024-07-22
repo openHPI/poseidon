@@ -65,6 +65,7 @@ linters:
     - gomodguard
     - ireturn
     - nlreturn
+    - nonamedreturns
 
 issues:
   exclude-rules:

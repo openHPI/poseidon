@@ -37,7 +37,7 @@ func (s *MiddlewareTestSuite) SetupTest() {
 	s.manager = &runner.ManagerMock{}
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	s.runner = runner.NewNomadJob(tests.DefaultRunnerID, nil, apiMock, nil)
+	s.runner = runner.NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, nil)
 	s.capturedRunner = nil
 	s.runnerRequest = func(runnerId string) *http.Request {
 		path, err := s.router.Get("test-runner-id").URL(RunnerIDKey, runnerId)
@@ -125,7 +125,7 @@ func (s *RunnerRouteTestSuite) SetupTest() {
 	s.router = NewRouter(s.runnerManager, nil)
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	s.runner = runner.NewNomadJob("some-id", nil, apiMock, func(_ runner.Runner) error { return nil })
+	s.runner = runner.NewNomadJob(s.TestCtx, "some-id", nil, apiMock, func(_ runner.Runner) error { return nil })
 	s.executionID = "execution"
 	s.runner.StoreExecution(s.executionID, &dto.ExecutionRequest{})
 	s.runnerManager.On("Get", s.runner.ID()).Return(s.runner, nil)

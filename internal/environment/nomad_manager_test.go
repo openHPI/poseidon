@@ -116,7 +116,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 	s.Run("loads template environment job from file", func() {
 		templateJobHCL := "job \"" + tests.DefaultTemplateJobID + "\" {}"
 
-		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, executorAPIMock, templateJobHCL)
+		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, executorAPIMock, templateJobHCL)
 		s.Require().NoError(err)
 		f := createTempFile(s.T(), templateJobHCL)
 		defer os.Remove(f.Name())
@@ -136,7 +136,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 
 		m, err := NewNomadEnvironmentManager(runnerManagerMock, executorAPIMock, f.Name())
 		s.Require().NoError(err)
-		_, err = NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil, m.templateEnvironmentHCL)
+		_, err = NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, nil, m.templateEnvironmentHCL)
 		s.Error(err)
 	})
 
@@ -158,18 +158,18 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 	s.Require().NoError(err)
 
 	s.Run("Returns error when not found", func() {
-		_, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		_, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
 		s.Error(err)
 	})
 
 	s.Run("Returns environment when it was added before", func() {
 		expectedEnvironment, err :=
-			NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+			NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		expectedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		s.Require().NoError(err)
 		runnerManager.StoreEnvironment(expectedEnvironment)
 
-		environment, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		environment, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
 		s.Require().NoError(err)
 		s.Equal(expectedEnvironment, environment)
 
@@ -180,12 +180,12 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 	s.Run("Fetch", func() {
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 		s.Run("Returns error when not found", func() {
-			_, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			_, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, true)
 			s.Error(err)
 		})
 
 		s.Run("Updates values when environment already known by Poseidon", func() {
-			fetchedEnvironment, err := NewNomadEnvironment(
+			fetchedEnvironment, err := NewNomadEnvironment(s.TestCtx,
 				tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 			s.Require().NoError(err)
 			fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
@@ -194,16 +194,16 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 				call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
 			})
 
-			localEnvironment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+			localEnvironment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 			s.Require().NoError(err)
 			localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 			runnerManager.StoreEnvironment(localEnvironment)
 
-			environment, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+			environment, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
 			s.NoError(err)
 			s.NotEqual(fetchedEnvironment.Image(), environment.Image())
 
-			environment, err = environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			environment, err = environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, true)
 			s.NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
@@ -217,7 +217,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 		runnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
 
 		s.Run("Adds environment when not already known by Poseidon", func() {
-			fetchedEnvironment, err := NewNomadEnvironment(
+			fetchedEnvironment, err := NewNomadEnvironment(s.TestCtx,
 				tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 			s.Require().NoError(err)
 			fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
@@ -226,10 +226,10 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 				call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
 			})
 
-			_, err = environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+			_, err = environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
 			s.Require().Error(err)
 
-			environment, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, true)
+			environment, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, true)
 			s.Require().NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
@@ -256,18 +256,18 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 	s.Require().NoError(err)
 
 	s.Run("with no environments", func() {
-		environments, err := environmentManager.List(true)
+		environments, err := environmentManager.List(s.TestCtx, true)
 		s.NoError(err)
 		s.Empty(environments)
 	})
 
 	s.Run("Returns added environment", func() {
-		localEnvironment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+		localEnvironment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.Require().NoError(err)
 		localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(localEnvironment)
 
-		environments, err := environmentManager.List(false)
+		environments, err := environmentManager.List(s.TestCtx, false)
 		s.NoError(err)
 		s.Len(environments, 1)
 		s.Equal(localEnvironment, environments[0])
@@ -279,7 +279,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 
 	s.Run("Fetches new Runners via the api client", func() {
 		fetchedEnvironment, err :=
-			NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+			NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.Require().NoError(err)
 		fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		status := structs.JobStatusRunning
@@ -288,11 +288,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 			call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
 		})
 
-		environments, err := environmentManager.List(false)
+		environments, err := environmentManager.List(s.TestCtx, false)
 		s.NoError(err)
 		s.Empty(environments)
 
-		environments, err = environmentManager.List(true)
+		environments, err = environmentManager.List(s.TestCtx, true)
 		s.NoError(err)
 		s.Len(environments, 1)
 		nomadEnvironment, ok := environments[0].(*NomadEnvironment)
@@ -331,7 +331,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 		m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
 		s.Require().NoError(err)
 
-		err = m.load()
+		err = m.load(s.TestCtx)
 		s.Require().NoError(err)
 		environment.AssertExpectations(s.T())
 	})
@@ -347,7 +347,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 		m, err := NewNomadEnvironmentManager(runnerManager, apiMock, "")
 		s.Require().NoError(err)
 
-		err = m.load()
+		err = m.load(s.TestCtx)
 		s.Require().NoError(err)
 
 		environment, ok := runnerManager.GetEnvironment(tests.DefaultEnvironmentIDAsInteger)

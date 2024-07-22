@@ -40,7 +40,7 @@ func (s *EnvironmentControllerTestSuite) SetupTest() {
 }
 
 func (s *EnvironmentControllerTestSuite) TestList() {
-	call := s.manager.On("List", mock.AnythingOfType("bool"))
+	call := s.manager.On("List", mock.Anything, mock.AnythingOfType("bool"))
 	call.Run(func(args mock.Arguments) {
 		call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{}, nil}
 	})
@@ -73,7 +73,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 
 		s.router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusOK, recorder.Code)
-		s.manager.AssertCalled(s.T(), "List", true)
+		s.manager.AssertCalled(s.T(), "List", mock.Anything, true)
 	})
 	s.manager.Calls = []mock.Call{}
 
@@ -97,10 +97,10 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 
 		var firstEnvironment, secondEnvironment *environment.NomadEnvironment
 		call.Run(func(args mock.Arguments) {
-			firstEnvironment, err = environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock,
+			firstEnvironment, err = environment.NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
-			secondEnvironment, err = environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock,
+			secondEnvironment, err = environment.NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{firstEnvironment, secondEnvironment}, nil}
@@ -126,7 +126,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 }
 
 func (s *EnvironmentControllerTestSuite) TestGet() {
-	call := s.manager.On("Get", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("bool"))
+	call := s.manager.On("Get", mock.Anything, mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("bool"))
 	path, err := s.router.Get(getRouteName).URL(executionEnvironmentIDKey, tests.DefaultEnvironmentIDAsString)
 	s.Require().NoError(err)
 	request, err := http.NewRequest(http.MethodGet, path.String(), http.NoBody)
@@ -140,7 +140,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 		recorder := httptest.NewRecorder()
 		s.router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusNotFound, recorder.Code)
-		s.manager.AssertCalled(s.T(), "Get", dto.EnvironmentID(0), false)
+		s.manager.AssertCalled(s.T(), "Get", mock.Anything, dto.EnvironmentID(0), false)
 	})
 	s.manager.Calls = []mock.Call{}
 
@@ -158,7 +158,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 
 		s.router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusNotFound, recorder.Code)
-		s.manager.AssertCalled(s.T(), "Get", dto.EnvironmentID(0), true)
+		s.manager.AssertCalled(s.T(), "Get", mock.Anything, dto.EnvironmentID(0), true)
 	})
 	s.manager.Calls = []mock.Call{}
 
@@ -169,7 +169,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 
 		var testEnvironment *environment.NomadEnvironment
 		call.Run(func(args mock.Arguments) {
-			testEnvironment, err = environment.NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock,
+			testEnvironment, err = environment.NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
 			call.ReturnArguments = mock.Arguments{testEnvironment, nil}

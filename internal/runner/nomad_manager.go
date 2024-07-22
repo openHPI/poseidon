@@ -86,11 +86,11 @@ func (m *NomadRunnerManager) Return(r Runner) error {
 }
 
 // Load recovers all runners for all existing environments.
-func (m *NomadRunnerManager) Load() {
+func (m *NomadRunnerManager) Load(ctx context.Context) {
 	log.Info("Loading runners")
 	newUsedRunners := storage.NewLocalStorage[Runner]()
 	for _, environment := range m.ListEnvironments() {
-		usedRunners, err := m.loadEnvironment(environment)
+		usedRunners, err := m.loadEnvironment(ctx, environment)
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyEnvironmentID, environment.ID().ToString()).
 				Warn("Failed loading environment. Skipping...")
@@ -129,7 +129,7 @@ func (m *NomadRunnerManager) DeleteEnvironment(id dto.EnvironmentID) {
 
 // checkPrewarmingPoolAlert checks if the prewarming pool contains enough idle runners as specified by the PrewarmingPoolThreshold.
 // If not, it starts an environment reload mechanism according to the PrewarmingPoolReloadTimeout.
-func (m *NomadRunnerManager) checkPrewarmingPoolAlert(environment ExecutionEnvironment, runnerAdded bool) {
+func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, environment ExecutionEnvironment, runnerAdded bool) {
 	data, ok := m.reloadingEnvironment.Get(environment.ID().ToString())
 	if !ok {
 		log.WithField(dto.KeyEnvironmentID, environment.ID()).Error("reloadingEnvironment not initialized")
@@ -139,7 +139,7 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(environment ExecutionEnvir
 	if runnerAdded && data.cancel != nil {
 		data.cancel()
 		data.cancel = nil
-		m.checkPrewarmingPoolAlert(environment, false)
+		m.checkPrewarmingPoolAlert(ctx, environment, false)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(environment ExecutionEnvir
 
 	log.WithField(dto.KeyEnvironmentID, environment.ID()).Warn("Prewarming Pool Alert. Reloading environment")
 	err := util.RetryExponential(func() error {
-		usedRunners, err := m.loadEnvironment(environment)
+		usedRunners, err := m.loadEnvironment(ctx, environment)
 		if err != nil {
 			return err
 		}
@@ -184,14 +184,14 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(environment ExecutionEnvir
 	}
 }
 
-func (m *NomadRunnerManager) loadEnvironment(environment ExecutionEnvironment) (used storage.Storage[Runner], err error) {
+func (m *NomadRunnerManager) loadEnvironment(ctx context.Context, environment ExecutionEnvironment) (used storage.Storage[Runner], err error) {
 	used = storage.NewLocalStorage[Runner]()
 	runnerJobs, err := m.apiClient.LoadRunnerJobs(environment.ID())
 	if err != nil {
 		return nil, fmt.Errorf("failed fetching the runner jobs: %w", err)
 	}
 	for _, job := range runnerJobs {
-		r, isUsed, err := m.loadSingleJob(job, environment)
+		r, isUsed, err := m.loadSingleJob(ctx, job, environment)
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyEnvironmentID, environment.ID().ToString()).
 				WithField("used", isUsed).Warn("Failed loading job. Skipping...")
@@ -207,7 +207,7 @@ func (m *NomadRunnerManager) loadEnvironment(environment ExecutionEnvironment) (
 	return used, nil
 }
 
-func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environment ExecutionEnvironment) (r Runner, isUsed bool, err error) {
+func (m *NomadRunnerManager) loadSingleJob(ctx context.Context, job *nomadApi.Job, environment ExecutionEnvironment) (r Runner, isUsed bool, err error) {
 	configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
 	if configTaskGroup == nil {
 		return nil, false, fmt.Errorf("%w, %s", nomad.ErrorMissingTaskGroup, *job.ID)
@@ -218,7 +218,7 @@ func (m *NomadRunnerManager) loadSingleJob(job *nomadApi.Job, environment Execut
 		return nil, false, fmt.Errorf("error loading runner portMappings: %w", err)
 	}
 
-	newJob := NewNomadJob(*job.ID, portMappings, m.apiClient, m.onRunnerDestroyed)
+	newJob := NewNomadJob(ctx, *job.ID, portMappings, m.apiClient, m.onRunnerDestroyed)
 	log.WithField("isUsed", isUsed).WithField(dto.KeyRunnerID, newJob.ID()).Debug("Recovered Runner")
 	if isUsed {
 		timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])
@@ -260,7 +260,7 @@ func (m *NomadRunnerManager) updateUsedRunners(newUsedRunners storage.Storage[Ru
 }
 
 // onAllocationAdded is the callback for when Nomad started an allocation.
-func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, startup time.Duration) {
+func (m *NomadRunnerManager) onAllocationAdded(ctx context.Context, alloc *nomadApi.Allocation, startup time.Duration) {
 	log.WithField(dto.KeyRunnerID, alloc.JobID).WithField("startupDuration", startup).Debug("Runner started")
 
 	if nomad.IsEnvironmentTemplateID(alloc.JobID) {
@@ -285,8 +285,8 @@ func (m *NomadRunnerManager) onAllocationAdded(alloc *nomadApi.Allocation, start
 		if alloc.AllocatedResources != nil {
 			mappedPorts = alloc.AllocatedResources.Shared.Ports
 		}
-		environment.AddRunner(NewNomadJob(alloc.JobID, mappedPorts, m.apiClient, m.onRunnerDestroyed))
-		go m.checkPrewarmingPoolAlert(environment, true)
+		environment.AddRunner(NewNomadJob(ctx, alloc.JobID, mappedPorts, m.apiClient, m.onRunnerDestroyed))
+		go m.checkPrewarmingPoolAlert(ctx, environment, true)
 		monitorAllocationStartupDuration(startup, alloc.JobID, environmentID)
 	}
 }
@@ -300,7 +300,7 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 }
 
 // onAllocationStopped is the callback for when Nomad stopped an allocation.
-func (m *NomadRunnerManager) onAllocationStopped(runnerID string, reason error) (alreadyRemoved bool) {
+func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID string, reason error) (alreadyRemoved bool) {
 	log.WithField(dto.KeyRunnerID, runnerID).Debug("Runner stopped")
 
 	if nomad.IsEnvironmentTemplateID(runnerID) {
@@ -332,7 +332,7 @@ func (m *NomadRunnerManager) onAllocationStopped(runnerID string, reason error) 
 			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
 		}
 	}
-	go m.checkPrewarmingPoolAlert(environment, false)
+	go m.checkPrewarmingPoolAlert(ctx, environment, false)
 
 	return !(stillUsed || stillIdle)
 }

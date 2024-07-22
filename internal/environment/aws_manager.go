@@ -19,20 +19,20 @@ func NewAWSEnvironmentManager(runnerManager runner.Manager) *AWSEnvironmentManag
 	return &AWSEnvironmentManager{&AbstractManager{nil, runnerManager}}
 }
 
-func (a *AWSEnvironmentManager) List(fetch bool) ([]runner.ExecutionEnvironment, error) {
-	list, err := a.NextHandler().List(fetch)
+func (a *AWSEnvironmentManager) List(ctx context.Context, fetch bool) ([]runner.ExecutionEnvironment, error) {
+	list, err := a.NextHandler().List(ctx, fetch)
 	if err != nil {
 		return nil, fmt.Errorf("aws wrapped: %w", err)
 	}
 	return append(list, a.runnerManager.ListEnvironments()...), nil
 }
 
-func (a *AWSEnvironmentManager) Get(id dto.EnvironmentID, fetch bool) (runner.ExecutionEnvironment, error) {
+func (a *AWSEnvironmentManager) Get(ctx context.Context, id dto.EnvironmentID, fetch bool) (runner.ExecutionEnvironment, error) {
 	e, ok := a.runnerManager.GetEnvironment(id)
 	if ok {
 		return e, nil
 	} else {
-		e, err := a.NextHandler().Get(id, fetch)
+		e, err := a.NextHandler().Get(ctx, id, fetch)
 		if err != nil {
 			return nil, fmt.Errorf("aws wrapped: %w", err)
 		}

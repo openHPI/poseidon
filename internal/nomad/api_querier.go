@@ -120,7 +120,7 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	span := sentry.StartSpan(ctx, "nomad.execute.exec")
 	span.Description = "Execute Command in Allocation"
 
-	debugWriter := NewSentryDebugWriter(stdout, span.Context())
+	debugWriter := NewSentryDebugWriter(span.Context(), stdout)
 	commands := []string{"/bin/bash", "-c", cmd}
 	exitCode, err = nc.client.Allocations().
 		Exec(span.Context(), allocation, TaskName, tty, commands, stdin, debugWriter, stderr, nil, nil)

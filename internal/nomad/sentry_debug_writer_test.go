@@ -31,7 +31,7 @@ func (s *MainTestSuite) TestSentryDebugWriter_WriteComposed() {
 
 func (s *MainTestSuite) TestSentryDebugWriter_Close() {
 	buf := &bytes.Buffer{}
-	w := NewSentryDebugWriter(buf, s.TestCtx)
+	w := NewSentryDebugWriter(s.TestCtx, buf)
 	s.Require().Empty(w.lastSpan.Tags)
 
 	w.Close(42)
@@ -41,7 +41,7 @@ func (s *MainTestSuite) TestSentryDebugWriter_Close() {
 
 func (s *MainTestSuite) TestSentryDebugWriter_handleTimeDebugMessage() {
 	buf := &bytes.Buffer{}
-	debugWriter := NewSentryDebugWriter(buf, s.TestCtx)
+	debugWriter := NewSentryDebugWriter(s.TestCtx, buf)
 	s.Require().Equal("nomad.execute.connect", debugWriter.lastSpan.Op)
 
 	description := "TestDebugMessageDescription"

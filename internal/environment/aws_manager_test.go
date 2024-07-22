@@ -35,7 +35,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_CreateOrUpdate() {
 	})
 
 	s.Run("can retrieve added environment", func() {
-		environment, err := environmentManager.Get(tests.AnotherEnvironmentIDAsInteger, false)
+		environment, err := environmentManager.Get(s.TestCtx, tests.AnotherEnvironmentIDAsInteger, false)
 		s.NoError(err)
 		s.Equal(environment.Image(), uniqueImage)
 	})
@@ -62,20 +62,20 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_Get() {
 
 	s.Run("Calls next handler when not found", func() {
 		nextHandler := &ManagerHandlerMock{}
-		nextHandler.On("Get", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("bool")).
+		nextHandler.On("Get", mock.Anything, mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("bool")).
 			Return(nil, nil)
 		environmentManager.SetNextHandler(nextHandler)
 
-		_, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		_, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
 		s.NoError(err)
-		nextHandler.AssertCalled(s.T(), "Get", dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), false)
+		nextHandler.AssertCalled(s.T(), "Get", mock.Anything, dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), false)
 	})
 
 	s.Run("Returns error when not found", func() {
 		nextHandler := &AbstractManager{nil, nil}
 		environmentManager.SetNextHandler(nextHandler)
 
-		_, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		_, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
 		s.ErrorIs(err, runner.ErrRunnerNotFound)
 	})
 
@@ -84,7 +84,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_Get() {
 		expectedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(expectedEnvironment)
 
-		environment, err := environmentManager.Get(tests.DefaultEnvironmentIDAsInteger, false)
+		environment, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
 		s.Require().NoError(err)
 		s.Equal(expectedEnvironment, environment)
 	})
@@ -99,11 +99,11 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_List() {
 	s.Run("also returns environments of the rest of the manager chain", func() {
 		nextHandler := &ManagerHandlerMock{}
 		existingEnvironment := NewAWSEnvironment(nil)
-		nextHandler.On("List", mock.AnythingOfType("bool")).
+		nextHandler.On("List", mock.Anything, mock.AnythingOfType("bool")).
 			Return([]runner.ExecutionEnvironment{existingEnvironment}, nil)
 		awsEnvironmentManager.SetNextHandler(nextHandler)
 
-		environments, err := awsEnvironmentManager.List(false)
+		environments, err := awsEnvironmentManager.List(s.TestCtx, false)
 		s.NoError(err)
 		s.Require().Len(environments, 1)
 		s.Contains(environments, existingEnvironment)
@@ -115,7 +115,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_List() {
 		localEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
 		runnerManager.StoreEnvironment(localEnvironment)
 
-		environments, err := awsEnvironmentManager.List(false)
+		environments, err := awsEnvironmentManager.List(s.TestCtx, false)
 		s.NoError(err)
 		s.Len(environments, 1)
 		s.Contains(environments, localEnvironment)

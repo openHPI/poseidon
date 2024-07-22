@@ -35,23 +35,25 @@ type NomadEnvironment struct {
 	cancel context.CancelFunc
 }
 
-func NewNomadEnvironment(environmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
+// NewNomadEnvironment creates a new Nomad environment based on the passed Nomad Job HCL.
+// The passed context does not determine the lifespan of the environment, use Delete instead.
+func NewNomadEnvironment(ctx context.Context, environmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
 	job, err := parseJob(jobHCL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	e := &NomadEnvironment{apiClient, jobHCL, job, nil, ctx, cancel}
 	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
 		runner.MonitorEnvironmentID[runner.Runner](environmentID), time.Minute, ctx)
 	return e, nil
 }
 
-func NewNomadEnvironmentFromRequest(
+func NewNomadEnvironmentFromRequest(ctx context.Context,
 	apiClient nomad.ExecutorAPI, jobHCL string, environmentID dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (
 	*NomadEnvironment, error) {
-	environment, err := NewNomadEnvironment(environmentID, apiClient, jobHCL)
+	environment, err := NewNomadEnvironment(ctx, environmentID, apiClient, jobHCL)
 	if err != nil {
 		return nil, err
 	}

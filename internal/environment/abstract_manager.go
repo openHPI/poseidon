@@ -31,11 +31,11 @@ func (n *AbstractManager) HasNextHandler() bool {
 	return n.nextHandler != nil
 }
 
-func (n *AbstractManager) List(_ bool) ([]runner.ExecutionEnvironment, error) {
+func (n *AbstractManager) List(_ context.Context, _ bool) ([]runner.ExecutionEnvironment, error) {
 	return []runner.ExecutionEnvironment{}, nil
 }
 
-func (n *AbstractManager) Get(_ dto.EnvironmentID, _ bool) (runner.ExecutionEnvironment, error) {
+func (n *AbstractManager) Get(_ context.Context, _ dto.EnvironmentID, _ bool) (runner.ExecutionEnvironment, error) {
 	return nil, runner.ErrRunnerNotFound
 }
 

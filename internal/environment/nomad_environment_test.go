@@ -164,14 +164,14 @@ func (s *MainTestSuite) TestParseJob() {
 	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.Run("parses the given default job", func() {
-		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.NoError(err)
 		s.NotNil(environment.job)
 		s.NoError(environment.Delete(tests.ErrCleanupDestroyReason))
 	})
 
 	s.Run("returns error when given wrong job", func() {
-		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, nil, "")
+		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, nil, "")
 		s.Error(err)
 		s.Nil(environment)
 	})
@@ -230,7 +230,7 @@ func (s *MainTestSuite) TestSampleDoesNotSetForcePullFlag() {
 
 func (s *MainTestSuite) TestNomadEnvironment_DeleteLocally() {
 	apiMock := &nomad.ExecutorAPIMock{}
-	environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+	environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 	s.Require().NoError(err)
 
 	err = environment.Delete(runner.ErrLocalDestruction)
@@ -241,7 +241,7 @@ func (s *MainTestSuite) TestNomadEnvironment_DeleteLocally() {
 func (s *MainTestSuite) TestNomadEnvironment_AddRunner() {
 	s.Run("Destroys runner before replacing it", func() {
 		apiMock := &nomad.ExecutorAPIMock{}
-		environment, err := NewNomadEnvironment(tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
+		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.Require().NoError(err)
 		r := &runner.RunnerMock{}
 		r.On("ID").Return(tests.DefaultRunnerID)

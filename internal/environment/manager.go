@@ -20,11 +20,11 @@ type ManagerHandler interface {
 type Manager interface {
 	// List returns all environments known by Poseidon.
 	// When `fetch` is set the environments are fetched from the executor before returning.
-	List(fetch bool) ([]runner.ExecutionEnvironment, error)
+	List(ctx context.Context, fetch bool) ([]runner.ExecutionEnvironment, error)
 
 	// Get returns the details of the requested environment.
 	// When `fetch` is set the requested environment is fetched from the executor before returning.
-	Get(id dto.EnvironmentID, fetch bool) (runner.ExecutionEnvironment, error)
+	Get(ctx context.Context, id dto.EnvironmentID, fetch bool) (runner.ExecutionEnvironment, error)
 
 	// CreateOrUpdate creates/updates an execution environment on the executor.
 	// If the job was created, the returned boolean is true, if it was updated, it is false.

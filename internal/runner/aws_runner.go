@@ -101,7 +101,7 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(
 	}
 	hideEnvironmentVariables(request, "AWS")
 	request.PrivilegedExecution = true // AWS does not support multiple users at this moment.
-	command, ctx, cancel := prepareExecution(request, w.ctx)
+	command, ctx, cancel := prepareExecution(w.ctx, request)
 	commands := []string{"/bin/bash", "-c", command}
 	exitInternal := make(chan ExitInfo)
 	exit := make(chan ExitInfo, 1)
@@ -178,7 +178,7 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 	}
 
 	// receiveOutput listens for the execution timeout (or the exit code).
-	exitCode, err := w.receiveOutput(wsConn, stdout, stderr, ctx)
+	exitCode, err := w.receiveOutput(ctx, wsConn, stdout, stderr)
 	// TimeoutPassed checks the runner timeout
 	if w.TimeoutPassed() {
 		err = ErrorRunnerInactivityTimeout
@@ -186,8 +186,8 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 	exit <- ExitInfo{exitCode, err}
 }
 
-func (w *AWSFunctionWorkload) receiveOutput(
-	conn *websocket.Conn, stdout, stderr io.Writer, ctx context.Context) (uint8, error) {
+func (w *AWSFunctionWorkload) receiveOutput(ctx context.Context,
+	conn *websocket.Conn, stdout, stderr io.Writer) (uint8, error) {
 	for ctx.Err() == nil {
 		messageType, reader, err := conn.NextReader()
 		if err != nil {

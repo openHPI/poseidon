@@ -64,5 +64,5 @@ func StartSpan(op, description string, ctx context.Context, callback func(contex
 	span := sentry.StartSpan(ctx, op)
 	span.Description = description
 	defer span.Finish()
-	callback(span.Context())
+	callback(ctx)
 }

@@ -24,7 +24,7 @@ func (s *InactivityTimerTestSuite) SetupTest() {
 	s.returned = make(chan bool, 1)
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", tests.DefaultRunnerID).Return(nil)
-	s.runner = NewNomadJob(tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error {
+	s.runner = NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error {
 		s.returned <- true
 		return nil
 	})

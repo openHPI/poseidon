@@ -107,30 +107,29 @@ func shutdownSentry() {
 }
 
 func initProfiling(options config.Profiling) (cancel func()) {
-	if options.CPUEnabled {
-		profile, err := os.Create(options.CPUFile)
-		if err != nil {
-			log.WithError(err).Error("Error while opening the profile file")
-		}
+	if !options.CPUEnabled {
+		return func() {}
+	}
 
-		log.Debug("Starting CPU profiler")
-		if err := pprof.StartCPUProfile(profile); err != nil {
-			log.WithError(err).Error("Error while starting the CPU profiler!!")
-		}
+	profile, err := os.Create(options.CPUFile)
+	if err != nil {
+		log.WithError(err).Error("Error while opening the profile file")
+	}
 
-		cancel = func() {
-			if options.CPUEnabled {
-				log.Debug("Stopping CPU profiler")
-				pprof.StopCPUProfile()
-				if err := profile.Close(); err != nil {
-					log.WithError(err).Error("Error while closing profile file")
-				}
+	log.Debug("Starting CPU profiler")
+	if err := pprof.StartCPUProfile(profile); err != nil {
+		log.WithError(err).Error("Error while starting the CPU profiler!!")
+	}
+
+	return func() {
+		if options.CPUEnabled {
+			log.Debug("Stopping CPU profiler")
+			pprof.StopCPUProfile()
+			if err := profile.Close(); err != nil {
+				log.WithError(err).Error("Error while closing profile file")
 			}
 		}
-	} else {
-		cancel = func() {}
 	}
-	return cancel
 }
 
 // watchMemoryAndAlert monitors the memory usage of Poseidon and sends an alert if it exceeds a threshold.

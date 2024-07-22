@@ -118,27 +118,28 @@ func (w *Ls2JsonWriter) writeLine(line []byte) (count int, err error) {
 	}
 
 	matches = headerLineRegex.FindSubmatch(line)
-	if matches != nil {
-		response, err1 := w.parseFileHeader(matches)
-		if err1 != nil {
-			return 0, err1
-		}
-
-		// Skip the first leading comma
-		if w.setCommaPrefix {
-			response = append([]byte{','}, response...)
-		} else {
-			w.setCommaPrefix = true
-		}
-
-		count, err1 = w.Target.Write(response)
-		if err1 != nil {
-			err = fmt.Errorf("could not write to target: %w", err1)
-		} else if count == len(response) {
-			count = len(line)
-		}
+	if matches == nil {
+		return 0, nil
 	}
 
+	response, err1 := w.parseFileHeader(matches)
+	if err1 != nil {
+		return 0, err1
+	}
+
+	// Skip the first leading comma
+	if w.setCommaPrefix {
+		response = append([]byte{','}, response...)
+	} else {
+		w.setCommaPrefix = true
+	}
+
+	count, err1 = w.Target.Write(response)
+	if err1 != nil {
+		err = fmt.Errorf("could not write to target: %w", err1)
+	} else if count == len(response) {
+		count = len(line)
+	}
 	return count, err
 }
 

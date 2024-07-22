@@ -59,6 +59,8 @@ linters:
     - exhaustive
     - exhaustruct
     - gochecknoglobals
+    - gomoddirectives
+    - gomodguard
 
 issues:
   exclude-rules:

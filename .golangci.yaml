@@ -58,14 +58,7 @@ linters:
     - depguard
     - exhaustive
     - exhaustruct
-    - execinquery
-    - ireturn
-    - gomnd
-    - nlreturn
-    - nonamedreturns
-    - paralleltest
-    - testpackage
-    - wsl
+    - gochecknoglobals
 
 issues:
   exclude-rules:

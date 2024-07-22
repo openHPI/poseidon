@@ -153,7 +153,7 @@ func (w *Ls2JsonWriter) parseFileHeader(matches [][]byte) ([]byte, error) {
 	size, err1 := strconv.Atoi(string(matches[headerLineGroupSize]))
 	timestamp, err2 := strconv.Atoi(string(matches[headerLineGroupTimestamp]))
 	if err1 != nil || err2 != nil {
-		return nil, fmt.Errorf("could not parse file details: %w %+v", err1, err2)
+		return nil, fmt.Errorf("could not parse file details: %w %w", err1, err2)
 	}
 
 	name := dto.FilePath(append(w.latestPath, matches[headerLineGroupName]...))

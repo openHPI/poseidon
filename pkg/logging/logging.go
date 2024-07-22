@@ -70,7 +70,12 @@ func (writer *ResponseWriter) WriteHeader(code int) {
 }
 
 func (writer *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	conn, rw, err := writer.ResponseWriter.(http.Hijacker).Hijack()
+	hijacker, ok := writer.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("response writer cannot be hijacked")
+	}
+
+	conn, rw, err := hijacker.Hijack()
 	if err != nil {
 		return conn, nil, fmt.Errorf("hijacking connection failed: %w", err)
 	}

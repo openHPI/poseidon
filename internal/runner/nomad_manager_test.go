@@ -278,7 +278,9 @@ func (s *ManagerTestSuite) TestUpdateRunnersAddsIdleRunner() {
 	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID.ToString())
 	s.Require().True(ok)
 	allocation.JobID = environment.ID().ToString()
-	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+	environmentMock, ok := environment.(*ExecutionEnvironmentMock)
+	s.Require().True(ok)
+	mockIdleRunners(environmentMock)
 
 	_, ok = environment.Sample()
 	s.Require().False(ok)
@@ -309,7 +311,9 @@ func (s *ManagerTestSuite) TestUpdateRunnersRemovesIdleAndUsedRunner() {
 	allocation := &nomadApi.Allocation{JobID: tests.DefaultRunnerID}
 	environment, ok := s.nomadRunnerManager.environments.Get(defaultEnvironmentID.ToString())
 	s.Require().True(ok)
-	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+	environmentMock, ok := environment.(*ExecutionEnvironmentMock)
+	s.Require().True(ok)
+	mockIdleRunners(environmentMock)
 
 	testRunner := NewNomadJob(s.TestCtx, allocation.JobID, nil, s.apiMock, s.nomadRunnerManager.onRunnerDestroyed)
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
@@ -351,7 +355,9 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 	s.Run("does not add environment template id job", func() {
 		environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 		s.True(ok)
-		mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+		environmentMock, ok := environment.(*ExecutionEnvironmentMock)
+		s.Require().True(ok)
+		mockIdleRunners(environmentMock)
 
 		alloc := &nomadApi.Allocation{JobID: nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)}
 		s.nomadRunnerManager.onAllocationAdded(s.TestCtx, alloc, 0)
@@ -379,7 +385,9 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 		s.Run("without allocated resources", func() {
 			environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 			s.True(ok)
-			mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+			environmentMock, ok := environment.(*ExecutionEnvironmentMock)
+			s.Require().True(ok)
+			mockIdleRunners(environmentMock)
 
 			_, ok = environment.Sample()
 			s.Require().False(ok)
@@ -410,7 +418,9 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 		s.Run("with mapped ports", func() {
 			environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 			s.True(ok)
-			mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+			environmentMock, ok := environment.(*ExecutionEnvironmentMock)
+			s.Require().True(ok)
+			mockIdleRunners(environmentMock)
 
 			alloc := &nomadApi.Allocation{
 				JobID: tests.DefaultRunnerID,
@@ -437,7 +447,9 @@ func (s *ManagerTestSuite) TestOnAllocationStopped() {
 	s.Run("returns false for idle runner", func() {
 		environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 		s.Require().True(ok)
-		mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+		environmentMock, ok := environment.(*ExecutionEnvironmentMock)
+		s.Require().True(ok)
+		mockIdleRunners(environmentMock)
 
 		r := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(r Runner) error { return nil })
 		environment.AddRunner(r)
@@ -485,7 +497,9 @@ func testStoppedInactivityTimer(suite *ManagerTestSuite) (r Runner, destroyed ch
 	suite.T().Helper()
 	environment, ok := suite.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
 	suite.Require().True(ok)
-	mockIdleRunners(environment.(*ExecutionEnvironmentMock))
+	environmentMock, ok := environment.(*ExecutionEnvironmentMock)
+	suite.Require().True(ok)
+	mockIdleRunners(environmentMock)
 
 	runnerDestroyed := make(chan struct{})
 	environment.AddRunner(NewNomadJob(suite.TestCtx, tests.DefaultRunnerID, []nomadApi.PortMapping{}, suite.apiMock, func(runner Runner) error {

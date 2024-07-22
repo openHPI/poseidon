@@ -23,8 +23,8 @@ linters-settings:
       - rangeValCopy     # ^
       - typeDefFirst     # |
       - paramTypeCombine # |
-  gocyclo:
-    min-complexity: 15
+  cyclop:
+    max-complexity: 15
   mnd:
     # don't include "assign"
     checks:

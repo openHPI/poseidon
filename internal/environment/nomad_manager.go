@@ -265,7 +265,8 @@ func loadTemplateEnvironmentJobHCL(path string) error {
 	return nil
 }
 
-func fetchEnvironment(ctx context.Context, requestedEnvironmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI) (runner.ExecutionEnvironment, error) {
+func fetchEnvironment(ctx context.Context, requestedEnvironmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI,
+) (runner.ExecutionEnvironment, error) {
 	environments, err := apiClient.LoadEnvironmentJobs()
 	if err != nil {
 		return nil, fmt.Errorf("error fetching the environment jobs: %w", err)

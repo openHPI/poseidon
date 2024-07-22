@@ -207,7 +207,8 @@ func (m *NomadRunnerManager) loadEnvironment(ctx context.Context, environment Ex
 	return used, nil
 }
 
-func (m *NomadRunnerManager) loadSingleJob(ctx context.Context, job *nomadApi.Job, environment ExecutionEnvironment) (r Runner, isUsed bool, err error) {
+func (m *NomadRunnerManager) loadSingleJob(ctx context.Context, job *nomadApi.Job, environment ExecutionEnvironment,
+) (r Runner, isUsed bool, err error) {
 	configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
 	if configTaskGroup == nil {
 		return nil, false, fmt.Errorf("%w, %s", nomad.ErrMissingTaskGroup, *job.ID)

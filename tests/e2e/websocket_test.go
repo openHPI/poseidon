@@ -261,7 +261,7 @@ func (s *E2ETestSuite) TestTerminatedByClient() {
 	// The bug of #325 is triggered in about every second execution. Therefore, we perform
 	// 10 executions to have a high probability of triggering this (fixed) behavior.
 	const runs = 10
-	for i := 0; i < runs; i++ {
+	for i := range runs {
 		<-time.After(time.Duration(i) * time.Second)
 		log.WithField("i", i).Info("Run")
 		runnerID, err := ProvideRunner(&dto.RunnerRequest{

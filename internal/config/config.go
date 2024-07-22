@@ -300,7 +300,7 @@ func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
 
 func randomFilterToken() string {
 	const tokenLength = 32
-	randomBytes := make([]byte, tokenLength) //nolint:all // length required to be filled by rand.Read.
+	randomBytes := make([]byte, tokenLength)
 	n, err := rand.Read(randomBytes)
 	if n != tokenLength || err != nil {
 		log.WithError(err).WithField("byteCount", n).Fatal("Failed to generate random token")

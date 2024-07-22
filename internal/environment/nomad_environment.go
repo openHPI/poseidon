@@ -37,7 +37,9 @@ type NomadEnvironment struct {
 
 // NewNomadEnvironment creates a new Nomad environment based on the passed Nomad Job HCL.
 // The passed context does not determine the lifespan of the environment, use Delete instead.
-func NewNomadEnvironment(ctx context.Context, environmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI, jobHCL string) (*NomadEnvironment, error) {
+func NewNomadEnvironment(ctx context.Context, environmentID dto.EnvironmentID, apiClient nomad.ExecutorAPI,
+	jobHCL string,
+) (*NomadEnvironment, error) {
 	job, err := parseJob(jobHCL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing Nomad job: %w", err)

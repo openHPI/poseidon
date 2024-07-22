@@ -322,7 +322,8 @@ type managerCreator func(ctx context.Context) (
 // createManagerHandler adds the managers of the passed managerCreator to the chain of responsibility.
 func createManagerHandler(handler managerCreator, enabled bool,
 	nextRunnerManager runner.Manager, nextEnvironmentManager environment.ManagerHandler, ctx context.Context) (
-	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler,
+) {
 	if !enabled {
 		return nextRunnerManager, nextEnvironmentManager
 	}
@@ -384,7 +385,8 @@ func synchronizeNomad(ctx context.Context, environmentManager *environment.Nomad
 }
 
 func createAWSManager(ctx context.Context) (
-	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler,
+) {
 	runnerManager = runner.NewAWSRunnerManager(ctx)
 	return runnerManager, environment.NewAWSEnvironmentManager(runnerManager)
 }

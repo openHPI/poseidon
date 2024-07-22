@@ -56,15 +56,23 @@ type sendExitInfoTestCase struct {
 
 func (s *MainTestSuite) TestCodeOceanOutputWriter_SendExitInfo() {
 	testCases := []sendExitInfoTestCase{
-		{"Timeout", &runner.ExitInfo{Err: runner.ErrRunnerInactivityTimeout},
-			dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout}},
-		{"Error", &runner.ExitInfo{Err: websocket.ErrCloseSent},
-			dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: "Error executing the request"}},
+		{
+			"Timeout", &runner.ExitInfo{Err: runner.ErrRunnerInactivityTimeout},
+			dto.WebSocketMessage{Type: dto.WebSocketMetaTimeout},
+		},
+		{
+			"Error", &runner.ExitInfo{Err: websocket.ErrCloseSent},
+			dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: "Error executing the request"},
+		},
 		// CodeOcean expects this exact string in case of a OOM Killed runner.
-		{"Specific data for OOM Killed runner", &runner.ExitInfo{Err: runner.ErrOOMKilled},
-			dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: "the allocation was OOM Killed"}},
-		{"Exit", &runner.ExitInfo{Code: 21},
-			dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: 21}},
+		{
+			"Specific data for OOM Killed runner", &runner.ExitInfo{Err: runner.ErrOOMKilled},
+			dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: "the allocation was OOM Killed"},
+		},
+		{
+			"Exit", &runner.ExitInfo{Code: 21},
+			dto.WebSocketMessage{Type: dto.WebSocketExit, ExitCode: 21},
+		},
 	}
 
 	for _, test := range testCases {

@@ -40,7 +40,8 @@ func (n *AbstractManager) Get(_ context.Context, _ dto.EnvironmentID, _ bool) (r
 }
 
 func (n *AbstractManager) CreateOrUpdate(_ dto.EnvironmentID, _ dto.ExecutionEnvironmentRequest, _ context.Context) (
-	bool, error) {
+	bool, error,
+) {
 	return false, nil
 }
 

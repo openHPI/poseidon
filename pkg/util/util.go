@@ -20,7 +20,6 @@ var (
 func retryExponential(ctx context.Context, sleep time.Duration, f func() error) func() error {
 	return func() error {
 		err := f()
-
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -37,7 +36,6 @@ func retryExponential(ctx context.Context, sleep time.Duration, f func() error) 
 func retryConstant(ctx context.Context, sleep time.Duration, f func() error) func() error {
 	return func() error {
 		err := f()
-
 		if err != nil {
 			select {
 			case <-ctx.Done():

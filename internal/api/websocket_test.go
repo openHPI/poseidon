@@ -332,7 +332,8 @@ func newNomadAllocationWithMockedAPIClient(ctx context.Context, runnerID string)
 }
 
 func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.ExecutorAPIMock, executionID string) (
-	r runner.Runner, wsURL *url.URL, cleanup func()) {
+	r runner.Runner, wsURL *url.URL, cleanup func(),
+) {
 	s.T().Helper()
 	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
 	apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
@@ -473,7 +474,8 @@ func mockAPIExecuteExitNonZero(api *nomad.ExecutorAPIMock) {
 // corresponding to the given ExecutionRequest is called.
 func mockAPIExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
 	run func(runnerId string, ctx context.Context, command string, tty bool,
-		stdin io.Reader, stdout, stderr io.Writer) (int, error)) {
+		stdin io.Reader, stdout, stderr io.Writer) (int, error),
+) {
 	tests.RemoveMethodFromMock(&api.Mock, "ExecuteCommand")
 	call := api.On("ExecuteCommand",
 		mock.AnythingOfType("string"),

@@ -116,8 +116,10 @@ func (s *MainTestSuite) TestRegisterFailsWhenNomadJobRegistrationFails() {
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{},
-		storage.NewLocalStorage[runner.Runner](), nil, nil}
+	environment := &NomadEnvironment{
+		apiClientMock, "", &nomadApi.Job{},
+		storage.NewLocalStorage[runner.Runner](), nil, nil,
+	}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -134,8 +136,10 @@ func (s *MainTestSuite) TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationS
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{},
-		storage.NewLocalStorage[runner.Runner](), context.Background(), nil}
+	environment := &NomadEnvironment{
+		apiClientMock, "", &nomadApi.Job{},
+		storage.NewLocalStorage[runner.Runner](), context.Background(), nil,
+	}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -151,8 +155,10 @@ func (s *MainTestSuite) TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluat
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
-	environment := &NomadEnvironment{apiClientMock, "", &nomadApi.Job{},
-		storage.NewLocalStorage[runner.Runner](), context.Background(), nil}
+	environment := &NomadEnvironment{
+		apiClientMock, "", &nomadApi.Job{},
+		storage.NewLocalStorage[runner.Runner](), context.Background(), nil,
+	}
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
@@ -182,8 +188,10 @@ func (s *MainTestSuite) TestTwoSampleAddExactlyTwoRunners() {
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 
 	_, job := helpers.CreateTemplateJob()
-	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job,
-		storage.NewLocalStorage[runner.Runner](), context.Background(), nil}
+	environment := &NomadEnvironment{
+		apiMock, templateEnvironmentJobHCL, job,
+		storage.NewLocalStorage[runner.Runner](), context.Background(), nil,
+	}
 	environment.SetPrewarmingPoolSize(2)
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
@@ -219,8 +227,10 @@ func (s *MainTestSuite) TestSampleDoesNotSetForcePullFlag() {
 	})
 
 	_, job := helpers.CreateTemplateJob()
-	environment := &NomadEnvironment{apiMock, templateEnvironmentJobHCL, job,
-		storage.NewLocalStorage[runner.Runner](), s.TestCtx, nil}
+	environment := &NomadEnvironment{
+		apiMock, templateEnvironmentJobHCL, job,
+		storage.NewLocalStorage[runner.Runner](), s.TestCtx, nil,
+	}
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
 	environment.AddRunner(runner1)

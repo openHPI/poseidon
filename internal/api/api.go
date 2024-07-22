@@ -41,7 +41,8 @@ func NewRouter(runnerManager runner.Manager, environmentManager environment.Mana
 
 // configureV1Router configures a given router with the routes of version 1 of the Poseidon API.
 func configureV1Router(router *mux.Router,
-	runnerManager runner.Manager, environmentManager environment.ManagerHandler) {
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler,
+) {
 	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.WithContext(r.Context()).WithField("request", r).Debug("Not Found Handler")
 		w.WriteHeader(http.StatusNotFound)

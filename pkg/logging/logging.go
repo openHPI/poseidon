@@ -2,6 +2,7 @@ package logging
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -72,7 +73,7 @@ func (writer *ResponseWriter) WriteHeader(code int) {
 func (writer *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := writer.ResponseWriter.(http.Hijacker)
 	if !ok {
-		return nil, nil, fmt.Errorf("response writer cannot be hijacked")
+		return nil, nil, errors.New("response writer cannot be hijacked")
 	}
 
 	conn, rw, err := hijacker.Hijack()

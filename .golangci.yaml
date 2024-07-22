@@ -66,6 +66,7 @@ linters:
     - ireturn
     - nlreturn
     - nonamedreturns
+    - paralleltest
 
 issues:
   exclude-rules:

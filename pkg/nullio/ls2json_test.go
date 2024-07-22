@@ -9,6 +9,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	perm664        = "-rw-rw-r-- "
+	ownerGroupKali = "kali kali "
+)
+
 func TestLs2JsonTestSuite(t *testing.T) {
 	suite.Run(t, new(Ls2JsonTestSuite))
 }
@@ -37,7 +42,7 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteCreationAndClose() {
 }
 
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteFile() {
-	input := "total 0\n-rw-rw-r-- 1 kali kali 0 1660763446 flag\n"
+	input := "total 0\n" + perm664 + "1 " + ownerGroupKali + "0 1660763446 flag\n"
 	count, err := s.writer.Write([]byte(input))
 	s.Equal(len(input), count)
 	s.NoError(err)
@@ -49,9 +54,9 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteFile() {
 }
 
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRecursive() {
-	input := ".:\ntotal 4\ndrwxrwxr-x 2 kali kali 4096 1660764411 dir\n" +
-		"-rw-rw-r-- 1 kali kali    0 1660763446 flag\n" +
-		"\n./dir:\ntotal 4\n-rw-rw-r-- 1 kali kali 3 1660764366 another.txt\n"
+	input := ".:\ntotal 4\ndrwxrwxr-x 2 " + ownerGroupKali + "4096 1660764411 dir\n" +
+		"" + perm664 + "1 " + ownerGroupKali + "   0 1660763446 flag\n" +
+		"\n./dir:\ntotal 4\n" + perm664 + "1 " + ownerGroupKali + "3 1660764366 another.txt\n"
 	count, err := s.writer.Write([]byte(input))
 	s.Equal(len(input), count)
 	s.NoError(err)
@@ -69,7 +74,7 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRecursive() {
 }
 
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRemaining() {
-	input1 := "total 4\n-rw-rw-r-- 1 kali kali 3 1660764366 an.txt\n-rw-rw-r-- 1 kal"
+	input1 := "total 4\n" + perm664 + "1 " + ownerGroupKali + "3 1660764366 an.txt\n" + perm664 + "1 kal"
 	_, err := s.writer.Write([]byte(input1))
 	s.NoError(err)
 	s.Equal("{\"files\": [{\"name\":\"an.txt\",\"entryType\":\"-\",\"size\":3,\"modificationTime\":1660764366,"+
@@ -86,7 +91,7 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRemaining() {
 }
 
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteLink() {
-	input1 := "total 4\nlrw-rw-r-- 1 kali kali 3 1660764366 another.txt -> /bin/bash\n"
+	input1 := "total 4\nlrw-rw-r-- 1 " + ownerGroupKali + "3 1660764366 another.txt -> /bin/bash\n"
 	_, err := s.writer.Write([]byte(input1))
 	s.NoError(err)
 	s.writer.Close()

@@ -8,7 +8,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 )
 
-// InactivityTimer is a wrapper around a timer that is used to delete a a Runner after some time of inactivity.
+// InactivityTimer is a wrapper around a timer that is used to delete a Runner after some time of inactivity.
 type InactivityTimer interface {
 	// SetupTimeout starts the timeout after a runner gets deleted.
 	SetupTimeout(duration time.Duration)

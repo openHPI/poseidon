@@ -85,7 +85,9 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 		if count > 1 {
 			taskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 			task := nomad.FindAndValidateDefaultTask(taskGroup)
-			s.True(task.Config["force_pull"].(bool))
+			forcePull, ok := task.Config["force_pull"].(bool)
+			s.Require().True(ok)
+			s.True(forcePull)
 		}
 
 		call.ReturnArguments = mock.Arguments{nil}

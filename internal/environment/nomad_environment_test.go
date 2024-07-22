@@ -211,7 +211,9 @@ func (s *MainTestSuite) TestSampleDoesNotSetForcePullFlag() {
 
 		taskGroup := nomad.FindAndValidateDefaultTaskGroup(job)
 		task := nomad.FindAndValidateDefaultTask(taskGroup)
-		s.False(task.Config["force_pull"].(bool))
+		forcePull, ok := task.Config["force_pull"].(bool)
+		s.Require().True(ok)
+		s.False(forcePull)
 
 		call.ReturnArguments = mock.Arguments{nil}
 	})

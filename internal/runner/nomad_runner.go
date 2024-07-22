@@ -177,7 +177,7 @@ func (r *NomadJob) ListFileSystem(
 		log.WithError(err).WithField("exitCode", exitCode).Warn("Ignoring error of listing the file system")
 		err = nil
 	case err != nil:
-		err = fmt.Errorf("%w: nomad error during retrieve file headers: %v",
+		err = fmt.Errorf("%w: nomad error during retrieve file headers: %w",
 			nomad.ErrExecutorCommunicationFailed, err)
 	case exitCode != 0:
 		err = ErrFileNotFound
@@ -206,7 +206,7 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, re
 		&tarBuffer, &stdOut, &stdErr)
 	if err != nil {
 		return fmt.Errorf(
-			"%w: nomad error during file copy: %v",
+			"%w: nomad error during file copy: %w",
 			nomad.ErrExecutorCommunicationFailed,
 			err)
 	}
@@ -243,7 +243,7 @@ func (r *NomadJob) GetFileContent(
 		&nullio.Reader{Ctx: ctx}, contentLengthWriter, io.Discard)
 
 	if err != nil {
-		return fmt.Errorf("%w: nomad error during retrieve file content copy: %v",
+		return fmt.Errorf("%w: nomad error during retrieve file content copy: %w",
 			nomad.ErrExecutorCommunicationFailed, err)
 	}
 	if exitCode != 0 {

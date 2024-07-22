@@ -189,7 +189,7 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 			if occurredError == nil {
 				occurredError = ErrLoadingJob
 			}
-			occurredError = fmt.Errorf("%w: couldn't load job info for runner %s - %v", occurredError, runnerID, err)
+			occurredError = fmt.Errorf("%w: couldn't load job info for runner %s - %w", occurredError, runnerID, err)
 			continue
 		}
 		jobs = append(jobs, job)

@@ -195,7 +195,7 @@ func partOfJobID(id string, part uint) (dto.EnvironmentID, error) {
 	}
 	environmentID, err := strconv.Atoi(parts[part])
 	if err != nil {
-		return 0, fmt.Errorf("invalid environment id par %v: %w", err, ErrInvalidJobID)
+		return 0, fmt.Errorf("invalid environment id par %w: %w", err, ErrInvalidJobID)
 	}
 	return dto.EnvironmentID(environmentID), nil
 }

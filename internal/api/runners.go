@@ -12,7 +12,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
@@ -137,13 +139,27 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	logging.StartSpan(request.Context(), "api.fs.update", "Update File System", func(ctx context.Context) {
 		err = targetRunner.UpdateFileSystem(ctx, fileCopyRequest)
 	})
-	if err != nil {
-		log.WithContext(request.Context()).WithError(err).Error("Could not perform the requested updateFileSystem.")
-		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
-		return
-	}
 
-	writer.WriteHeader(http.StatusNoContent)
+	entry := log.WithContext(request.Context()).WithError(err)
+	switch {
+	case err == nil:
+		writer.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, nomadApi.NodeDownErr):
+		entry.Debug("Nomad Node Down while updateFileSystem")
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorNomadInternalServerError)
+	case errors.Is(err, io.ErrUnexpectedEOF):
+		entry.Warn("Unexpected EOF while updateFileSystem")
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+	case errors.Is(err, nomad.ErrNoAllocationFound):
+		entry.Warn("No allocation found while updateFileSystem")
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+	case errors.Is(err, nomad.ErrNomadUnknownAllocation):
+		entry.Warn("Unknown allocation while updateFileSystem")
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+	default:
+		entry.Error("Could not perform the requested updateFileSystem.")
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+	}
 }
 
 func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http.Request) {

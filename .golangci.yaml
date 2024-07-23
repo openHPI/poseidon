@@ -60,6 +60,7 @@ linters:
     - paralleltest
     - testpackage
     - varnamelen
+    - wsl
 
 issues:
   exclude-rules:

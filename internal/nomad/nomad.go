@@ -199,7 +199,6 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) (err error) {
 	evaluationErrorChannel := make(chan error, 1)
 	a.evaluations.Add(evaluationID, evaluationErrorChannel)
-	defer a.evaluations.Delete(evaluationID)
 
 	if !a.isListening {
 		var cancel context.CancelFunc
@@ -327,6 +326,7 @@ func handleEvaluationEvent(evaluations storage.Storage[chan error], event *nomad
 			select {
 			case resultChannel <- evalErr:
 				close(resultChannel)
+				evaluations.Delete(eval.ID)
 			case <-time.After(resultChannelWriteTimeout):
 				log.WithField("length", len(resultChannel)).
 					WithField("eval", eval).

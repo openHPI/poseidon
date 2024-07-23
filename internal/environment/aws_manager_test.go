@@ -30,7 +30,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_CreateOrUpdate() {
 	s.Run("can create default Java environment", func() {
 		config.Config.AWS.Functions = []string{uniqueImage}
 		_, err := environmentManager.CreateOrUpdate(
-			tests.AnotherEnvironmentIDAsInteger, dto.ExecutionEnvironmentRequest{Image: uniqueImage}, context.Background())
+			context.Background(), tests.AnotherEnvironmentIDAsInteger, dto.ExecutionEnvironmentRequest{Image: uniqueImage})
 		s.NoError(err)
 	})
 
@@ -42,15 +42,15 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_CreateOrUpdate() {
 
 	s.Run("non-handleable requests are forwarded to the next manager", func() {
 		nextHandler := &ManagerHandlerMock{}
-		nextHandler.On("CreateOrUpdate", mock.AnythingOfType("dto.EnvironmentID"),
-			mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).Return(true, nil)
+		nextHandler.On("CreateOrUpdate", mock.Anything, mock.AnythingOfType("dto.EnvironmentID"),
+			mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).Return(true, nil)
 		environmentManager.SetNextHandler(nextHandler)
 
 		request := dto.ExecutionEnvironmentRequest{}
-		_, err := environmentManager.CreateOrUpdate(tests.DefaultEnvironmentIDAsInteger, request, context.Background())
+		_, err := environmentManager.CreateOrUpdate(context.Background(), tests.DefaultEnvironmentIDAsInteger, request)
 		s.NoError(err)
-		nextHandler.AssertCalled(s.T(), "CreateOrUpdate",
-			dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), request, mock.Anything)
+		nextHandler.AssertCalled(s.T(), "CreateOrUpdate", mock.Anything,
+			dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), request)
 	})
 }
 

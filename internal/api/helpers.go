@@ -9,22 +9,21 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 )
 
-func writeInternalServerError(writer http.ResponseWriter, err error, errorCode dto.ErrorCode, ctx context.Context) {
-	sendJSON(writer, &dto.InternalServerError{Message: err.Error(), ErrorCode: errorCode},
-		http.StatusInternalServerError, ctx)
+func writeInternalServerError(ctx context.Context, writer http.ResponseWriter, err error, errorCode dto.ErrorCode) {
+	sendJSON(ctx, writer, &dto.InternalServerError{Message: err.Error(), ErrorCode: errorCode}, http.StatusInternalServerError)
 }
 
-func writeClientError(writer http.ResponseWriter, err error, status uint16, ctx context.Context) {
-	sendJSON(writer, &dto.ClientError{Message: err.Error()}, int(status), ctx)
+func writeClientError(ctx context.Context, writer http.ResponseWriter, err error, status uint16) {
+	sendJSON(ctx, writer, &dto.ClientError{Message: err.Error()}, int(status))
 }
 
-func sendJSON(writer http.ResponseWriter, content interface{}, httpStatusCode int, ctx context.Context) {
+func sendJSON(ctx context.Context, writer http.ResponseWriter, content interface{}, httpStatusCode int) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(httpStatusCode)
 	response, err := json.Marshal(content)
 	if err != nil {
 		// cannot produce infinite recursive loop, since json.Marshal of dto.InternalServerError won't return an error
-		writeInternalServerError(writer, err, dto.ErrorUnknown, ctx)
+		writeInternalServerError(ctx, writer, err, dto.ErrorUnknown)
 		return
 	}
 	if _, err = writer.Write(response); err != nil {
@@ -35,7 +34,7 @@ func sendJSON(writer http.ResponseWriter, content interface{}, httpStatusCode in
 
 func parseJSONRequestBody(writer http.ResponseWriter, request *http.Request, structure interface{}) error {
 	if err := json.NewDecoder(request.Body).Decode(structure); err != nil {
-		writeClientError(writer, err, http.StatusBadRequest, request.Context())
+		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return fmt.Errorf("error parsing JSON request body: %w", err)
 	}
 	return nil

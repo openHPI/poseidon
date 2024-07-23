@@ -39,7 +39,7 @@ type NomadRunnerManager struct {
 
 // NewNomadRunnerManager creates a new runner manager that keeps track of all runners.
 // KeepRunnersSynced has to be started separately.
-func NewNomadRunnerManager(apiClient nomad.ExecutorAPI, ctx context.Context) *NomadRunnerManager {
+func NewNomadRunnerManager(ctx context.Context, apiClient nomad.ExecutorAPI) *NomadRunnerManager {
 	return &NomadRunnerManager{NewAbstractManager(ctx), apiClient, storage.NewLocalStorage[*alertData]()}
 }
 

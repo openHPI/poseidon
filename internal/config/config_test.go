@@ -165,7 +165,7 @@ func (s *MainTestSuite) TestInvalidYamlExitsProgram() {
 	logger, hook := test.NewNullLogger()
 	// this function is used when calling log.Fatal() and
 	// prevents the program from exiting during this test
-	logger.ExitFunc = func(code int) {}
+	logger.ExitFunc = func(_ int) {}
 	log = logger.WithField("package", "config_test")
 	config := newTestConfiguration()
 	config.mergeYaml([]byte("logger: level: DEBUG"))

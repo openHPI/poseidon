@@ -80,7 +80,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 
 		runnerWorkload.StoreExecution(tests.DefaultEnvironmentIDAsString, &dto.ExecutionRequest{})
 		exit, _, err := runnerWorkload.ExecuteInteractively(
-			tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, s.TestCtx)
+			s.TestCtx, tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
 		s.Require().NoError(err)
 		<-exit
 		s.True(awsMock.hasConnected)
@@ -95,7 +95,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 		runnerWorkload.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
 
 		_, cancel, err := runnerWorkload.ExecuteInteractively(
-			tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, s.TestCtx)
+			s.TestCtx, tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
 		s.Require().NoError(err)
 		<-time.After(tests.ShortTimeout)
 		cancel()
@@ -133,10 +133,10 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_UpdateFileSystem() {
 	runnerWorkload.StoreExecution(tests.DefaultEnvironmentIDAsString, request)
 	myFile := dto.File{Path: "myPath", Content: []byte("myContent")}
 
-	err = runnerWorkload.UpdateFileSystem(&dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}}, s.TestCtx)
+	err = runnerWorkload.UpdateFileSystem(s.TestCtx, &dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}})
 	s.NoError(err)
 	_, execCancel, err := runnerWorkload.ExecuteInteractively(
-		tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard, s.TestCtx)
+		s.TestCtx, tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
 	s.Require().NoError(err)
 	<-time.After(tests.ShortTimeout)
 	execCancel()

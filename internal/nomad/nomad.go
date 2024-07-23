@@ -83,7 +83,7 @@ type ExecutorAPI interface {
 
 	// LoadRunnerIDs returns the IDs of all runners with the specified id prefix which are not about to
 	// get stopped.
-	LoadRunnerIDs(prefix string) (runnerIds []string, err error)
+	LoadRunnerIDs(prefix string) (runnerIDs []string, err error)
 
 	// LoadRunnerPortMappings returns the mapped ports of the runner.
 	LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapping, error)
@@ -96,7 +96,7 @@ type ExecutorAPI interface {
 	// It waits until the evaluation reaches one of the states complete, canceled or failed.
 	// If the evaluation was not successful, an error containing the failures is returned.
 	// See also https://github.com/hashicorp/nomad/blob/7d5a9ecde95c18da94c9b6ace2565afbfdd6a40d/command/monitor.go#L175
-	MonitorEvaluation(evaluationID string, ctx context.Context) error
+	MonitorEvaluation(ctx context.Context, evaluationID string) error
 
 	// WatchEventStream listens on the Nomad event stream for allocation and evaluation events.
 	// Depending on the incoming event, any of the given function is executed.
@@ -108,7 +108,7 @@ type ExecutorAPI interface {
 	// If tty is true, the command will run with a tty.
 	// Iff privilegedExecution is true, the command will be executed privileged.
 	// The command is passed in the shell form (not the exec array form) and will be executed in a shell.
-	ExecuteCommand(jobID string, ctx context.Context, command string, tty bool, privilegedExecution bool,
+	ExecuteCommand(ctx context.Context, jobID string, command string, tty bool, privilegedExecution bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// MarkRunnerAsUsed marks the runner with the given ID as used. It also stores the timeout duration in the metadata.
@@ -199,7 +199,7 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 	return jobs, occurredError
 }
 
-func (a *APIClient) MonitorEvaluation(evaluationID string, ctx context.Context) (err error) {
+func (a *APIClient) MonitorEvaluation(ctx context.Context, evaluationID string) (err error) {
 	evaluationErrorChannel := make(chan error, 1)
 	a.evaluations.Add(evaluationID, evaluationErrorChannel)
 
@@ -609,15 +609,15 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 // If tty is true, Nomad would normally write stdout and stderr of the command
 // both on the stdout stream. However, if the InteractiveStderr server config option is true,
 // we make sure that stdout and stderr are split correctly.
-func (a *APIClient) ExecuteCommand(jobID string,
-	ctx context.Context, command string, tty bool, privilegedExecution bool,
+func (a *APIClient) ExecuteCommand(ctx context.Context,
+	jobID string, command string, tty bool, privilegedExecution bool,
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
 	if tty && config.Config.Server.InteractiveStderr {
-		return a.executeCommandInteractivelyWithStderr(jobID, ctx, command, privilegedExecution, stdin, stdout, stderr)
+		return a.executeCommandInteractivelyWithStderr(ctx, jobID, command, privilegedExecution, stdin, stdout, stderr)
 	}
 	command = prepareCommandWithoutTTY(command, privilegedExecution)
-	exitCode, err := a.apiQuerier.Execute(jobID, ctx, command, tty, stdin, stdout, stderr)
+	exitCode, err := a.apiQuerier.Execute(ctx, jobID, command, tty, stdin, stdout, stderr)
 	if err != nil {
 		return 1, fmt.Errorf("error executing command in job %s: %w", jobID, err)
 	}
@@ -629,7 +629,7 @@ func (a *APIClient) ExecuteCommand(jobID string,
 // an interactive connection and possibly a fully working shell), would result in stdout and stderr
 // to be served both over stdout. This function circumvents this by creating a fifo for the stderr
 // of the command and starting a second execution that reads the stderr from that fifo.
-func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, ctx context.Context,
+func (a *APIClient) executeCommandInteractivelyWithStderr(ctx context.Context, allocationID string,
 	command string, privilegedExecution bool, stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
 	// Use current nano time to make the stderr fifo kind of unique.
@@ -641,8 +641,8 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 		defer cancel()
 
 		// Catch stderr in separate execution.
-		logging.StartSpan("nomad.execute.stderr", "Execution for separate StdErr", ctx, func(ctx context.Context) {
-			exit, err := a.Execute(allocationID, ctx, prepareCommandTTYStdErr(currentNanoTime, privilegedExecution), true,
+		logging.StartSpan(ctx, "nomad.execute.stderr", "Execution for separate StdErr", func(ctx context.Context) {
+			exit, err := a.Execute(ctx, allocationID, prepareCommandTTYStdErr(currentNanoTime, privilegedExecution), true,
 				nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Warn("Stderr task finished with error")
@@ -654,8 +654,8 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(allocationID string, c
 	command = prepareCommandTTY(command, currentNanoTime, privilegedExecution)
 	var exit int
 	var err error
-	logging.StartSpan("nomad.execute.tty", "Interactive Execution", ctx, func(ctx context.Context) {
-		exit, err = a.Execute(allocationID, ctx, command, true, stdin, stdout, io.Discard)
+	logging.StartSpan(ctx, "nomad.execute.tty", "Interactive Execution", func(ctx context.Context) {
+		exit, err = a.Execute(ctx, allocationID, command, true, stdin, stdout, io.Discard)
 	})
 
 	// Wait until the stderr catch command finished to make sure we receive all output.

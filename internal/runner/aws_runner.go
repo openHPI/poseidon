@@ -93,7 +93,7 @@ func (w *AWSFunctionWorkload) ExecutionExists(id string) bool {
 // ExecuteInteractively runs the execution request in an AWS function.
 // It should be further improved by using the passed context to handle lost connections.
 func (w *AWSFunctionWorkload) ExecuteInteractively(
-	id string, _ io.ReadWriter, stdout, stderr io.Writer, _ context.Context) (
+	_ context.Context, id string, _ io.ReadWriter, stdout, stderr io.Writer) (
 	<-chan ExitInfo, context.CancelFunc, error,
 ) {
 	w.ResetTimeout()
@@ -117,7 +117,7 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(
 // ListFileSystem is currently not supported with this aws serverless function.
 // This is because the function execution ends with the termination of the workload code.
 // So an on-demand file system listing after the termination is not possible. Also, we do not want to copy all files.
-func (w *AWSFunctionWorkload) ListFileSystem(_ string, _ bool, _ io.Writer, _ bool, _ context.Context) error {
+func (w *AWSFunctionWorkload) ListFileSystem(_ context.Context, _ string, _ bool, _ io.Writer, _ bool) error {
 	return dto.ErrNotSupported
 }
 
@@ -125,7 +125,7 @@ func (w *AWSFunctionWorkload) ListFileSystem(_ string, _ bool, _ io.Writer, _ bo
 // Current limitation: No files can be deleted apart from the previously added files.
 // Future Work: Deduplication of the file systems, as the largest workload is likely to be used by additional
 // CSV files or similar, which are the same for many executions.
-func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequest, _ context.Context) error {
+func (w *AWSFunctionWorkload) UpdateFileSystem(_ context.Context, request *dto.UpdateFileSystemRequest) error {
 	for _, path := range request.Delete {
 		delete(w.fs, path)
 	}
@@ -138,7 +138,7 @@ func (w *AWSFunctionWorkload) UpdateFileSystem(request *dto.UpdateFileSystemRequ
 // GetFileContent is currently not supported with this aws serverless function.
 // This is because the function execution ends with the termination of the workload code.
 // So an on-demand file streaming after the termination is not possible. Also, we do not want to copy all files.
-func (w *AWSFunctionWorkload) GetFileContent(_ string, _ http.ResponseWriter, _ bool, _ context.Context) error {
+func (w *AWSFunctionWorkload) GetFileContent(_ context.Context, _ string, _ http.ResponseWriter, _ bool) error {
 	return dto.ErrNotSupported
 }
 

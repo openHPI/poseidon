@@ -34,7 +34,7 @@ type apiQuerier interface {
 	DeleteJob(jobID string) (err error)
 
 	// Execute runs a command in the passed job.
-	Execute(jobID string, ctx context.Context, command string, tty bool,
+	Execute(ctx context.Context, jobID string, command string, tty bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
 	// listJobs loads all jobs with the specified prefix.
@@ -89,14 +89,13 @@ func (nc *nomadAPIClient) DeleteJob(jobID string) (err error) {
 	return
 }
 
-func (nc *nomadAPIClient) Execute(runnerID string,
-	ctx context.Context, cmd string, tty bool,
+func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd string, tty bool,
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
 	log.WithContext(ctx).WithField("command", strings.ReplaceAll(cmd, "\n", "")).Trace("Requesting Nomad Exec")
 	var allocations []*nomadApi.AllocationListStub
 	var err error
-	logging.StartSpan("nomad.execute.list", "List Allocations for id", ctx, func(_ context.Context) {
+	logging.StartSpan(ctx, "nomad.execute.list", "List Allocations for id", func(_ context.Context) {
 		allocations, _, err = nc.client.Jobs().Allocations(runnerID, false, nil)
 	})
 	if err != nil {
@@ -107,7 +106,7 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	}
 
 	var allocation *nomadApi.Allocation
-	logging.StartSpan("nomad.execute.info", "List Data of Allocation", ctx, func(_ context.Context) {
+	logging.StartSpan(ctx, "nomad.execute.info", "List Data of Allocation", func(_ context.Context) {
 		allocation, _, err = nc.client.Allocations().Info(allocations[0].ID, nil)
 	})
 	if err != nil {

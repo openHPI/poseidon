@@ -31,20 +31,20 @@ func (a *AWSEnvironmentManager) Get(ctx context.Context, id dto.EnvironmentID, f
 	e, ok := a.runnerManager.GetEnvironment(id)
 	if ok {
 		return e, nil
-	} else {
-		e, err := a.NextHandler().Get(ctx, id, fetch)
-		if err != nil {
-			return nil, fmt.Errorf("aws wrapped: %w", err)
-		}
-		return e, nil
 	}
+
+	e, err := a.NextHandler().Get(ctx, id, fetch)
+	if err != nil {
+		return nil, fmt.Errorf("aws wrapped: %w", err)
+	}
+	return e, nil
 }
 
 func (a *AWSEnvironmentManager) CreateOrUpdate(
-	id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest, ctx context.Context,
+	ctx context.Context, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest,
 ) (bool, error) {
 	if !isAWSEnvironment(request) {
-		isCreated, err := a.NextHandler().CreateOrUpdate(id, request, ctx)
+		isCreated, err := a.NextHandler().CreateOrUpdate(ctx, id, request)
 		if err != nil {
 			return false, fmt.Errorf("aws wrapped: %w", err)
 		}

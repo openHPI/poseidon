@@ -22,9 +22,8 @@ func (n *AbstractManager) SetNextHandler(next ManagerHandler) {
 func (n *AbstractManager) NextHandler() ManagerHandler {
 	if n.HasNextHandler() {
 		return n.nextHandler
-	} else {
-		return &AbstractManager{}
 	}
+	return &AbstractManager{}
 }
 
 func (n *AbstractManager) HasNextHandler() bool {
@@ -39,7 +38,7 @@ func (n *AbstractManager) Get(_ context.Context, _ dto.EnvironmentID, _ bool) (r
 	return nil, runner.ErrRunnerNotFound
 }
 
-func (n *AbstractManager) CreateOrUpdate(_ dto.EnvironmentID, _ dto.ExecutionEnvironmentRequest, _ context.Context) (
+func (n *AbstractManager) CreateOrUpdate(_ context.Context, _ dto.EnvironmentID, _ dto.ExecutionEnvironmentRequest) (
 	bool, error,
 ) {
 	return false, nil

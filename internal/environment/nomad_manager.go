@@ -135,7 +135,7 @@ func (m *NomadEnvironmentManager) fetchEnvironments(ctx context.Context) error {
 }
 
 func (m *NomadEnvironmentManager) CreateOrUpdate(
-	id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest, ctx context.Context,
+	ctx context.Context, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest,
 ) (created bool, err error) {
 	// Check if execution environment is already existing (in the local memory).
 	environment, isExistingEnvironment := m.runnerManager.GetEnvironment(id)
@@ -158,7 +158,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	m.runnerManager.StoreEnvironment(environment)
 
 	// Register template Job with Nomad.
-	logging.StartSpan("env.update.register", "Register Environment", ctx, func(_ context.Context) {
+	logging.StartSpan(ctx, "env.update.register", "Register Environment", func(_ context.Context) {
 		err = environment.Register()
 	})
 	if err != nil {
@@ -166,7 +166,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	}
 
 	// Launch idle runners based on the template job.
-	logging.StartSpan("env.update.poolsize", "Apply Prewarming Pool Size", ctx, func(_ context.Context) {
+	logging.StartSpan(ctx, "env.update.poolsize", "Apply Prewarming Pool Size", func(_ context.Context) {
 		err = environment.ApplyPrewarmingPoolSize()
 	})
 	if err != nil {
@@ -177,7 +177,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 }
 
 // KeepEnvironmentsSynced loads all environments, runner existing at Nomad, and watches Nomad events to handle further changes.
-func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(synchronizeRunners func(ctx context.Context) error, ctx context.Context) {
+func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(ctx context.Context, synchronizeRunners func(ctx context.Context) error) {
 	err := util.RetryConstantAttemptsWithContext(math.MaxInt, ctx, func() error {
 		// Load Environments
 		if err := m.load(ctx); err != nil {

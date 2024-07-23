@@ -60,7 +60,7 @@ func (hook *SentryHook) Levels() []logrus.Level {
 	}
 }
 
-func StartSpan(op, description string, ctx context.Context, callback func(context.Context)) {
+func StartSpan(ctx context.Context, op, description string, callback func(context.Context)) {
 	span := sentry.StartSpan(ctx, op)
 	span.Description = description
 	defer span.Finish()

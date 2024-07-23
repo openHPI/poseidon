@@ -80,7 +80,7 @@ func configureV1Router(router *mux.Router,
 func Version(writer http.ResponseWriter, request *http.Request) {
 	release := config.Config.Sentry.Release
 	if release != "" {
-		sendJSON(writer, release, http.StatusOK, request.Context())
+		sendJSON(request.Context(), writer, release, http.StatusOK)
 	} else {
 		writer.WriteHeader(http.StatusNotFound)
 	}
@@ -95,6 +95,6 @@ func StatisticsExecutionEnvironments(manager environment.Manager) http.HandlerFu
 		for id, data := range environmentsData {
 			result[id.ToString()] = data
 		}
-		sendJSON(writer, result, http.StatusOK, request.Context())
+		sendJSON(request.Context(), writer, result, http.StatusOK)
 	}
 }

@@ -68,9 +68,8 @@ func getVcsRevision(short bool) string {
 
 	if vcsModified {
 		return vcsRevision + "-modified"
-	} else {
-		return vcsRevision
 	}
+	return vcsRevision
 }
 
 func initializeUserAgent() {
@@ -319,8 +318,8 @@ type managerCreator func(ctx context.Context) (
 	runnerManager runner.Manager, environmentManager environment.ManagerHandler)
 
 // createManagerHandler adds the managers of the passed managerCreator to the chain of responsibility.
-func createManagerHandler(handler managerCreator, enabled bool,
-	nextRunnerManager runner.Manager, nextEnvironmentManager environment.ManagerHandler, ctx context.Context) (
+func createManagerHandler(ctx context.Context, handler managerCreator, enabled bool,
+	nextRunnerManager runner.Manager, nextEnvironmentManager environment.ManagerHandler) (
 	runnerManager runner.Manager, environmentManager environment.ManagerHandler,
 ) {
 	if !enabled {
@@ -340,7 +339,7 @@ func createNomadManager(ctx context.Context) (runner.Manager, environment.Manage
 		log.WithError(err).WithField("nomad_config", config.Config.Nomad).Fatal("Error creating Nomad API client")
 	}
 
-	runnerManager := runner.NewNomadRunnerManager(nomadAPIClient, ctx)
+	runnerManager := runner.NewNomadRunnerManager(ctx, nomadAPIClient)
 	environmentManager, err := environment.
 		NewNomadEnvironmentManager(runnerManager, nomadAPIClient, config.Config.Server.TemplateJobFile)
 	if err != nil {
@@ -354,7 +353,7 @@ func createNomadManager(ctx context.Context) (runner.Manager, environment.Manage
 // synchronizeNomad starts the asynchronous synchronization background task and waits for the first environment and runner recovery.
 func synchronizeNomad(ctx context.Context, environmentManager *environment.NomadEnvironmentManager, runnerManager *runner.NomadRunnerManager) {
 	firstRecoveryDone := make(chan struct{})
-	go environmentManager.KeepEnvironmentsSynced(func(ctx context.Context) error {
+	go environmentManager.KeepEnvironmentsSynced(ctx, func(ctx context.Context) error {
 		go func(ctx context.Context) {
 			// `Load` not only recover existing runners, but also applies the prewarming pool size which creates runners.
 			// Therefore, the Nomad Event Stream has to be started before.
@@ -375,7 +374,7 @@ func synchronizeNomad(ctx context.Context, environmentManager *environment.Nomad
 			return fmt.Errorf("synchronize runners failed: %w", err)
 		}
 		return nil
-	}, ctx)
+	})
 
 	select {
 	case <-firstRecoveryDone:
@@ -392,10 +391,10 @@ func createAWSManager(ctx context.Context) (
 
 // initRouter builds a router that serves the API with the chain of responsibility for multiple managers.
 func initRouter(ctx context.Context) *mux.Router {
-	runnerManager, environmentManager := createManagerHandler(createNomadManager, config.Config.Nomad.Enabled,
-		nil, nil, ctx)
-	runnerManager, environmentManager = createManagerHandler(createAWSManager, config.Config.AWS.Enabled,
-		runnerManager, environmentManager, ctx)
+	runnerManager, environmentManager := createManagerHandler(ctx, createNomadManager, config.Config.Nomad.Enabled,
+		nil, nil)
+	runnerManager, environmentManager = createManagerHandler(ctx, createAWSManager, config.Config.AWS.Enabled,
+		runnerManager, environmentManager)
 
 	return api.NewRouter(runnerManager, environmentManager)
 }
@@ -420,7 +419,7 @@ func initServer(router *mux.Router) *http.Server {
 
 // shutdownOnOSSignal listens for a signal from the operating system
 // When receiving a signal the server shuts down but waits up to 15 seconds to close remaining connections.
-func shutdownOnOSSignal(server *http.Server, ctx context.Context, stopProfiling func()) {
+func shutdownOnOSSignal(ctx context.Context, server *http.Server, stopProfiling func()) {
 	// wait for SIGINT
 	shutdownSignals := make(chan os.Signal, 1)
 	signal.Notify(shutdownSignals, unix.SIGINT, unix.SIGTERM, unix.SIGABRT)
@@ -437,7 +436,7 @@ func shutdownOnOSSignal(server *http.Server, ctx context.Context, stopProfiling 
 
 		stopProfiling()
 		// Continue listening on signals and replace `stopProfiling` with an empty function
-		shutdownOnOSSignal(server, ctx, func() {})
+		shutdownOnOSSignal(ctx, server, func() {})
 	case <-shutdownSignals:
 		log.Info("Received SIGINT, shutting down...")
 
@@ -468,5 +467,5 @@ func main() {
 	router := initRouter(ctx)
 	server := initServer(router)
 	go runServer(router, server, cancel)
-	shutdownOnOSSignal(server, ctx, stopProfiling)
+	shutdownOnOSSignal(ctx, server, stopProfiling)
 }

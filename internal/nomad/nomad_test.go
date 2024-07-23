@@ -73,8 +73,8 @@ func (s *LoadRunnersTestSuite) TestErrorOfUnderlyingApiCallIsPropagated() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return(nil, tests.ErrDefault)
 
-	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
-	s.Nil(returnedIds)
+	returnedIDs, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	s.Nil(returnedIDs)
 	s.Equal(tests.ErrDefault, err)
 }
 
@@ -90,29 +90,29 @@ func (s *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.availableRunner}, nil)
 
-	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	returnedIDs, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
 	s.Require().NoError(err)
-	s.Len(returnedIds, 1)
-	s.Equal(s.availableRunner.ID, returnedIds[0])
+	s.Len(returnedIDs, 1)
+	s.Equal(s.availableRunner.ID, returnedIDs[0])
 }
 
 func (s *LoadRunnersTestSuite) TestPendingRunnerIsReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.pendingRunner}, nil)
 
-	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	returnedIDs, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
 	s.Require().NoError(err)
-	s.Len(returnedIds, 1)
-	s.Equal(s.pendingRunner.ID, returnedIds[0])
+	s.Len(returnedIDs, 1)
+	s.Equal(s.pendingRunner.ID, returnedIDs[0])
 }
 
 func (s *LoadRunnersTestSuite) TestDeadRunnerIsNotReturned() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return([]*nomadApi.JobListStub{s.deadRunner}, nil)
 
-	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	returnedIDs, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
 	s.Require().NoError(err)
-	s.Empty(returnedIds)
+	s.Empty(returnedIDs)
 }
 
 func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
@@ -125,13 +125,13 @@ func (s *LoadRunnersTestSuite) TestReturnsAllAvailableRunners() {
 	s.mock.On("listJobs", mock.AnythingOfType("string")).
 		Return(runnersList, nil)
 
-	returnedIds, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
+	returnedIDs, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
 	s.Require().NoError(err)
-	s.Len(returnedIds, 3)
-	s.Contains(returnedIds, s.availableRunner.ID)
-	s.Contains(returnedIds, s.anotherAvailableRunner.ID)
-	s.Contains(returnedIds, s.pendingRunner.ID)
-	s.NotContains(returnedIds, s.deadRunner.ID)
+	s.Len(returnedIDs, 3)
+	s.Contains(returnedIDs, s.availableRunner.ID)
+	s.Contains(returnedIDs, s.anotherAvailableRunner.ID)
+	s.Contains(returnedIDs, s.pendingRunner.ID)
+	s.NotContains(returnedIDs, s.deadRunner.ID)
 }
 
 const (
@@ -190,7 +190,7 @@ func asynchronouslyMonitorEvaluation(stream <-chan *nomadApi.Events) chan error 
 
 	errChan := make(chan error)
 	go func() {
-		errChan <- apiClient.MonitorEvaluation(evaluationID, ctx)
+		errChan <- apiClient.MonitorEvaluation(ctx, evaluationID)
 	}()
 	return errChan
 }
@@ -215,7 +215,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsErrorWhenStreamRet
 	apiMock.On("EventStream", mock.AnythingOfType("*context.cancelCtx")).
 		Return(nil, tests.ErrDefault)
 	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
-	err := apiClient.MonitorEvaluation("id", context.Background())
+	err := apiClient.MonitorEvaluation(context.Background(), "id")
 	s.ErrorIs(err, tests.ErrDefault)
 }
 
@@ -894,12 +894,12 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 		s.Require().NoError(err)
 	}
 
-	s.apiMock.On("Execute", s.allocationID, mock.Anything, mock.Anything, withTTY,
+	s.apiMock.On("Execute", mock.Anything, s.allocationID, mock.Anything, withTTY,
 		mock.AnythingOfType("nullio.Reader"), mock.Anything, mock.Anything).Run(runFn).Return(stderrExitCode, nil)
-	s.apiMock.On("Execute", s.allocationID, mock.Anything, mock.Anything, withTTY,
+	s.apiMock.On("Execute", mock.Anything, s.allocationID, mock.Anything, withTTY,
 		mock.AnythingOfType("*bytes.Buffer"), mock.Anything, mock.Anything).Run(runFn).Return(commandExitCode, nil)
 
-	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommand, withTTY,
+	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.ctx, s.allocationID, s.testCommand, withTTY,
 		UnprivilegedExecution, &bytes.Buffer{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
@@ -945,7 +945,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
 		}
 	})
 
-	_, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommand, withTTY, UnprivilegedExecution,
+	_, err := s.nomadAPIClient.ExecuteCommand(s.ctx, s.allocationID, s.testCommand, withTTY, UnprivilegedExecution,
 		nullio.Reader{}, io.Discard, io.Discard)
 	s.Equal(tests.ErrDefault, err)
 }
@@ -968,7 +968,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 		s.Require().NoError(err)
 	})
 
-	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommand, withTTY,
+	exitCode, err := s.nomadAPIClient.ExecuteCommand(s.ctx, s.allocationID, s.testCommand, withTTY,
 		UnprivilegedExecution, nullio.Reader{}, &stdout, &stderr)
 	s.Require().NoError(err)
 
@@ -981,8 +981,8 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError() {
 	config.Config.Server.InteractiveStderr = false
 	expectedCommand := prepareCommandWithoutTTY(s.testCommand, UnprivilegedExecution)
-	s.mockExecute(expectedCommand, 1, tests.ErrDefault, func(args mock.Arguments) {})
-	_, err := s.nomadAPIClient.ExecuteCommand(s.allocationID, s.ctx, s.testCommand, withTTY, UnprivilegedExecution,
+	s.mockExecute(expectedCommand, 1, tests.ErrDefault, func(_ mock.Arguments) {})
+	_, err := s.nomadAPIClient.ExecuteCommand(s.ctx, s.allocationID, s.testCommand, withTTY, UnprivilegedExecution,
 		nullio.Reader{}, io.Discard, io.Discard)
 	s.ErrorIs(err, tests.ErrDefault)
 }
@@ -990,7 +990,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderrReturnsCommandError()
 func (s *ExecuteCommandTestSuite) mockExecute(command interface{}, exitCode int,
 	err error, runFunc func(arguments mock.Arguments),
 ) *mock.Call {
-	return s.apiMock.On("Execute", s.allocationID, mock.Anything, command, withTTY,
+	return s.apiMock.On("Execute", mock.Anything, s.allocationID, command, withTTY,
 		mock.Anything, mock.Anything, mock.Anything).
 		Run(runFunc).
 		Return(exitCode, err)

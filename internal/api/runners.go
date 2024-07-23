@@ -147,9 +147,6 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	case errors.Is(err, nomadApi.NodeDownErr):
 		entry.Debug("Nomad Node Down while updateFileSystem")
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorNomadInternalServerError)
-	case errors.Is(err, io.ErrUnexpectedEOF):
-		entry.Warn("Unexpected EOF while updateFileSystem")
-		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 	case errors.Is(err, nomad.ErrNoAllocationFound):
 		entry.Warn("No allocation found while updateFileSystem")
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)

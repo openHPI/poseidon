@@ -14,7 +14,10 @@ import (
 	"github.com/openHPI/poseidon/pkg/logging"
 )
 
-var ErrNoAllocationFound = errors.New("no allocation found")
+var (
+	ErrNoAllocationFound      = errors.New("no allocation found")
+	ErrNomadUnknownAllocation = errors.New("unknown allocation")
+)
 
 // apiQuerier provides access to the Nomad functionality.
 type apiQuerier interface {
@@ -135,6 +138,8 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 	case errors.Is(err, context.Canceled):
 		log.WithContext(ctx).Debug("Execution canceled by context")
 		return 0, nil
+	case strings.Contains(err.Error(), "Unknown allocation"):
+		return 1, ErrNomadUnknownAllocation
 	default:
 		return 1, fmt.Errorf("error executing command in allocation: %w", err)
 	}

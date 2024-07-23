@@ -61,6 +61,8 @@ linters:
     - testpackage
     - varnamelen
     - wsl
+    - execinquery
+    - gomnd
 
 issues:
   exclude-rules:

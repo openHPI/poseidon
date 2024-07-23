@@ -70,7 +70,7 @@ func (s *WebSocketTestSuite) TestWebsocketConnectionCanBeEstablished() {
 
 	<-time.After(tests.ShortTimeout)
 	err = conn.Close()
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *WebSocketTestSuite) TestWebsocketReturns404IfExecutionDoesNotExist() {
@@ -89,7 +89,7 @@ func (s *WebSocketTestSuite) TestWebsocketReturns400IfRequestedViaHttp() {
 	// This functionality is implemented by the WebSocket library.
 	s.Equal(http.StatusBadRequest, response.StatusCode)
 	_, err = io.ReadAll(response.Body)
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *WebSocketTestSuite) TestWebsocketConnection() {
@@ -289,7 +289,7 @@ func (s *MainTestSuite) TestWebsocketTLS() {
 	_, err = helpers.ReceiveAllWebSocketMessages(connection)
 	s.Require().Error(err)
 	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
-	s.NoError(r.Destroy(nil))
+	s.Require().NoError(r.Destroy(nil))
 }
 
 func (s *MainTestSuite) TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt() {
@@ -370,7 +370,7 @@ func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.Execut
 		err = r.Destroy(tests.ErrCleanupDestroyReason)
 		s.Require().NoError(err)
 		err = nomadEnvironment.Delete(tests.ErrCleanupDestroyReason)
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 }
 

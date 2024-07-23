@@ -84,7 +84,7 @@ func TestE2ERecoveryTests(t *testing.T) {
 
 func (s *E2ERecoveryTestSuite) TestInactivityTimer_Valid() {
 	_, err := e2e.ProvideWebSocketURL(s.runnerID, &dto.ExecutionRequest{Command: "true"})
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *E2ERecoveryTestSuite) TestInactivityTimer_Expired() {

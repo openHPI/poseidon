@@ -77,9 +77,9 @@ func (s *MemoryLeakTestSuite) TearDownTest() {
 	s.Equal(s.goroutineCountBefore+s.ExpectedGoroutineIncrease, goroutineCountAfter)
 	if s.goroutineCountBefore+s.ExpectedGoroutineIncrease != goroutineCountAfter {
 		_, err := io.Copy(os.Stderr, s.goroutinesBefore)
-		s.NoError(err)
+		s.Require().NoError(err)
 		_, err = io.Copy(os.Stderr, goroutinesAfter)
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 }
 

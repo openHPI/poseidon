@@ -19,7 +19,7 @@ func (s *MainTestSuite) TestAWSExecutionRequestIsStored() {
 	environment := &ExecutionEnvironmentMock{}
 	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	runner, err := NewAWSFunctionWorkload(environment, func(_ Runner) error { return nil })
-	s.NoError(err)
+	s.Require().NoError(err)
 	executionRequest := &dto.ExecutionRequest{
 		Command:     "command",
 		TimeLimit:   10,
@@ -32,7 +32,7 @@ func (s *MainTestSuite) TestAWSExecutionRequestIsStored() {
 	s.Equal(executionRequest, storedExecutionRunner)
 
 	err = runner.Destroy(nil)
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 type awsEndpointMock struct {
@@ -107,7 +107,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 	})
 
 	err = runnerWorkload.Destroy(nil)
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *MainTestSuite) TestAWSFunctionWorkload_UpdateFileSystem() {
@@ -134,7 +134,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_UpdateFileSystem() {
 	myFile := dto.File{Path: "myPath", Content: []byte("myContent")}
 
 	err = runnerWorkload.UpdateFileSystem(s.TestCtx, &dto.UpdateFileSystemRequest{Copy: []dto.File{myFile}})
-	s.NoError(err)
+	s.Require().NoError(err)
 	_, execCancel, err := runnerWorkload.ExecuteInteractively(
 		s.TestCtx, tests.DefaultEnvironmentIDAsString, nil, io.Discard, io.Discard)
 	s.Require().NoError(err)
@@ -147,7 +147,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_UpdateFileSystem() {
 	s.Equal(expectedRequestData, awsMock.receivedData)
 
 	err = runnerWorkload.Destroy(nil)
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *MainTestSuite) TestAWSFunctionWorkload_Destroy() {
@@ -162,6 +162,6 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_Destroy() {
 
 	var reason error
 	err = runnerWorkload.Destroy(reason)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.True(hasDestroyBeenCalled)
 }

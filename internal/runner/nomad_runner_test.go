@@ -30,7 +30,7 @@ func (s *MainTestSuite) TestIdIsStored() {
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	s.Equal(tests.DefaultRunnerID, runner.ID())
-	s.NoError(runner.Destroy(nil))
+	s.Require().NoError(runner.Destroy(nil))
 }
 
 func (s *MainTestSuite) TestMappedPortsAreStoredCorrectly() {
@@ -39,11 +39,11 @@ func (s *MainTestSuite) TestMappedPortsAreStoredCorrectly() {
 
 	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, tests.DefaultPortMappings, apiMock, func(_ Runner) error { return nil })
 	s.Equal(tests.DefaultMappedPorts, runner.MappedPorts())
-	s.NoError(runner.Destroy(nil))
+	s.Require().NoError(runner.Destroy(nil))
 
 	runner = NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	s.Empty(runner.MappedPorts())
-	s.NoError(runner.Destroy(nil))
+	s.Require().NoError(runner.Destroy(nil))
 }
 
 func (s *MainTestSuite) TestMarshalRunner() {
@@ -51,9 +51,9 @@ func (s *MainTestSuite) TestMarshalRunner() {
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	marshal, err := json.Marshal(runner)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal("{\"runnerId\":\""+tests.DefaultRunnerID+"\"}", string(marshal))
-	s.NoError(runner.Destroy(nil))
+	s.Require().NoError(runner.Destroy(nil))
 }
 
 func (s *MainTestSuite) TestExecutionRequestIsStored() {
@@ -71,7 +71,7 @@ func (s *MainTestSuite) TestExecutionRequestIsStored() {
 
 	s.True(ok, "Getting an execution should not return ok false")
 	s.Equal(executionRequest, storedExecutionRunner)
-	s.NoError(runner.Destroy(nil))
+	s.Require().NoError(runner.Destroy(nil))
 }
 
 func (s *MainTestSuite) TestNewContextReturnsNewContextWithRunner() {
@@ -85,7 +85,7 @@ func (s *MainTestSuite) TestNewContextReturnsNewContextWithRunner() {
 
 	s.NotEqual(ctx, newCtx)
 	s.Equal(runner, storedRunner)
-	s.NoError(runner.Destroy(nil))
+	s.Require().NoError(runner.Destroy(nil))
 }
 
 func (s *MainTestSuite) TestFromContextReturnsRunner() {
@@ -97,7 +97,7 @@ func (s *MainTestSuite) TestFromContextReturnsRunner() {
 
 	s.True(ok)
 	s.Equal(runner, storedRunner)
-	s.NoError(runner.Destroy(nil))
+	s.Require().NoError(runner.Destroy(nil))
 }
 
 func (s *MainTestSuite) TestFromContextReturnsIsNotOkWhenContextHasNoRunner() {
@@ -123,13 +123,13 @@ func (s *MainTestSuite) TestDestroyDoesNotPropagateToNomadForSomeReasons() {
 
 	s.Run("destroy removes the runner only locally for OOM Killed Allocations", func() {
 		err := r.Destroy(ErrOOMKilled)
-		s.NoError(err)
+		s.Require().NoError(err)
 		apiMock.AssertExpectations(s.T())
 	})
 
 	s.Run("destroy removes the runner only locally for rescheduled allocations", func() {
 		err := r.Destroy(nomad.ErrAllocationRescheduled)
-		s.NoError(err)
+		s.Require().NoError(err)
 		apiMock.AssertExpectations(s.T())
 	})
 }
@@ -304,7 +304,7 @@ func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut(
 	err = s.runner.Destroy(ErrRunnerInactivityTimeout)
 	s.Require().NoError(err)
 	exit := <-exitChannel
-	s.ErrorIs(exit.Err, ErrRunnerInactivityTimeout)
+	s.Require().ErrorIs(exit.Err, ErrRunnerInactivityTimeout)
 
 	cancel()
 	<-time.After(tests.ShortTimeout)
@@ -363,7 +363,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSuspectedOOMKilledExecutionWaitsForV
 			s.FailNow("Poseidon should not wait too long for verifying the OOM Kill assumption.")
 		case exit := <-exitChannel:
 			s.Equal(uint8(128), exit.Code)
-			s.NoError(exit.Err)
+			s.Require().NoError(exit.Err)
 		}
 	})
 }
@@ -410,7 +410,7 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtr
 	// if the implementation changes, delete this test and write a new one
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 		false, mock.AnythingOfType("bool"), mock.Anything, mock.Anything, mock.Anything)
 	s.Regexp("tar --extract --absolute-names", s.command)
@@ -435,7 +435,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)},
 	}}
 	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
 
@@ -488,7 +488,7 @@ func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{tests.DefaultFileName}}
 	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
 	s.Regexp(fmt.Sprintf("rm[^;]+%s' *;", regexp.QuoteMeta(tests.DefaultFileName)), s.command)
@@ -497,7 +497,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{"/some/potentially/harmful'filename"}}
 	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
 	s.Contains(s.command, "'/some/potentially/harmful'\\\\''filename'")
@@ -506,7 +506,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 func (s *UpdateFileSystemTestSuite) TestResetTimerGetsCalled() {
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }
 

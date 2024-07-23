@@ -31,12 +31,12 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_CreateOrUpdate() {
 		config.Config.AWS.Functions = []string{uniqueImage}
 		_, err := environmentManager.CreateOrUpdate(
 			context.Background(), tests.AnotherEnvironmentIDAsInteger, dto.ExecutionEnvironmentRequest{Image: uniqueImage})
-		s.NoError(err)
+		s.Require().NoError(err)
 	})
 
 	s.Run("can retrieve added environment", func() {
 		environment, err := environmentManager.Get(s.TestCtx, tests.AnotherEnvironmentIDAsInteger, false)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(environment.Image(), uniqueImage)
 	})
 
@@ -48,7 +48,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_CreateOrUpdate() {
 
 		request := dto.ExecutionEnvironmentRequest{}
 		_, err := environmentManager.CreateOrUpdate(context.Background(), tests.DefaultEnvironmentIDAsInteger, request)
-		s.NoError(err)
+		s.Require().NoError(err)
 		nextHandler.AssertCalled(s.T(), "CreateOrUpdate", mock.Anything,
 			dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), request)
 	})
@@ -67,7 +67,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_Get() {
 		environmentManager.SetNextHandler(nextHandler)
 
 		_, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
-		s.NoError(err)
+		s.Require().NoError(err)
 		nextHandler.AssertCalled(s.T(), "Get", mock.Anything, dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), false)
 	})
 
@@ -104,7 +104,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_List() {
 		awsEnvironmentManager.SetNextHandler(nextHandler)
 
 		environments, err := awsEnvironmentManager.List(s.TestCtx, false)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Require().Len(environments, 1)
 		s.Contains(environments, existingEnvironment)
 	})
@@ -116,7 +116,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_List() {
 		runnerManager.StoreEnvironment(localEnvironment)
 
 		environments, err := awsEnvironmentManager.List(s.TestCtx, false)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Len(environments, 1)
 		s.Contains(environments, localEnvironment)
 	})

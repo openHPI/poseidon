@@ -65,7 +65,7 @@ type localStorage[T any] struct {
 
 // NewLocalStorage responds with a Storage implementation.
 // This implementation stores the data thread-safe in the local application memory.
-func NewLocalStorage[T any]() *localStorage[T] {
+func NewLocalStorage[T any]() Storage[T] {
 	return &localStorage[T]{
 		objects: make(map[string]T),
 	}
@@ -75,16 +75,14 @@ func NewLocalStorage[T any]() *localStorage[T] {
 // All write operations are monitored in the passed measurement.
 // Iff callback is set, it will be called on a write operation.
 // Iff additionalEvents not zero, the duration will be used to periodically send additional monitoring events.
-func NewMonitoredLocalStorage[T any](
-	measurement string, callback WriteCallback[T], additionalEvents time.Duration, ctx context.Context,
-) *localStorage[T] {
+func NewMonitoredLocalStorage[T any](ctx context.Context, measurement string, callback WriteCallback[T], additionalEvents time.Duration) Storage[T] {
 	s := &localStorage[T]{
 		objects:     make(map[string]T),
 		measurement: measurement,
 		callback:    callback,
 	}
 	if additionalEvents != 0 {
-		go s.periodicallySendMonitoringData(additionalEvents, ctx)
+		go s.periodicallySendMonitoringData(ctx, additionalEvents)
 	}
 	return s
 }
@@ -174,7 +172,7 @@ func (s *localStorage[T]) sendMonitoringData(id string, object T, eventType Even
 	}
 }
 
-func (s *localStorage[T]) periodicallySendMonitoringData(d time.Duration, ctx context.Context) {
+func (s *localStorage[T]) periodicallySendMonitoringData(ctx context.Context, d time.Duration) {
 	for {
 		select {
 		case <-ctx.Done():

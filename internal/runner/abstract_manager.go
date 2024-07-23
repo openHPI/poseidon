@@ -27,10 +27,8 @@ type AbstractManager struct {
 // Since this manager is currently directly bound to the lifespan of Poseidon, it does not need a context cancel.
 func NewAbstractManager(ctx context.Context) *AbstractManager {
 	return &AbstractManager{
-		environments: storage.NewMonitoredLocalStorage[ExecutionEnvironment](
-			monitoring.MeasurementEnvironments, monitorEnvironmentData, 0, ctx),
-		usedRunners: storage.NewMonitoredLocalStorage[Runner](
-			monitoring.MeasurementUsedRunner, MonitorRunnersEnvironmentID, time.Hour, ctx),
+		environments: storage.NewMonitoredLocalStorage[ExecutionEnvironment](ctx, monitoring.MeasurementEnvironments, monitorEnvironmentData, 0),
+		usedRunners:  storage.NewMonitoredLocalStorage[Runner](ctx, monitoring.MeasurementUsedRunner, MonitorRunnersEnvironmentID, time.Hour),
 	}
 }
 

@@ -44,7 +44,7 @@ type codeOceanToRawReader struct {
 	priorityBuffer chan byte
 }
 
-func NewCodeOceanToRawReader(connection Connection, wsCtx, executorCtx context.Context) *codeOceanToRawReader {
+func NewCodeOceanToRawReader(wsCtx, executorCtx context.Context, connection Connection) WebSocketReader {
 	return &codeOceanToRawReader{
 		connection:     connection,
 		readCtx:        wsCtx, // This context may be canceled before the executorCtx.
@@ -83,17 +83,17 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 		case <-readMessage:
 		}
 
-		if inputContainsError(messageType, err, loopContext) {
+		if inputContainsError(loopContext, messageType, err) {
 			return
 		}
-		if handleInput(reader, cr.buffer, loopContext) {
+		if handleInput(loopContext, reader, cr.buffer) {
 			return
 		}
 	}
 }
 
 // handleInput receives a new message from the client and may forward it to the executor.
-func handleInput(reader io.Reader, buffer chan byte, ctx context.Context) (done bool) {
+func handleInput(ctx context.Context, reader io.Reader, buffer chan byte) (done bool) {
 	message, err := io.ReadAll(reader)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Warn("error while reading WebSocket message")
@@ -111,7 +111,7 @@ func handleInput(reader io.Reader, buffer chan byte, ctx context.Context) (done 
 	return false
 }
 
-func inputContainsError(messageType int, err error, ctx context.Context) (done bool) {
+func inputContainsError(ctx context.Context, messageType int, err error) (done bool) {
 	if err != nil && websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		log.WithContext(ctx).Debug("ReadInputLoop: The client closed the connection!")
 		// The close handler will do something soon.

@@ -81,7 +81,7 @@ func NewNomadJob(ctx context.Context, jobID string, portMappings []nomadApi.Port
 		cancel:       cancel,
 	}
 	job.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
-		monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), jobID), time.Minute, ctx)
+		ctx, monitoring.MeasurementExecutionsNomad, monitorExecutionsRunnerID(job.Environment(), jobID), time.Minute)
 	job.InactivityTimer = NewInactivityTimer(job, func(r Runner) error {
 		err := r.Destroy(ErrRunnerInactivityTimeout)
 		if err != nil {

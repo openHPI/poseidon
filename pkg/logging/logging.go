@@ -17,16 +17,19 @@ import (
 
 const TimestampFormat = "2006-01-02T15:04:05.000000Z"
 
-var log = &logrus.Logger{
-	Out: os.Stderr,
-	Formatter: &logrus.TextFormatter{
-		TimestampFormat: TimestampFormat,
-		DisableColors:   true,
-		FullTimestamp:   true,
-	},
-	Hooks: make(logrus.LevelHooks),
-	Level: logrus.InfoLevel,
-}
+var (
+	log = &logrus.Logger{
+		Out: os.Stderr,
+		Formatter: &logrus.TextFormatter{
+			TimestampFormat: TimestampFormat,
+			DisableColors:   true,
+			FullTimestamp:   true,
+		},
+		Hooks: make(logrus.LevelHooks),
+		Level: logrus.InfoLevel,
+	}
+	ErrResponseWriterHijack = errors.New("response writer cannot be hijacked")
+)
 
 const GracefulSentryShutdown = 5 * time.Second
 
@@ -73,7 +76,7 @@ func (writer *ResponseWriter) WriteHeader(code int) {
 func (writer *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := writer.ResponseWriter.(http.Hijacker)
 	if !ok {
-		return nil, nil, errors.New("response writer cannot be hijacked")
+		return nil, nil, ErrResponseWriterHijack
 	}
 
 	conn, rw, err := hijacker.Hijack()

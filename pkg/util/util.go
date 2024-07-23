@@ -76,6 +76,6 @@ func RetryExponential(f func() error) error {
 
 // RetryConstantAttemptsWithContext executes the passed function with a constant retry delay of one second
 // up to the passed maximum number of attempts as long as the context is not done.
-func RetryConstantAttemptsWithContext(attempts int, ctx context.Context, f func() error) error {
+func RetryConstantAttemptsWithContext(ctx context.Context, attempts int, f func() error) error {
 	return retryAttempts(attempts, retryConstant(ctx, InitialWaitingDuration, f))
 }

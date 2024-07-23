@@ -334,7 +334,7 @@ func createManagerHandler(ctx context.Context, handler managerCreator, enabled b
 
 func createNomadManager(ctx context.Context) (runner.Manager, environment.ManagerHandler) {
 	// API initialization
-	nomadAPIClient, err := nomad.NewExecutorAPI(&config.Config.Nomad)
+	nomadAPIClient, err := nomad.NewExecutorAPI(ctx, &config.Config.Nomad)
 	if err != nil {
 		log.WithError(err).WithField("nomad_config", config.Config.Nomad).Fatal("Error creating Nomad API client")
 	}

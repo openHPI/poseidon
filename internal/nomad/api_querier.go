@@ -8,9 +8,11 @@ import (
 	"github.com/gorilla/websocket"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/openHPI/poseidon/internal/config"
+	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/pkg/logging"
 	"io"
 	"strings"
+	"time"
 )
 
 var (
@@ -119,10 +121,19 @@ func (nc *nomadAPIClient) Execute(runnerID string,
 	span := sentry.StartSpan(ctx, "nomad.execute.exec")
 	span.Description = "Execute Command in Allocation"
 
+	go func(ctx context.Context) {
+		<-ctx.Done()
+		log.WithField("timestamp", time.Now().UnixNano()).WithField(dto.KeyRunnerID, runnerID).
+			Debug("Context Done")
+	}(span.Context())
+
 	debugWriter := NewSentryDebugWriter(stdout, span.Context())
 	commands := []string{"/bin/bash", "-c", cmd}
 	exitCode, err = nc.client.Allocations().
 		Exec(span.Context(), allocation, TaskName, tty, commands, stdin, debugWriter, stderr, nil, nil)
+	log.WithField("timestamp", time.Now().UnixNano()).WithField(dto.KeyRunnerID, runnerID).
+		WithField("exit_code", exitCode).WithError(err).
+		Debug("Execute returned")
 	debugWriter.Close(exitCode)
 
 	span.SetData("command", cmd)

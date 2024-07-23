@@ -48,17 +48,17 @@ func (e *EnvironmentController) ConfigureRoutes(router *mux.Router) {
 func (e *EnvironmentController) list(writer http.ResponseWriter, request *http.Request) {
 	fetch, err := parseFetchParameter(request)
 	if err != nil {
-		writeClientError(writer, err, http.StatusBadRequest, request.Context())
+		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}
 
 	environments, err := e.manager.List(request.Context(), fetch)
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 		return
 	}
 
-	sendJSON(writer, ExecutionEnvironmentsResponse{environments}, http.StatusOK, request.Context())
+	sendJSON(request.Context(), writer, ExecutionEnvironmentsResponse{environments}, http.StatusOK)
 }
 
 // get returns all information about the requested execution environment.
@@ -66,12 +66,12 @@ func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Re
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
 		// This case is never used as the router validates the id format
-		writeClientError(writer, err, http.StatusBadRequest, request.Context())
+		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}
 	fetch, err := parseFetchParameter(request)
 	if err != nil {
-		writeClientError(writer, err, http.StatusBadRequest, request.Context())
+		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}
 
@@ -80,11 +80,11 @@ func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Re
 		writer.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 		return
 	}
 
-	sendJSON(writer, executionEnvironment, http.StatusOK, request.Context())
+	sendJSON(request.Context(), writer, executionEnvironment, http.StatusOK)
 }
 
 // delete removes the specified execution environment.
@@ -92,13 +92,13 @@ func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
 		// This case is never used as the router validates the id format
-		writeClientError(writer, err, http.StatusBadRequest, request.Context())
+		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}
 
 	found, err := e.manager.Delete(environmentID)
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 		return
 	} else if !found {
 		writer.WriteHeader(http.StatusNotFound)
@@ -112,21 +112,21 @@ func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http
 func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, request *http.Request) {
 	req := new(dto.ExecutionEnvironmentRequest)
 	if err := json.NewDecoder(request.Body).Decode(req); err != nil {
-		writeClientError(writer, err, http.StatusBadRequest, request.Context())
+		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
-		writeClientError(writer, err, http.StatusBadRequest, request.Context())
+		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}
 
 	var created bool
-	logging.StartSpan("api.env.update", "Create Environment", request.Context(), func(ctx context.Context) {
-		created, err = e.manager.CreateOrUpdate(environmentID, *req, ctx)
+	logging.StartSpan(request.Context(), "api.env.update", "Create Environment", func(ctx context.Context) {
+		created, err = e.manager.CreateOrUpdate(ctx, environmentID, *req)
 	})
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 	}
 
 	if created {

@@ -43,24 +43,24 @@ type Runner interface {
 	// An ExitInfo is sent to the exit channel on command completion.
 	// Output from the runner is forwarded immediately.
 	ExecuteInteractively(
+		ctx context.Context,
 		id string,
 		stdin io.ReadWriter,
 		stdout,
 		stderr io.Writer,
-		ctx context.Context,
 	) (exit <-chan ExitInfo, cancel context.CancelFunc, err error)
 
 	// ListFileSystem streams the listing of the file system of the requested directory into the Writer provided.
 	// The result is streamed via the io.Writer in order to not overload the memory with user input.
-	ListFileSystem(path string, recursive bool, result io.Writer, privilegedExecution bool, ctx context.Context) error
+	ListFileSystem(ctx context.Context, path string, recursive bool, result io.Writer, privilegedExecution bool) error
 
 	// UpdateFileSystem processes a dto.UpdateFileSystemRequest by first deleting each given dto.FilePath recursively
 	// and then copying each given dto.File to the runner.
-	UpdateFileSystem(request *dto.UpdateFileSystemRequest, ctx context.Context) error
+	UpdateFileSystem(ctx context.Context, request *dto.UpdateFileSystemRequest) error
 
 	// GetFileContent streams the file content at the requested path into the Writer provided at content.
 	// The result is streamed via the io.Writer in order to not overload the memory with user input.
-	GetFileContent(path string, content http.ResponseWriter, privilegedExecution bool, ctx context.Context) error
+	GetFileContent(ctx context.Context, path string, content http.ResponseWriter, privilegedExecution bool) error
 
 	// Destroy destroys the Runner in Nomad.
 	// Depending on the reason special cases of the Destruction will be handled.

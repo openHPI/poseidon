@@ -41,7 +41,7 @@ func (s *EnvironmentControllerTestSuite) SetupTest() {
 
 func (s *EnvironmentControllerTestSuite) TestList() {
 	call := s.manager.On("List", mock.Anything, mock.AnythingOfType("bool"))
-	call.Run(func(args mock.Arguments) {
+	call.Run(func(_ mock.Arguments) {
 		call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{}, nil}
 	})
 	path, err := s.router.Get(listRouteName).URL()
@@ -96,7 +96,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
 		var firstEnvironment, secondEnvironment *environment.NomadEnvironment
-		call.Run(func(args mock.Arguments) {
+		call.Run(func(_ mock.Arguments) {
 			firstEnvironment, err = environment.NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
@@ -133,7 +133,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 	s.Require().NoError(err)
 
 	s.Run("with unknown environment", func() {
-		call.Run(func(args mock.Arguments) {
+		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{nil, runner.ErrUnknownExecutionEnvironment}
 		})
 
@@ -152,7 +152,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 		request, err := http.NewRequest(http.MethodGet, path.String(), http.NoBody)
 		s.Require().NoError(err)
 
-		call.Run(func(args mock.Arguments) {
+		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{nil, runner.ErrUnknownExecutionEnvironment}
 		})
 
@@ -168,7 +168,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
 		var testEnvironment *environment.NomadEnvironment
-		call.Run(func(args mock.Arguments) {
+		call.Run(func(_ mock.Arguments) {
 			testEnvironment, err = environment.NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
@@ -201,7 +201,7 @@ func (s *EnvironmentControllerTestSuite) TestDelete() {
 	s.Require().NoError(err)
 
 	s.Run("environment not found", func() {
-		call.Run(func(args mock.Arguments) {
+		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{false, nil}
 		})
 		recorder := httptest.NewRecorder()
@@ -210,7 +210,7 @@ func (s *EnvironmentControllerTestSuite) TestDelete() {
 	})
 
 	s.Run("environment deleted", func() {
-		call.Run(func(args mock.Arguments) {
+		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{true, nil}
 		})
 		recorder := httptest.NewRecorder()
@@ -269,7 +269,7 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsBadRequestWhenBadBody() 
 func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsInternalServerErrorWhenManagerReturnsError() {
 	testError := tests.ErrDefault
 	s.manager.
-		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).
+		On("CreateOrUpdate", mock.Anything, s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).
 		Return(false, testError)
 
 	recorder := s.recordRequest()
@@ -279,7 +279,7 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsInternalServerErrorWhenM
 
 func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsCreatedIfNewEnvironment() {
 	s.manager.
-		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).
+		On("CreateOrUpdate", mock.Anything, s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).
 		Return(true, nil)
 
 	recorder := s.recordRequest()
@@ -288,7 +288,7 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsCreatedIfNewEnvironment(
 
 func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsNoContentIfNotNewEnvironment() {
 	s.manager.
-		On("CreateOrUpdate", s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest"), mock.Anything).
+		On("CreateOrUpdate", mock.Anything, s.id, mock.AnythingOfType("dto.ExecutionEnvironmentRequest")).
 		Return(false, nil)
 
 	recorder := s.recordRequest()

@@ -304,7 +304,7 @@ func (s *MainTestSuite) TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt
 
 	r.StoreExecution(executionID, &executionRequestHead)
 	mockAPIExecute(apiMock, &executionRequestHead,
-		func(_ string, ctx context.Context, _ string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
+		func(_ context.Context, _ string, _ string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
 			return 0, nil
 		})
 	connection, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
@@ -340,12 +340,12 @@ func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.Execut
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job")).Return(nil)
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
-	call.Run(func(args mock.Arguments) {
+	call.Run(func(_ mock.Arguments) {
 		<-s.TestCtx.Done()
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 
-	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
+	runnerManager := runner.NewNomadRunnerManager(s.TestCtx, apiMock)
 	router := NewRouter(runnerManager, nil)
 	s.ExpectedGoroutineIncrease++ // The server is not closing properly. Therefore, we don't even try.
 	server := httptest.NewServer(router)
@@ -401,7 +401,7 @@ var executionRequestLs = dto.ExecutionRequest{Command: "ls"}
 // 'ls existing-file non-existing-file' was executed.
 func mockAPIExecuteLs(api *nomad.ExecutorAPIMock) {
 	mockAPIExecute(api, &executionRequestLs,
-		func(_ string, _ context.Context, _ string, _ bool, _ io.Reader, stdout, stderr io.Writer) (int, error) {
+		func(_ context.Context, _ string, _ string, _ bool, _ io.Reader, stdout, stderr io.Writer) (int, error) {
 			_, _ = stdout.Write([]byte("existing-file\n"))
 			_, _ = stderr.Write([]byte("ls: cannot access 'non-existing-file': No such file or directory\n"))
 			return 0, nil
@@ -413,8 +413,8 @@ var executionRequestHead = dto.ExecutionRequest{Command: "head -n 1"}
 // mockAPIExecuteHead mocks the ExecuteCommand of an ExecutorApi to act as if 'head -n 1' was executed.
 func mockAPIExecuteHead(api *nomad.ExecutorAPIMock) {
 	mockAPIExecute(api, &executionRequestHead,
-		func(_ string, _ context.Context, _ string, _ bool,
-			stdin io.Reader, stdout io.Writer, stderr io.Writer,
+		func(_ context.Context, _ string, _ string, _ bool,
+			stdin io.Reader, stdout io.Writer, _ io.Writer,
 		) (int, error) {
 			scanner := bufio.NewScanner(stdin)
 			for !scanner.Scan() {
@@ -433,8 +433,8 @@ func mockAPIExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 	canceled := make(chan bool, 1)
 
 	mockAPIExecute(api, &executionRequestSleep,
-		func(_ string, ctx context.Context, _ string, _ bool,
-			stdin io.Reader, stdout io.Writer, stderr io.Writer,
+		func(ctx context.Context, _ string, _ string, _ bool,
+			stdin io.Reader, _ io.Writer, _ io.Writer,
 		) (int, error) {
 			var err error
 			buffer := make([]byte, 1) //nolint:makezero // if the length is zero, the Read call never reads anything
@@ -455,7 +455,7 @@ var executionRequestError = dto.ExecutionRequest{Command: "error"}
 // mockAPIExecuteError mocks the ExecuteCommand method of an ExecutorApi to return an error.
 func mockAPIExecuteError(api *nomad.ExecutorAPIMock) {
 	mockAPIExecute(api, &executionRequestError,
-		func(_ string, _ context.Context, _ string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
+		func(_ context.Context, _ string, _ string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
 			return 0, tests.ErrDefault
 		})
 }
@@ -465,7 +465,7 @@ var executionRequestExitNonZero = dto.ExecutionRequest{Command: "exit 42"}
 // mockAPIExecuteExitNonZero mocks the ExecuteCommand method of an ExecutorApi to exit with exit status 42.
 func mockAPIExecuteExitNonZero(api *nomad.ExecutorAPIMock) {
 	mockAPIExecute(api, &executionRequestExitNonZero,
-		func(_ string, _ context.Context, _ string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
+		func(_ context.Context, _ string, _ string, _ bool, _ io.Reader, _, _ io.Writer) (int, error) {
 			return 42, nil
 		})
 }
@@ -473,13 +473,13 @@ func mockAPIExecuteExitNonZero(api *nomad.ExecutorAPIMock) {
 // mockAPIExecute mocks the ExecuteCommand method of an ExecutorApi to call the given method run when the command
 // corresponding to the given ExecutionRequest is called.
 func mockAPIExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
-	run func(runnerId string, ctx context.Context, command string, tty bool,
+	run func(ctx context.Context, runnerId string, command string, tty bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error),
 ) {
 	tests.RemoveMethodFromMock(&api.Mock, "ExecuteCommand")
 	call := api.On("ExecuteCommand",
-		mock.AnythingOfType("string"),
 		mock.Anything,
+		mock.AnythingOfType("string"),
 		request.FullCommand(),
 		mock.AnythingOfType("bool"),
 		mock.AnythingOfType("bool"),
@@ -487,8 +487,8 @@ func mockAPIExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
 		mock.Anything,
 		mock.Anything)
 	call.Run(func(args mock.Arguments) {
-		exit, err := run(args.Get(0).(string),
-			args.Get(1).(context.Context),
+		exit, err := run(args.Get(0).(context.Context),
+			args.Get(1).(string),
 			args.Get(2).(string),
 			args.Get(3).(bool),
 			args.Get(5).(io.Reader),

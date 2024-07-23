@@ -55,11 +55,11 @@ func (n *AbstractManager) SetNextHandler(next AccessorHandler) {
 func (n *AbstractManager) NextHandler() AccessorHandler {
 	if n.HasNextHandler() {
 		return n.nextHandler
-	} else {
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		return NewAbstractManager(ctx)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	return NewAbstractManager(ctx)
 }
 
 func (n *AbstractManager) HasNextHandler() bool {

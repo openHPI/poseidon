@@ -36,7 +36,7 @@ func upgradeConnection(writer http.ResponseWriter, request *http.Request) (ws.Co
 
 // newWebSocketProxy returns an initiated and started webSocketProxy.
 // As this proxy is already started, a start message is send to the client.
-func newWebSocketProxy(connection ws.Connection, proxyCtx context.Context) *webSocketProxy {
+func newWebSocketProxy(proxyCtx context.Context, connection ws.Connection) *webSocketProxy {
 	// wsCtx is detached from the proxyCtx
 	// as it should send all messages in the buffer even shortly after the execution/proxy is done.
 	wsCtx := context.WithoutCancel(proxyCtx)
@@ -83,13 +83,13 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 
 	executionID := request.URL.Query().Get(ExecutionIDKey)
 	if !targetRunner.ExecutionExists(executionID) {
-		writeClientError(writer, ErrUnknownExecutionID, http.StatusNotFound, request.Context())
+		writeClientError(request.Context(), writer, ErrUnknownExecutionID, http.StatusNotFound)
 		return
 	}
 
 	connection, err := upgradeConnection(writer, request)
 	if err != nil {
-		writeInternalServerError(writer, err, dto.ErrorUnknown, request.Context())
+		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 		return
 	}
 
@@ -98,14 +98,14 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 
 	proxyCtx, cancelProxy := context.WithCancel(proxyCtx)
 	defer cancelProxy()
-	proxy := newWebSocketProxy(connection, proxyCtx)
+	proxy := newWebSocketProxy(proxyCtx, connection)
 
 	log.WithContext(proxyCtx).
 		WithField("executionID", logging.RemoveNewlineSymbol(executionID)).
 		Info("Running execution")
-	logging.StartSpan("api.runner.connect", "Execute Interactively", request.Context(), func(ctx context.Context) {
-		exit, cancel, err := targetRunner.ExecuteInteractively(executionID,
-			proxy.Input, proxy.Output.StdOut(), proxy.Output.StdErr(), ctx)
+	logging.StartSpan(request.Context(), "api.runner.connect", "Execute Interactively", func(ctx context.Context) {
+		exit, cancel, err := targetRunner.ExecuteInteractively(ctx, executionID,
+			proxy.Input, proxy.Output.StdOut(), proxy.Output.StdErr())
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Warn("Cannot execute request.")
 			return // The proxy is stopped by the deferred cancel.

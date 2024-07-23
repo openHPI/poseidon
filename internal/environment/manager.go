@@ -30,9 +30,9 @@ type Manager interface {
 	// If the job was created, the returned boolean is true, if it was updated, it is false.
 	// If err is not nil, that means the environment was neither created nor updated.
 	CreateOrUpdate(
+		ctx context.Context,
 		id dto.EnvironmentID,
 		request dto.ExecutionEnvironmentRequest,
-		ctx context.Context,
 	) (bool, error)
 
 	// Delete removes the specified execution environment.

@@ -53,7 +53,7 @@ func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
 
 	registerTimeout, cancel := context.WithTimeout(context.Background(), RegisterTimeout)
 	defer cancel()
-	return a.MonitorEvaluation(evalID, registerTimeout)
+	return a.MonitorEvaluation(registerTimeout, evalID)
 }
 
 func FindTaskGroup(job *nomadApi.Job, name string) *nomadApi.TaskGroup {

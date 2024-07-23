@@ -24,25 +24,25 @@ func TestMainTestSuite(t *testing.T) {
 }
 
 func (s *MainTestSuite) TestAWSDisabledUsesNomadManager() {
-	disableRecovery, cancel := context.WithCancel(context.Background())
+	disableRecovery, cancel := context.WithCancel(s.TestCtx)
 	cancel()
 
-	runnerManager, environmentManager := createManagerHandler(createNomadManager, true,
-		runner.NewAbstractManager(s.TestCtx), &environment.AbstractManager{}, disableRecovery)
-	awsRunnerManager, awsEnvironmentManager := createManagerHandler(createAWSManager, false,
-		runnerManager, environmentManager, s.TestCtx)
+	runnerManager, environmentManager := createManagerHandler(disableRecovery, createNomadManager, true,
+		runner.NewAbstractManager(s.TestCtx), &environment.AbstractManager{})
+	awsRunnerManager, awsEnvironmentManager := createManagerHandler(s.TestCtx, createAWSManager, false,
+		runnerManager, environmentManager)
 	s.Equal(runnerManager, awsRunnerManager)
 	s.Equal(environmentManager, awsEnvironmentManager)
 }
 
 func (s *MainTestSuite) TestAWSEnabledWrappesNomadManager() {
-	disableRecovery, cancel := context.WithCancel(context.Background())
+	disableRecovery, cancel := context.WithCancel(s.TestCtx)
 	cancel()
 
-	runnerManager, environmentManager := createManagerHandler(createNomadManager, true,
-		runner.NewAbstractManager(s.TestCtx), &environment.AbstractManager{}, disableRecovery)
-	awsRunnerManager, awsEnvironmentManager := createManagerHandler(createAWSManager,
-		true, runnerManager, environmentManager, s.TestCtx)
+	runnerManager, environmentManager := createManagerHandler(disableRecovery, createNomadManager, true,
+		runner.NewAbstractManager(s.TestCtx), &environment.AbstractManager{})
+	awsRunnerManager, awsEnvironmentManager := createManagerHandler(s.TestCtx, createAWSManager,
+		true, runnerManager, environmentManager)
 	s.NotEqual(runnerManager, awsRunnerManager)
 	s.NotEqual(environmentManager, awsEnvironmentManager)
 }
@@ -56,7 +56,7 @@ func (s *MainTestSuite) TestShutdownOnOSSignal_Profiling() {
 	s.ExpectedGoroutineIncrease++ // The shutdownOnOSSignal triggers a os.Signal Goroutine.
 
 	server := initServer(initRouter(disableRecovery))
-	go shutdownOnOSSignal(server, context.Background(), func() {
+	go shutdownOnOSSignal(context.Background(), server, func() {
 		called = true
 	})
 
@@ -75,7 +75,7 @@ func (s *MainTestSuite) TestLoadNomadEnvironmentsBeforeStartingWebserver() {
 		<-s.TestCtx.Done()
 	}).Return(nil).Maybe()
 
-	runnerManager := runner.NewNomadRunnerManager(apiMock, s.TestCtx)
+	runnerManager := runner.NewNomadRunnerManager(s.TestCtx, apiMock)
 	environmentManager, err := environment.NewNomadEnvironmentManager(runnerManager, apiMock, "")
 	s.Require().NoError(err)
 

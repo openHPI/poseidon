@@ -187,9 +187,8 @@ func (f File) IsDirectory() bool {
 func (f File) ByteContent() []byte {
 	if f.IsDirectory() {
 		return []byte("")
-	} else {
-		return f.Content
 	}
+	return f.Content
 }
 
 // Formatter mirrors the available Formatters of logrus for configuration purposes.

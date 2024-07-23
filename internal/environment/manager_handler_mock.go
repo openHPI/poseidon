@@ -16,9 +16,9 @@ type ManagerHandlerMock struct {
 	mock.Mock
 }
 
-// CreateOrUpdate provides a mock function with given fields: id, request, ctx
-func (_m *ManagerHandlerMock) CreateOrUpdate(id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest, ctx context.Context) (bool, error) {
-	ret := _m.Called(id, request, ctx)
+// CreateOrUpdate provides a mock function with given fields: ctx, id, request
+func (_m *ManagerHandlerMock) CreateOrUpdate(ctx context.Context, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest) (bool, error) {
+	ret := _m.Called(ctx, id, request)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateOrUpdate")
@@ -26,17 +26,17 @@ func (_m *ManagerHandlerMock) CreateOrUpdate(id dto.EnvironmentID, request dto.E
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(dto.EnvironmentID, dto.ExecutionEnvironmentRequest, context.Context) (bool, error)); ok {
-		return rf(id, request, ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, dto.EnvironmentID, dto.ExecutionEnvironmentRequest) (bool, error)); ok {
+		return rf(ctx, id, request)
 	}
-	if rf, ok := ret.Get(0).(func(dto.EnvironmentID, dto.ExecutionEnvironmentRequest, context.Context) bool); ok {
-		r0 = rf(id, request, ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, dto.EnvironmentID, dto.ExecutionEnvironmentRequest) bool); ok {
+		r0 = rf(ctx, id, request)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(dto.EnvironmentID, dto.ExecutionEnvironmentRequest, context.Context) error); ok {
-		r1 = rf(id, request, ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, dto.EnvironmentID, dto.ExecutionEnvironmentRequest) error); ok {
+		r1 = rf(ctx, id, request)
 	} else {
 		r1 = ret.Error(1)
 	}

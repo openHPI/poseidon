@@ -132,7 +132,7 @@ func (s *MainTestSuite) TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationS
 	evaluationID := "id"
 
 	apiClientMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
-	apiClientMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.Anything).Return(nil)
+	apiClientMock.On("MonitorEvaluation", mock.Anything, mock.AnythingOfType("string")).Return(nil)
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
@@ -151,7 +151,7 @@ func (s *MainTestSuite) TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluat
 	evaluationID := "id"
 
 	apiClientMock.On("RegisterNomadJob", mock.AnythingOfType("*api.Job")).Return(evaluationID, nil)
-	apiClientMock.On("MonitorEvaluation", mock.AnythingOfType("string"), mock.Anything).Return(tests.ErrDefault)
+	apiClientMock.On("MonitorEvaluation", mock.Anything, mock.AnythingOfType("string")).Return(tests.ErrDefault)
 	apiClientMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	apiClientMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 

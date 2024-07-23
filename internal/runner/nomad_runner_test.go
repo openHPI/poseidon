@@ -174,32 +174,31 @@ func (s *ExecuteInteractivelyTestSuite) SetupTest() {
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestReturnsErrorWhenExecutionDoesNotExist() {
-	_, _, err := s.runner.ExecuteInteractively("non-existent-id", nil, nil, nil, context.Background())
+	_, _, err := s.runner.ExecuteInteractively(context.Background(), "non-existent-id", nil, nil, nil)
 	s.ErrorIs(err, ErrUnknownExecution)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestCallsApi() {
 	request := &dto.ExecutionRequest{Command: "echo 'Hello World!'"}
 	s.runner.StoreExecution(defaultExecutionID, request)
-	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, nil, nil, nil, context.Background())
+	_, _, err := s.runner.ExecuteInteractively(s.TestCtx, defaultExecutionID, nil, nil, nil)
 	s.Require().NoError(err)
 
 	time.Sleep(tests.ShortTimeout)
-	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", tests.DefaultRunnerID, mock.Anything, request.FullCommand(),
+	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, tests.DefaultRunnerID, request.FullCommand(),
 		true, false, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
-		<-ctx.Done()
+	hangingRequest, cancel := context.WithCancel(s.TestCtx)
+	s.mockedExecuteCommandCall.Run(func(_ mock.Arguments) {
+		<-hangingRequest.Done()
 	}).Return(0, nil)
 
 	timeLimit := 1
 	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
-	exit, _, err := s.runner.ExecuteInteractively(defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
+	exit, _, err := s.runner.ExecuteInteractively(s.TestCtx, defaultExecutionID, &nullio.ReadWriter{}, nil, nil)
 	s.Require().NoError(err)
 
 	select {
@@ -214,6 +213,9 @@ func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
 	case exitInfo := <-exit:
 		s.Equal(uint8(255), exitInfo.Code)
 	}
+
+	cancel()
+	<-time.After(tests.ShortTimeout)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
@@ -236,7 +238,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 	_, _, err := s.runner.ExecuteInteractively(
-		defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil, context.Background())
+		s.TestCtx, defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil)
 	s.Require().NoError(err)
 	log.Info("Before waiting")
 	select {
@@ -248,7 +250,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal() {
-	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
+	s.mockedExecuteCommandCall.Run(func(_ mock.Arguments) {
 		<-s.TestCtx.Done()
 	})
 	runnerDestroyed := false
@@ -262,7 +264,7 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 
 	_, _, err := s.runner.ExecuteInteractively(
-		defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil, context.Background())
+		s.TestCtx, defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil)
 	s.Require().NoError(err)
 
 	<-time.After(executionTimeoutGracePeriod + time.Duration(timeLimit)*time.Second)
@@ -276,30 +278,40 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
 	executionRequest := &dto.ExecutionRequest{}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
-	_, _, err := s.runner.ExecuteInteractively(defaultExecutionID, nil, nil, nil, context.Background())
+	exit, _, err := s.runner.ExecuteInteractively(s.TestCtx, defaultExecutionID, nil, nil, nil)
 	s.Require().NoError(err)
+
+	select {
+	case <-exit:
+	case <-time.After(tests.ShortTimeout):
+		s.Fail("ExecuteInteractively did not quit instantly as expected")
+	}
 	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut() {
-	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
-		<-s.TestCtx.Done()
+	hangingRequest, cancel := context.WithCancel(s.TestCtx)
+	s.mockedExecuteCommandCall.Run(func(_ mock.Arguments) {
+		<-hangingRequest.Done()
 	}).Return(0, nil)
 	s.mockedTimeoutPassedCall.Return(true)
 	executionRequest := &dto.ExecutionRequest{}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 
 	exitChannel, _, err := s.runner.ExecuteInteractively(
-		defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
+		s.TestCtx, defaultExecutionID, &nullio.ReadWriter{}, nil, nil)
 	s.Require().NoError(err)
 	err = s.runner.Destroy(ErrRunnerInactivityTimeout)
 	s.Require().NoError(err)
 	exit := <-exitChannel
 	s.ErrorIs(exit.Err, ErrRunnerInactivityTimeout)
+
+	cancel()
+	<-time.After(tests.ShortTimeout)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestDestroyReasonIsPassedToExecution() {
-	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
+	s.mockedExecuteCommandCall.Run(func(_ mock.Arguments) {
 		<-s.TestCtx.Done()
 	}).Return(0, nil)
 	s.mockedTimeoutPassedCall.Return(true)
@@ -307,7 +319,7 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroyReasonIsPassedToExecution() {
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 
 	exitChannel, _, err := s.runner.ExecuteInteractively(
-		defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
+		s.TestCtx, defaultExecutionID, &nullio.ReadWriter{}, nil, nil)
 	s.Require().NoError(err)
 	err = s.runner.Destroy(ErrOOMKilled)
 	s.Require().NoError(err)
@@ -321,7 +333,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSuspectedOOMKilledExecutionWaitsForV
 	s.Run("Actually OOM Killed", func() {
 		s.runner.StoreExecution(defaultExecutionID, executionRequest)
 		exitChannel, _, err := s.runner.ExecuteInteractively(
-			defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
+			s.TestCtx, defaultExecutionID, &nullio.ReadWriter{}, nil, nil)
 		s.Require().NoError(err)
 
 		select {
@@ -343,7 +355,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSuspectedOOMKilledExecutionWaitsForV
 	s.Run("Not OOM Killed", func() {
 		s.runner.StoreExecution(defaultExecutionID, executionRequest)
 		exitChannel, _, err := s.runner.ExecuteInteractively(
-			defaultExecutionID, &nullio.ReadWriter{}, nil, nil, context.Background())
+			s.TestCtx, defaultExecutionID, &nullio.ReadWriter{}, nil, nil)
 		s.Require().NoError(err)
 
 		select {
@@ -382,7 +394,7 @@ func (s *UpdateFileSystemTestSuite) SetupTest() {
 		id:              tests.DefaultRunnerID,
 		api:             s.apiMock,
 	}
-	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", tests.DefaultRunnerID, mock.Anything,
+	s.mockedExecuteCommandCall = s.apiMock.On("ExecuteCommand", mock.Anything, tests.DefaultRunnerID,
 		mock.Anything, false, mock.AnythingOfType("bool"), mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			var ok bool
@@ -397,7 +409,7 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtr
 	// note: this method tests an implementation detail of the method UpdateFileSystemOfRunner method
 	// if the implementation changes, delete this test and write a new one
 	copyRequest := &dto.UpdateFileSystemRequest{}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 		false, mock.AnythingOfType("bool"), mock.Anything, mock.Anything, mock.Anything)
@@ -407,14 +419,14 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtr
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfExitCodeIsNotZero() {
 	s.mockedExecuteCommandCall.Return(1, nil)
 	copyRequest := &dto.UpdateFileSystemRequest{}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.ErrorIs(err, ErrFileCopyFailed)
 }
 
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfApiCallDid() {
 	s.mockedExecuteCommandCall.Return(0, tests.ErrDefault)
 	copyRequest := &dto.UpdateFileSystemRequest{}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.ErrorIs(err, nomad.ErrExecutorCommunicationFailed)
 }
 
@@ -422,7 +434,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToCopyAreIncludedInTarArchive() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
 		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)},
 	}}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
@@ -439,7 +451,7 @@ func (s *UpdateFileSystemTestSuite) TestTarFilesContainCorrectPathForRelativeFil
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
 		{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)},
 	}}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
@@ -452,7 +464,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLoc
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{
 		{Path: tests.FileNameWithAbsolutePath, Content: []byte(tests.DefaultFileContent)},
 	}}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
@@ -462,7 +474,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesWithAbsolutePathArePutInAbsoluteLoc
 
 func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
 	copyRequest := &dto.UpdateFileSystemRequest{Copy: []dto.File{{Path: tests.DefaultDirectoryName, Content: []byte{}}}}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.Require().NoError(err)
 
 	tarFiles := s.readFilesFromTarArchive(s.stdin)
@@ -475,7 +487,7 @@ func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
 
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{tests.DefaultFileName}}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
@@ -484,7 +496,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {
 
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 	copyRequest := &dto.UpdateFileSystemRequest{Delete: []dto.FilePath{"/some/potentially/harmful'filename"}}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.NoError(err)
 	s.apiMock.AssertCalled(s.T(), "ExecuteCommand", mock.Anything, mock.Anything, mock.Anything, false, true,
 		mock.Anything, mock.Anything, mock.Anything)
@@ -493,7 +505,7 @@ func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetEscaped() {
 
 func (s *UpdateFileSystemTestSuite) TestResetTimerGetsCalled() {
 	copyRequest := &dto.UpdateFileSystemRequest{}
-	err := s.runner.UpdateFileSystem(copyRequest, context.Background())
+	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.NoError(err)
 	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }
@@ -521,7 +533,7 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 func (s *UpdateFileSystemTestSuite) TestGetFileContentReturnsErrorIfExitCodeIsNotZero() {
 	s.mockedExecuteCommandCall.RunFn = nil
 	s.mockedExecuteCommandCall.Return(1, nil)
-	err := s.runner.GetFileContent("", logging.NewLoggingResponseWriter(nil), false, context.Background())
+	err := s.runner.GetFileContent(s.TestCtx, "", logging.NewLoggingResponseWriter(nil), false)
 	s.ErrorIs(err, ErrFileNotFound)
 }
 

@@ -39,7 +39,7 @@ func (s *ManagerTestSuite) SetupTest() {
 	// Instantly closed context to manually start the update process in some cases
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	s.nomadRunnerManager = NewNomadRunnerManager(s.apiMock, ctx)
+	s.nomadRunnerManager = NewNomadRunnerManager(ctx, s.apiMock)
 
 	s.exerciseRunner = NewNomadJob(ctx, tests.DefaultRunnerID, nil, s.apiMock, s.nomadRunnerManager.onRunnerDestroyed)
 	s.exerciseEnvironment = createBasicEnvironmentMock(defaultEnvironmentID)
@@ -52,20 +52,20 @@ func (s *ManagerTestSuite) TearDownTest() {
 	s.Require().NoError(err)
 }
 
-func mockRunnerQueries(ctx context.Context, apiMock *nomad.ExecutorAPIMock, returnedRunnerIds []string) {
+func mockRunnerQueries(ctx context.Context, apiMock *nomad.ExecutorAPIMock, returnedRunnerIDs []string) {
 	// reset expected calls to allow new mocked return values
 	apiMock.ExpectedCalls = []*mock.Call{}
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
-	call.Run(func(args mock.Arguments) {
+	call.Run(func(_ mock.Arguments) {
 		<-ctx.Done()
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 	apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
 	apiMock.On("LoadRunnerJobs", mock.AnythingOfType("dto.EnvironmentID")).Return([]*nomadApi.Job{}, nil)
 	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
-	apiMock.On("LoadRunnerIDs", tests.DefaultRunnerID).Return(returnedRunnerIds, nil)
+	apiMock.On("LoadRunnerIDs", tests.DefaultRunnerID).Return(returnedRunnerIDs, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	apiMock.On("JobScale", tests.DefaultRunnerID).Return(uint(len(returnedRunnerIds)), nil)
+	apiMock.On("JobScale", tests.DefaultRunnerID).Return(uint(len(returnedRunnerIDs)), nil)
 	apiMock.On("SetJobScale", tests.DefaultRunnerID, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)
 	apiMock.On("RegisterRunnerJob", mock.Anything).Return(nil)
 	apiMock.On("MonitorEvaluation", mock.Anything, mock.Anything).Return(nil)
@@ -82,7 +82,7 @@ func mockIdleRunners(environmentMock *ExecutionEnvironmentMock) {
 		idleRunner.Add(r.ID(), r)
 	})
 	sampleCall := environmentMock.On("Sample", mock.Anything)
-	sampleCall.Run(func(args mock.Arguments) {
+	sampleCall.Run(func(_ mock.Arguments) {
 		r, ok := idleRunner.Sample()
 		sampleCall.ReturnArguments = mock.Arguments{r, ok}
 	})
@@ -172,7 +172,7 @@ func (s *ManagerTestSuite) TestClaimRemovesRunnerWhenMarkAsUsedFails() {
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	util.MaxConnectionRetriesExponential = 1
 	modifyMockedCall(s.apiMock, "MarkRunnerAsUsed", func(call *mock.Call) {
-		call.Run(func(args mock.Arguments) {
+		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{tests.ErrDefault}
 		})
 	})
@@ -256,7 +256,7 @@ func (s *ManagerTestSuite) TestUpdateRunnersLogsErrorFromWatchAllocation() {
 	logger, hook := test.NewNullLogger()
 	log = logger.WithField("pkg", "runner")
 	modifyMockedCall(s.apiMock, "WatchEventStream", func(call *mock.Call) {
-		call.Run(func(args mock.Arguments) {
+		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{tests.ErrDefault}
 		})
 	})
@@ -451,7 +451,7 @@ func (s *ManagerTestSuite) TestOnAllocationStopped() {
 		s.Require().True(ok)
 		mockIdleRunners(environmentMock)
 
-		r := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(r Runner) error { return nil })
+		r := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, []nomadApi.PortMapping{}, s.apiMock, func(_ Runner) error { return nil })
 		environment.AddRunner(r)
 		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(s.TestCtx, tests.DefaultRunnerID, nil)
 		s.False(alreadyRemoved)
@@ -530,7 +530,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 	apiMock.On("LoadRunnerPortMappings", mock.AnythingOfType("string")).
 		Return([]nomadApi.PortMapping{}, nil)
 	call := apiMock.On("LoadRunnerJobs", dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
-	runnerManager := NewNomadRunnerManager(apiMock, s.TestCtx)
+	runnerManager := NewNomadRunnerManager(s.TestCtx, apiMock)
 	environmentMock := createBasicEnvironmentMock(tests.DefaultEnvironmentIDAsInteger)
 	environmentMock.On("ApplyPrewarmingPoolSize").Return(nil)
 	runnerManager.StoreEnvironment(environmentMock)
@@ -604,7 +604,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
 	environment.On("MemoryLimit").Return(uint(0))
 	environment.On("NetworkAccess").Return(false, nil)
 	apiMock := &nomad.ExecutorAPIMock{}
-	runnerManager := NewNomadRunnerManager(apiMock, s.TestCtx)
+	runnerManager := NewNomadRunnerManager(s.TestCtx, apiMock)
 	runnerManager.StoreEnvironment(environment)
 	s.Run("checks the alert condition again after the reload timeout", func() {
 		environment.On("PrewarmingPoolSize").Return(uint(1)).Once()
@@ -684,7 +684,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert_reloadsR
 	environment.On("MemoryLimit").Return(uint(0))
 	environment.On("NetworkAccess").Return(false, nil)
 	apiMock := &nomad.ExecutorAPIMock{}
-	runnerManager := NewNomadRunnerManager(apiMock, s.TestCtx)
+	runnerManager := NewNomadRunnerManager(s.TestCtx, apiMock)
 	runnerManager.StoreEnvironment(environment)
 
 	environment.On("PrewarmingPoolSize").Return(uint(1)).Twice()
@@ -724,7 +724,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert_reloadsR
 
 func mockWatchAllocations(ctx context.Context, apiMock *nomad.ExecutorAPIMock) {
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
-	call.Run(func(args mock.Arguments) {
+	call.Run(func(_ mock.Arguments) {
 		<-ctx.Done()
 		call.ReturnArguments = mock.Arguments{nil}
 	})

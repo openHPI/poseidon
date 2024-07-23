@@ -124,9 +124,8 @@ func (n *NomadEnvironment) MemoryLimit() uint {
 	maxMemoryLimit := defaultTask.Resources.MemoryMaxMB
 	if maxMemoryLimit != nil {
 		return uint(*maxMemoryLimit)
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func (n *NomadEnvironment) SetMemoryLimit(limit uint) {
@@ -216,7 +215,7 @@ func (n *NomadEnvironment) Register() error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), nomad.RegisterTimeout)
 	defer cancel()
-	err = n.apiClient.MonitorEvaluation(evalID, ctx)
+	err = n.apiClient.MonitorEvaluation(ctx, evalID)
 	if err != nil {
 		return fmt.Errorf("error during the monitoring of the environment job: %w", err)
 	}

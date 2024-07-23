@@ -125,10 +125,10 @@ func (r *NomadJob) ExecutionExists(id string) bool {
 }
 
 func (r *NomadJob) ExecuteInteractively(
+	requestCtx context.Context,
 	id string,
 	stdin io.ReadWriter,
 	stdout, stderr io.Writer,
-	requestCtx context.Context,
 ) (<-chan ExitInfo, context.CancelFunc, error) {
 	request, ok := r.executions.Pop(id)
 	if !ok {
@@ -155,7 +155,7 @@ func (r *NomadJob) ExecuteInteractively(
 }
 
 func (r *NomadJob) ListFileSystem(
-	path string, recursive bool, content io.Writer, privilegedExecution bool, requestCtx context.Context,
+	requestCtx context.Context, path string, recursive bool, content io.Writer, privilegedExecution bool,
 ) error {
 	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
@@ -167,7 +167,7 @@ func (r *NomadJob) ListFileSystem(
 	ls2json := &nullio.Ls2JsonWriter{Target: content, Ctx: ctx}
 	defer ls2json.Close()
 	retrieveCommand := (&dto.ExecutionRequest{Command: fmt.Sprintf("%s %q", command, path)}).FullCommand()
-	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
+	exitCode, err := r.api.ExecuteCommand(ctx, r.id, retrieveCommand, false, privilegedExecution,
 		&nullio.Reader{Ctx: ctx}, ls2json, io.Discard)
 	switch {
 	case ls2json.HasStartedWriting() && err == nil && exitCode == 0:
@@ -188,12 +188,12 @@ func (r *NomadJob) ListFileSystem(
 	return err
 }
 
-func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, requestCtx context.Context) error {
+func (r *NomadJob) UpdateFileSystem(requestCtx context.Context, copyRequest *dto.UpdateFileSystemRequest) error {
 	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
 
 	var tarBuffer bytes.Buffer
-	if err := createTarArchiveForFiles(copyRequest.Copy, &tarBuffer, ctx); err != nil {
+	if err := createTarArchiveForFiles(ctx, copyRequest.Copy, &tarBuffer); err != nil {
 		return err
 	}
 
@@ -202,7 +202,7 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, re
 	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
 	stdOut := bytes.Buffer{}
 	stdErr := bytes.Buffer{}
-	exitCode, err := r.api.ExecuteCommand(r.id, ctx, updateFileCommand, false,
+	exitCode, err := r.api.ExecuteCommand(ctx, r.id, updateFileCommand, false,
 		nomad.PrivilegedExecution, // All files should be written and owned by a privileged user #211.
 		&tarBuffer, &stdOut, &stdErr)
 	if err != nil {
@@ -222,7 +222,7 @@ func (r *NomadJob) UpdateFileSystem(copyRequest *dto.UpdateFileSystemRequest, re
 }
 
 func (r *NomadJob) GetFileContent(
-	path string, content http.ResponseWriter, privilegedExecution bool, requestCtx context.Context,
+	requestCtx context.Context, path string, content http.ResponseWriter, privilegedExecution bool,
 ) error {
 	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
@@ -241,7 +241,7 @@ func (r *NomadJob) GetFileContent(
 		Command: fmt.Sprintf("%s %q && cat %q", lsCommand, path, path),
 	}).FullCommand()
 	// Improve: Instead of using io.Discard use a **fixed-sized** buffer. With that we could improve the error message.
-	exitCode, err := r.api.ExecuteCommand(r.id, ctx, retrieveCommand, false, privilegedExecution,
+	exitCode, err := r.api.ExecuteCommand(ctx, r.id, retrieveCommand, false, privilegedExecution,
 		&nullio.Reader{Ctx: ctx}, contentLengthWriter, io.Discard)
 	if err != nil {
 		return fmt.Errorf("%w: nomad error during retrieve file content copy: %w",
@@ -298,7 +298,7 @@ func prepareExecution(environmentCtx context.Context, request *dto.ExecutionRequ
 func (r *NomadJob) executeCommand(ctx context.Context, command string, privilegedExecution bool,
 	stdin io.ReadWriter, stdout, stderr io.Writer, exit chan<- ExitInfo,
 ) {
-	exitCode, err := r.api.ExecuteCommand(r.id, ctx, command, true, privilegedExecution, stdin, stdout, stderr)
+	exitCode, err := r.api.ExecuteCommand(ctx, r.id, command, true, privilegedExecution, stdin, stdout, stderr)
 	select {
 	case exit <- ExitInfo{uint8(exitCode), err}:
 	case <-ctx.Done():
@@ -315,18 +315,16 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 	case exitInfo := <-exitInternal:
 		// - The execution ended in time or
 		// - the HTTP request of the client/CodeOcean got canceled.
-		r.handleExit(exitInfo, exitInternal, exit, stdin, ctx)
+		r.handleExit(ctx, exitInfo, exitInternal, exit, stdin)
 	case <-ctx.Done():
 		// - The execution timeout was exceeded,
 		// - the runner was destroyed (runner timeout, or API delete request), or
 		// - the WebSocket connection to the client/CodeOcean closed.
-		r.handleContextDone(exitInternal, exit, stdin, ctx)
+		r.handleContextDone(ctx, exitInternal, exit, stdin)
 	}
 }
 
-func (r *NomadJob) handleExit(exitInfo ExitInfo, exitInternal <-chan ExitInfo, exit chan<- ExitInfo,
-	stdin io.ReadWriter, ctx context.Context,
-) {
+func (r *NomadJob) handleExit(ctx context.Context, exitInfo ExitInfo, exitInternal <-chan ExitInfo, exit chan<- ExitInfo, stdin io.ReadWriter) {
 	// Special Handling of OOM Killed allocations. See #401.
 	const exitCodeOfLikelyOOMKilledAllocation = 128
 	const gracePeriodForConfirmingOOMKillReason = time.Second
@@ -334,7 +332,7 @@ func (r *NomadJob) handleExit(exitInfo ExitInfo, exitInternal <-chan ExitInfo, e
 		select {
 		case <-ctx.Done():
 			// We consider this allocation to be OOM Killed.
-			r.handleContextDone(exitInternal, exit, stdin, ctx)
+			r.handleContextDone(ctx, exitInternal, exit, stdin)
 			return
 		case <-time.After(gracePeriodForConfirmingOOMKillReason):
 			// We consider that the payload code returned the exit code.
@@ -344,9 +342,7 @@ func (r *NomadJob) handleExit(exitInfo ExitInfo, exitInternal <-chan ExitInfo, e
 	exit <- exitInfo
 }
 
-func (r *NomadJob) handleContextDone(exitInternal <-chan ExitInfo, exit chan<- ExitInfo,
-	stdin io.ReadWriter, ctx context.Context,
-) {
+func (r *NomadJob) handleContextDone(ctx context.Context, exitInternal <-chan ExitInfo, exit chan<- ExitInfo, stdin io.ReadWriter) {
 	err := ctx.Err()
 	if errors.Is(err, context.DeadlineExceeded) {
 		err = ErrExecutionTimeout
@@ -394,7 +390,7 @@ func (r *NomadJob) handleContextDone(exitInternal <-chan ExitInfo, exit chan<- E
 	}
 }
 
-func createTarArchiveForFiles(filesToCopy []dto.File, w io.Writer, ctx context.Context) error {
+func createTarArchiveForFiles(ctx context.Context, filesToCopy []dto.File, w io.Writer) error {
 	tarWriter := tar.NewWriter(w)
 	for _, file := range filesToCopy {
 		if err := tarWriter.WriteHeader(tarHeader(file)); err != nil {
@@ -451,13 +447,13 @@ func tarHeader(file dto.File) *tar.Header {
 			Name:     file.CleanedPath(),
 			Mode:     directoryPermission,
 		}
-	} else {
-		return &tar.Header{
-			Typeflag: tar.TypeReg,
-			Name:     file.CleanedPath(),
-			Mode:     filePermission,
-			Size:     int64(len(file.Content)),
-		}
+	}
+
+	return &tar.Header{
+		Typeflag: tar.TypeReg,
+		Name:     file.CleanedPath(),
+		Mode:     filePermission,
+		Size:     int64(len(file.Content)),
 	}
 }
 

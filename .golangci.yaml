@@ -67,6 +67,7 @@ linters:
     - nlreturn
     - nonamedreturns
     - paralleltest
+    - testpackage
 
 issues:
   exclude-rules:

@@ -16,7 +16,7 @@ func TestRunnerPoolTestSuite(t *testing.T) {
 
 type ObjectPoolTestSuite struct {
 	tests.MemoryLeakTestSuite
-	objectStorage *localStorage[any]
+	objectStorage Storage[any]
 	object        int
 }
 
@@ -126,14 +126,14 @@ func (s *MainTestSuite) TestNewMonitoredLocalStorage_Callback() {
 	callbackCalls := 0
 	callbackAdditions := 0
 	callbackDeletions := 0
-	os := NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, eventType EventType) {
+	os := NewMonitoredLocalStorage[string](context.Background(), "testMeasurement", func(_ *write.Point, _ string, eventType EventType) {
 		callbackCalls++
 		if eventType == Deletion {
 			callbackDeletions++
 		} else if eventType == Creation {
 			callbackAdditions++
 		}
-	}, 0, context.Background())
+	}, 0)
 
 	assertCallbackCounts := func(test func(), totalCalls, additions, deletions int) {
 		beforeTotal := callbackCalls
@@ -185,10 +185,10 @@ func (s *MainTestSuite) TestNewMonitoredLocalStorage_Callback() {
 
 func (s *MainTestSuite) TestNewMonitoredLocalStorage_Periodically() {
 	callbackCalls := 0
-	NewMonitoredLocalStorage[string]("testMeasurement", func(p *write.Point, o string, eventType EventType) {
+	NewMonitoredLocalStorage[string](s.TestCtx, "testMeasurement", func(_ *write.Point, _ string, eventType EventType) {
 		callbackCalls++
 		s.Equal(Periodically, eventType)
-	}, 2*tests.ShortTimeout, s.TestCtx)
+	}, 2*tests.ShortTimeout)
 
 	<-time.After(tests.ShortTimeout)
 	s.Equal(0, callbackCalls)

@@ -62,7 +62,7 @@ func NewAWSFunctionWorkload(
 		cancel:            cancel,
 	}
 	workload.executions = storage.NewMonitoredLocalStorage[*dto.ExecutionRequest](
-		monitoring.MeasurementExecutionsAWS, monitorExecutionsRunnerID(environment.ID(), workload.id), time.Minute, ctx)
+		ctx, monitoring.MeasurementExecutionsAWS, monitorExecutionsRunnerID(environment.ID(), workload.id), time.Minute)
 	workload.InactivityTimer = NewInactivityTimer(workload, func(_ Runner) error {
 		return workload.Destroy(nil)
 	})

@@ -38,7 +38,6 @@ func (rw *ReadWriter) Write(p []byte) (int, error) {
 	n, err := io.Discard.Write(p)
 	if err != nil {
 		return n, fmt.Errorf("error writing to io.Discard: %w", err)
-	} else {
-		return n, nil
 	}
+	return n, nil
 }

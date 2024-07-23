@@ -44,8 +44,8 @@ func newWebSocketProxy(proxyCtx context.Context, connection ws.Connection) *webS
 
 	proxy := &webSocketProxy{
 		ctx:    wsCtx,
-		Input:  ws.NewCodeOceanToRawReader(connection, wsCtx, proxyCtx),
-		Output: ws.NewCodeOceanOutputWriter(connection, wsCtx, cancelWsCommunication),
+		Input:  ws.NewCodeOceanToRawReader(wsCtx, proxyCtx, connection),
+		Output: ws.NewCodeOceanOutputWriter(wsCtx, connection, cancelWsCommunication),
 	}
 
 	connection.SetCloseHandler(func(code int, text string) error {

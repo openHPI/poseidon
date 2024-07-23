@@ -63,9 +63,7 @@ type writingLoopMessage struct {
 
 // NewCodeOceanOutputWriter provides an codeOceanOutputWriter for the time the context ctx is active.
 // The codeOceanOutputWriter handles all the messages defined in the websocket.schema.json (start, timeout, stdout, ...).
-func NewCodeOceanOutputWriter(
-	connection Connection, ctx context.Context, done context.CancelFunc,
-) WebSocketWriter {
+func NewCodeOceanOutputWriter(ctx context.Context, connection Connection, done context.CancelFunc) WebSocketWriter {
 	cw := &codeOceanOutputWriter{
 		connection: connection,
 		queue:      make(chan *writingLoopMessage, CodeOceanOutputWriterBufferSize),
@@ -145,7 +143,7 @@ func (cw *codeOceanOutputWriter) startWritingLoop(writingLoopDone context.Cancel
 		message := <-cw.queue
 		done := true
 		if message.data != nil {
-			done = sendMessage(cw.connection, message.data, cw.ctx)
+			done = sendMessage(cw.ctx, cw.connection, message.data)
 		}
 		if done || message.done {
 			log.WithContext(cw.ctx).Trace("Writing loop done")
@@ -156,7 +154,7 @@ func (cw *codeOceanOutputWriter) startWritingLoop(writingLoopDone context.Cancel
 }
 
 // sendMessage is a helper function for the writing loop. It must not be called from somewhere else!
-func sendMessage(connection Connection, message *dto.WebSocketMessage, ctx context.Context) (done bool) {
+func sendMessage(ctx context.Context, connection Connection, message *dto.WebSocketMessage) (done bool) {
 	if message == nil {
 		return false
 	}

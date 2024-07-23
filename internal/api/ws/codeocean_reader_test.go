@@ -24,7 +24,8 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead()
 	readingCtx, cancel := context.WithCancel(context.Background())
 	forwardingCtx := readingCtx
 	defer cancel()
-	reader := NewCodeOceanToRawReader(nil, readingCtx, forwardingCtx)
+	reader, ok := NewCodeOceanToRawReader(readingCtx, forwardingCtx, nil).(*codeOceanToRawReader)
+	s.Require().True(ok)
 
 	read := make(chan bool)
 	go func() {
@@ -61,7 +62,7 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFr
 	readingCtx, cancel := context.WithCancel(context.Background())
 	forwardingCtx := readingCtx
 	defer cancel()
-	reader := NewCodeOceanToRawReader(connection, readingCtx, forwardingCtx)
+	reader := NewCodeOceanToRawReader(readingCtx, forwardingCtx, connection)
 	reader.Start()
 
 	read := make(chan bool)

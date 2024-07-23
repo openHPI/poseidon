@@ -127,16 +127,16 @@ type APIClient struct {
 
 // NewExecutorAPI creates a new api client.
 // One client is usually sufficient for the complete runtime of the API.
-func NewExecutorAPI(nomadConfig *config.Nomad) (ExecutorAPI, error) {
+func NewExecutorAPI(ctx context.Context, nomadConfig *config.Nomad) (ExecutorAPI, error) {
 	client := &APIClient{
 		apiQuerier:  &nomadAPIClient{},
 		evaluations: storage.NewLocalStorage[chan error](),
-		allocations: storage.NewMonitoredLocalStorage[*allocationData](monitoring.MeasurementNomadAllocations,
+		allocations: storage.NewMonitoredLocalStorage[*allocationData](ctx, monitoring.MeasurementNomadAllocations,
 			func(p *write.Point, object *allocationData, _ storage.EventType) {
 				p.AddTag(monitoring.InfluxKeyJobID, object.jobID)
 				p.AddTag(monitoring.InfluxKeyClientStatus, object.allocClientStatus)
 				p.AddTag(monitoring.InfluxKeyNomadNode, object.allocNomadNode)
-			}, 0, nil),
+			}, 0),
 	}
 	err := client.init(nomadConfig)
 	return client, err

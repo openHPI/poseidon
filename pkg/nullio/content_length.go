@@ -26,9 +26,8 @@ type ContentLengthWriter struct {
 func (w *ContentLengthWriter) Write(p []byte) (count int, err error) {
 	if w.contentLengthSet {
 		return w.handleDataForwarding(p)
-	} else {
-		return w.handleContentLengthParsing(p)
 	}
+	return w.handleContentLengthParsing(p)
 }
 
 func (w *ContentLengthWriter) handleDataForwarding(p []byte) (int, error) {

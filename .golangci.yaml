@@ -1,49 +1,6 @@
 run:
   go: "1.22"
 
-linters-settings:
-  cyclop:
-    max-complexity: 15
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  funlen:
-    lines: 100
-    statements: 50
-  gocognit:
-    min-complexity: 15
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - hugeParam        # No golang generic support. See https://github.com/golangci/golangci-lint/issues/2649
-      - rangeValCopy     # ^
-      - typeDefFirst     # |
-      - paramTypeCombine # |
-  interfacebloat:
-    max: 12
-  lll:
-    line-length: 150
-  makezero:
-    always: true
-  misspell:
-    locale: US
-  mnd:
-    # don't include "assign"
-    checks:
-    - argument
-    - case
-    - condition
-    - operation
-    - return
-  nakedret:
-    max-func-lines: 5
-
 linters:
   enable-all: true
   disable:
@@ -64,12 +21,35 @@ linters:
     - execinquery
     - gomnd
 
+linters-settings:
+  cyclop:
+    max-complexity: 15
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  funlen:
+    lines: 100
+    statements: 50
+  gocognit:
+    min-complexity: 15
+  interfacebloat:
+    max: 12
+  lll:
+    line-length: 150
+  makezero:
+    always: true
+  misspell:
+    locale: US
+  nakedret:
+    max-func-lines: 5
+
 issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - noctx
         # Always closing the HTTP body unnecessarily complicates the tests
         - bodyclose
+        - funlen
+        - noctx
         # We don't need to wrap errors in tests
         - wrapcheck

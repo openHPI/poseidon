@@ -15,7 +15,7 @@ func (s *MainTestSuite) TestRawToCodeOceanWriter() {
 	connectionMock, messages := buildConnectionMock(&s.MemoryLeakTestSuite)
 	proxyCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	output := NewCodeOceanOutputWriter(connectionMock, proxyCtx, cancel)
+	output := NewCodeOceanOutputWriter(proxyCtx, connectionMock, cancel)
 	defer output.Close(nil)
 	<-messages // start messages
 
@@ -80,7 +80,7 @@ func (s *MainTestSuite) TestCodeOceanOutputWriter_SendExitInfo() {
 			connectionMock, messages := buildConnectionMock(&s.MemoryLeakTestSuite)
 			proxyCtx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			output := NewCodeOceanOutputWriter(connectionMock, proxyCtx, cancel)
+			output := NewCodeOceanOutputWriter(proxyCtx, connectionMock, cancel)
 			<-messages // start messages
 
 			output.Close(test.info)

@@ -47,8 +47,8 @@ func NewNomadEnvironment(ctx context.Context, environmentID dto.EnvironmentID, a
 
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	e := &NomadEnvironment{apiClient, jobHCL, job, nil, ctx, cancel}
-	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
-		runner.MonitorEnvironmentID[runner.Runner](environmentID), time.Minute, ctx)
+	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](
+		ctx, monitoring.MeasurementIdleRunnerNomad, runner.MonitorEnvironmentID[runner.Runner](environmentID), time.Minute)
 	return e, nil
 }
 

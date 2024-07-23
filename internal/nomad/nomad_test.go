@@ -170,7 +170,7 @@ func (s *MainTestSuite) TestNewExecutorApiCanBeCreatedWithoutError() {
 	err := expectedClient.init(NomadTestConfig(TestDefaultAddress))
 	s.Require().NoError(err)
 
-	_, err = NewExecutorAPI(NomadTestConfig(TestDefaultAddress))
+	_, err = NewExecutorAPI(s.TestCtx, NomadTestConfig(TestDefaultAddress))
 	s.Require().NoError(err)
 }
 

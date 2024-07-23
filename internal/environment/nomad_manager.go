@@ -178,7 +178,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 
 // KeepEnvironmentsSynced loads all environments, runner existing at Nomad, and watches Nomad events to handle further changes.
 func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(ctx context.Context, synchronizeRunners func(ctx context.Context) error) {
-	err := util.RetryConstantAttemptsWithContext(math.MaxInt, ctx, func() error {
+	err := util.RetryConstantAttemptsWithContext(ctx, math.MaxInt, func() error {
 		// Load Environments
 		if err := m.load(ctx); err != nil {
 			log.WithContext(ctx).WithError(err).Warn("Loading Environments failed! Retrying...")
@@ -246,8 +246,8 @@ func newNomadEnvironmentFromJob(ctx context.Context, job *nomadApi.Job, apiClien
 		ctx:       ctx,
 		cancel:    cancel,
 	}
-	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](monitoring.MeasurementIdleRunnerNomad,
-		runner.MonitorEnvironmentID[runner.Runner](e.ID()), time.Minute, ctx)
+	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](
+		ctx, monitoring.MeasurementIdleRunnerNomad, runner.MonitorEnvironmentID[runner.Runner](e.ID()), time.Minute)
 	return e
 }
 

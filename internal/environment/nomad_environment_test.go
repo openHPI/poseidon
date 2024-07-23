@@ -2,7 +2,6 @@ package environment
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -104,7 +103,7 @@ func assertExpectedPorts(t *testing.T, expectedPorts []uint16, networkResource *
 				break
 			}
 		}
-		assert.True(t, found, fmt.Sprintf("port list should contain %v", expectedPort))
+		assert.True(t, found, "port list should contain %v", expectedPort)
 	}
 }
 
@@ -123,7 +122,7 @@ func (s *MainTestSuite) TestRegisterFailsWhenNomadJobRegistrationFails() {
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
-	s.ErrorIs(err, expectedErr)
+	s.Require().ErrorIs(err, expectedErr)
 	apiClientMock.AssertNotCalled(s.T(), "MonitorEvaluation")
 }
 
@@ -143,7 +142,7 @@ func (s *MainTestSuite) TestRegisterTemplateJobSucceedsWhenMonitoringEvaluationS
 	environment.SetID(tests.DefaultEnvironmentIDAsInteger)
 	err := environment.Register()
 
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *MainTestSuite) TestRegisterTemplateJobReturnsErrorWhenMonitoringEvaluationFails() {
@@ -171,14 +170,14 @@ func (s *MainTestSuite) TestParseJob() {
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	s.Run("parses the given default job", func() {
 		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotNil(environment.job)
-		s.NoError(environment.Delete(tests.ErrCleanupDestroyReason))
+		s.Require().NoError(environment.Delete(tests.ErrCleanupDestroyReason))
 	})
 
 	s.Run("returns error when given wrong job", func() {
 		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, nil, "")
-		s.Error(err)
+		s.Require().Error(err)
 		s.Nil(environment)
 	})
 }
@@ -273,6 +272,6 @@ func (s *MainTestSuite) TestNomadEnvironment_AddRunner() {
 		r2.On("Destroy", mock.Anything).Return(nil)
 		apiMock.On("LoadRunnerIDs", mock.Anything).Return([]string{}, nil)
 		apiMock.On("DeleteJob", mock.Anything).Return(nil)
-		s.NoError(environment.Delete(tests.ErrCleanupDestroyReason))
+		s.Require().NoError(environment.Delete(tests.ErrCleanupDestroyReason))
 	})
 }

@@ -62,7 +62,7 @@ func (s *MainTestSuite) TestMergeContext_Err() {
 	ctxCancelled, cancel := context.WithCancel(context.Background())
 	ctx := NewMergeContext([]context.Context{ctxWithoutDeadline, ctxCancelled})
 
-	s.NoError(ctx.Err())
+	s.Require().NoError(ctx.Err())
 	cancel()
 	s.Error(ctx.Err())
 }

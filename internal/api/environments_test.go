@@ -189,7 +189,7 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 		s.Equal(tests.DefaultEnvironmentIDAsInteger, int(idFloat))
 
 		err = testEnvironment.Delete(tests.ErrCleanupDestroyReason)
-		s.NoError(err)
+		s.Require().NoError(err)
 	})
 }
 
@@ -221,7 +221,7 @@ func (s *EnvironmentControllerTestSuite) TestDelete() {
 	s.manager.Calls = []mock.Call{}
 	s.Run("with bad environment id", func() {
 		_, err := s.router.Get(deleteRouteName).URL(executionEnvironmentIDKey, "MagicNonNumberID")
-		s.Error(err)
+		s.Require().Error(err)
 	})
 }
 

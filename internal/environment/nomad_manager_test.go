@@ -95,7 +95,7 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 	s.ExpectedGoroutineIncrease++ // We don't care about removing the created environment at this point.
 	_, err := s.manager.CreateOrUpdate(
 		context.Background(), dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Greater(count, 1)
 }
 
@@ -128,7 +128,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 		s.NotNil(m)
 		s.Equal(templateJobHCL, m.templateEnvironmentHCL)
 
-		s.NoError(environment.Delete(tests.ErrCleanupDestroyReason))
+		s.Require().NoError(environment.Delete(tests.ErrCleanupDestroyReason))
 	})
 
 	s.Run("returns error if template file is invalid", func() {
@@ -201,11 +201,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Get() {
 			runnerManager.StoreEnvironment(localEnvironment)
 
 			environment, err := environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, false)
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.NotEqual(fetchedEnvironment.Image(), environment.Image())
 
 			environment, err = environmentManager.Get(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, true)
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(fetchedEnvironment.Image(), environment.Image())
 
 			err = fetchedEnvironment.Delete(tests.ErrCleanupDestroyReason)
@@ -258,7 +258,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 
 	s.Run("with no environments", func() {
 		environments, err := environmentManager.List(s.TestCtx, true)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Empty(environments)
 	})
 
@@ -269,7 +269,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 		runnerManager.StoreEnvironment(localEnvironment)
 
 		environments, err := environmentManager.List(s.TestCtx, false)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Len(environments, 1)
 		s.Equal(localEnvironment, environments[0])
 
@@ -289,11 +289,11 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 		})
 
 		environments, err := environmentManager.List(s.TestCtx, false)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Empty(environments)
 
 		environments, err = environmentManager.List(s.TestCtx, true)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Len(environments, 1)
 		nomadEnvironment, ok := environments[0].(*NomadEnvironment)
 		s.True(ok)

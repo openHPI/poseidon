@@ -133,7 +133,7 @@ func (s *MainTestSuite) TestTemplateJobID() {
 
 func (s *MainTestSuite) TestEnvironmentIDFromRunnerID() {
 	id, err := EnvironmentIDFromRunnerID("42-RANDOM-UUID")
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(dto.EnvironmentID(42), id)
 
 	_, err = EnvironmentIDFromRunnerID("")

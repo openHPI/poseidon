@@ -33,7 +33,7 @@ func (s *Ls2JsonTestSuite) SetupTest() {
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteCreationAndClose() {
 	count, err := s.writer.Write([]byte(""))
 	s.Zero(count)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.Equal("{\"files\": [", s.buf.String())
 
@@ -45,7 +45,7 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteFile() {
 	input := "total 0\n" + perm664 + "1 " + ownerGroupKali + "0 1660763446 flag\n"
 	count, err := s.writer.Write([]byte(input))
 	s.Equal(len(input), count)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.writer.Close()
 
 	s.Equal("{\"files\": [{\"name\":\"flag\",\"entryType\":\"-\",\"size\":0,\"modificationTime\":1660763446"+
@@ -59,7 +59,7 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRecursive() {
 		"\n./dir:\ntotal 4\n" + perm664 + "1 " + ownerGroupKali + "3 1660764366 another.txt\n"
 	count, err := s.writer.Write([]byte(input))
 	s.Equal(len(input), count)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.writer.Close()
 
 	s.Equal("{\"files\": ["+
@@ -76,13 +76,13 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRecursive() {
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRemaining() {
 	input1 := "total 4\n" + perm664 + "1 " + ownerGroupKali + "3 1660764366 an.txt\n" + perm664 + "1 kal"
 	_, err := s.writer.Write([]byte(input1))
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal("{\"files\": [{\"name\":\"an.txt\",\"entryType\":\"-\",\"size\":3,\"modificationTime\":1660764366,"+
 		"\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"}", s.buf.String())
 
 	input2 := "i kali 0 1660763446 flag\n"
 	_, err = s.writer.Write([]byte(input2))
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.writer.Close()
 	s.Equal("{\"files\": [{\"name\":\"an.txt\",\"entryType\":\"-\",\"size\":3,\"modificationTime\":1660764366,"+
 		"\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"},"+
@@ -93,7 +93,7 @@ func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteRemaining() {
 func (s *Ls2JsonTestSuite) TestLs2JsonWriter_WriteLink() {
 	input1 := "total 4\nlrw-rw-r-- 1 " + ownerGroupKali + "3 1660764366 another.txt -> /bin/bash\n"
 	_, err := s.writer.Write([]byte(input1))
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.writer.Close()
 	s.Equal("{\"files\": [{\"name\":\"another.txt\",\"entryType\":\"l\",\"linkTarget\":\"/bin/bash\",\"size\":3,"+
 		"\"modificationTime\":1660764366,\"permissions\":\"rw-rw-r--\",\"owner\":\"kali\",\"group\":\"kali\"}]}",

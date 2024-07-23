@@ -83,7 +83,7 @@ func (s *LoadRunnersTestSuite) TestReturnsNoErrorWhenUnderlyingApiCallDoesNot() 
 		Return([]*nomadApi.JobListStub{}, nil)
 
 	_, err := s.nomadAPIClient.LoadRunnerIDs(s.jobID)
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *LoadRunnersTestSuite) TestAvailableRunnerIsReturned() {
@@ -207,7 +207,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClo
 	case <-time.After(time.Millisecond * 10):
 		s.T().Fatal("MonitorEvaluation didn't finish as expected")
 	}
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsErrorWhenStreamReturnsError() {
@@ -325,7 +325,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationWithSuccessfulEvent() {
 	for _, c := range cases {
 		s.Run(c.name, func() {
 			eventsProcessed, err := runEvaluationMonitoring(s.TestCtx, c.streamedEvents)
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(c.expectedEventsProcessed, eventsProcessed)
 		})
 	}
@@ -397,7 +397,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationFailsWhenFailingToDecodeE
 	_, err := event.Evaluation()
 	s.Require().Error(err)
 	eventsProcessed, err := runEvaluationMonitoring(s.TestCtx, []*nomadApi.Events{{Events: []nomadApi.Event{event}}})
-	s.Error(err)
+	s.Require().Error(err)
 	s.Equal(1, eventsProcessed)
 }
 
@@ -439,7 +439,7 @@ func (s *MainTestSuite) TestCheckEvaluationWithoutFailedAllocations() {
 	s.Run("when evaluation status complete", func() {
 		evaluation.Status = structs.EvalStatusComplete
 		err := checkEvaluation(&evaluation)
-		s.NoError(err)
+		s.Require().NoError(err)
 	})
 
 	s.Run("when evaluation status not complete", func() {
@@ -690,7 +690,7 @@ func (s *MainTestSuite) TestHandleAllocationEvent_RegressionTest_14_09_2023() {
 	}
 
 	_, err := runAllocationWatching(s, events, callbacks)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.True(idleRunner[jobID])
 }
 
@@ -738,14 +738,14 @@ func (s *MainTestSuite) TestAPIClient_WatchAllocations() {
 
 	events := []*nomadApi.Events{{Events: []nomadApi.Event{event}}, {}}
 	eventsProcessed, err := runAllocationWatching(s, events, noopAllocationProcessing)
-	s.Error(err)
+	s.Require().Error(err)
 	s.Equal(1, eventsProcessed)
 }
 
 func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEOF() {
 	events := []*nomadApi.Events{{Err: ErrUnexpectedEOF}, {}}
 	eventsProcessed, err := runAllocationWatching(s, events, noopAllocationProcessing)
-	s.Error(err)
+	s.Require().Error(err)
 	s.Equal(1, eventsProcessed)
 }
 
@@ -766,7 +766,7 @@ func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
 	}
 
 	eventsProcessed, err := runAllocationWatching(s, events, callbacks)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(len(events), eventsProcessed)
 
 	s.Equal(expectedNewAllocations, newAllocations)
@@ -1011,7 +1011,7 @@ func (s *MainTestSuite) TestAPIClient_LoadRunnerPortMappings() {
 	s.Run("should return error when AllocatedResources is nil", func() {
 		mockedCall.Return(&nomadApi.Allocation{AllocatedResources: nil}, nil)
 		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
-		s.ErrorIs(err, ErrNoAllocatedResourcesFound)
+		s.Require().ErrorIs(err, ErrNoAllocatedResourcesFound)
 		s.Nil(portMappings)
 	})
 
@@ -1023,7 +1023,7 @@ func (s *MainTestSuite) TestAPIClient_LoadRunnerPortMappings() {
 		}
 		mockedCall.Return(allocation, nil)
 		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(tests.DefaultPortMappings, portMappings)
 	})
 }

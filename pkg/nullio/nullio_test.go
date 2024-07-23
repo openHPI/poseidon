@@ -22,7 +22,7 @@ func (s *MainTestSuite) TestReader_Read() {
 	read := func(reader io.Reader, ret chan<- bool) {
 		p := make([]byte, 0, 5)
 		_, err := reader.Read(p)
-		s.ErrorIs(io.EOF, err)
+		s.Require().ErrorIs(io.EOF, err)
 		close(ret)
 	}
 
@@ -56,6 +56,6 @@ func (s *MainTestSuite) TestReadWriterWritesEverything() {
 	readWriter := &ReadWriter{}
 	p := []byte{1, 2, 3}
 	n, err := readWriter.Write(p)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(len(p), n)
 }

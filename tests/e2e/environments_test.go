@@ -209,7 +209,7 @@ func TestDeleteEnvironment(t *testing.T) {
 
 				path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
 				response, err := helpers.HTTPDelete(path, nil)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, http.StatusNoContent, response.StatusCode)
 			})
 		})
@@ -221,13 +221,13 @@ func TestDeleteEnvironment(t *testing.T) {
 		// Expect created Nomad job
 		jobID := nomad.TemplateJobID(tests.AnotherEnvironmentIDAsInteger)
 		job, _, err := nomadClient.Jobs().Info(jobID, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, jobID, *job.ID)
 
 		// Delete the job
 		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)
 		response, err := helpers.HTTPDelete(path, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusNoContent, response.StatusCode)
 
 		// Expect not to find the Nomad job
@@ -324,7 +324,7 @@ func createEnvironment(t *testing.T, environmentID string, aws bool) {
 	}
 	if aws {
 		functions := config.Config.AWS.Functions
-		require.NotZero(t, len(functions))
+		require.NotEmpty(t, functions)
 		request.Image = functions[0]
 	} else {
 		request.Image = *testDockerImage

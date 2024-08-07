@@ -138,7 +138,7 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 	case errors.Is(err, context.Canceled):
 		log.WithContext(ctx).Debug("Execution canceled by context")
 		return 0, nil
-	case errors.Is(err, io.ErrUnexpectedEOF):
+	case errors.Is(err, io.ErrUnexpectedEOF), strings.Contains(err.Error(), io.ErrUnexpectedEOF.Error()):
 		log.WithContext(ctx).WithError(err).Warn("Unexpected EOF for Execute")
 		return 0, nil
 	case strings.Contains(err.Error(), "Unknown allocation"):

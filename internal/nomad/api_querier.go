@@ -118,7 +118,9 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 
 	var exitCode int
 	span := sentry.StartSpan(ctx, "nomad.execute.exec")
+	defer span.Finish()
 	span.Description = "Execute Command in Allocation"
+	span.SetData("command", cmd)
 
 	debugWriter := NewSentryDebugWriter(span.Context(), stdout)
 	commands := []string{"/bin/bash", "-c", cmd}
@@ -126,20 +128,20 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 		Exec(span.Context(), allocation, TaskName, tty, commands, stdin, debugWriter, stderr, nil, nil)
 	debugWriter.Close(exitCode)
 
-	span.SetData("command", cmd)
-	span.Finish()
-
 	switch {
 	case err == nil:
 		return exitCode, nil
 	case websocket.IsCloseError(errors.Unwrap(err), websocket.CloseNormalClosure):
-		log.WithContext(ctx).WithError(err).Info("The exit code could not be received.")
+		log.WithContext(span.Context()).WithError(err).Info("The exit code could not be received.")
 		return 0, nil
 	case errors.Is(err, context.Canceled):
-		log.WithContext(ctx).Debug("Execution canceled by context")
+		log.WithContext(span.Context()).Debug("Execution canceled by context")
 		return 0, nil
 	case errors.Is(err, io.ErrUnexpectedEOF), strings.Contains(err.Error(), io.ErrUnexpectedEOF.Error()):
-		log.WithContext(ctx).WithError(err).Warn("Unexpected EOF for Execute")
+		// The unexpected EOF is a generic Nomad error. However, our investigations have shown that all the current
+		// events of this error are caused by fsouza/go-dockerclient#1076. Because this error happens at the very end,
+		// it does not affect the functionality. Therefore, we don't propagate the error.
+		log.WithContext(span.Context()).WithError(err).Warn("Unexpected EOF for Execute")
 		return 0, nil
 	case strings.Contains(err.Error(), "Unknown allocation"):
 		return 1, ErrNomadUnknownAllocation

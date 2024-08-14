@@ -6,7 +6,7 @@ import (
 )
 
 // ContextHook logs the values referenced by the of dto.LoggedContextKeys.
-// By default Logrus does not log the values stored in the passed context.
+// By default, Logrus does not log the values stored in the passed context.
 type ContextHook struct{}
 
 // Fire is triggered on new log entries.

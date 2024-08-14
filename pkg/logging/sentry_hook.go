@@ -13,10 +13,12 @@ import (
 // Consider replacing this with a more feature rich, additional dependency: https://github.com/evalphobia/logrus_sentry
 type SentryHook struct{}
 
+const SentryContextKey = "Poseidon Details"
+
 var ErrHubInvalid = errors.New("the hub is invalid")
 
 // Fire is triggered on new log entries.
-func (hook *SentryHook) Fire(entry *logrus.Entry) error {
+func (hook *SentryHook) Fire(entry *logrus.Entry) (err error) {
 	var hub *sentry.Hub
 	if entry.Context != nil {
 		hub = sentry.GetHubFromContext(entry.Context)
@@ -25,29 +27,33 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	if hub == nil {
 		hub = sentry.CurrentHub()
 	}
-	client, scope := hub.Client(), hub.Scope()
-	if client == nil || scope == nil {
-		return ErrHubInvalid
-	}
 
-	scope.SetContext("Poseidon Details", entry.Data)
-	if runnerID, ok := entry.Data[dto.KeyRunnerID].(string); ok {
-		scope.SetTag(dto.KeyRunnerID, runnerID)
-	}
-	if environmentID, ok := entry.Data[dto.KeyEnvironmentID].(string); ok {
-		scope.SetTag(dto.KeyEnvironmentID, environmentID)
-	}
-
-	event := client.EventFromMessage(entry.Message, sentry.Level(entry.Level.String()))
-	event.Timestamp = entry.Time
-	if data, ok := entry.Data["error"]; ok {
-		err, ok := data.(error)
-		if ok {
-			entry.Data["error"] = err.Error()
+	hub.WithScope(func(scope *sentry.Scope) {
+		client := hub.Client()
+		if client == nil || scope == nil {
+			err = ErrHubInvalid
+			return
 		}
-	}
-	hub.CaptureEvent(event)
-	return nil
+
+		scope.SetContext(SentryContextKey, entry.Data)
+		if runnerID, ok := entry.Data[dto.KeyRunnerID].(string); ok {
+			scope.SetTag(dto.KeyRunnerID, runnerID)
+		}
+		if environmentID, ok := entry.Data[dto.KeyEnvironmentID].(string); ok {
+			scope.SetTag(dto.KeyEnvironmentID, environmentID)
+		}
+
+		event := client.EventFromMessage(entry.Message, sentry.Level(entry.Level.String()))
+		event.Timestamp = entry.Time
+		if data, ok := entry.Data["error"]; ok {
+			entryError, ok := data.(error)
+			if ok {
+				entry.Data["error"] = entryError.Error()
+			}
+		}
+		hub.CaptureEvent(event)
+	})
+	return err
 }
 
 // Levels returns all levels this hook should be registered to.

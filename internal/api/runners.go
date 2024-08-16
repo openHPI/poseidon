@@ -172,9 +172,12 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 		err = targetRunner.GetFileContent(ctx, path, writer, privilegedExecution)
 	})
 	if errors.Is(err, runner.ErrFileNotFound) {
+		writer.Header().Del("Content-Length")
 		writeClientError(request.Context(), writer, err, http.StatusFailedDependency)
 		return
 	} else if err != nil {
+		// Otherwise, might assume that GetFileContent already wrote something and, therefore, the HTTP headers
+		// cannot be modified anymore.
 		log.WithContext(request.Context()).WithError(err).Error("Could not retrieve the requested file.")
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 		return

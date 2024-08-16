@@ -31,6 +31,9 @@ func (w *ContentLengthWriter) Write(p []byte) (count int, err error) {
 }
 
 func (w *ContentLengthWriter) handleDataForwarding(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
 	count, err := w.Target.Write(p)
 	if err != nil {
 		err = fmt.Errorf("could not write to target: %w", err)

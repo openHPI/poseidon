@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/api"
+	"github.com/openHPI/poseidon/internal/runner"
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 	"github.com/openHPI/poseidon/tests/helpers"
@@ -428,6 +429,18 @@ func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 		content, err := io.ReadAll(response.Body)
 		s.Require().NoError(err)
 		s.Equal(newFileContent, content)
+	})
+
+	s.Run("Permission Denied", func() {
+		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.FileContentRawPath))
+		s.Require().NoError(err)
+		getFileURL.RawQuery = fmt.Sprintf("%s=%s", api.PathKey, "/proc/1/environ")
+		response, err := http.Get(getFileURL.String())
+		s.Require().NoError(err)
+		s.Equal(http.StatusFailedDependency, response.StatusCode)
+		content, err := io.ReadAll(response.Body)
+		s.Require().NoError(err)
+		s.Contains(string(content), runner.ErrFileNotFound.Error())
 	})
 }
 

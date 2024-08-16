@@ -141,7 +141,8 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 		// The unexpected EOF is a generic Nomad error. However, our investigations have shown that all the current
 		// events of this error are caused by fsouza/go-dockerclient#1076. Because this error happens at the very end,
 		// it does not affect the functionality. Therefore, we don't propagate the error.
-		log.WithContext(span.Context()).WithError(err).Warn("Unexpected EOF for Execute")
+		log.WithContext(span.Context()).WithError(err).
+			WithField(logging.SentryFingerprintFieldKey, "nomad-unexpected-eof").Warn("Unexpected EOF for Execute")
 		return 0, nil
 	case strings.Contains(err.Error(), "Unknown allocation"):
 		return 1, ErrNomadUnknownAllocation

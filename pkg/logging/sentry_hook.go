@@ -54,8 +54,8 @@ func handleLogEntry(entry *logrus.Entry, hub *sentry.Hub, scope *sentry.Scope) (
 	if environmentID, ok := entry.Data[dto.KeyEnvironmentID].(string); ok {
 		scope.SetTag(dto.KeyEnvironmentID, environmentID)
 	}
-	if fingerprint, ok := entry.Data[SentryFingerprintFieldKey].(string); ok {
-		scope.SetFingerprint([]string{fingerprint})
+	if fingerprint, ok := entry.Data[SentryFingerprintFieldKey].([]string); ok {
+		scope.SetFingerprint(fingerprint)
 	}
 
 	event := client.EventFromMessage(entry.Message, sentry.Level(entry.Level.String()))

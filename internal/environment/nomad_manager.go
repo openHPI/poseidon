@@ -181,13 +181,17 @@ func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(ctx context.Context, sy
 	err := util.RetryConstantAttemptsWithContext(ctx, math.MaxInt, func() error {
 		// Load Environments
 		if err := m.load(ctx); err != nil {
-			log.WithContext(ctx).WithError(err).Warn("Loading Environments failed! Retrying...")
+			log.WithContext(ctx).WithError(err).
+				WithField(logging.SentryFingerprintFieldKey, []string{"{{ default }}", "environments"}).
+				Warn("Loading Environments failed! Retrying...")
 			return err
 		}
 
 		// Load Runners and keep them synchronized.
 		if err := synchronizeRunners(ctx); err != nil && ctx.Err() == nil {
-			log.WithContext(ctx).WithError(err).Warn("Loading and synchronizing Runners failed! Retrying...")
+			log.WithContext(ctx).WithError(err).
+				WithField(logging.SentryFingerprintFieldKey, []string{"{{ default }}", "runners"}).
+				Warn("Loading and synchronizing Runners failed! Retrying...")
 			return err
 		}
 

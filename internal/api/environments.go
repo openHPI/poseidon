@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/mux"
 	"github.com/openHPI/poseidon/internal/environment"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -122,7 +123,7 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 	}
 
 	var created bool
-	logging.StartSpan(request.Context(), "api.env.update", "Create Environment", func(ctx context.Context) {
+	logging.StartSpan(request.Context(), "api.env.update", "Create Environment", func(ctx context.Context, _ *sentry.Span) {
 		created, err = e.manager.CreateOrUpdate(ctx, environmentID, *req)
 	})
 	if err != nil {

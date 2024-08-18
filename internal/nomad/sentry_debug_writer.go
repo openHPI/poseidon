@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+	"github.com/openHPI/poseidon/pkg/logging"
 )
 
 var (
@@ -35,6 +36,7 @@ type SentryDebugWriter struct {
 }
 
 func NewSentryDebugWriter(ctx context.Context, target io.Writer) *SentryDebugWriter {
+	ctx = logging.CloneSentryHub(ctx)
 	span := sentry.StartSpan(ctx, "nomad.execute.connect")
 	span.Description = "/bin/bash -c"
 	return &SentryDebugWriter{

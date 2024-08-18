@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/websocket"
 	"github.com/openHPI/poseidon/internal/api/ws"
 	"github.com/openHPI/poseidon/internal/runner"
@@ -103,7 +104,7 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 	log.WithContext(proxyCtx).
 		WithField("executionID", logging.RemoveNewlineSymbol(executionID)).
 		Info("Running execution")
-	logging.StartSpan(request.Context(), "api.runner.connect", "Execute Interactively", func(ctx context.Context) {
+	logging.StartSpan(request.Context(), "api.runner.connect", "Execute Interactively", func(ctx context.Context, _ *sentry.Span) {
 		exit, cancel, err := targetRunner.ExecuteInteractively(ctx, executionID,
 			proxy.Input, proxy.Output.StdOut(), proxy.Output.StdErr())
 		if err != nil {

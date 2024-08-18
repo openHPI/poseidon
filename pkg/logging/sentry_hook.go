@@ -80,9 +80,19 @@ func (hook *SentryHook) Levels() []logrus.Level {
 	}
 }
 
-func StartSpan(ctx context.Context, op, description string, callback func(context.Context)) {
-	span := sentry.StartSpan(ctx, op)
+func StartSpan(ctx context.Context, op, description string, callback func(context.Context, *sentry.Span)) {
+	innerCtx := CloneSentryHub(ctx)
+	span := sentry.StartSpan(innerCtx, op)
 	span.Description = description
 	defer span.Finish()
-	callback(span.Context())
+	callback(span.Context(), span)
+}
+
+func CloneSentryHub(ctx context.Context) context.Context {
+	hub := sentry.GetHubFromContext(ctx)
+	if hub == nil {
+		hub = sentry.CurrentHub()
+	}
+	innerHub := hub.Clone()
+	return sentry.SetHubOnContext(ctx, innerHub)
 }

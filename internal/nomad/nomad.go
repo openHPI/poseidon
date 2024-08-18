@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -641,7 +642,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(ctx context.Context, a
 		defer cancel()
 
 		// Catch stderr in separate execution.
-		logging.StartSpan(ctx, "nomad.execute.stderr", "Execution for separate StdErr", func(ctx context.Context) {
+		logging.StartSpan(ctx, "nomad.execute.stderr", "Execution for separate StdErr", func(ctx context.Context, _ *sentry.Span) {
 			exit, err := a.Execute(ctx, allocationID, prepareCommandTTYStdErr(currentNanoTime, privilegedExecution), true,
 				nullio.Reader{Ctx: readingContext}, stderr, io.Discard)
 			if err != nil {
@@ -654,7 +655,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(ctx context.Context, a
 	command = prepareCommandTTY(command, currentNanoTime, privilegedExecution)
 	var exit int
 	var err error
-	logging.StartSpan(ctx, "nomad.execute.tty", "Interactive Execution", func(ctx context.Context) {
+	logging.StartSpan(ctx, "nomad.execute.tty", "Interactive Execution", func(ctx context.Context, _ *sentry.Span) {
 		exit, err = a.Execute(ctx, allocationID, command, true, stdin, stdout, io.Discard)
 	})
 

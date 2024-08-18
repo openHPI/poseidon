@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	nomadApi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -158,7 +159,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	m.runnerManager.StoreEnvironment(environment)
 
 	// Register template Job with Nomad.
-	logging.StartSpan(ctx, "env.update.register", "Register Environment", func(_ context.Context) {
+	logging.StartSpan(ctx, "env.update.register", "Register Environment", func(_ context.Context, _ *sentry.Span) {
 		err = environment.Register()
 	})
 	if err != nil {
@@ -166,7 +167,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	}
 
 	// Launch idle runners based on the template job.
-	logging.StartSpan(ctx, "env.update.poolsize", "Apply Prewarming Pool Size", func(_ context.Context) {
+	logging.StartSpan(ctx, "env.update.poolsize", "Apply Prewarming Pool Size", func(_ context.Context, _ *sentry.Span) {
 		err = environment.ApplyPrewarmingPoolSize()
 	})
 	if err != nil {

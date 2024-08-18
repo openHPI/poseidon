@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	nomadApi "github.com/hashicorp/nomad/api"
@@ -73,7 +74,7 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		nextRunner runner.Runner
 		err        error
 	)
-	logging.StartSpan(request.Context(), "api.runner.claim", "Claim Runner", func(_ context.Context) {
+	logging.StartSpan(request.Context(), "api.runner.claim", "Claim Runner", func(_ context.Context, _ *sentry.Span) {
 		nextRunner, err = r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
 	})
 	if err != nil {
@@ -111,7 +112,7 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
-	logging.StartSpan(request.Context(), "api.fs.list", "List File System", func(ctx context.Context) {
+	logging.StartSpan(request.Context(), "api.fs.list", "List File System", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.ListFileSystem(ctx, path, recursive, writer, privilegedExecution)
 	})
 	if errors.Is(err, runner.ErrFileNotFound) {
@@ -136,7 +137,7 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	targetRunner, _ := runner.FromContext(request.Context())
 
 	var err error
-	logging.StartSpan(request.Context(), "api.fs.update", "Update File System", func(ctx context.Context) {
+	logging.StartSpan(request.Context(), "api.fs.update", "Update File System", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.UpdateFileSystem(ctx, fileCopyRequest)
 	})
 
@@ -168,7 +169,7 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 	}
 
 	writer.Header().Set("Content-Disposition", "attachment; filename=\""+path+"\"")
-	logging.StartSpan(request.Context(), "api.fs.read", "File Content", func(ctx context.Context) {
+	logging.StartSpan(request.Context(), "api.fs.read", "File Content", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.GetFileContent(ctx, path, writer, privilegedExecution)
 	})
 	if errors.Is(err, runner.ErrFileNotFound) {
@@ -220,7 +221,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 	}
 	executionID := newUUID.String()
 
-	logging.StartSpan(request.Context(), "api.runner.exec", "Store Execution", func(_ context.Context) {
+	logging.StartSpan(request.Context(), "api.runner.exec", "Store Execution", func(_ context.Context, _ *sentry.Span) {
 		targetRunner.StoreExecution(executionID, executionRequest)
 	})
 	webSocketURL := url.URL{
@@ -265,7 +266,7 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 	targetRunner, _ := runner.FromContext(request.Context())
 
 	var err error
-	logging.StartSpan(request.Context(), "api.runner.delete", "Return Runner", func(_ context.Context) {
+	logging.StartSpan(request.Context(), "api.runner.delete", "Return Runner", func(_ context.Context, _ *sentry.Span) {
 		err = r.manager.Return(targetRunner)
 	})
 	if err != nil {

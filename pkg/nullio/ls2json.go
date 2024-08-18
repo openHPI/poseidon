@@ -93,7 +93,8 @@ func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
 			err = fmt.Errorf("could not write to target: %w", err)
 		} else {
 			w.jsonStartSent = true
-			w.sentrySpan = sentry.StartSpan(w.Ctx, "nullio.init")
+			ctx := logging.CloneSentryHub(w.Ctx)
+			w.sentrySpan = sentry.StartSpan(ctx, "nullio.init")
 			w.sentrySpan.Description = "Forwarding"
 		}
 	}

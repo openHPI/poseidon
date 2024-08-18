@@ -98,7 +98,7 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 	log.WithContext(ctx).WithField("command", strings.ReplaceAll(cmd, "\n", "")).Trace("Requesting Nomad Exec")
 	var allocations []*nomadApi.AllocationListStub
 	var err error
-	logging.StartSpan(ctx, "nomad.execute.list", "List Allocations for id", func(_ context.Context) {
+	logging.StartSpan(ctx, "nomad.execute.list", "List Allocations for id", func(_ context.Context, _ *sentry.Span) {
 		allocations, _, err = nc.client.Jobs().Allocations(runnerID, false, nil)
 	})
 	if err != nil {
@@ -109,7 +109,7 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 	}
 
 	var allocation *nomadApi.Allocation
-	logging.StartSpan(ctx, "nomad.execute.info", "List Data of Allocation", func(_ context.Context) {
+	logging.StartSpan(ctx, "nomad.execute.info", "List Data of Allocation", func(_ context.Context, _ *sentry.Span) {
 		allocation, _, err = nc.client.Allocations().Info(allocations[0].ID, nil)
 	})
 	if err != nil {
@@ -117,31 +117,37 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 	}
 
 	var exitCode int
-	span := sentry.StartSpan(ctx, "nomad.execute.exec")
-	defer span.Finish()
-	span.Description = "Execute Command in Allocation"
-	span.SetData("command", cmd)
+	logging.StartSpan(ctx, "nomad.execute.exec", "Execute Command in Allocation", func(ctx context.Context, span *sentry.Span) {
+		span.SetData("command", cmd)
+		exitCode, err = nc.executeInAllocation(ctx, cmd, allocation, tty, stdin, stdout, stderr)
+	})
 
-	debugWriter := NewSentryDebugWriter(span.Context(), stdout)
+	return exitCode, err
+}
+
+func (nc *nomadAPIClient) executeInAllocation(ctx context.Context, cmd string, allocation *nomadApi.Allocation, tty bool,
+	stdin io.Reader, stdout io.Writer, stderr io.Writer,
+) (int, error) {
+	debugWriter := NewSentryDebugWriter(ctx, stdout)
 	commands := []string{"/bin/bash", "-c", cmd}
-	exitCode, err = nc.client.Allocations().
-		Exec(span.Context(), allocation, TaskName, tty, commands, stdin, debugWriter, stderr, nil, nil)
+	exitCode, err := nc.client.Allocations().
+		Exec(ctx, allocation, TaskName, tty, commands, stdin, debugWriter, stderr, nil, nil)
 	debugWriter.Close(exitCode)
 
 	switch {
 	case err == nil:
 		return exitCode, nil
 	case websocket.IsCloseError(errors.Unwrap(err), websocket.CloseNormalClosure):
-		log.WithContext(span.Context()).WithError(err).Info("The exit code could not be received.")
+		log.WithContext(ctx).WithError(err).Info("The exit code could not be received.")
 		return 0, nil
 	case errors.Is(err, context.Canceled):
-		log.WithContext(span.Context()).Debug("Execution canceled by context")
+		log.WithContext(ctx).Debug("Execution canceled by context")
 		return 0, nil
 	case errors.Is(err, io.ErrUnexpectedEOF), strings.Contains(err.Error(), io.ErrUnexpectedEOF.Error()):
 		// The unexpected EOF is a generic Nomad error. However, our investigations have shown that all the current
 		// events of this error are caused by fsouza/go-dockerclient#1076. Because this error happens at the very end,
 		// it does not affect the functionality. Therefore, we don't propagate the error.
-		log.WithContext(span.Context()).WithError(err).
+		log.WithContext(ctx).WithError(err).
 			WithField(logging.SentryFingerprintFieldKey, []string{"nomad-unexpected-eof"}).Warn("Unexpected EOF for Execute")
 		return 0, nil
 	case strings.Contains(err.Error(), "Unknown allocation"):

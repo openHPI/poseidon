@@ -142,7 +142,7 @@ func dumpNomadEventToInflux(event *nomadApi.Event) {
 // receiveAndHandleNomadAPIEvents receives events from the Nomad event stream and calls the handler function for
 // each received event. It skips heartbeat events and returns an error if the received events contain an error.
 func receiveAndHandleNomadAPIEvents(stream <-chan *nomadApi.Events, handler nomadAPIEventHandler) error {
-	// If original context is canceled, the stream will be closed by Nomad and we exit the for loop.
+	// If original context is canceled, the stream will be closed by Nomad, and we exit the for loop.
 	for events := range stream {
 		if err := events.Err; err != nil {
 			return fmt.Errorf("error receiving events: %w", err)
@@ -347,29 +347,33 @@ func handlePendingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocatio
 
 // handleRunningAllocationEvent calls the passed AllocationProcessor filtering similar events.
 func handleRunningAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, allocData *allocationData,
-	_ storage.Storage[*allocationData], callbacks *AllocationProcessing,
+	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing,
 ) {
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
 		startupDuration := time.Since(allocData.start)
 		callbacks.OnNew(ctx, alloc, startupDuration)
 	case structs.AllocDesiredStatusStop:
-		// It is normal that running allocations will stop. We will handle it when it is stopped.
+		callbacks.OnDeleted(ctx, alloc.JobID, ErrAllocationCompleted)
+		allocations.Delete(alloc.ID)
 	default:
 		log.WithField("alloc", alloc).Warn("Other Desired Status")
 	}
 }
 
 // handleCompleteAllocationEvent handles allocations that stopped.
-func handleCompleteAllocationEvent(ctx context.Context, alloc *nomadApi.Allocation, _ *allocationData,
-	allocations storage.Storage[*allocationData], callbacks *AllocationProcessing,
+func handleCompleteAllocationEvent(_ context.Context, alloc *nomadApi.Allocation, _ *allocationData,
+	allocations storage.Storage[*allocationData], _ *AllocationProcessing,
 ) {
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
 		log.WithField("alloc", alloc).Warn("Complete allocation desires to run")
 	case structs.AllocDesiredStatusStop:
-		callbacks.OnDeleted(ctx, alloc.JobID, ErrAllocationCompleted)
-		allocations.Delete(alloc.ID)
+		// We already handled the removal when the allocation desired to stop.
+		_, ok := allocations.Get(alloc.ID)
+		if ok {
+			log.WithField("alloc", alloc).Warn("Complete allocation not removed")
+		}
 	default:
 		log.WithField("alloc", alloc).Warn("Other Desired Status")
 	}

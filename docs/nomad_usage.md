@@ -27,6 +27,53 @@ If a user requests a new runner, Poseidon duplicates the template Job of the cor
 
 When a user then executes their code, Poseidon copies the code into the container and executes it.
 
+### Nomad Event Stream
+
+We use the [Nomad Event Stream](https://developer.hashicorp.com/nomad/api-docs/events) to subscribe to Nomad Events.
+We handle `Evaluation` and `Allocation` events.
+`Evaluation` events are used to wait for an environment to be created when requested.
+`Allocation` events are used to track the starts and stops of runners.
+Because of the mapping of runners to Nomad Jobs, we could also monitor Nomad's `Job` events (registered, deregistered), however, due to historical reasons we listen to `Allocation` events.
+These events behave similarly because each Job has at least one allocation to be executed in.
+However, the `Allocation` events also contain information about restarts and reschedulings.
+This increases the complexity of the event stream handling but allows us to identify OOM Killed runners and move a used runner to the idle runners once it got restarted or rescheduled.
+
+### Nomad Restarts
+
+When the Nomad Servers or Agents restart, running executions can be terminated.  
+For agents, it depends on whether the runner allocation is placed on the restarted agent.
+For servers, it depends both on the role - if the restarted server is the cluster leader - and on whether Poseidon is connected to the restarted server, e.g. due to DNS Resolving.
+Poseidon can be connected to the server either for individual execution or for receiving the Nomad Event Stream.
+The following table lists the behavior for restarts of Nomad Servers depending on its role and on whether Poseidon is connected to it (via DNS Resolution).
+
+| Role     | DNS Resolves | | WebSocket Problem? | Event Stream Problem? | 
+|----------|--------------|-|--------------------|-----------------------|
+| Leader   | Yes          | | problematic        | problematic           |
+| Leader   | No           | | problematic        | fine                  |
+| Follower | Yes          | | problematic        | problematic           |
+| Follower | No           | | fine               | fine                  |
+
+Such restarts lead to problems with either individual WebSocket connections of executions or the Nomad Event Stream.
+When the Nomad Event Stream is aborted, Poseidon tries to reestablish it. Once it succeeds in doing so, all environments and runners are recovered from Nomad.
+
+In the case of Nomad Agent restarts, the WebSocket connection of a running execution aborts.
+Furthermore, when also Docker of the Nomad Agent is restarted, the containers are recreated.
+Poseidon captures such occurrences and uses the runner as clean and idle.
+
+### Systemd Relationship Nomad - Docker
+
+We suggest to connect the Nomad and Docker systemd services through a systemd `PartOf` relationship.
+In a systemd overwrite (`/etc/systemd/system/nomad.service.d/override.conf`), the `PartOf` relationship can be defined as follows:
+
+```ini
+# /etc/systemd/system/nomad.service.d/override.conf
+[Unit]
+PartOf = docker.service
+```
+
+This results in Nomad being restarted once Docker restarts, but not vice versa.
+At the moment, this behavior is necessary so that Nomad can recreate the CNI network interfaces (see [#490](https://github.com/openHPI/poseidon/issues/490)).
+
 ## Prewarming
 
 To reduce the response time in the process of claiming a runner, Poseidon creates a pool of runners that have been started in advance.

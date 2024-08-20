@@ -283,23 +283,23 @@ func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 			[]*nomadApi.Allocation{startedAllocation}, []string(nil))
 	})
 
-	stoppedAllocation := createRecentAllocation(structs.AllocClientStatusComplete, structs.AllocDesiredStatusStop)
-	stoppedEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), stoppedAllocation)}}
-	pendingStartStopEvents := nomadApi.Events{Events: []nomadApi.Event{
+	stoppingAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusStop)
+	stoppingEvents := nomadApi.Events{Events: []nomadApi.Event{eventForAllocation(s.T(), stoppingAllocation)}}
+	pendingStartStoppingEvents := nomadApi.Events{Events: []nomadApi.Event{
 		eventForAllocation(s.T(), pendingAllocation),
 		eventForAllocation(s.T(), startedAllocation),
-		eventForAllocation(s.T(), stoppedAllocation),
+		eventForAllocation(s.T(), stoppingAllocation),
 	}}
 
 	s.Run("it adds and deletes the allocation", func() {
-		assertWatchAllocation(s, []*nomadApi.Events{&pendingStartStopEvents},
-			[]*nomadApi.Allocation{startedAllocation}, []string{stoppedAllocation.JobID})
+		assertWatchAllocation(s, []*nomadApi.Events{&pendingStartStoppingEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string{stoppingAllocation.JobID})
 	})
 
 	s.Run("it ignores duplicate events", func() {
 		assertWatchAllocation(s, []*nomadApi.Events{
 			&pendingEvents, &startedEvents, &startedEvents,
-			&stoppedEvents, &stoppedEvents, &stoppedEvents,
+			&stoppingEvents, &stoppingEvents, &stoppingEvents,
 		},
 			[]*nomadApi.Allocation{startedAllocation}, []string{startedAllocation.JobID})
 	})
@@ -307,7 +307,7 @@ func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 	s.Run("it ignores events of unknown allocations", func() {
 		assertWatchAllocation(s, []*nomadApi.Events{
 			&startedEvents, &startedEvents,
-			&stoppedEvents, &stoppedEvents, &stoppedEvents,
+			&stoppingEvents, &stoppingEvents, &stoppingEvents,
 		}, []*nomadApi.Allocation(nil), []string(nil))
 	})
 
@@ -398,49 +398,35 @@ func (s *MainTestSuite) TestHandleAllocationEventBuffersPendingAllocation() {
 func (s *MainTestSuite) TestHandleAllocationEvent_RegressionTest_14_09_2023() {
 	jobID := "29-6f04b525-5315-11ee-af32-fa163e079f19"
 	a1ID := "04d86250-550c-62f9-9a21-ecdc3b38773e"
-	a1Starting := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	a1Starting.ID = a1ID
-	a1Starting.JobID = jobID
+	a2ID := "102f282f-376a-1453-4d3d-7d4e32046acd"
+	a3ID := "0d8a8ece-cf52-2968-5a9f-e972a4150a6e"
 
+	a1Starting := createRecentAllocationWithID(a1ID, jobID, structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	// With this event the job is added to the idle runners
-	a1Running := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
-	a1Running.ID = a1ID
-	a1Running.JobID = jobID
+	a1Running := createRecentAllocationWithID(a1ID, jobID, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
 
 	// With this event the job is removed from the idle runners
-	a2ID := "102f282f-376a-1453-4d3d-7d4e32046acd"
-	a2Starting := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	a2Starting.ID = a2ID
+	a2Starting := createRecentAllocationWithID(a2ID, jobID, structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	a2Starting.PreviousAllocation = a1ID
-	a2Starting.JobID = jobID
 
-	// Because the runner is neither an idle runner nor an used runner, this event triggered the now removed
+	// Because the runner is neither an idle runner nor a used runner, this event triggered the now removed
 	// race condition handling that led to neither removing a2 from the allocations nor adding a3 to the allocations.
-	a3ID := "0d8a8ece-cf52-2968-5a9f-e972a4150a6e"
-	a3Starting := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-	a3Starting.ID = a3ID
+	a3Starting := createRecentAllocationWithID(a3ID, jobID, structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	a3Starting.PreviousAllocation = a2ID
-	a3Starting.JobID = jobID
 
 	// a2Stopping was not ignored and led to an unexpected allocation stopping.
-	a2Stopping := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusStop)
-	a2Stopping.ID = a2ID
+	a2Stopping := createRecentAllocationWithID(a2ID, jobID, structs.AllocClientStatusPending, structs.AllocDesiredStatusStop)
 	a2Stopping.PreviousAllocation = a1ID
 	a2Stopping.NextAllocation = a3ID
-	a2Stopping.JobID = jobID
 
 	// a2Complete was not ignored (wrong behavior).
-	a2Complete := createRecentAllocation(structs.AllocClientStatusComplete, structs.AllocDesiredStatusStop)
-	a2Complete.ID = a2ID
+	a2Complete := createRecentAllocationWithID(a2ID, jobID, structs.AllocClientStatusComplete, structs.AllocDesiredStatusStop)
 	a2Complete.PreviousAllocation = a1ID
 	a2Complete.NextAllocation = a3ID
-	a2Complete.JobID = jobID
 
 	// a3Running was ignored because it was unknown (wrong behavior).
-	a3Running := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
-	a3Running.ID = a3ID
+	a3Running := createRecentAllocationWithID(a3ID, jobID, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
 	a3Running.PreviousAllocation = a2ID
-	a3Running.JobID = jobID
 
 	events := []*nomadApi.Events{{Events: []nomadApi.Event{
 		eventForAllocation(s.T(), a1Starting),
@@ -451,22 +437,7 @@ func (s *MainTestSuite) TestHandleAllocationEvent_RegressionTest_14_09_2023() {
 		eventForAllocation(s.T(), a2Complete),
 		eventForAllocation(s.T(), a3Running),
 	}}}
-
-	idleRunner := make(map[string]bool)
-	callbacks := &AllocationProcessing{
-		OnNew: func(_ context.Context, alloc *nomadApi.Allocation, _ time.Duration) {
-			idleRunner[alloc.JobID] = true
-		},
-		OnDeleted: func(_ context.Context, jobID string, _ error) bool {
-			_, ok := idleRunner[jobID]
-			delete(idleRunner, jobID)
-			return !ok
-		},
-	}
-
-	_, err := runAllocationWatching(s, events, callbacks)
-	s.Require().NoError(err)
-	s.True(idleRunner[jobID])
+	assertAllocationRunning(s, events, []string{jobID})
 }
 
 func (s *MainTestSuite) TestHandleAllocationEvent_ReportsOOMKilledStatus() {
@@ -524,6 +495,33 @@ func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEO
 	s.Equal(1, eventsProcessed)
 }
 
+func (s *MainTestSuite) TestAPIClient_WatchAllocationsCanHandleMigration() {
+	jobID := "10-0331c7d8-03c1-11ef-b832-fa163e7afdf8"
+	a1ID := "84a734a1-5573-6116-5678-86060ce4c479"
+	a2ID := "28e08715-38a9-42b3-8f77-0a14ee68b482"
+
+	a1Starting := createRecentAllocationWithID(a1ID, jobID, structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+	a1Running := createRecentAllocationWithID(a1ID, jobID, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
+	a1Stopping := createRecentAllocationWithID(a1ID, jobID, structs.AllocClientStatusRunning, structs.AllocDesiredStatusStop)
+
+	a2Starting := createRecentAllocationWithID(a2ID, jobID, structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+	a2Running := createRecentAllocationWithID(a2ID, jobID, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
+
+	a1Complete := createRecentAllocationWithID(a1ID, jobID, structs.AllocClientStatusComplete, structs.AllocDesiredStatusStop)
+
+	events := []*nomadApi.Events{{Events: []nomadApi.Event{
+		eventForAllocation(s.T(), a1Starting),
+		eventForAllocation(s.T(), a1Running),
+		eventForAllocation(s.T(), a1Stopping),
+		eventForAllocation(s.T(), a2Starting),
+		eventForAllocation(s.T(), a2Running),
+		eventForAllocation(s.T(), a1Complete),
+	}}}
+	assertAllocationRunning(s, events, []string{jobID})
+}
+
+// assertWatchAllocation simulates the passed events and compares the expected new/deleted allocations with the actual
+// new/deleted allocations.
 func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
 	expectedNewAllocations []*nomadApi.Allocation, expectedDeletedAllocations []string,
 ) {
@@ -546,6 +544,29 @@ func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
 
 	s.Equal(expectedNewAllocations, newAllocations)
 	s.Equal(expectedDeletedAllocations, deletedAllocations)
+}
+
+// assertAllocationRunning simulates the passed events and asserts that the runners with an id in the runningIDs are
+// active in the end.
+func assertAllocationRunning(s *MainTestSuite, events []*nomadApi.Events, runningIDs []string) {
+	activeAllocations := make(map[string]bool)
+	callbacks := &AllocationProcessing{
+		OnNew: func(_ context.Context, alloc *nomadApi.Allocation, _ time.Duration) {
+			activeAllocations[alloc.JobID] = true
+		},
+		OnDeleted: func(_ context.Context, jobID string, _ error) bool {
+			_, ok := activeAllocations[jobID]
+			delete(activeAllocations, jobID)
+			return !ok
+		},
+	}
+
+	_, err := runAllocationWatching(s, events, callbacks)
+	s.Require().NoError(err)
+
+	for _, id := range runningIDs {
+		s.True(activeAllocations[id], id)
+	}
 }
 
 // runAllocationWatching simulates events streamed from the Nomad event stream
@@ -612,6 +633,13 @@ func createAllocation(modifyTime int64, clientStatus, desiredStatus string) *nom
 
 func createRecentAllocation(clientStatus, desiredStatus string) *nomadApi.Allocation {
 	return createAllocation(time.Now().Add(time.Minute).UnixNano(), clientStatus, desiredStatus)
+}
+
+func createRecentAllocationWithID(allocID, jobID, clientStatus, desiredStatus string) *nomadApi.Allocation {
+	alloc := createAllocation(time.Now().Add(time.Minute).UnixNano(), clientStatus, desiredStatus)
+	alloc.ID = allocID
+	alloc.JobID = jobID
+	return alloc
 }
 
 // eventForEvaluation takes an evaluation and creates an Event with the given evaluation

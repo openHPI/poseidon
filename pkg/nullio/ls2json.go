@@ -163,11 +163,15 @@ func (w *Ls2JsonWriter) parseFileHeader(matches [][]byte) ([]byte, error) {
 	if entryType == dto.EntryTypeLink {
 		parts := strings.Split(string(name), " -> ")
 		const NumberOfPartsInALink = 2
-		if len(parts) == NumberOfPartsInALink {
+		switch len(parts) {
+		case NumberOfPartsInALink:
 			name = dto.FilePath(parts[0])
 			linkTarget = dto.FilePath(parts[1])
-		} else {
-			log.WithContext(w.sentrySpan.Context()).Error("could not split link into name and target")
+		case 1:
+			// This case happens when a user tries to read the target of a link without permission. See #596.
+			// Nothing to do. The target remains empty. The name is set.
+		default:
+			log.WithContext(w.sentrySpan.Context()).WithField("name", name).Error("could not split link into name and target")
 		}
 	}
 

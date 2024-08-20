@@ -101,10 +101,10 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
 	})
 	s.Require().NoError(err)
+	getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath))
+	s.Require().NoError(err)
 
 	s.Run("No files", func() {
-		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath))
-		s.Require().NoError(err)
 		response, err := http.Get(getFileURL.String())
 		s.Require().NoError(err)
 		s.Equal(http.StatusOK, response.StatusCode)
@@ -120,8 +120,6 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusNoContent, resp.StatusCode)
 
-		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath))
-		s.Require().NoError(err)
 		response, err := http.Get(getFileURL.String())
 		s.Require().NoError(err)
 		s.Equal(http.StatusOK, response.StatusCode)
@@ -137,6 +135,41 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		s.Equal("root", fileHeader.Owner)
 		s.Equal("root", fileHeader.Group)
 		s.Equal("rwxr--r--", fileHeader.Permissions)
+	})
+
+	s.Run("With links", func() {
+		s.Run("allowed", func() {
+			path := "/proc/self/cwd"
+			getFileURL.RawQuery = url.Values{api.PathKey: []string{path}}.Encode()
+
+			response, err := http.Get(getFileURL.String())
+			s.Require().NoError(err)
+			s.Equal(http.StatusOK, response.StatusCode)
+			listFilesResponse := new(dto.ListFileSystemResponse)
+			err = json.NewDecoder(response.Body).Decode(listFilesResponse)
+			s.Require().NoError(err)
+			s.Require().Equal(1, len(listFilesResponse.Files))
+			fileHeader := listFilesResponse.Files[0]
+			s.Equal(dto.FilePath(path), fileHeader.Name)
+			s.Equal(dto.EntryTypeLink, fileHeader.EntryType)
+			s.Equal(dto.FilePath("/workspace"), fileHeader.LinkTarget)
+		})
+		s.Run("denied", func() {
+			path := "/proc/1/cwd"
+			getFileURL.RawQuery = url.Values{api.PathKey: []string{path}}.Encode()
+
+			response, err := http.Get(getFileURL.String())
+			s.Require().NoError(err)
+			s.Equal(http.StatusOK, response.StatusCode)
+			listFilesResponse := new(dto.ListFileSystemResponse)
+			err = json.NewDecoder(response.Body).Decode(listFilesResponse)
+			s.Require().NoError(err)
+			s.Require().Equal(1, len(listFilesResponse.Files))
+			fileHeader := listFilesResponse.Files[0]
+			s.Equal(dto.FilePath(path), fileHeader.Name)
+			s.Equal(dto.EntryTypeLink, fileHeader.EntryType)
+			s.Empty(fileHeader.LinkTarget)
+		})
 	})
 }
 

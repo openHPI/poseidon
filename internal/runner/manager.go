@@ -21,7 +21,7 @@ type EnvironmentAccessor interface {
 	// StoreEnvironment stores the environment in Poseidons memory.
 	StoreEnvironment(environment ExecutionEnvironment)
 
-	// DeleteEnvironment removes the specified execution environment in Poseidons memory.
+	// DeleteEnvironment removes the specified execution environment in Poseidon's memory.
 	// It does nothing if the specified environment can not be found.
 	DeleteEnvironment(id dto.EnvironmentID)
 

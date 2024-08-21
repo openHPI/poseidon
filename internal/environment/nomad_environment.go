@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"sync"
 	"time"
@@ -64,8 +65,12 @@ func NewNomadEnvironmentFromRequest(ctx context.Context,
 
 	// Set options according to request
 	environment.SetPrewarmingPoolSize(request.PrewarmingPoolSize)
-	environment.SetCPULimit(request.CPULimit)
-	environment.SetMemoryLimit(request.MemoryLimit)
+	if err = environment.SetCPULimit(request.CPULimit); err != nil {
+		return nil, err
+	}
+	if err = environment.SetMemoryLimit(request.MemoryLimit); err != nil {
+		return nil, err
+	}
 	environment.SetImage(request.Image)
 	environment.SetNetworkAccess(request.NetworkAccess, request.ExposedPorts)
 	return environment, nil
@@ -101,7 +106,7 @@ func (n *NomadEnvironment) SetPrewarmingPoolSize(count uint) {
 	if taskGroup.Meta == nil {
 		taskGroup.Meta = make(map[string]string)
 	}
-	taskGroup.Meta[nomad.ConfigMetaPoolSizeKey] = strconv.Itoa(int(count))
+	taskGroup.Meta[nomad.ConfigMetaPoolSizeKey] = strconv.FormatUint(uint64(count), 10)
 }
 
 func (n *NomadEnvironment) CPULimit() uint {
@@ -110,12 +115,17 @@ func (n *NomadEnvironment) CPULimit() uint {
 	return uint(*defaultTask.Resources.CPU)
 }
 
-func (n *NomadEnvironment) SetCPULimit(limit uint) {
+func (n *NomadEnvironment) SetCPULimit(limit uint) error {
+	if limit > math.MaxInt32 {
+		return fmt.Errorf("limit too high: %w", util.ErrMaxNumberExceeded)
+	}
+
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
-	integerCPULimit := int(limit)
+	integerCPULimit := int(limit) //nolint:gosec // We check for an integer overflow right above.
 	defaultTask.Resources.CPU = &integerCPULimit
+	return nil
 }
 
 func (n *NomadEnvironment) MemoryLimit() uint {
@@ -128,12 +138,17 @@ func (n *NomadEnvironment) MemoryLimit() uint {
 	return 0
 }
 
-func (n *NomadEnvironment) SetMemoryLimit(limit uint) {
+func (n *NomadEnvironment) SetMemoryLimit(limit uint) error {
+	if limit > math.MaxInt32 {
+		return fmt.Errorf("limit too high: %w", util.ErrMaxNumberExceeded)
+	}
+
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
-	integerMemoryMaxLimit := int(limit)
+	integerMemoryMaxLimit := int(limit) //nolint:gosec // We check for an integer overflow right above.
 	defaultTask.Resources.MemoryMaxMB = &integerMemoryMaxLimit
+	return nil
 }
 
 func (n *NomadEnvironment) Image() string {
@@ -160,7 +175,11 @@ func (n *NomadEnvironment) NetworkAccess() (allowed bool, ports []uint16) {
 	if len(defaultTaskGroup.Networks) > 0 {
 		networkResource := defaultTaskGroup.Networks[0]
 		for _, port := range networkResource.DynamicPorts {
-			ports = append(ports, uint16(port.To))
+			if port.To > math.MaxUint16 {
+				log.WithField("port", port).Error("port number exceeds range")
+			} else {
+				ports = append(ports, uint16(port.To)) //nolint:gosec // We check for an integer overflow right above.
+			}
 		}
 	}
 	return allowed, ports
@@ -240,15 +259,15 @@ func (n *NomadEnvironment) Delete(reason runner.DestroyReason) error {
 }
 
 func (n *NomadEnvironment) ApplyPrewarmingPoolSize() error {
-	required := int(n.PrewarmingPoolSize()) - int(n.idleRunners.Length())
-
-	if required < 0 {
+	if n.PrewarmingPoolSize() < n.idleRunners.Length() {
 		log.WithError(ErrScaleDown).
 			WithField(dto.KeyEnvironmentID, n.ID().ToString()).
-			WithField("offset", -required).Info("Too many idle runner")
+			WithField("pool size", n.PrewarmingPoolSize()).
+			WithField("idle runners", n.idleRunners.Length()).
+			Info("Too many idle runner")
 		return nil
 	}
-	return n.createRunners(uint(required), true)
+	return n.createRunners(n.PrewarmingPoolSize()-n.idleRunners.Length(), true)
 }
 
 func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
@@ -328,8 +347,12 @@ func (n *NomadEnvironment) DeepCopyJob() *nomadApi.Job {
 func (n *NomadEnvironment) SetConfigFrom(environment runner.ExecutionEnvironment) {
 	n.SetID(environment.ID())
 	n.SetPrewarmingPoolSize(environment.PrewarmingPoolSize())
-	n.SetCPULimit(environment.CPULimit())
-	n.SetMemoryLimit(environment.MemoryLimit())
+	if err := n.SetCPULimit(environment.CPULimit()); err != nil {
+		log.WithError(err).Error("Failed to copy CPU Limit")
+	}
+	if err := n.SetMemoryLimit(environment.MemoryLimit()); err != nil {
+		log.WithError(err).Error("Failed to copy Memory Limit")
+	}
 	n.SetImage(environment.Image())
 	n.SetNetworkAccess(environment.NetworkAccess())
 }

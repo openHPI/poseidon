@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -136,6 +137,11 @@ func watchMemoryAndAlert(options config.Profiling) {
 	if options.MemoryInterval == 0 {
 		return
 	}
+	if options.MemoryInterval > uint(math.MaxInt64)/uint(time.Millisecond) {
+		log.WithField("interval", options.MemoryInterval).Error("Configured memory interval too big")
+		return
+	}
+	intervalDuration := time.Duration(options.MemoryInterval) * time.Millisecond //nolint:gosec // We check for an integer overflow right above.
 
 	var exceeded bool
 	for {
@@ -163,7 +169,7 @@ func watchMemoryAndAlert(options config.Profiling) {
 		}
 
 		select {
-		case <-time.After(time.Duration(options.MemoryInterval) * time.Millisecond):
+		case <-time.After(intervalDuration):
 			continue
 		case <-context.Background().Done():
 			return

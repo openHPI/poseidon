@@ -15,6 +15,7 @@ var (
 	// InitialWaitingDuration is the default initial duration of waiting after a failed time.
 	InitialWaitingDuration = time.Second
 	ErrRetryContextDone    = errors.New("the retry context is done")
+	ErrMaxNumberExceeded   = errors.New("the passed number is too big")
 )
 
 func retryExponential(ctx context.Context, sleep time.Duration, f func() error) func() error {

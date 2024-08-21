@@ -37,8 +37,8 @@ type ReadableExecutionEnvironment interface {
 type WriteableExecutionEnvironment interface {
 	SetID(id dto.EnvironmentID)
 	SetPrewarmingPoolSize(count uint)
-	SetCPULimit(limit uint)
-	SetMemoryLimit(limit uint)
+	SetCPULimit(limit uint) error
+	SetMemoryLimit(limit uint) error
 	SetImage(image string)
 	SetNetworkAccess(allow bool, ports []uint16)
 
@@ -81,8 +81,8 @@ type ExecutionEnvironment interface {
 func monitorEnvironmentData(dataPoint *write.Point, e ExecutionEnvironment, eventType storage.EventType) {
 	if eventType == storage.Creation && e != nil {
 		dataPoint.AddTag("image", e.Image())
-		dataPoint.AddTag("cpu_limit", strconv.Itoa(int(e.CPULimit())))
-		dataPoint.AddTag("memory_limit", strconv.Itoa(int(e.MemoryLimit())))
+		dataPoint.AddTag("cpu_limit", strconv.FormatUint(uint64(e.CPULimit()), 10))
+		dataPoint.AddTag("memory_limit", strconv.FormatUint(uint64(e.MemoryLimit()), 10))
 		hasNetworkAccess, _ := e.NetworkAccess()
 		dataPoint.AddTag("network_access", strconv.FormatBool(hasNetworkAccess))
 	}

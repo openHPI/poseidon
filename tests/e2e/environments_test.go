@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"testing"
@@ -357,15 +358,18 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 	taskGroup := job.TaskGroups[0]
 	require.NotNil(t, taskGroup.Count)
 	// Poseidon might have already scaled the registered job up once.
-	prewarmingPoolSizeInt := int(expected.PrewarmingPoolSize)
+	require.Less(t, expected.PrewarmingPoolSize, uint(math.MaxInt32))
+	prewarmingPoolSizeInt := int(expected.PrewarmingPoolSize) //nolint:gosec // We check for an integer overflow right above.
 	taskGroupCount := *taskGroup.Count
 	assert.True(t, prewarmingPoolSizeInt == taskGroupCount || prewarmingPoolSizeInt+1 == taskGroupCount)
-	assertEqualValueIntPointer(t, int(expected.PrewarmingPoolSize), taskGroup.Count)
+	assertEqualValueIntPointer(t, prewarmingPoolSizeInt, taskGroup.Count)
 	require.Len(t, taskGroup.Tasks, 1)
 
 	task := taskGroup.Tasks[0]
-	assertEqualValueIntPointer(t, int(expected.CPULimit), task.Resources.CPU)
-	assertEqualValueIntPointer(t, int(expected.MemoryLimit), task.Resources.MemoryMaxMB)
+	require.Less(t, expected.CPULimit, uint(math.MaxInt32))
+	assertEqualValueIntPointer(t, int(expected.CPULimit), task.Resources.CPU) //nolint:gosec // We check for an integer overflow right above.
+	require.Less(t, expected.MemoryLimit, uint(math.MaxInt32))
+	assertEqualValueIntPointer(t, int(expected.MemoryLimit), task.Resources.MemoryMaxMB) //nolint:gosec // We check for an integer overflow right above.
 	assert.Equal(t, expected.Image, task.Config["image"])
 
 	if expected.NetworkAccess {
@@ -374,7 +378,8 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 		network := taskGroup.Networks[0]
 		assert.Equal(t, len(expected.ExposedPorts), len(network.DynamicPorts))
 		for _, port := range network.DynamicPorts {
-			assert.Contains(t, expected.ExposedPorts, uint16(port.To))
+			require.Less(t, port.To, math.MaxUint16)
+			assert.Contains(t, expected.ExposedPorts, uint16(port.To)) //nolint:gosec // We check for an integer overflow right above.
 		}
 	} else {
 		assert.Equal(t, "none", task.Config["network_mode"])

@@ -18,7 +18,9 @@ linters:
     - testpackage
     - varnamelen
     - wsl
+    # Deprecated
     - execinquery
+    - exportloopref
     - gomnd
 
 linters-settings:

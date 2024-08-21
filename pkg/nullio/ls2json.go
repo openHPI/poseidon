@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -20,6 +21,7 @@ var (
 	pathLineRegex   = regexp.MustCompile(`(.*):$`)
 	headerLineRegex = regexp.
 			MustCompile(`([-aAbcCdDlMnpPsw?])([-rwxXsStT]{9})(\+?) +\d+ +(.+?) +(.+?) +(\d+) +(\d+) +(.*)$`)
+	ErrLinkTargetPermissionDenied = errors.New("permission denied for reading link target")
 )
 
 const (
@@ -44,6 +46,7 @@ type Ls2JsonWriter struct {
 	remaining      []byte
 	latestPath     []byte
 	sentrySpan     *sentry.Span
+	err            error
 }
 
 func (w *Ls2JsonWriter) HasStartedWriting() bool {
@@ -101,7 +104,7 @@ func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
 	return count, err
 }
 
-func (w *Ls2JsonWriter) Close() {
+func (w *Ls2JsonWriter) Close() error {
 	if w.jsonStartSent {
 		count, err := w.Target.Write([]byte("]}"))
 		if count == 0 || err != nil {
@@ -109,6 +112,7 @@ func (w *Ls2JsonWriter) Close() {
 		}
 		w.sentrySpan.Finish()
 	}
+	return w.err
 }
 
 func (w *Ls2JsonWriter) writeLine(line []byte) (count int, err error) {
@@ -169,7 +173,7 @@ func (w *Ls2JsonWriter) parseFileHeader(matches [][]byte) ([]byte, error) {
 			linkTarget = dto.FilePath(parts[1])
 		case 1:
 			// This case happens when a user tries to read the target of a link without permission. See #596.
-			// Nothing to do. The target remains empty. The name is set.
+			w.err = errors.Join(w.err, ErrLinkTargetPermissionDenied)
 		default:
 			log.WithContext(w.sentrySpan.Context()).WithField("name", name).Error("could not split link into name and target")
 		}

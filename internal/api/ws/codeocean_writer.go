@@ -115,7 +115,7 @@ func (cw *codeOceanOutputWriter) Close(info *runner.ExitInfo) {
 		log.WithContext(cw.ctx).WithError(info.Err).Trace(message)
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: message})
 	case errors.Is(info.Err, runner.ErrDestroyedAndReplaced):
-		errorMessage := "Runner recovery stopped request execution"
+		errorMessage := "Runner recovery stopped requested execution"
 		log.WithContext(cw.ctx).WithError(info.Err).Warn(errorMessage)
 		cw.send(&dto.WebSocketMessage{Type: dto.WebSocketOutputError, Data: errorMessage})
 	default:

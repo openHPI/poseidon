@@ -24,15 +24,6 @@ type apiQuerier interface {
 	// init prepares an apiClient to be able to communicate to a provided Nomad API.
 	init(nomadConfig *config.Nomad) (err error)
 
-	// LoadJobList loads the list of jobs from the Nomad API.
-	LoadJobList() (list []*nomadApi.JobListStub, err error)
-
-	// JobScale returns the scale of the passed job.
-	JobScale(jobID string) (jobScale uint, err error)
-
-	// SetJobScale sets the scaling count of the passed job to Nomad.
-	SetJobScale(jobID string, count uint, reason string) (err error)
-
 	// DeleteJob deletes the Job with the given ID.
 	DeleteJob(jobID string) (err error)
 
@@ -216,29 +207,6 @@ func (nc *nomadAPIClient) writeOptions() *nomadApi.WriteOptions {
 	return &nomadApi.WriteOptions{
 		Namespace: nc.namespace,
 	}
-}
-
-// LoadJobList loads the list of jobs from the Nomad api.
-func (nc *nomadAPIClient) LoadJobList() (list []*nomadApi.JobListStub, err error) {
-	list, _, err = nc.client.Jobs().List(nc.queryOptions())
-	return
-}
-
-// JobScale returns the scale of the passed job.
-func (nc *nomadAPIClient) JobScale(jobID string) (uint, error) {
-	status, _, err := nc.client.Jobs().ScaleStatus(jobID, nc.queryOptions())
-	if err != nil {
-		return 0, fmt.Errorf("error retrieving scale status of job: %w", err)
-	}
-	jobScale := uint(status.TaskGroups[TaskGroupName].Running)
-	return jobScale, nil
-}
-
-// SetJobScale sets the scaling count of the passed job to Nomad.
-func (nc *nomadAPIClient) SetJobScale(jobID string, count uint, reason string) (err error) {
-	intCount := int(count)
-	_, _, err = nc.client.Jobs().Scale(jobID, TaskGroupName, &intCount, reason, false, nil, nil)
-	return
 }
 
 func (nc *nomadAPIClient) job(jobID string) (job *nomadApi.Job, err error) {

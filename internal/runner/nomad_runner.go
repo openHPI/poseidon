@@ -166,21 +166,25 @@ func (r *NomadJob) ListFileSystem(
 	}
 
 	ls2json := &nullio.Ls2JsonWriter{Target: content, Ctx: ctx}
-	defer ls2json.Close()
 	retrieveCommand := (&dto.ExecutionRequest{Command: fmt.Sprintf("%s %q", command, path)}).FullCommand()
 	exitCode, err := r.api.ExecuteCommand(ctx, r.id, retrieveCommand, false, privilegedExecution,
 		&nullio.Reader{Ctx: ctx}, ls2json, io.Discard)
+	writerErr := ls2json.Close()
+
 	switch {
 	case ls2json.HasStartedWriting() && err == nil && exitCode == 0:
 		// Successful. Nothing to do.
+	case ls2json.HasStartedWriting() && err == nil && errors.Is(writerErr, nullio.ErrLinkTargetPermissionDenied):
+		// Nothing to do. All available information has been returned.
 	case ls2json.HasStartedWriting():
 		// if HasStartedWriting the status code of the response is already sent.
 		// Therefore, we cannot notify CodeOcean about an error at this point anymore.
-		log.WithError(err).WithField("exitCode", exitCode).Warn("Ignoring error of listing the file system")
+		log.WithError(err).WithField("writerError", writerErr).WithField("exitCode", exitCode).
+			Warn("Ignoring error of listing the file system")
 		err = nil
-	case err != nil:
-		err = fmt.Errorf("%w: nomad error during retrieve file headers: %w",
-			nomad.ErrExecutorCommunicationFailed, err)
+	case err != nil || writerErr != nil:
+		err = fmt.Errorf("%w: nomad error during retrieve file headers: %w, %w",
+			nomad.ErrExecutorCommunicationFailed, err, writerErr)
 	case exitCode != 0:
 		err = ErrFileNotFound
 	case !ls2json.HasStartedWriting():

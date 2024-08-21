@@ -65,8 +65,6 @@ func mockRunnerQueries(ctx context.Context, apiMock *nomad.ExecutorAPIMock, retu
 	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
 	apiMock.On("LoadRunnerIDs", tests.DefaultRunnerID).Return(returnedRunnerIDs, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	apiMock.On("JobScale", tests.DefaultRunnerID).Return(uint(len(returnedRunnerIDs)), nil)
-	apiMock.On("SetJobScale", tests.DefaultRunnerID, mock.AnythingOfType("uint"), "Runner Requested").Return(nil)
 	apiMock.On("RegisterRunnerJob", mock.Anything).Return(nil)
 	apiMock.On("MonitorEvaluation", mock.Anything, mock.Anything).Return(nil)
 }

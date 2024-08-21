@@ -592,8 +592,8 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 }
 
 func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert() {
-	timeout := uint(1)
-	config.Config.Server.Alert.PrewarmingPoolReloadTimeout = timeout
+	timeout := 1
+	config.Config.Server.Alert.PrewarmingPoolReloadTimeout = uint(timeout)
 	config.Config.Server.Alert.PrewarmingPoolThreshold = 0.5
 	environment := &ExecutionEnvironmentMock{}
 	environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))

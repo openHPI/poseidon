@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"sync"
 	"time"
@@ -151,6 +152,10 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, envir
 
 	prewarmingPoolThreshold := config.Config.Server.Alert.PrewarmingPoolThreshold
 	reloadTimeout := config.Config.Server.Alert.PrewarmingPoolReloadTimeout
+	if reloadTimeout > uint(math.MaxInt64)/uint(time.Second) {
+		log.WithField("timeout", reloadTimeout).Error("configured reload timeout too big")
+	}
+	reloadTimeoutDuration := time.Duration(reloadTimeout) * time.Second //nolint:gosec // We check for an integer overflow right above.
 
 	if reloadTimeout == 0 || float64(environment.IdleRunnerCount())/float64(environment.PrewarmingPoolSize()) >= prewarmingPoolThreshold {
 		return
@@ -163,7 +168,7 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, envir
 	select {
 	case <-ctx.Done():
 		return
-	case <-time.After(time.Duration(reloadTimeout) * time.Second):
+	case <-time.After(reloadTimeoutDuration):
 	}
 
 	if float64(environment.IdleRunnerCount())/float64(environment.PrewarmingPoolSize()) >= prewarmingPoolThreshold {

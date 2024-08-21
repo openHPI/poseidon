@@ -222,7 +222,7 @@ func (s *E2ETestSuite) TestMemoryMaxLimit_Nomad() {
 
 	stdout, stderr, _ := ExecuteNonInteractive(&s.Suite, tests.DefaultEnvironmentIDAsInteger, &dto.ExecutionRequest{
 		// This shell line tries to load maxMemoryLimit Bytes into the memory.
-		Command: "</dev/zero head -c " + strconv.Itoa(int(maxMemoryLimit)) + "MB | tail > /dev/null",
+		Command: "</dev/zero head -c " + strconv.FormatUint(uint64(maxMemoryLimit), 10) + "MB | tail > /dev/null",
 	}, nil)
 	s.Empty(stdout)
 	s.Contains(stderr, "Killed")
@@ -333,6 +333,10 @@ func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {
 			runningAllocStub = stub
 			break
 		}
+	}
+	if runningAllocStub == nil {
+		s.FailNow("No valid allocation found")
+		return ""
 	}
 	alloc, _, err := nomadClient.Allocations().Info(runningAllocStub.ID, nil)
 	s.Require().NoError(err)

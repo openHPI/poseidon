@@ -86,14 +86,14 @@ func (a *AWSEnvironment) CPULimit() uint {
 }
 
 // SetCPULimit is disabled as one can only set the memory limit with AWS Lambda.
-func (a *AWSEnvironment) SetCPULimit(_ uint) {}
+func (a *AWSEnvironment) SetCPULimit(_ uint) error { return nil }
 
 func (a *AWSEnvironment) MemoryLimit() uint {
 	const memorySizeOfDeployedLambdaFunction = 2048 // configured /deploy/aws/template.yaml
 	return memorySizeOfDeployedLambdaFunction
 }
 
-func (a *AWSEnvironment) SetMemoryLimit(_ uint) {
+func (a *AWSEnvironment) SetMemoryLimit(_ uint) error {
 	panic("not supported")
 }
 

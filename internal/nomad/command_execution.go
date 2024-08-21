@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"time"
 
@@ -167,7 +168,11 @@ func injectStartDebugMessage(command string, start uint, end int) string {
 	commandFields := strings.Fields(command)
 	if start < uint(len(commandFields)) {
 		commandFields = commandFields[start:]
-		end -= int(start)
+
+		if start > uint(math.MaxInt32)-uint(end) {
+			log.WithField("start", start).Error("passed start too big")
+		}
+		end -= int(start) //nolint:gosec // We check for an integer overflow right above.
 	}
 	if end >= 0 && end < len(commandFields) {
 		commandFields = commandFields[:end]

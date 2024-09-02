@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"io"
 	"strconv"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/nomad"
 	"github.com/openHPI/poseidon/pkg/dto"
+	"github.com/openHPI/poseidon/pkg/nullio"
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/pkg/util"
 	"github.com/openHPI/poseidon/tests"
@@ -550,6 +552,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 	runnerManager := NewNomadRunnerManager(s.TestCtx, apiMock)
 	environmentMock := createBasicEnvironmentMock(tests.DefaultEnvironmentIDAsInteger)
 	environmentMock.On("ApplyPrewarmingPoolSize").Return(nil)
+	environmentMock.On("DeleteRunner", mock.Anything).Return(nil, true).Maybe()
 	runnerManager.StoreEnvironment(environmentMock)
 
 	s.Run("Stores unused runner", func() {
@@ -607,6 +610,85 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 
 		<-time.After(time.Duration(timeout*2) * time.Second)
 		s.Require().Zero(runnerManager.usedRunners.Length())
+	})
+
+	s.Run("Don't stop running executions", func() {
+		apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil).Once()
+		_, job := helpers.CreateTemplateJob()
+		jobID := tests.DefaultRunnerID
+		job.ID = &jobID
+		job.Name = &jobID
+		configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
+		s.Require().NotNil(configTaskGroup)
+		configTaskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUsedValue
+		configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey] = strconv.Itoa(1)
+		call.Return([]*nomadApi.Job{job}, nil)
+
+		executionCtx, cancelExecution := context.WithCancel(s.TestCtx)
+		apiMock.On("ExecuteCommand", mock.Anything, tests.DefaultRunnerID,
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Run(func(_ mock.Arguments) {
+				<-executionCtx.Done()
+			}).Return(0, nil)
+		r := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error {
+			return nil
+		})
+		runnerManager.usedRunners.Add(r.ID(), r)
+		r.StoreExecution(tests.DefaultExecutionID, &dto.ExecutionRequest{})
+		exitInfo, _, err := r.ExecuteInteractively(s.TestCtx, tests.DefaultExecutionID,
+			&nullio.ReadWriter{Reader: nullio.Reader{Ctx: s.TestCtx}}, io.Discard, io.Discard)
+		s.Require().NoError(err)
+
+		runnerManager.Load(s.TestCtx)
+		select {
+		case <-exitInfo:
+			s.FailNow("Execution stopped on recovery")
+		case <-time.After(tests.ShortTimeout):
+		}
+
+		cancelExecution()
+		err = r.Destroy(ErrLocalDestruction)
+		s.Require().NoError(err)
+	})
+
+	s.Run("Update the Port Mapping", func() {
+		updatedPortMapping := nomadApi.PortMapping{
+			Label:  "ssh",
+			Value:  10022,
+			To:     22,
+			HostIP: "127.0.0.1",
+		}
+		updatedMappedPort := &dto.MappedPort{
+			ExposedPort: 22,
+			HostAddress: "127.0.0.1:10022",
+		}
+
+		tests.RemoveMethodFromMock(&apiMock.Mock, "LoadRunnerPortMappings")
+		apiMock.On("LoadRunnerPortMappings", mock.Anything).
+			Return([]nomadApi.PortMapping{updatedPortMapping}, nil).Once()
+
+		apiMock.On("MarkRunnerAsUsed", mock.Anything, mock.Anything).Return(nil).Once()
+		_, job := helpers.CreateTemplateJob()
+		jobID := tests.DefaultRunnerID
+		job.ID = &jobID
+		job.Name = &jobID
+		configTaskGroup := nomad.FindTaskGroup(job, nomad.ConfigTaskGroupName)
+		s.Require().NotNil(configTaskGroup)
+		configTaskGroup.Meta[nomad.ConfigMetaUsedKey] = nomad.ConfigMetaUsedValue
+		configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey] = strconv.Itoa(1)
+		call.Return([]*nomadApi.Job{job}, nil)
+		r := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error {
+			return nil
+		})
+		runnerManager.usedRunners.Add(r.ID(), r)
+
+		s.Empty(r.MappedPorts())
+		runnerManager.Load(s.TestCtx)
+		s.Require().Len(r.MappedPorts(), 1)
+		s.Equal(updatedMappedPort, r.MappedPorts()[0])
+
+		err := r.Destroy(ErrLocalDestruction)
+		s.Require().NoError(err)
 	})
 }
 

@@ -240,28 +240,48 @@ func (m *NomadRunnerManager) loadSingleJob(ctx context.Context, job *nomadApi.Jo
 	return newJob, isUsed, nil
 }
 
-// updateUsedRunners handles the cleanup process of updating the used runner storage.
-// This includes the clean deletion of the local references to the (replaced/deleted) runners.
-// Only if removeDeleted is set, the runners that are only in newUsedRunners (and not in the main m.usedRunners) will be removed.
+// updateUsedRunners handles the updating of the used runner storage.
+// This includes the update of the local reference with new/changed values and the deletion of the additional runner reference.
+// Only if removeDeleted is set, the runners that are only in m.usedRunners (and not in the newUsedRunners) will be removed.
 func (m *NomadRunnerManager) updateUsedRunners(newUsedRunners storage.Storage[Runner], removeDeleted bool) {
 	for _, r := range m.usedRunners.List() {
-		var reason DestroyReason
-		if _, ok := newUsedRunners.Get(r.ID()); ok {
-			reason = ErrDestroyedAndReplaced
+		if newRunner, ok := newUsedRunners.Get(r.ID()); ok {
+			updatePortMapping(r, newRunner)
 		} else if removeDeleted {
-			reason = ErrLocalDestruction
-			log.WithError(reason).WithField(dto.KeyRunnerID, r.ID()).Warn("Local runner cannot be recovered")
-		}
-		if reason != nil {
+			// Remove old reference
+			log.WithField(dto.KeyRunnerID, r.ID()).Warn("Local runner cannot be recovered")
 			m.usedRunners.Delete(r.ID())
-			if err := r.Destroy(reason); err != nil {
+			if err := r.Destroy(ErrLocalDestruction); err != nil {
 				log.WithError(err).WithField(dto.KeyRunnerID, r.ID()).Warn("failed to destroy runner locally")
 			}
 		}
 	}
 
 	for _, r := range newUsedRunners.List() {
-		m.usedRunners.Add(r.ID(), r)
+		// Add runners not already in m.usedRunners
+		if _, ok := m.usedRunners.Get(r.ID()); !ok {
+			m.usedRunners.Add(r.ID(), r)
+		}
+	}
+}
+
+// updatePortMapping sets the port mapping of target to the port mapping of updated.
+// It then removes the updated reference to the runner.
+func updatePortMapping(target Runner, updated Runner) {
+	defer func() {
+		// Remove updated reference. We keep using the old reference to not cancel running executions.
+		if err := updated.Destroy(ErrLocalDestruction); err != nil {
+			log.WithError(err).WithField(dto.KeyRunnerID, target.ID()).Warn("failed to destroy runner locally")
+		}
+	}()
+
+	nomadRunner, ok := target.(*NomadJob)
+	if !ok {
+		log.WithField(dto.KeyRunnerID, target.ID()).Error("Unexpected handling of non-Nomad runner")
+		return
+	}
+	if err := nomadRunner.UpdateMappedPorts(updated.MappedPorts()); err != nil {
+		log.WithError(err).WithField(dto.KeyRunnerID, target.ID()).Error("Failed updating the port mapping")
 	}
 }
 

@@ -46,6 +46,20 @@ func (s *MainTestSuite) TestMappedPortsAreStoredCorrectly() {
 	s.Require().NoError(runner.Destroy(nil))
 }
 
+func (s *MainTestSuite) TestUpdateMappedPortsSetsPortsCorrectly() {
+	apiMock := &nomad.ExecutorAPIMock{}
+	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+
+	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
+	s.Empty(runner.MappedPorts())
+
+	err := runner.UpdateMappedPorts(tests.DefaultMappedPorts)
+	s.Require().NoError(err)
+	s.Equal(tests.DefaultMappedPorts, runner.MappedPorts())
+
+	s.Require().NoError(runner.Destroy(nil))
+}
+
 func (s *MainTestSuite) TestMarshalRunner() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)

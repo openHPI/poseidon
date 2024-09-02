@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,6 +42,7 @@ const (
 
 var (
 	ErrUnknownExecution                    = errors.New("unknown execution")
+	ErrInvalidPortMapping                  = errors.New("invalid port mapping")
 	ErrFileCopyFailed                      = errors.New("file copy failed")
 	ErrFileNotFound                        = errors.New("file not found or insufficient permissions")
 	ErrLocalDestruction      DestroyReason = nomad.ErrLocalDestruction
@@ -114,6 +116,33 @@ func (r *NomadJob) MappedPorts() []*dto.MappedPort {
 		})
 	}
 	return ports
+}
+
+// UpdateMappedPorts changes the local information about the runner's port mapping.
+func (r *NomadJob) UpdateMappedPorts(ports []*dto.MappedPort) error {
+	mapping := make([]nomadApi.PortMapping, 0, len(ports))
+	for _, portMapping := range ports {
+		hostAddress := strings.Split(portMapping.HostAddress, ":")
+		const PartsInHostAddress = 2
+		if len(hostAddress) != PartsInHostAddress {
+			return ErrInvalidPortMapping
+		}
+		port, err := strconv.Atoi(hostAddress[1])
+		if err != nil {
+			return fmt.Errorf("failed parsing the port: %w", err)
+		}
+		if portMapping.ExposedPort > math.MaxInt32 {
+			return util.ErrMaxNumberExceeded
+		}
+
+		mapping = append(mapping, nomadApi.PortMapping{
+			Value:  port,
+			To:     int(portMapping.ExposedPort), //nolint:gosec // We check for an integer overflow right above.
+			HostIP: hostAddress[0],
+		})
+	}
+	r.portMappings = mapping
+	return nil
 }
 
 func (r *NomadJob) StoreExecution(id string, request *dto.ExecutionRequest) {

@@ -489,6 +489,25 @@ func (s *ManagerTestSuite) TestOnAllocationStopped() {
 			s.True(alreadyRemoved)
 		})
 	})
+	s.Run("logs unexpectedly stopped environments", func() {
+		logger, hook := test.NewNullLogger()
+		log = logger.WithField("package", "runner")
+
+		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(s.TestCtx, tests.DefaultTemplateJobID, nil)
+		s.False(alreadyRemoved)
+
+		s.Len(hook.Entries, 1)
+		s.Equal(logrus.WarnLevel, hook.LastEntry().Level)
+	})
+	s.Run("does not log expectedly stopped environments", func() {
+		logger, hook := test.NewNullLogger()
+		log = logger.WithField("package", "runner")
+
+		s.nomadRunnerManager.DeleteEnvironment(tests.DefaultEnvironmentIDAsInteger)
+		alreadyRemoved := s.nomadRunnerManager.onAllocationStopped(s.TestCtx, tests.DefaultTemplateJobID, nil)
+		s.True(alreadyRemoved)
+		s.Empty(hook.Entries)
+	})
 }
 
 func testStoppedInactivityTimer(s *ManagerTestSuite) (r Runner, destroyed chan struct{}) {

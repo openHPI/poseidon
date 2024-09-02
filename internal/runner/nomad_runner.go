@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -299,8 +300,11 @@ func (r *NomadJob) executeCommand(ctx context.Context, command string, privilege
 	stdin io.ReadWriter, stdout, stderr io.Writer, exit chan<- ExitInfo,
 ) {
 	exitCode, err := r.api.ExecuteCommand(ctx, r.id, command, true, privilegedExecution, stdin, stdout, stderr)
+	if exitCode > math.MaxUint8 {
+		log.WithContext(ctx).WithError(err).WithField("exit_code", exitCode).Error("exitCode too big")
+	}
 	select {
-	case exit <- ExitInfo{uint8(exitCode), err}:
+	case exit <- ExitInfo{uint8(exitCode), err}: //nolint:gosec // We check for an integer overflow right above.
 	case <-ctx.Done():
 	}
 }

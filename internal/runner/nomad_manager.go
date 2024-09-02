@@ -310,7 +310,17 @@ func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID s
 	log.WithField(dto.KeyRunnerID, runnerID).Debug("Runner stopped")
 
 	if nomad.IsEnvironmentTemplateID(runnerID) {
-		return false
+		environmentID, err := nomad.EnvironmentIDFromTemplateJobID(runnerID)
+		if err != nil {
+			log.WithError(err).WithField(dto.KeyEnvironmentID, runnerID).WithField("reason", reason).
+				Error("Cannot parse environment id")
+			return false
+		}
+		_, ok := m.environments.Get(environmentID.ToString())
+		if ok {
+			log.WithField(dto.KeyEnvironmentID, environmentID).Warn("Environment stopped unexpectedly")
+		}
+		return !ok
 	}
 
 	environmentID, err := nomad.EnvironmentIDFromRunnerID(runnerID)

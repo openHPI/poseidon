@@ -30,12 +30,12 @@ bootstrap: deps lint-deps gci-deps git-hooks ## Install all dependencies
 
 .PHONY: deps
 deps: ## Get the dependencies
-	@go get -v -d ./...
+	@go get -v ./...
 	@go install github.com/vektra/mockery/v2@latest
 
 .PHONY: upgrade-deps
 upgrade-deps: ## Upgrade the dependencies
-	@go get -u -v -d ./...
+	@go get -u -v ./...
 
 .PHONY: tidy-deps
 tidy-deps: ## Remove unused dependencies

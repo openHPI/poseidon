@@ -79,7 +79,7 @@ func (s *InactivityTimerTestSuite) TestTimeoutPassedReturnsTrueAfterDeadline() {
 func (s *InactivityTimerTestSuite) TestTimerIsNotResetAfterDeadline() {
 	time.Sleep(2 * tests.ShortTimeout)
 	// We need to empty the returned channel so Return can send to it again.
-	tests.ChannelReceivesSomething(s.returned, 0)
+	tests.ChannelReceivesSomething(s.returned, tests.ShortTimeout)
 	s.runner.ResetTimeout()
 	s.False(tests.ChannelReceivesSomething(s.returned, 2*tests.ShortTimeout))
 }

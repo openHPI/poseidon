@@ -16,7 +16,7 @@ import (
 )
 
 // ChannelReceivesSomething waits timeout seconds for something to be received from channel ch.
-// If something is received, it returns true. If the timeout expires without receiving anything, it return false.
+// If something is received, it returns true. If the timeout expires without receiving anything, it returns false.
 func ChannelReceivesSomething(ch chan bool, timeout time.Duration) bool {
 	select {
 	case <-ch:

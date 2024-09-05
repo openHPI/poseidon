@@ -33,7 +33,8 @@ var (
 		"%w correctly but rescheduled", ErrAllocationStopped)
 	// ErrAllocationCompleted is for reporting the reason for the stopped allocation.
 	// We do not consider it as an error but add it anyway for a complete reporting.
-	ErrAllocationCompleted RunnerDeletedReason = errors.New("the allocation completed")
+	// It is a ErrLocalDestruction because another allocation might be replacing the allocation in the same job.
+	ErrAllocationCompleted RunnerDeletedReason = fmt.Errorf("the allocation completed: %w", ErrLocalDestruction)
 )
 
 type RunnerDeletedReason error

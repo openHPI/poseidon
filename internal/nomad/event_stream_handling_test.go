@@ -495,6 +495,32 @@ func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorOnUnexpectedEO
 	s.Equal(1, eventsProcessed)
 }
 
+func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsLocalDestroyReasonOnStoppingAllocation() {
+	pendingAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
+	startedAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun)
+	stoppingAllocation := createRecentAllocation(structs.AllocClientStatusRunning, structs.AllocDesiredStatusStop)
+	events := nomadApi.Events{Events: []nomadApi.Event{
+		eventForAllocation(s.T(), pendingAllocation),
+		eventForAllocation(s.T(), startedAllocation),
+		eventForAllocation(s.T(), stoppingAllocation),
+	}}
+
+	callbackCalled := false
+	callbacks := &AllocationProcessing{
+		OnNew: func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
+		OnDeleted: func(_ context.Context, jobID string, reason error) bool {
+			callbackCalled = true
+			s.Equal(tests.DefaultRunnerID, jobID)
+			s.ErrorIs(reason, ErrLocalDestruction)
+			return false
+		},
+	}
+
+	_, err := runAllocationWatching(s, []*nomadApi.Events{&events}, callbacks)
+	s.Require().NoError(err)
+	s.True(callbackCalled)
+}
+
 func (s *MainTestSuite) TestAPIClient_WatchAllocationsCanHandleMigration() {
 	jobID := "10-0331c7d8-03c1-11ef-b832-fa163e7afdf8"
 	a1ID := "84a734a1-5573-6116-5678-86060ce4c479"

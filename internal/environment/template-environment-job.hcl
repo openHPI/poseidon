@@ -51,7 +51,7 @@ job "template-0" {
 
       resources {
         cpu    = 40
-        memory = 30
+        memory = 50
       }
     }
   }

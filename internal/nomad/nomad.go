@@ -35,6 +35,7 @@ var (
 	// We do not consider it as an error but add it anyway for a complete reporting.
 	// It is a ErrLocalDestruction because another allocation might be replacing the allocation in the same job.
 	ErrAllocationCompleted RunnerDeletedReason = fmt.Errorf("the allocation completed: %w", ErrLocalDestruction)
+	ErrJobDeregistered     RunnerDeletedReason = fmt.Errorf("the job got deregistered: %w", ErrLocalDestruction)
 )
 
 type RunnerDeletedReason error
@@ -88,6 +89,8 @@ type ExecutorAPI interface {
 type APIClient struct {
 	apiQuerier
 	evaluations storage.Storage[chan error]
+	// jobAllocationMapping maps a Job ID to the most recent Allocation ID.
+	jobAllocationMapping storage.Storage[string]
 	// allocations contain management data for all pending and running allocations.
 	allocations storage.Storage[*allocationData]
 	isListening bool
@@ -99,6 +102,10 @@ func NewExecutorAPI(ctx context.Context, nomadConfig *config.Nomad) (ExecutorAPI
 	client := &APIClient{
 		apiQuerier:  &nomadAPIClient{},
 		evaluations: storage.NewLocalStorage[chan error](),
+		jobAllocationMapping: storage.NewMonitoredLocalStorage[string](ctx, monitoring.MeasurementNomadJobs,
+			func(p *write.Point, allocationID string, _ storage.EventType) {
+				p.AddTag(monitoring.InfluxKeyAllocationID, allocationID)
+			}, 0),
 		allocations: storage.NewMonitoredLocalStorage[*allocationData](ctx, monitoring.MeasurementNomadAllocations,
 			func(p *write.Point, object *allocationData, _ storage.EventType) {
 				p.AddTag(monitoring.InfluxKeyJobID, object.jobID)

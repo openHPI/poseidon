@@ -25,6 +25,7 @@ const (
 	measurementPrefix           = "poseidon_"
 	measurementPoolSize         = measurementPrefix + "poolsize"
 	MeasurementNomadEvents      = measurementPrefix + "nomad_events"
+	MeasurementNomadJobs        = measurementPrefix + "nomad_jobs"
 	MeasurementNomadAllocations = measurementPrefix + "nomad_allocations"
 	MeasurementIdleRunnerNomad  = measurementPrefix + "nomad_idle_runners"
 	MeasurementExecutionsAWS    = measurementPrefix + "aws_executions"
@@ -38,6 +39,7 @@ const (
 	InfluxKeyRunnerID                      = dto.KeyRunnerID
 	InfluxKeyEnvironmentID                 = dto.KeyEnvironmentID
 	InfluxKeyJobID                         = "job_id"
+	InfluxKeyAllocationID                  = "allocation_id"
 	InfluxKeyClientStatus                  = "client_status"
 	InfluxKeyNomadNode                     = "nomad_agent"
 	InfluxKeyActualContentLength           = "actual_length"

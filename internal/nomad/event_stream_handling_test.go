@@ -47,7 +47,10 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsErrorWhenStreamRet
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.AnythingOfType("*context.cancelCtx")).
 		Return(nil, tests.ErrDefault)
-	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
+	apiClient := &APIClient{
+		apiMock, storage.NewLocalStorage[chan error](),
+		storage.NewLocalStorage[string](), storage.NewLocalStorage[*allocationData](), false,
+	}
 	err := apiClient.MonitorEvaluation(context.Background(), "id")
 	s.ErrorIs(err, tests.ErrDefault)
 }
@@ -316,6 +319,29 @@ func (s *MainTestSuite) TestApiClient_WatchAllocationsUsesCallbacksForEvents() {
 			[]*nomadApi.Allocation{startedAllocation, startedAllocation}, []string{startedAllocation.JobID})
 	})
 
+	deregisteredEvent := nomadApi.Event{Topic: nomadApi.TopicJob, Type: structs.TypeJobDeregistered, Key: tests.DefaultRunnerID}
+	deregisteredEvents := nomadApi.Events{Events: []nomadApi.Event{deregisteredEvent}}
+	pendingStartDeregisteredEvents := nomadApi.Events{Events: []nomadApi.Event{
+		eventForAllocation(s.T(), pendingAllocation),
+		eventForAllocation(s.T(), startedAllocation),
+		deregisteredEvent,
+	}}
+
+	s.Run("JobDeregistered behaves like Allocation stopping", func() {
+		assertWatchAllocation(s, []*nomadApi.Events{&pendingStartDeregisteredEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string{startedAllocation.JobID})
+	})
+
+	s.Run("onDelete Handler is not called twice on duplicate JobDeregistered", func() {
+		assertWatchAllocation(s, []*nomadApi.Events{&pendingStartDeregisteredEvents, &deregisteredEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string{startedAllocation.JobID})
+	})
+
+	s.Run("onDelete Handler is not called twice on JobDeregistered and Allocation stopping", func() {
+		assertWatchAllocation(s, []*nomadApi.Events{&pendingStartDeregisteredEvents, &stoppingEvents},
+			[]*nomadApi.Allocation{startedAllocation}, []string{startedAllocation.JobID})
+	})
+
 	rescheduleAllocation := createRecentAllocation(structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
 	rescheduleAllocation.ID = tests.AnotherUUID
 	rescheduleAllocation.PreviousAllocation = pendingAllocation.ID
@@ -374,7 +400,7 @@ func (s *MainTestSuite) TestHandleAllocationEventBuffersPendingAllocation() {
 
 		allocations := storage.NewLocalStorage[*allocationData]()
 		err := handleAllocationEvent(s.TestCtx,
-			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
+			time.Now().UnixNano(), storage.NewLocalStorage[string](), allocations, &newPendingEvent, noopAllocationProcessing)
 		s.Require().NoError(err)
 
 		_, ok := allocations.Get(newPendingAllocation.ID)
@@ -387,7 +413,7 @@ func (s *MainTestSuite) TestHandleAllocationEventBuffersPendingAllocation() {
 
 		allocations := storage.NewLocalStorage[*allocationData]()
 		err := handleAllocationEvent(s.TestCtx,
-			time.Now().UnixNano(), allocations, &newPendingEvent, noopAllocationProcessing)
+			time.Now().UnixNano(), storage.NewLocalStorage[string](), allocations, &newPendingEvent, noopAllocationProcessing)
 		s.Require().NoError(err)
 
 		_, ok := allocations.Get(newPendingAllocation.ID)
@@ -451,13 +477,14 @@ func (s *MainTestSuite) TestHandleAllocationEvent_ReportsOOMKilledStatus() {
 	allocations.Add(restartedAllocation.ID, &allocationData{jobID: restartedAllocation.JobID})
 
 	var reason error
-	err := handleAllocationEvent(s.TestCtx, time.Now().UnixNano(), allocations, &restartedEvent, &AllocationProcessing{
-		OnNew: func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
-		OnDeleted: func(_ context.Context, _ string, r error) bool {
-			reason = r
-			return true
-		},
-	})
+	err := handleAllocationEvent(s.TestCtx, time.Now().UnixNano(), storage.NewLocalStorage[string](),
+		allocations, &restartedEvent, &AllocationProcessing{
+			OnNew: func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
+			OnDeleted: func(_ context.Context, _ string, r error) bool {
+				reason = r
+				return true
+			},
+		})
 	s.Require().NoError(err)
 	s.ErrorIs(reason, ErrOOMKilled)
 }
@@ -465,7 +492,10 @@ func (s *MainTestSuite) TestHandleAllocationEvent_ReportsOOMKilledStatus() {
 func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsErrorWhenAllocationStreamCannotBeRetrieved() {
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.Anything).Return(nil, tests.ErrDefault)
-	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
+	apiClient := &APIClient{
+		apiMock, storage.NewLocalStorage[chan error](),
+		storage.NewLocalStorage[string](), storage.NewLocalStorage[*allocationData](), false,
+	}
 
 	err := apiClient.WatchEventStream(context.Background(), noopAllocationProcessing)
 	s.ErrorIs(err, tests.ErrDefault)
@@ -618,7 +648,10 @@ func asynchronouslyWatchAllocations(stream chan *nomadApi.Events, callbacks *All
 
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", ctx).Return(readOnlyStream, nil)
-	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
+	apiClient := &APIClient{
+		apiMock, storage.NewLocalStorage[chan error](),
+		storage.NewLocalStorage[string](), storage.NewLocalStorage[*allocationData](), false,
+	}
 
 	errChan := make(chan error)
 	go func() {
@@ -733,7 +766,10 @@ func asynchronouslyMonitorEvaluation(stream <-chan *nomadApi.Events) chan error 
 	apiMock := &apiQuerierMock{}
 	apiMock.On("EventStream", mock.AnythingOfType("*context.cancelCtx")).
 		Return(readOnlyStream, nil)
-	apiClient := &APIClient{apiMock, storage.NewLocalStorage[chan error](), storage.NewLocalStorage[*allocationData](), false}
+	apiClient := &APIClient{
+		apiMock, storage.NewLocalStorage[chan error](),
+		storage.NewLocalStorage[string](), storage.NewLocalStorage[*allocationData](), false,
+	}
 
 	errChan := make(chan error)
 	go func() {

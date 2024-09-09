@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/gorilla/websocket"
@@ -100,7 +101,7 @@ func handleInput(ctx context.Context, reader io.Reader, buffer chan byte) (done 
 		return true
 	}
 
-	log.WithContext(ctx).WithField("message", string(message)).Trace("Received message from client")
+	log.WithContext(ctx).WithField("message", fmt.Sprintf("%q", message)).Trace("Received message from client")
 	for _, character := range message {
 		select {
 		case <-ctx.Done():

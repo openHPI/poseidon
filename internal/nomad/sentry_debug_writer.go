@@ -56,6 +56,7 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 	if _, err = s.Target.Write([]byte{}); err != nil {
 		return 0, fmt.Errorf("SentryDebugWriter cannot write to target: %w", err)
 	}
+	log.WithContext(s.lastSpan.Context()).WithField("data", fmt.Sprintf("%q", debugData)).Trace("Received data from Nomad container")
 
 	if !timeDebugMessagePatternStart.Match(debugData) {
 		count, err := s.Target.Write(debugData)

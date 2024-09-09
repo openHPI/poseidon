@@ -6,11 +6,11 @@ import (
 
 func (s *MainTestSuite) TestSentryDebugWriter_Write() {
 	buf := &bytes.Buffer{}
-	w := SentryDebugWriter{Target: buf, Ctx: s.TestCtx}
+	debugWriter := NewSentryDebugWriter(s.TestCtx, buf)
 
 	description := "TestDebugMessageDescription"
 	data := "\x1EPoseidon " + description + " 1676646791482\x1E"
-	count, err := w.Write([]byte(data))
+	count, err := debugWriter.Write([]byte(data))
 
 	s.Require().NoError(err)
 	s.Equal(len(data), count)
@@ -19,10 +19,10 @@ func (s *MainTestSuite) TestSentryDebugWriter_Write() {
 
 func (s *MainTestSuite) TestSentryDebugWriter_WriteComposed() {
 	buf := &bytes.Buffer{}
-	w := SentryDebugWriter{Target: buf, Ctx: s.TestCtx}
+	debugWriter := NewSentryDebugWriter(s.TestCtx, buf)
 
 	data := "Hello World!\r\n\x1EPoseidon unset 1678540012404\x1E\x1EPoseidon /sbin/setuser user 1678540012408\x1E"
-	count, err := w.Write([]byte(data))
+	count, err := debugWriter.Write([]byte(data))
 
 	s.Require().NoError(err)
 	s.Equal(len(data), count)

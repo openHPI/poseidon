@@ -245,6 +245,9 @@ func (r *NomadJob) UpdateFileSystem(requestCtx context.Context, copyRequest *dto
 			nomad.ErrExecutorCommunicationFailed,
 			err)
 	}
+	if stdErr.Len() > 0 {
+		log.WithContext(ctx).WithField("stdErr", fmt.Sprintf("%q", stdErr.Bytes())).Trace("Received stdErr from Nomad update fs")
+	}
 	if exitCode != 0 {
 		return fmt.Errorf(
 			"%w: stderr output '%s' and stdout output '%s'",

@@ -21,7 +21,7 @@ var (
 	timeDebugMessageFormatEnd = `%s; ec=$?; ` + timeDebugMessageFormat + ` && exit $ec`
 
 	timeDebugMessagePattern = regexp.MustCompile(
-		`(?P<before>[\S\s]*?)\x1EPoseidon (?P<text>[^\x1E]+) (?P<time>\d{13})\x1E(?P<after>.*)`)
+		`(?P<before>[\S\s]*?)\x1EPoseidon (?P<text>[^\x1E]+?) (?P<time>\d{13})\x1E(?P<after>[\S\s]*)`)
 	timeDebugMessagePatternStart = regexp.MustCompile(`\x1EPoseidon`)
 )
 

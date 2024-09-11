@@ -64,7 +64,7 @@ func mockRunnerQueries(ctx context.Context, apiMock *nomad.ExecutorAPIMock, retu
 	})
 	apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
 	apiMock.On("LoadRunnerJobs", mock.AnythingOfType("dto.EnvironmentID")).Return([]*nomadApi.Job{}, nil)
-	apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
+	apiMock.On("SetRunnerMetaUsed", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("int")).Return(nil)
 	apiMock.On("LoadRunnerIDs", tests.DefaultRunnerID).Return(returnedRunnerIDs, nil)
 	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	apiMock.On("RegisterRunnerJob", mock.Anything).Return(nil)
@@ -171,7 +171,7 @@ func (s *ManagerTestSuite) TestClaimRemovesRunnerWhenMarkAsUsedFails() {
 	s.exerciseEnvironment.On("DeleteRunner", mock.AnythingOfType("string")).Return(nil, false)
 	s.apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 	util.MaxConnectionRetriesExponential = 1
-	modifyMockedCall(s.apiMock, "MarkRunnerAsUsed", func(call *mock.Call) {
+	modifyMockedCall(s.apiMock, "SetRunnerMetaUsed", func(call *mock.Call) {
 		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{tests.ErrDefault}
 		})
@@ -441,6 +441,25 @@ func (s *ManagerTestSuite) TestOnAllocationAdded() {
 			s.Require().NoError(err)
 		})
 	})
+	s.nomadRunnerManager.usedRunners.Purge()
+	s.Run("resets meta used when added allocation has a previous allocation", func() {
+		environment, ok := s.nomadRunnerManager.environments.Get(tests.DefaultEnvironmentIDAsString)
+		s.True(ok)
+		environmentMock, ok := environment.(*ExecutionEnvironmentMock)
+		s.Require().True(ok)
+		mockIdleRunners(environmentMock)
+
+		alloc := &nomadApi.Allocation{JobID: tests.DefaultRunnerID, PreviousAllocation: tests.DefaultUUID}
+		s.nomadRunnerManager.onAllocationAdded(s.TestCtx, alloc, 0)
+
+		<-time.After(tests.ShortTimeout)
+		s.apiMock.AssertCalled(s.T(), "SetRunnerMetaUsed", tests.DefaultRunnerID, false, 0)
+
+		runner, ok := environment.Sample()
+		s.True(ok)
+		err := runner.Destroy(nil)
+		s.Require().NoError(err)
+	})
 }
 
 func (s *ManagerTestSuite) TestOnAllocationStopped() {
@@ -571,7 +590,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 	})
 
 	s.Run("Stores used runner", func() {
-		apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil)
+		apiMock.On("SetRunnerMetaUsed", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("int")).Return(nil)
 		_, job := helpers.CreateTemplateJob()
 		jobID := tests.DefaultRunnerID
 		job.ID = &jobID
@@ -613,7 +632,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 	})
 
 	s.Run("Don't stop running executions", func() {
-		apiMock.On("MarkRunnerAsUsed", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(nil).Once()
+		apiMock.On("SetRunnerMetaUsed", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("int")).Return(nil).Once()
 		_, job := helpers.CreateTemplateJob()
 		jobID := tests.DefaultRunnerID
 		job.ID = &jobID
@@ -667,7 +686,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		apiMock.On("LoadRunnerPortMappings", mock.Anything).
 			Return([]nomadApi.PortMapping{updatedPortMapping}, nil).Once()
 
-		apiMock.On("MarkRunnerAsUsed", mock.Anything, mock.Anything).Return(nil).Once()
+		apiMock.On("SetRunnerMetaUsed", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		_, job := helpers.CreateTemplateJob()
 		jobID := tests.DefaultRunnerID
 		job.ID = &jobID

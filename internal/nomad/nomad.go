@@ -80,8 +80,9 @@ type ExecutorAPI interface {
 	ExecuteCommand(ctx context.Context, jobID string, command string, tty bool, privilegedExecution bool,
 		stdin io.Reader, stdout, stderr io.Writer) (int, error)
 
-	// MarkRunnerAsUsed marks the runner with the given ID as used. It also stores the timeout duration in the metadata.
-	MarkRunnerAsUsed(runnerID string, duration int) error
+	// SetRunnerMetaUsed marks the runner with the given ID as used or unused.
+	// If used, also the timeout duration is stored in the metadata.
+	SetRunnerMetaUsed(runnerID string, used bool, duration int) error
 }
 
 // APIClient implements the ExecutorAPI interface and can be used to perform different operations on the real
@@ -174,14 +175,18 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 	return jobs, occurredError
 }
 
-func (a *APIClient) MarkRunnerAsUsed(runnerID string, duration int) error {
+func (a *APIClient) SetRunnerMetaUsed(runnerID string, used bool, duration int) error {
 	job, err := a.job(runnerID)
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve job info: %w", err)
 	}
 	configTaskGroup := FindAndValidateConfigTaskGroup(job)
-	configTaskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUsedValue
-	configTaskGroup.Meta[ConfigMetaTimeoutKey] = strconv.Itoa(duration)
+	if used {
+		configTaskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUsedValue
+		configTaskGroup.Meta[ConfigMetaTimeoutKey] = strconv.Itoa(duration)
+	} else {
+		configTaskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
+	}
 
 	_, err = a.RegisterNomadJob(job)
 	if err != nil {

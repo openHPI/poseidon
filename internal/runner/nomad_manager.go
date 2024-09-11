@@ -55,24 +55,24 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 	}
 
 	m.usedRunners.Add(runner.ID(), runner)
-	go m.markRunnerAsUsed(runner, duration)
+	go m.setRunnerMetaUsed(runner, true, duration)
 
 	runner.SetupTimeout(time.Duration(duration) * time.Second)
 	return runner, nil
 }
 
-func (m *NomadRunnerManager) markRunnerAsUsed(runner Runner, timeoutDuration int) {
+func (m *NomadRunnerManager) setRunnerMetaUsed(runner Runner, used bool, timeoutDuration int) {
 	err := util.RetryExponential(func() (err error) {
-		if err = m.apiClient.MarkRunnerAsUsed(runner.ID(), timeoutDuration); err != nil {
+		if err = m.apiClient.SetRunnerMetaUsed(runner.ID(), used, timeoutDuration); err != nil {
 			err = fmt.Errorf("cannot mark runner as used: %w", err)
 		}
 		return
 	})
 	if err != nil {
-		log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).Error("cannot mark runner as used")
+		log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).WithField("used", used).Error("cannot mark runner")
 		err := m.Return(runner)
 		if err != nil {
-			log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).Error("can't mark runner as used and can't return runner")
+			log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).Error("can't mark runner and can't return runner")
 		}
 	}
 }
@@ -231,7 +231,7 @@ func (m *NomadRunnerManager) loadSingleJob(ctx context.Context, job *nomadApi.Jo
 		if err != nil {
 			log.WithField(dto.KeyRunnerID, newJob.ID()).WithError(err).Warn("failed loading timeout from meta values")
 			timeout = int(nomad.RunnerTimeoutFallback.Seconds())
-			go m.markRunnerAsUsed(newJob, timeout)
+			go m.setRunnerMetaUsed(newJob, true, timeout)
 		}
 		newJob.SetupTimeout(time.Duration(timeout) * time.Second)
 	} else {
@@ -311,7 +311,12 @@ func (m *NomadRunnerManager) onAllocationAdded(ctx context.Context, alloc *nomad
 		if alloc.AllocatedResources != nil {
 			mappedPorts = alloc.AllocatedResources.Shared.Ports
 		}
-		environment.AddRunner(NewNomadJob(ctx, alloc.JobID, mappedPorts, m.apiClient, m.onRunnerDestroyed))
+
+		r := NewNomadJob(ctx, alloc.JobID, mappedPorts, m.apiClient, m.onRunnerDestroyed)
+		if alloc.PreviousAllocation != "" {
+			go m.setRunnerMetaUsed(r, false, 0)
+		}
+		environment.AddRunner(r)
 		go m.checkPrewarmingPoolAlert(ctx, environment, true)
 		monitorAllocationStartupDuration(startup, alloc.JobID, environmentID)
 	}

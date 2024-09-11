@@ -75,7 +75,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 	s.Run("establishes WebSocket connection to AWS endpoint", func() {
 		// Convert http://127.0.0.1 to ws://127.0.0.1
 		config.Config.AWS.Endpoint = "ws" + strings.TrimPrefix(sv.URL, "http")
-		awsMock.ctx, cancel = context.WithCancel(context.Background())
+		awsMock.ctx, cancel = context.WithCancel(context.Background()) //nolint:fatcontext // We are resetting the context not making it bigger.
 		cancel()
 
 		runnerWorkload.StoreExecution(tests.DefaultEnvironmentIDAsString, &dto.ExecutionRequest{})
@@ -88,7 +88,7 @@ func (s *MainTestSuite) TestAWSFunctionWorkload_ExecuteInteractively() {
 
 	s.Run("sends execution request", func() {
 		s.T().Skip("The AWS runner ignores its context for executions and waits infinitely for the exit message.")
-		awsMock.ctx, cancel = context.WithTimeout(context.Background(), tests.ShortTimeout)
+		awsMock.ctx, cancel = context.WithTimeout(context.Background(), tests.ShortTimeout) //nolint:fatcontext // We are not making the context bigger.
 		defer cancel()
 		command := "sl"
 		request := &dto.ExecutionRequest{Command: command}

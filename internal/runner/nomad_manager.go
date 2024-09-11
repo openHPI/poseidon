@@ -155,7 +155,7 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, envir
 	if reloadTimeout > uint(math.MaxInt64)/uint(time.Second) {
 		log.WithField("timeout", reloadTimeout).Error("configured reload timeout too big")
 	}
-	reloadTimeoutDuration := time.Duration(reloadTimeout) * time.Second //nolint:gosec // We check for an integer overflow right above.
+	reloadTimeoutDuration := time.Duration(reloadTimeout) * time.Second
 
 	if reloadTimeout == 0 || float64(environment.IdleRunnerCount())/float64(environment.PrewarmingPoolSize()) >= prewarmingPoolThreshold {
 		return

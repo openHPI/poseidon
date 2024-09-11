@@ -169,10 +169,10 @@ func injectStartDebugMessage(command string, start uint, end int) string {
 	if start < uint(len(commandFields)) {
 		commandFields = commandFields[start:]
 
-		if start > uint(math.MaxInt32)-uint(end) {
+		if (end < 0 && start > uint(math.MaxInt32)) || (end > 0 && start > uint(math.MaxInt32)-uint(end)) {
 			log.WithField("start", start).Error("passed start too big")
 		}
-		end -= int(start) //nolint:gosec // We check for an integer overflow right above.
+		end -= int(start)
 	}
 	if end >= 0 && end < len(commandFields) {
 		commandFields = commandFields[:end]

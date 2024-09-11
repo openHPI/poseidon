@@ -71,9 +71,9 @@ func InitializeInfluxDB(influxConfiguration *config.InfluxDB) (cancel func()) {
 
 	// Set options for retrying with the influx client.
 	options := influxdb2.DefaultOptions()
-	options.SetRetryInterval(uint(retryInterval.Milliseconds()))
+	options.SetRetryInterval(uint(retryInterval.Milliseconds())) //nolint:gosec // The constant 5_000 do not overflow uint.
 	options.SetMaxRetries(maxRetries)
-	options.SetMaxRetryTime(uint(retryExpire.Milliseconds()))
+	options.SetMaxRetryTime(uint(retryExpire.Milliseconds())) //nolint:gosec // The constant 600_000 do not overflow uint.
 	options.SetRetryBufferLimit(retryBufferLimit)
 
 	// Create a new influx client.

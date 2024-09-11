@@ -50,14 +50,14 @@ func (s *MainTestSuite) TestSentryHookDoesNotModifyGlobalScope() {
 	InitializeLogging(logrus.DebugLevel.String(), dto.FormatterText)
 
 	event := client.EventFromMessage("TestEvent", sentry.LevelError)
-	event = sentry.CurrentHub().Scope().ApplyToEvent(event, nil)
+	event = sentry.CurrentHub().Scope().ApplyToEvent(event, nil, client)
 	_, ok := event.Contexts[SentryContextKey]
 	s.Require().False(ok)
 
 	log.WithField(dto.KeyRunnerID, tests.DefaultRunnerID).Warn("Test")
 
 	event = client.EventFromMessage("TestEvent", sentry.LevelError)
-	event = sentry.CurrentHub().Scope().ApplyToEvent(event, nil)
+	event = sentry.CurrentHub().Scope().ApplyToEvent(event, nil, client)
 	_, ok = event.Contexts[SentryContextKey]
 	s.Require().False(ok)
 }

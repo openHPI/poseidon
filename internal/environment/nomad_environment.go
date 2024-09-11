@@ -95,6 +95,10 @@ func (n *NomadEnvironment) PrewarmingPoolSize() uint {
 	count, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaPoolSizeKey])
 	if err != nil {
 		log.WithError(err).Error("Prewarming pool size can not be parsed from Job")
+		return 0
+	} else if count < 0 {
+		log.WithError(util.ErrOverflow).WithField("size", count).Warning("Not a valid Prewarming pool size")
+		return 0
 	}
 	return uint(count)
 }
@@ -112,18 +116,23 @@ func (n *NomadEnvironment) SetPrewarmingPoolSize(count uint) {
 func (n *NomadEnvironment) CPULimit() uint {
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
-	return uint(*defaultTask.Resources.CPU)
+	cpuLimit := *defaultTask.Resources.CPU
+	if cpuLimit < 0 {
+		log.WithError(util.ErrOverflow).WithField("limit", cpuLimit).Warning("not a valid CPU limit")
+		return 0
+	}
+	return uint(cpuLimit)
 }
 
 func (n *NomadEnvironment) SetCPULimit(limit uint) error {
 	if limit > math.MaxInt32 {
-		return fmt.Errorf("limit too high: %w", util.ErrMaxNumberExceeded)
+		return fmt.Errorf("limit too high: %w", util.ErrOverflow)
 	}
 
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
-	integerCPULimit := int(limit) //nolint:gosec // We check for an integer overflow right above.
+	integerCPULimit := int(limit)
 	defaultTask.Resources.CPU = &integerCPULimit
 	return nil
 }
@@ -131,22 +140,26 @@ func (n *NomadEnvironment) SetCPULimit(limit uint) error {
 func (n *NomadEnvironment) MemoryLimit() uint {
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
-	maxMemoryLimit := defaultTask.Resources.MemoryMaxMB
-	if maxMemoryLimit != nil {
-		return uint(*maxMemoryLimit)
+	if defaultTask.Resources.MemoryMaxMB == nil {
+		return 0
 	}
-	return 0
+	maxMemoryLimit := *defaultTask.Resources.MemoryMaxMB
+	if maxMemoryLimit < 0 {
+		log.WithError(util.ErrOverflow).WithField("limit", maxMemoryLimit).Warning("not a valid memory limit")
+		return 0
+	}
+	return uint(maxMemoryLimit)
 }
 
 func (n *NomadEnvironment) SetMemoryLimit(limit uint) error {
 	if limit > math.MaxInt32 {
-		return fmt.Errorf("limit too high: %w", util.ErrMaxNumberExceeded)
+		return fmt.Errorf("limit too high: %w", util.ErrOverflow)
 	}
 
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 
-	integerMemoryMaxLimit := int(limit) //nolint:gosec // We check for an integer overflow right above.
+	integerMemoryMaxLimit := int(limit)
 	defaultTask.Resources.MemoryMaxMB = &integerMemoryMaxLimit
 	return nil
 }

@@ -110,8 +110,11 @@ func (r *NomadJob) Environment() dto.EnvironmentID {
 func (r *NomadJob) MappedPorts() []*dto.MappedPort {
 	ports := make([]*dto.MappedPort, 0, len(r.portMappings))
 	for _, portMapping := range r.portMappings {
+		if portMapping.To < 0 {
+			log.WithError(util.ErrOverflow).WithField("mapping", portMapping.To).Warn("not a valid port")
+		}
 		ports = append(ports, &dto.MappedPort{
-			ExposedPort: uint(portMapping.To),
+			ExposedPort: uint(portMapping.To), //nolint:gosec // We check for an overflow right above.
 			HostAddress: fmt.Sprintf("%s:%d", portMapping.HostIP, portMapping.Value),
 		})
 	}
@@ -132,7 +135,7 @@ func (r *NomadJob) UpdateMappedPorts(ports []*dto.MappedPort) error {
 			return fmt.Errorf("failed parsing the port: %w", err)
 		}
 		if portMapping.ExposedPort > math.MaxInt32 {
-			return util.ErrMaxNumberExceeded
+			return util.ErrOverflow
 		}
 
 		mapping = append(mapping, nomadApi.PortMapping{

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -22,8 +23,9 @@ var (
 
 	timeDebugMessagePattern = regexp.MustCompile(
 		`(?P<before>[\S\s]*?)\x1EPoseidon (?P<text>[^\x1E]+?) (?P<time>\d{13})\x1E(?P<after>[\S\s]*)`)
-	timeDebugMessagePatternStart = regexp.MustCompile(`\x1EPoseidon`)
-	timeDebugFallbackDescription = "<empty>"
+	timeDebugMessagePatternStart    = regexp.MustCompile(`\x1EPoseidon`)
+	timeDebugMessagePatternStartEnd = regexp.MustCompile(`\x1EPoseidon.*\x1E`)
+	timeDebugFallbackDescription    = "<empty>"
 )
 
 // SentryDebugWriter is scanning the input for the debug message pattern.
@@ -32,8 +34,9 @@ var (
 type SentryDebugWriter struct {
 	Target io.Writer
 	//nolint:containedctx // See #630.
-	Ctx      context.Context
-	lastSpan *sentry.Span
+	Ctx       context.Context
+	lastSpan  *sentry.Span
+	remaining *bytes.Buffer
 }
 
 func NewSentryDebugWriter(ctx context.Context, target io.Writer) *SentryDebugWriter {
@@ -41,9 +44,10 @@ func NewSentryDebugWriter(ctx context.Context, target io.Writer) *SentryDebugWri
 	span := sentry.StartSpan(ctx, "nomad.execute.connect")
 	span.Description = "/bin/bash -c"
 	return &SentryDebugWriter{
-		Target:   target,
-		Ctx:      ctx,
-		lastSpan: span,
+		Target:    target,
+		Ctx:       ctx,
+		lastSpan:  span,
+		remaining: &bytes.Buffer{},
 	}
 }
 
@@ -59,10 +63,27 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 	}
 	log.WithContext(s.lastSpan.Context()).WithField("data", fmt.Sprintf("%q", debugData)).Trace("Received data from Nomad container")
 
+	if s.remaining.Len() > 0 {
+		n -= s.remaining.Len()
+		joinedDebugData := make([]byte, 0, s.remaining.Len()+len(debugData))
+		joinedDebugData = append(joinedDebugData, s.remaining.Bytes()...)
+		joinedDebugData = append(joinedDebugData, debugData...)
+		s.remaining.Reset()
+		debugData = joinedDebugData
+	}
+
 	if !timeDebugMessagePatternStart.Match(debugData) {
 		count, err := s.Target.Write(debugData)
 		if err != nil {
 			err = fmt.Errorf("SentryDebugWriter Forwarded Error: %w", err)
+		}
+		return count, err
+	}
+
+	if !timeDebugMessagePatternStartEnd.Match(debugData) {
+		count, err := s.remaining.Write(debugData)
+		if err != nil {
+			err = fmt.Errorf("SentryDebugWriter failed to buffer data: %w", err)
 		}
 		return count, err
 	}

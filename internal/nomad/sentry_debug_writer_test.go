@@ -47,6 +47,45 @@ func (s *MainTestSuite) TestSentryDebugWriter_regression_593_empty_command() {
 	s.Equal(timeDebugFallbackDescription, debugWriter.lastSpan.Description)
 }
 
+func (s *MainTestSuite) TestSentryDebugWriter_regression_593_split_debug_message() {
+	buf := &bytes.Buffer{}
+	debugWriter := NewSentryDebugWriter(s.TestCtx, buf)
+
+	s.Run("single debug message", func() {
+		output := "Output"
+		payload := output + "\x1ePoseidon exit 0 1"
+		payload2 := "725462286087\x1E"
+
+		count, err := debugWriter.Write([]byte(payload))
+		s.Require().NoError(err)
+		s.Equal(len(payload), count)
+		s.NotEqual("exit 0", debugWriter.lastSpan.Description)
+
+		count, err = debugWriter.Write([]byte(payload2))
+		s.Require().NoError(err)
+		s.Equal(len(payload2), count)
+		s.Equal("exit 0", debugWriter.lastSpan.Description)
+		s.Equal(output, buf.String())
+	})
+	buf.Reset()
+	s.Run("multiple debug messages", func() {
+		output := "Output"
+		payload := "\x1ePoseidon env 1725462286085\x1E" + output + "\x1ePoseidon exit 0 1"
+		payload2 := "725462286087\x1E"
+
+		count, err := debugWriter.Write([]byte(payload))
+		s.Require().NoError(err)
+		s.Equal(len(payload), count)
+		s.NotEqual("exit 0", debugWriter.lastSpan.Description)
+
+		count, err = debugWriter.Write([]byte(payload2))
+		s.Require().NoError(err)
+		s.Equal(len(payload2), count)
+		s.Equal("exit 0", debugWriter.lastSpan.Description)
+		s.Equal(output, buf.String())
+	})
+}
+
 func (s *MainTestSuite) TestSentryDebugWriter_regression_issue_678() {
 	buf := &bytes.Buffer{}
 	debugWriter := NewSentryDebugWriter(s.TestCtx, buf)

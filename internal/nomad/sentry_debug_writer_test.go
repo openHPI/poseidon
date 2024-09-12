@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"bytes"
+	"os/exec"
 )
 
 func (s *MainTestSuite) TestSentryDebugWriter_Write() {
@@ -27,6 +28,23 @@ func (s *MainTestSuite) TestSentryDebugWriter_WriteComposed() {
 	s.Require().NoError(err)
 	s.Equal(len(data), count)
 	s.Contains(buf.String(), "Hello World!")
+}
+
+func (s *MainTestSuite) TestSentryDebugWriter_regression_593_empty_command() {
+	buf := &bytes.Buffer{}
+	debugWriter := NewSentryDebugWriter(s.TestCtx, buf)
+
+	const commandFieldAfterEnv = 4 // instead of "env CODEOCEAN=true /bin/bash -c sleep infinity" just "sleep infinity".
+	command := injectStartDebugMessage("env CODEOCEAN=true /bin/bash -c \"\"", commandFieldAfterEnv, -1)
+	cmd := exec.Command("/bin/bash", "-c", command)
+	stdout, err := cmd.Output()
+	s.Require().NoError(err)
+
+	count, err := debugWriter.Write(stdout)
+	s.Require().NoError(err)
+	s.NotEmpty(count)
+	s.Empty(buf.Bytes())
+	s.Equal(timeDebugFallbackDescription, debugWriter.lastSpan.Description)
 }
 
 func (s *MainTestSuite) TestSentryDebugWriter_regression_issue_678() {

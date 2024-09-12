@@ -182,7 +182,9 @@ func injectStartDebugMessage(command string, start uint, end int) string {
 	if strings.HasPrefix(description, "\"") && strings.HasSuffix(description, "\"") {
 		description = description[1 : len(description)-1]
 	}
-
+	if description == "" {
+		description = timeDebugFallbackDescription
+	}
 	description = dto.BashEscapeCommand(description)
 	description = description[1 : len(description)-1] // The most outer quotes are not escaped!
 	return fmt.Sprintf(timeDebugMessageFormatStart, description, command)

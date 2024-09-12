@@ -23,6 +23,7 @@ var (
 	timeDebugMessagePattern = regexp.MustCompile(
 		`(?P<before>[\S\s]*?)\x1EPoseidon (?P<text>[^\x1E]+?) (?P<time>\d{13})\x1E(?P<after>[\S\s]*)`)
 	timeDebugMessagePatternStart = regexp.MustCompile(`\x1EPoseidon`)
+	timeDebugFallbackDescription = "<empty>"
 )
 
 // SentryDebugWriter is scanning the input for the debug message pattern.
@@ -68,7 +69,7 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 
 	match := matchAndMapTimeDebugMessage(debugData)
 	if match == nil {
-		log.WithContext(s.lastSpan.Context()).WithField("data", debugData).Warn("Exec debug message could not be read completely")
+		log.WithContext(s.lastSpan.Context()).WithField("data", fmt.Sprintf("%q", debugData)).Warn("Exec debug message could not be read completely")
 		return 0, nil
 	}
 

@@ -9,6 +9,7 @@ This project contains source code and supporting files for a serverless applicat
 The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
 
 See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for deployment, usage and an introduction to SAM specification, the SAM CLI, and serverless application concepts.
+[The AWS Toolkit Plugin](https://aws.amazon.com/de/intellij/) helps build the Lambda function without errors.
 
 ## Interface
 

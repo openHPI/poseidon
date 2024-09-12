@@ -95,6 +95,8 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
 
             ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.directory(workingDirectory);
+            Map<String, String> env = pb.environment();
+            env.put("CLASSPATH", ".:/var/task/lib/org.hamcrest.hamcrest-3.0.jar:/var/task/lib/junit.junit-4.13.2.jar:" + env.get("CLASSPATH"));
             Process p = pb.start();
             InputStream stdout = p.getInputStream(), stderr = p.getErrorStream();
             this.forwardOutput(p, stdout, stderr);

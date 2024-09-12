@@ -39,8 +39,8 @@ public class SimpleMakefileTest {
 
   static final String SuccessfulMakefileWithAssignments = Base64.getEncoder().encodeToString(
           ("test:\n" +
-                  "\tjavac -encoding utf8 -cp .:/usr/java/lib/hamcrest-core-1.3.jar:/usr/java/lib/junit-4.13.jar ${FILENAME}\n" +
-                  "\tjava -Dfile.encoding=UTF8 -cp .:/usr/java/lib/hamcrest-core-1.3.jar:/usr/java/lib/junit-4.13.jar org.junit.runner.JUnitCore ${CLASS_NAME}\n"
+                  "\tjavac -encoding utf8 ${FILENAME}\n" +
+                  "\tjava -Dfile.encoding=UTF8 ${CLASS_NAME}\n"
           ).getBytes(StandardCharsets.UTF_8));
 
   static final String SuccessfulMakefileWithComment = Base64.getEncoder().encodeToString(
@@ -126,8 +126,8 @@ public class SimpleMakefileTest {
       SimpleMakefile make = new SimpleMakefile(files);
       String cmd = make.parseCommand(command);
 
-      assertEquals("javac -encoding utf8 -cp .:/var/task/lib/org.hamcrest.hamcrest-core-1.3.jar:/var/task/lib/junit.junit-4.13.2.jar RecursiveMath-Test.java && " +
-              "java -Dfile.encoding=UTF8 -cp .:/var/task/lib/org.hamcrest.hamcrest-core-1.3.jar:/var/task/lib/junit.junit-4.13.2.jar org.junit.runner.JUnitCore RecursiveMath", cmd);
+      assertEquals("javac -encoding utf8 RecursiveMath-Test.java && " +
+              "java -Dfile.encoding=UTF8 RecursiveMath", cmd);
     } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
       fail();
     }

@@ -71,8 +71,6 @@ class SimpleMakefile {
                     .map(s -> s.startsWith("@") ? s.substring(1) : s)
                     .map(s -> s.contains("#") ? s.substring(0, s.indexOf("#")) : s)
                     .filter(s -> !s.isEmpty())
-                    .map(s -> s.replaceAll("/usr/java/lib/hamcrest-core-1\\.3\\.jar", "/var/task/lib/org.hamcrest.hamcrest-core-1.3.jar"))
-                    .map(s -> s.replaceAll("/usr/java/lib/junit-4\\.13\\.jar", "/var/task/lib/junit.junit-4.13.2.jar"))
                     .toArray(String[]::new);
 
             rules.put(ruleName, trimmedCommands);

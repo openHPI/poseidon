@@ -176,21 +176,29 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 }
 
 func (a *APIClient) SetRunnerMetaUsed(runnerID string, used bool, duration int) error {
+	newMetaUsedValue := ConfigMetaUsedValue
+	if !used {
+		newMetaUsedValue = ConfigMetaUnusedValue
+	}
+	newMetaTimeoutValue := strconv.Itoa(duration)
+
 	job, err := a.job(runnerID)
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve job info: %w", err)
 	}
 	configTaskGroup := FindAndValidateConfigTaskGroup(job)
-	if used {
-		configTaskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUsedValue
-		configTaskGroup.Meta[ConfigMetaTimeoutKey] = strconv.Itoa(duration)
-	} else {
-		configTaskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
-	}
+	metaUsedDiffers := configTaskGroup.Meta[ConfigMetaUsedKey] != newMetaUsedValue
+	metaTimeoutDiffers := configTaskGroup.Meta[ConfigMetaTimeoutKey] != newMetaTimeoutValue
 
-	_, err = a.RegisterNomadJob(job)
-	if err != nil {
-		return fmt.Errorf("couldn't update runner config: %w", err)
+	if metaUsedDiffers || (used && metaTimeoutDiffers) {
+		configTaskGroup.Meta[ConfigMetaUsedKey] = newMetaUsedValue
+		if used {
+			configTaskGroup.Meta[ConfigMetaTimeoutKey] = newMetaTimeoutValue
+		}
+		_, err = a.RegisterNomadJob(job)
+		if err != nil {
+			return fmt.Errorf("couldn't update runner config: %w", err)
+		}
 	}
 	return nil
 }

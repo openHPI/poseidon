@@ -249,8 +249,11 @@ func notifySystemd(router *mux.Router) {
 	}
 
 	interval, err := daemon.SdWatchdogEnabled(false)
-	if err != nil || interval == 0 {
-		log.WithError(err).Error("Systemd Watchdog not supported")
+	if err != nil {
+		log.WithError(err).Error("Systemd Watchdog failed")
+		return
+	} else if interval == 0 {
+		log.Debug("Systemd Watchdog is not supported")
 		return
 	}
 	go systemdWatchdogLoop(context.Background(), router, interval)

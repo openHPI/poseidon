@@ -335,7 +335,7 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 
 // checkForMigratingEnvironmentJob checks if the Nomad environment job is still running after the delay.
 func (m *NomadRunnerManager) checkForMigratingEnvironmentJob(ctx context.Context, jobID string, delay time.Duration) {
-	log.WithField(dto.KeyEnvironmentID, jobID).Debug("Environment stopped unexpectedly. Checking again..")
+	log.WithField(dto.KeyEnvironmentID, jobID).Debug("Environment stopped unexpectedly. Checking again...")
 
 	select {
 	case <-ctx.Done():

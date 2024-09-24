@@ -10,6 +10,7 @@ import (
 	"time"
 
 	nomadApi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/structs"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/openHPI/poseidon/internal/config"
 	"github.com/openHPI/poseidon/internal/nomad"
@@ -19,6 +20,8 @@ import (
 	"github.com/openHPI/poseidon/pkg/storage"
 	"github.com/openHPI/poseidon/pkg/util"
 )
+
+const environmentMigrationDelay = time.Minute
 
 var (
 	log                            = logging.GetLogger("runner")
@@ -330,6 +333,34 @@ func monitorAllocationStartupDuration(startup time.Duration, runnerID string, en
 	monitoring.WriteInfluxPoint(p)
 }
 
+// checkForMigratingEnvironmentJob checks if the Nomad environment job is still running after the delay.
+func (m *NomadRunnerManager) checkForMigratingEnvironmentJob(ctx context.Context, jobID string, delay time.Duration) {
+	log.WithField(dto.KeyEnvironmentID, jobID).Debug("Environment stopped unexpectedly. Checking again..")
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(delay):
+	}
+
+	templateJobs, err := m.apiClient.LoadEnvironmentJobs()
+	if err != nil {
+		log.WithError(err).Warn("couldn't load template jobs")
+	}
+
+	var environmentStillRunning bool
+	for _, job := range templateJobs {
+		if jobID == *job.ID && *job.Status == structs.JobStatusRunning {
+			environmentStillRunning = true
+			break
+		}
+	}
+
+	if !environmentStillRunning {
+		log.WithField(dto.KeyEnvironmentID, jobID).Warn("Environment stopped unexpectedly")
+	}
+}
+
 // onAllocationStopped is the callback for when Nomad stopped an allocation.
 func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID string, reason error) (alreadyRemoved bool) {
 	log.WithField(dto.KeyRunnerID, runnerID).Debug("Runner stopped")
@@ -343,7 +374,7 @@ func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID s
 		}
 		_, ok := m.environments.Get(environmentID.ToString())
 		if ok {
-			log.WithField(dto.KeyEnvironmentID, environmentID).Warn("Environment stopped unexpectedly")
+			go m.checkForMigratingEnvironmentJob(ctx, runnerID, environmentMigrationDelay)
 		}
 		return !ok
 	}

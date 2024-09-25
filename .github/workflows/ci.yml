@@ -58,9 +58,6 @@ jobs:
         with:
           version: latest
           args: --timeout=3m
-          # We rely on the setup-go action to cache the Go pkg and build directories.
-          skip-pkg-cache: true
-          skip-build-cache: true
 
   test:
     runs-on: ubuntu-latest

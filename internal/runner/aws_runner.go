@@ -159,7 +159,7 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 		Cmd:    command,
 		Files:  w.fs,
 	}
-	log.WithContext(ctx).WithField("request", data).Trace("Sending request to AWS")
+	log.WithContext(ctx).WithField("request", fmt.Sprintf("%q", data)).Trace("Sending request to AWS")
 	rawData, err := json.Marshal(data)
 	if err != nil {
 		exit <- ExitInfo{uint8(1), fmt.Errorf("cannot stingify aws function request: %w", err)}

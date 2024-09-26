@@ -89,7 +89,7 @@ public class AppTest {
   public void makefileJustReplacesShellCommand() {
     ByteArrayOutputStream out = setupStdOutLogs();
     APIGatewayProxyResponseEvent result = getApiGatewayProxyResponse("{\"action\":\"java11Exec\"," +
-            "\"cmd\":[\"env\", \"TEST_VAR=42\", \"sh\",\"-c\",\"make run\"]," +
+            "\"cmd\":[\"env\", \"TEST_VAR=42\", \"sh\",\"-c\",\"env CODEOCEAN=true /bin/bash -c \\\"make run\\\"\"]," +
             "\"files\":{\"Makefile\":\"" + Base64.getEncoder().encodeToString(("run:\n\t@echo $TEST_VAR\n").getBytes(StandardCharsets.UTF_8)) + "\"}}");
     restoreStdOutLogs();
 

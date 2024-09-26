@@ -83,17 +83,21 @@ public class SimpleMakefileTest {
     parseRunCommandOfMakefile(SuccessfulMakefileWithComment);
   }
 
+  private String wrapFullCommand(String command) {
+    return "env CODEOCEAN=true /bin/bash -c \"" + command + "\"";
+  }
+
   private void parseRunCommandOfMakefile(String makefileB64) {
     Map<String, String> files = new HashMap<>();
     files.put("Makefile", makefileB64);
     files.put("org/example/RecursiveMath.java", RecursiveMathContent);
 
     try {
-      String command = "make run";
+      String command = wrapFullCommand("make run");
       SimpleMakefile makefile = new SimpleMakefile(files);
       String cmd = makefile.parseCommand(command);
 
-      assertEquals("javac org/example/RecursiveMath.java && java org/example/RecursiveMath", cmd);
+      assertEquals(wrapFullCommand("javac org/example/RecursiveMath.java && java org/example/RecursiveMath"), cmd);
     } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
       fail();
     }
@@ -122,12 +126,12 @@ public class SimpleMakefileTest {
     files.put("org/example/RecursiveMath.java", RecursiveMathContent);
 
     try {
-      String command = "make test CLASS_NAME=\"RecursiveMath\" FILENAME=\"RecursiveMath-Test.java\"";
+      String command = wrapFullCommand("make test CLASS_NAME=\"RecursiveMath\" FILENAME=\"RecursiveMath-Test.java\"");
       SimpleMakefile make = new SimpleMakefile(files);
       String cmd = make.parseCommand(command);
 
-      assertEquals("javac -encoding utf8 RecursiveMath-Test.java && " +
-              "java -Dfile.encoding=UTF8 RecursiveMath", cmd);
+      assertEquals(wrapFullCommand("javac -encoding utf8 RecursiveMath-Test.java && " +
+              "java -Dfile.encoding=UTF8 RecursiveMath"), cmd);
     } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
       fail();
     }
@@ -140,7 +144,7 @@ public class SimpleMakefileTest {
     files.put("org/example/RecursiveMath.java", RecursiveMathContent);
 
     try {
-      String command = "make run";
+      String command = wrapFullCommand("make run");
       SimpleMakefile makefile = new SimpleMakefile(files);
       makefile.parseCommand(command);
       fail();
@@ -155,11 +159,11 @@ public class SimpleMakefileTest {
     files.put("Makefile", Base64.getEncoder().encodeToString(("run:\n\t@echo TRAAAIIN\n").getBytes(StandardCharsets.UTF_8)));
 
     try {
-      String command = "echo \"Look it's a\" && sl && make run && echo WOW";
+      String command = wrapFullCommand("echo \"Look it's a\" && sl && make run && echo WOW");
       SimpleMakefile makefile = new SimpleMakefile(files);
       String cmd = makefile.parseCommand(command);
 
-      assertEquals("echo \"Look it's a\" && sl && echo TRAAAIIN && echo WOW", cmd);
+      assertEquals(wrapFullCommand("echo \"Look it's a\" && sl && echo TRAAAIIN && echo WOW"), cmd);
     } catch (NoMakefileFoundException | InvalidMakefileException | NoMakeCommandException ignored) {
       fail();
     }

@@ -1,3 +1,0 @@
-[submodule "deploy/codeocean-terraform"]
-	path = deploy/codeocean-terraform
-	url = git@lab.xikolo.de:codeocean/codeocean-terraform.git

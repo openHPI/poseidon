@@ -1,9 +1,10 @@
 package poseidon;
 
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.apigatewaymanagementapi.AmazonApiGatewayManagementApi;
-import com.amazonaws.services.apigatewaymanagementapi.AmazonApiGatewayManagementApiClientBuilder;
-import com.amazonaws.services.apigatewaymanagementapi.model.PostToConnectionRequest;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.apigatewaymanagementapi.ApiGatewayManagementApiClient;
+import software.amazon.awssdk.services.apigatewaymanagementapi.model.PostToConnectionRequest;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
@@ -12,8 +13,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Map;
@@ -52,7 +52,7 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
     private static final Gson gson = new Gson();
 
     // gwClient is used to send messages back via the WebSocket connection.
-    private AmazonApiGatewayManagementApi gwClient;
+    private ApiGatewayManagementApiClient gwClient;
 
     // connectionID helps to identify the WebSocket connection that has called this function.
     private String connectionID;
@@ -77,8 +77,10 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
         APIGatewayV2WebSocketEvent.RequestContext ctx = input.getRequestContext();
         String[] domains = ctx.getDomainName().split("\\.");
         String region = domains[domains.length-3];
-        this.gwClient = AmazonApiGatewayManagementApiClientBuilder.standard()
-                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("https://" + ctx.getDomainName() + "/" + ctx.getStage(), region))
+        this.gwClient = ApiGatewayManagementApiClient.builder()
+                .endpointOverride(URI.create("https://" + ctx.getDomainName() + "/" + ctx.getStage()))
+                .region(Region.of(region))
+                .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
         this.connectionID = ctx.getConnectionId();
         this.disableOutput = input.getHeaders() != null && input.getHeaders().containsKey(disableOutputHeaderKey) && Boolean.parseBoolean(input.getHeaders().get(disableOutputHeaderKey));
@@ -189,9 +191,10 @@ public class App implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewa
         if (this.disableOutput) {
             System.out.println(gson.toJson(msg));
         } else {
-            this.gwClient.postToConnection(new PostToConnectionRequest()
-                    .withConnectionId(this.connectionID)
-                    .withData(ByteBuffer.wrap(gson.toJson(msg).getBytes(StandardCharsets.UTF_8))));
+            this.gwClient.postToConnection(PostToConnectionRequest.builder()
+                    .connectionId(this.connectionID)
+                    .data(SdkBytes.fromUtf8String(gson.toJson(msg)))
+                    .build());
         }
     }
 }

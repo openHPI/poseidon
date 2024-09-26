@@ -115,7 +115,8 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	logging.StartSpan(request.Context(), "api.fs.list", "List File System", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.ListFileSystem(ctx, path, recursive, writer, privilegedExecution)
 	})
-	if errors.Is(err, runner.ErrFileNotFound) {
+	if errors.Is(err, runner.ErrFileNotFound) || errors.Is(err, dto.ErrNotSupported) {
+		// We also want to return a soft error if listing the file system is not supported (i.e., on AWS).
 		writeClientError(request.Context(), writer, err, http.StatusFailedDependency)
 		return
 	} else if err != nil {

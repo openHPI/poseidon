@@ -22,7 +22,7 @@ class InvalidMakefileException extends Exception {}
 class SimpleMakefile {
 
     // This pattern validates if a command is a make command.
-    private static final Pattern isMakeCommand = Pattern.compile("^(?<before>.* && )?make(?:\\s+(?<startRule>\\w*))?(?<assignments>(?:.*?=.*?)+)?(?<after> && .*)?$");
+    private static final Pattern isMakeCommand = Pattern.compile("^(?<before>env CODEOCEAN=true /bin/bash -c \\\"(.* && )?)make(?:\\s+(?<startRule>\\w*))?(?<assignments>(?:.*?=.*?)+)?(?<after>( && .*)?\\\")$");
 
     // This pattern identifies the rules in a makefile.
     private static final Pattern makeRules = Pattern.compile("(?<name>.*):\\r?\\n(?<commands>(?:\\t.+\\r?\\n?)*)");
@@ -110,7 +110,12 @@ class SimpleMakefile {
         if (firstPart) {
             return parts[0];
         } else {
-            return parts[1].replaceAll("^\\\"|\\\"$", "");
+            String value = parts[1];
+            // First, remove one level of escaping: \"HelloWorldTest\" -> "HelloWorldTest"
+            value = value.replaceAll("\\\\\"", "\"");
+            // Then, remove the quotes at the beginning and end of string: "HelloWorldTest" -> HelloWorldTest
+            value = value.replaceAll("^\"|\"$", "");
+            return value;
         }
     }
 

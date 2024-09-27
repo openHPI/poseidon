@@ -15,6 +15,14 @@ type AbstractManager struct {
 	runnerManager runner.Manager
 }
 
+// NewAbstractManager creates a new abstract runner manager that keeps track of all environments of one kind.
+func NewAbstractManager(runnerManager runner.Manager) *AbstractManager {
+	return &AbstractManager{
+		nextHandler:   nil,
+		runnerManager: runnerManager,
+	}
+}
+
 func (n *AbstractManager) SetNextHandler(next ManagerHandler) {
 	n.nextHandler = next
 }

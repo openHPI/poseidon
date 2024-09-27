@@ -12,7 +12,7 @@ import (
 	"github.com/openHPI/poseidon/pkg/storage"
 )
 
-var ErrNullObject = errors.New("functionality not available for the null object")
+var ErrUnknownExecutionEnvironment = errors.New("execution environment not found")
 
 // AbstractManager is used to have a fallback runner manager in the chain of responsibility
 // following the null object pattern.
@@ -99,7 +99,7 @@ func (n *AbstractManager) EnvironmentStatistics() map[dto.EnvironmentID]*dto.Sta
 }
 
 func (n *AbstractManager) Claim(_ dto.EnvironmentID, _ int) (Runner, error) {
-	return nil, ErrNullObject
+	return nil, ErrUnknownExecutionEnvironment
 }
 
 func (n *AbstractManager) Get(runnerID string) (Runner, error) {

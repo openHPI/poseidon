@@ -341,6 +341,13 @@ func createManagerHandler(ctx context.Context, handler managerCreator, enabled b
 	return runnerManager, environmentManager
 }
 
+func createAbstractManager(ctx context.Context) (
+	runnerManager runner.Manager, environmentManager environment.ManagerHandler,
+) {
+	runnerManager = runner.NewAbstractManager(ctx)
+	return runnerManager, environment.NewAbstractManager(runnerManager)
+}
+
 func createNomadManager(ctx context.Context) (runner.Manager, environment.ManagerHandler) {
 	// API initialization
 	nomadAPIClient, err := nomad.NewExecutorAPI(ctx, &config.Config.Nomad)
@@ -400,8 +407,9 @@ func createAWSManager(ctx context.Context) (
 
 // initRouter builds a router that serves the API with the chain of responsibility for multiple managers.
 func initRouter(ctx context.Context) *mux.Router {
-	runnerManager, environmentManager := createManagerHandler(ctx, createNomadManager, config.Config.Nomad.Enabled,
-		nil, nil)
+	runnerManager, environmentManager := createManagerHandler(ctx, createAbstractManager, true, nil, nil)
+	runnerManager, environmentManager = createManagerHandler(ctx, createNomadManager, config.Config.Nomad.Enabled,
+		runnerManager, environmentManager)
 	runnerManager, environmentManager = createManagerHandler(ctx, createAWSManager, config.Config.AWS.Enabled,
 		runnerManager, environmentManager)
 

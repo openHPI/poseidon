@@ -24,10 +24,9 @@ import (
 const environmentMigrationDelay = time.Minute
 
 var (
-	log                            = logging.GetLogger("runner")
-	ErrUnknownExecutionEnvironment = errors.New("execution environment not found")
-	ErrNoRunnersAvailable          = errors.New("no runners available for this execution environment")
-	ErrRunnerNotFound              = errors.New("no runner found with this id")
+	log                   = logging.GetLogger("runner")
+	ErrNoRunnersAvailable = errors.New("no runners available for this execution environment")
+	ErrRunnerNotFound     = errors.New("no runner found with this id")
 )
 
 type alertData struct {
@@ -50,8 +49,13 @@ func NewNomadRunnerManager(ctx context.Context, apiClient nomad.ExecutorAPI) *No
 func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int) (Runner, error) {
 	environment, ok := m.GetEnvironment(environmentID)
 	if !ok {
-		return nil, ErrUnknownExecutionEnvironment
+		r, err := m.NextHandler().Claim(environmentID, duration)
+		if err != nil {
+			return nil, fmt.Errorf("nomad wrapped: %w", err)
+		}
+		return r, nil
 	}
+
 	runner, ok := environment.Sample()
 	if !ok {
 		return nil, ErrNoRunnersAvailable

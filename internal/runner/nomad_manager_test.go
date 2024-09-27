@@ -117,7 +117,7 @@ func (s *ManagerTestSuite) TestSetEnvironmentAddsNewEnvironment() {
 func (s *ManagerTestSuite) TestClaimReturnsNotFoundErrorIfEnvironmentNotFound() {
 	runner, err := s.nomadRunnerManager.Claim(anotherEnvironmentID, defaultInactivityTimeout)
 	s.Nil(runner)
-	s.Equal(ErrUnknownExecutionEnvironment, err)
+	s.ErrorIs(err, ErrUnknownExecutionEnvironment)
 }
 
 func (s *ManagerTestSuite) TestClaimReturnsRunnerIfAvailable() {

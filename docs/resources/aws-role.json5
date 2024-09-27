@@ -1,0 +1,55 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VisualEditor0",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:*",
+        "cloudformation:ListStacks",
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:GetTemplateSummary",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DescribeStackEvents",
+        "iam:GetRole",
+        "iam:CreateRole",
+        "iam:UpdateRole",
+        "iam:DeleteRole",
+        "iam:TagRole",
+        "iam:PassRole",
+        "iam:PutRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:DeleteRolePolicy",
+        "lambda:GetFunction",
+        "lambda:CreateFunction",
+        "lambda:UpdateFunctionCode",
+        "lambda:DeleteFunction",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:TagResource",
+        "s3:ListBucket",
+        "s3:CreateBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:GetObjectVersion",
+        "s3express:CreateSession"
+      ],
+      "Resource": [
+        // Replace 12345 with your AWS account ID
+        "arn:aws:apigateway:*::/apis",
+        "arn:aws:apigateway:*::/apis/*",
+        "arn:aws:cloudformation:*:aws:transform/Serverless-*",
+        "arn:aws:cloudformation:*:12345:stack/poseidon-*/*",
+        "arn:aws:iam::12345:role/poseidon-*",
+        "arn:aws:lambda:*:12345:function:poseidon-*",
+        "arn:aws:s3:::poseidon-*",
+        "arn:aws:s3express:*:12345:bucket/poseidon-*"
+      ]
+    }
+  ]
+}

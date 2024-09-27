@@ -656,6 +656,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_Load() {
 		}
 
 		cancelExecution()
+		<-time.After(tests.ShortTimeout)
 		err = r.Destroy(ErrLocalDestruction)
 		s.Require().NoError(err)
 	})

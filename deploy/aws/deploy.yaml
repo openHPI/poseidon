@@ -1,0 +1,3 @@
+template-file-path: deploy/aws/template.yaml
+parameters: {}
+tags: {}

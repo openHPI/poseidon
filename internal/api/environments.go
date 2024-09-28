@@ -128,6 +128,7 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 	})
 	if err != nil {
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+		return
 	}
 
 	if created {

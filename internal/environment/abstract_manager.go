@@ -49,7 +49,7 @@ func (n *AbstractManager) Get(_ context.Context, _ dto.EnvironmentID, _ bool) (r
 func (n *AbstractManager) CreateOrUpdate(_ context.Context, _ dto.EnvironmentID, _ dto.ExecutionEnvironmentRequest) (
 	bool, error,
 ) {
-	return false, nil
+	return false, dto.ErrNotSupported
 }
 
 func (n *AbstractManager) Delete(environmentID dto.EnvironmentID) (bool, error) {

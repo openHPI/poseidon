@@ -60,7 +60,7 @@ In the case of Nomad Agent restarts, the WebSocket connection of a running execu
 Furthermore, when also Docker of the Nomad Agent is restarted, the containers are recreated.
 Poseidon captures such occurrences and uses the runner as clean and idle.
 
-### Systemd Relationship Nomad - Docker
+### systemd Relationship Nomad - Docker
 
 We suggest to connect the Nomad and Docker systemd services through a systemd `PartOf` relationship.
 In a systemd overwrite (`/etc/systemd/system/nomad.service.d/override.conf`), the `PartOf` relationship can be defined as follows:

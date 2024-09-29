@@ -207,7 +207,7 @@ jobs:
       - name: Run e2e recovery tests
         run: make e2e-test-recovery
         if: ${{ success() || failure() }}
-      - name: Print Systemd Failure logs
+      - name: Print systemd Failure logs
         run: |
           /usr/bin/systemctl --user show poseidon.service -p NRestarts
           journalctl --user -xe -u poseidon.service --no-pager

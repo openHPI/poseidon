@@ -5,7 +5,7 @@ server:
   address: 127.0.0.1
   # Port on which the webserver listens
   port: 7200
-  # When using Systemd socket activation, Poseidon tries to connect to an existing systemd socket instead of creating its own.
+  # When using systemd socket activation, Poseidon tries to connect to an existing systemd socket instead of creating its own.
   # This is useful for zero downtime deployments as the systemd sockets hold up the connections while Poseidon is restarting.
   # Iff systemdsocketactivation, the configured address and port will not be used, instead the provided systemd socket will be.
   systemdsocketactivation: false
@@ -25,7 +25,7 @@ server:
   interactivestderr: true
   # If set, the file at the given path overwrites the default Nomad job file in internal/environment/template-environment-job.hcl
   # templatejobfile: ./poseidon.hcl
-  # The LoggingFilterToken filters out Systemd Watchdog requests from the logs and is preconfigured with a random value.
+  # The LoggingFilterToken filters out systemd Watchdog requests from the logs and is preconfigured with a random value.
   # It can also be manually configured to hide additional requests from the logs, such as those from monitoring systems.
   # To use this feature, the respective user agent must be set according to `dto.UserAgentFiltered`.
   # However, it is important to consider the security implications of using this expert-level setting for manual values.

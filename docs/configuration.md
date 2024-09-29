@@ -29,7 +29,7 @@ If a value is not specified, the value of the subsequent possibility is used.
 
 - Again, this can be overwritten by the environment variable `POSEIDON_SERVER_PORT`, e.g., using `export POSEIDON_SERVER_PORT=5000`.
 
-### Systemd
+### systemd
 
 Poseidon can be configured to run as a systemd service. Poseidon can optionally also be configured to use a systemd socket.
 The use of systemd provides capabilities for managing Poseidon's state and zero downtime deployments.

@@ -1,5 +1,5 @@
 # This is a minimal service definition to make use of the systemd socket activation in the e2e tests.
-# With Systemd socket activation, systemd sets up a listening socket on behalf of a service.
+# With systemd socket activation, systemd sets up a listening socket on behalf of a service.
 # This is useful for zero downtime deployments as the systemd sockets hold up the connections while the service is restarting.
 
 [Unit]

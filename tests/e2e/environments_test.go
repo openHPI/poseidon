@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var isAWSEnvironment = []bool{false}
+var isAWSEnvironment = []bool{false, true}
 
 func TestCreateOrUpdateEnvironment(t *testing.T) {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.AnotherEnvironmentIDAsString)

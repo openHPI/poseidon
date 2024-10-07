@@ -66,11 +66,6 @@ build-cover: deps ## Build the binary and with coverage support for e2e-tests
 clean: ## Remove previous build
 	@rm -f poseidon
 
-.PHONY: docker
-docker:
-	@CGO_ENABLED=0 make build
-	@docker build -t $(DOCKER_TAG) -f deploy/poseidon/Dockerfile .
-
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest

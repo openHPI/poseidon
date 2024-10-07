@@ -11,7 +11,7 @@ dashboard = Dashboard(
     panels=availability_panels + general_panels + runner_insights_panels,
     templating=Templating(list=[ environment_variable ]),
     editable=True,
-    refresh="30s",
+    refresh="off",
     time=Time("now-6h", "now"),
     uid="P21Bh1SVk",
     version=1,

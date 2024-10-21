@@ -134,13 +134,6 @@ func (nc *nomadAPIClient) executeInAllocation(ctx context.Context, cmd string, a
 	case errors.Is(err, context.Canceled):
 		log.WithContext(ctx).Debug("Execution canceled by context")
 		return 0, nil
-	case errors.Is(err, io.ErrUnexpectedEOF), strings.Contains(err.Error(), io.ErrUnexpectedEOF.Error()):
-		// The unexpected EOF is a generic Nomad error. However, our investigations have shown that all the current
-		// events of this error are caused by fsouza/go-dockerclient#1076. Because this error happens at the very end,
-		// it does not affect the functionality. Therefore, we don't propagate the error.
-		log.WithContext(ctx).WithError(err).
-			WithField(logging.SentryFingerprintFieldKey, []string{"nomad-unexpected-eof"}).Warn("Unexpected EOF for Execute")
-		return 0, nil
 	case strings.Contains(err.Error(), "Unknown allocation"):
 		return 1, ErrNomadUnknownAllocation
 	default:

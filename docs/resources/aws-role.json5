@@ -32,6 +32,7 @@
         "lambda:AddPermission",
         "lambda:RemovePermission",
         "lambda:TagResource",
+        "lambda:ListTags",
         "s3:ListBucket",
         "s3:CreateBucket",
         "s3:GetObject",

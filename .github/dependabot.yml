@@ -39,14 +39,3 @@ updates:
     labels:
       - dependencies
       - github-actions
-
-  - package-ecosystem: docker
-    directories:
-      - "**/*"
-    schedule:
-      interval: daily
-      time: "03:00"
-      timezone: UTC
-    labels:
-      - dependencies
-      - docker

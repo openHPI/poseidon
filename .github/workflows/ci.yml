@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  NOMAD_VERSION: '1.9.2'
+  NOMAD_VERSION: '1.9.3'
   CNI_VERSION: '1.6.0'
 
 jobs:

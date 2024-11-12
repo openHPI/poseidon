@@ -2,10 +2,8 @@ name: Java CI
 
 on:
   push:
-    branches: [ main ]
     paths: [ deploy/aws/** ]
   pull_request:
-    branches: [ main ]
     paths: [ deploy/aws/** ]
 
 jobs:

@@ -2,10 +2,8 @@ name: Python CI
 
 on:
   push:
-    branches: [ main ]
     paths: [ deploy/grafana-dashboard/** ]
   pull_request:
-    branches: [ main ]
     paths: [ deploy/grafana-dashboard/** ]
 
 jobs:

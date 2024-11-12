@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const jobHCLBasicFormat = "job \"%s\" {}"
+const jobHCLBasicFormat = `job "%s" {}`
 
 type EnvironmentControllerTestSuite struct {
 	tests.MemoryLeakTestSuite

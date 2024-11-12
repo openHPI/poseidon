@@ -141,7 +141,7 @@ func watchMemoryAndAlert(options config.Profiling) {
 		log.WithField("interval", options.MemoryInterval).Error("Configured memory interval too big")
 		return
 	}
-	intervalDuration := time.Duration(options.MemoryInterval) * time.Millisecond //nolint:gosec // We check for an integer overflow right above.
+	intervalDuration := time.Duration(options.MemoryInterval) * time.Millisecond
 
 	var exceeded bool
 	for {

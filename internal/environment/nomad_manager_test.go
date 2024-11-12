@@ -116,7 +116,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 	})
 
 	s.Run("loads template environment job from file", func() {
-		templateJobHCL := "job \"" + tests.DefaultTemplateJobID + "\" {}"
+		templateJobHCL := `job "` + tests.DefaultTemplateJobID + `" {}`
 
 		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, executorAPIMock, templateJobHCL)
 		s.Require().NoError(err)

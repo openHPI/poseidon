@@ -352,7 +352,7 @@ func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.Execut
 
 	runnerID := tests.DefaultRunnerID
 	runnerJob := runner.NewNomadJob(s.TestCtx, runnerID, nil, apiMock, nil)
-	nomadEnvironment, err := environment.NewNomadEnvironment(s.TestCtx, 0, apiMock, "job \"template-0\" {}")
+	nomadEnvironment, err := environment.NewNomadEnvironment(s.TestCtx, 0, apiMock, `job "template-0" {}`)
 	s.Require().NoError(err)
 	eID, err := nomad.EnvironmentIDFromRunnerID(runnerID)
 	s.Require().NoError(err)
@@ -487,13 +487,21 @@ func mockAPIExecute(api *nomad.ExecutorAPIMock, request *dto.ExecutionRequest,
 		mock.Anything,
 		mock.Anything)
 	call.Run(func(args mock.Arguments) {
-		exit, err := run(args.Get(0).(context.Context),
-			args.Get(1).(string),
-			args.Get(2).(string),
-			args.Get(3).(bool),
-			args.Get(5).(io.Reader),
-			args.Get(6).(io.Writer),
-			args.Get(7).(io.Writer))
-		call.ReturnArguments = mock.Arguments{exit, err}
+		mockCtx, errCtx := args.Get(0).(context.Context)
+		mockRunnerID, errRunnerID := args.Get(1).(string)
+		mockCommand, errCommand := args.Get(2).(string)
+		mockTty, errTty := args.Get(3).(bool)
+		mockStdin, errStdin := args.Get(5).(io.Reader)
+		mockStdout, errStdout := args.Get(6).(io.Writer)
+		mockStderr, errStderr := args.Get(7).(io.Writer)
+
+		if !errCtx || !errRunnerID || !errCommand || !errTty || !errStdin || !errStdout || !errStderr {
+			call.ReturnArguments = mock.Arguments{1, fmt.Errorf(
+				"%w: errCtx=%v, errRunnerId=%v, errCommand=%v, errTty=%v, errStdin=%v, errStdout=%v, errStderr=%v",
+				tests.ErrDefault, errCtx, errRunnerID, errCommand, errTty, errStdin, errStdout, errStderr)}
+		} else {
+			exit, err := run(mockCtx, mockRunnerID, mockCommand, mockTty, mockStdin, mockStdout, mockStderr)
+			call.ReturnArguments = mock.Arguments{exit, err}
+		}
 	})
 }

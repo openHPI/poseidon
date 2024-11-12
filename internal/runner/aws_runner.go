@@ -248,5 +248,5 @@ func hideEnvironmentVariables(request *dto.ExecutionRequest, unsetPrefix string)
 	if request.Environment == nil {
 		request.Environment = make(map[string]string)
 	}
-	request.Command = "unset \"${!" + unsetPrefix + "@}\" && " + request.Command
+	request.Command = `unset "${!` + unsetPrefix + `@}" && ` + request.Command
 }

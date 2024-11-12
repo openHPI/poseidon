@@ -35,7 +35,7 @@ func (s *MainTestSuite) TestSentryDebugWriter_regression_593_empty_command() {
 	debugWriter := NewSentryDebugWriter(s.TestCtx, buf)
 
 	const commandFieldAfterEnv = 4 // instead of "env CODEOCEAN=true /bin/bash -c sleep infinity" just "sleep infinity".
-	command := injectStartDebugMessage("env CODEOCEAN=true /bin/bash -c \"\"", commandFieldAfterEnv, -1)
+	command := injectStartDebugMessage(`env CODEOCEAN=true /bin/bash -c ""`, commandFieldAfterEnv, -1)
 	cmd := exec.Command("/bin/bash", "-c", command)
 	stdout, err := cmd.Output()
 	s.Require().NoError(err)

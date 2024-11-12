@@ -66,7 +66,7 @@ func (s *MainTestSuite) TestMarshalRunner() {
 	runner := NewNomadJob(s.TestCtx, tests.DefaultRunnerID, nil, apiMock, func(_ Runner) error { return nil })
 	marshal, err := json.Marshal(runner)
 	s.Require().NoError(err)
-	s.Equal("{\"runnerId\":\""+tests.DefaultRunnerID+"\"}", string(marshal))
+	s.JSONEq(`{"runnerId":"`+tests.DefaultRunnerID+`"}`, string(marshal))
 	s.Require().NoError(runner.Destroy(nil))
 }
 

@@ -19,9 +19,7 @@ linters:
     - varnamelen
     - wsl
     # Deprecated
-    - execinquery
     - exportloopref
-    - gomnd
 
 linters-settings:
   cyclop:

@@ -169,7 +169,7 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 		privilegedExecution = false
 	}
 
-	writer.Header().Set("Content-Disposition", "attachment; filename=\""+path+"\"")
+	writer.Header().Set("Content-Disposition", `attachment; filename="`+path+`"`)
 	logging.StartSpan(request.Context(), "api.fs.read", "File Content", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.GetFileContent(ctx, path, writer, privilegedExecution)
 	})

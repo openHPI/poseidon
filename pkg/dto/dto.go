@@ -244,7 +244,7 @@ type WebSocketMessage struct {
 
 // MarshalJSON implements the json.Marshaler interface.
 // This converts the WebSocketMessage into the expected schema (see docs/websocket.schema.json).
-func (m WebSocketMessage) MarshalJSON() (res []byte, err error) {
+func (m *WebSocketMessage) MarshalJSON() (res []byte, err error) {
 	switch m.Type {
 	case WebSocketOutputStdout, WebSocketOutputStderr, WebSocketOutputError:
 		res, err = json.Marshal(struct {

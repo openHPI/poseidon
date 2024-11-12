@@ -179,7 +179,7 @@ func injectStartDebugMessage(command string, start uint, end int) string {
 	}
 
 	description := strings.Join(commandFields, " ")
-	if strings.HasPrefix(description, "\"") && strings.HasSuffix(description, "\"") {
+	if strings.HasPrefix(description, `"`) && strings.HasSuffix(description, `"`) {
 		description = description[1 : len(description)-1]
 	}
 	if description == "" {

@@ -90,7 +90,7 @@ func (w *Ls2JsonWriter) Write(lsData []byte) (int, error) {
 
 func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
 	if !w.jsonStartSent {
-		count, err = w.Target.Write([]byte("{\"files\": ["))
+		count, err = w.Target.Write([]byte(`{"files": [`))
 		if count == 0 || err != nil {
 			log.WithContext(w.Ctx).WithError(err).Warn("Could not write to target")
 			err = fmt.Errorf("could not write to target: %w", err)

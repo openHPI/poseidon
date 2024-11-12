@@ -114,7 +114,7 @@ func (r *NomadJob) MappedPorts() []*dto.MappedPort {
 			log.WithError(util.ErrOverflow).WithField("mapping", portMapping.To).Warn("not a valid port")
 		}
 		ports = append(ports, &dto.MappedPort{
-			ExposedPort: uint(portMapping.To), //nolint:gosec // We check for an overflow right above.
+			ExposedPort: uint(portMapping.To),
 			HostAddress: fmt.Sprintf("%s:%d", portMapping.HostIP, portMapping.Value),
 		})
 	}
@@ -140,7 +140,7 @@ func (r *NomadJob) UpdateMappedPorts(ports []*dto.MappedPort) error {
 
 		mapping = append(mapping, nomadApi.PortMapping{
 			Value:  port,
-			To:     int(portMapping.ExposedPort), //nolint:gosec // We check for an integer overflow right above.
+			To:     int(portMapping.ExposedPort),
 			HostIP: hostAddress[0],
 		})
 	}

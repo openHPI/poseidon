@@ -110,7 +110,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		s.Equal(http.StatusOK, response.StatusCode)
 		data, err := io.ReadAll(response.Body)
 		s.Require().NoError(err)
-		s.Equal("{\"files\": []}", string(data))
+		s.JSONEq(`{"files": []}`, string(data))
 	})
 
 	s.Run("With file", func() {
@@ -458,7 +458,7 @@ func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 		s.Require().NoError(err)
 		s.Equal(http.StatusOK, response.StatusCode)
 		s.Equal(strconv.Itoa(len(newFileContent)), response.Header.Get("Content-Length"))
-		s.Equal("attachment; filename=\""+tests.DefaultFileName+"\"", response.Header.Get("Content-Disposition"))
+		s.Equal(`attachment; filename="`+tests.DefaultFileName+`"`, response.Header.Get("Content-Disposition"))
 		content, err := io.ReadAll(response.Body)
 		s.Require().NoError(err)
 		s.Equal(newFileContent, content)

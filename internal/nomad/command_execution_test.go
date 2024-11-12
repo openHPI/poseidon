@@ -37,7 +37,7 @@ func (s *ExecuteCommandTestSuite) SetupTest() {
 	s.MemoryLeakTestSuite.SetupTest()
 	s.allocationID = "test-allocation-id"
 	s.ctx = context.Background()
-	s.testCommand = "echo \"do nothing\""
+	s.testCommand = `echo "do nothing"`
 	s.expectedStdout = "stdout"
 	s.expectedStderr = "stderr"
 	s.apiMock = &apiQuerierMock{}

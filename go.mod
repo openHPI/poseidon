@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/nomad v1.9.3
-	github.com/hashicorp/nomad/api v0.0.0-20241111211010-f8c85b036b82
+	github.com/hashicorp/nomad/api v0.0.0-20241205152127-af5e2a742e5d
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/shirou/gopsutil/v3 v3.24.5
@@ -39,7 +39,7 @@ require (
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.4 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/gojuno/minimock/v3 v3.4.2 // indirect
+	github.com/gojuno/minimock/v3 v3.4.3 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
@@ -48,7 +48,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-bexpr v0.1.14 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-cty-funcs v0.0.0-20240510212344-9599f7024f07 // indirect
+	github.com/hashicorp/go-cty-funcs v0.0.0-20241120183456-c51673e0b3dd // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0 // indirect
@@ -67,7 +67,7 @@ require (
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-7 // indirect
-	github.com/hashicorp/hcl/v2 v2.22.0 // indirect
+	github.com/hashicorp/hcl/v2 v2.23.0 // indirect
 	github.com/hashicorp/memberlist v0.5.1 // indirect
 	github.com/hashicorp/raft v1.7.1 // indirect
 	github.com/hashicorp/raft-autopilot v0.2.0 // indirect
@@ -96,18 +96,18 @@ require (
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	github.com/zclconf/go-cty v1.15.0 // indirect
+	github.com/zclconf/go-cty v1.15.1 // indirect
 	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
-	golang.org/x/crypto v0.29.0 // indirect
-	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
+	golang.org/x/crypto v0.30.0 // indirect
+	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/net v0.31.0 // indirect
-	golang.org/x/sync v0.9.0 // indirect
-	golang.org/x/text v0.20.0 // indirect
+	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
-	golang.org/x/tools v0.27.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241104194629-dd2ea8efbc28 // indirect
-	google.golang.org/grpc v1.68.0 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	golang.org/x/tools v0.28.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241206012308-a4fef0638583 // indirect
+	google.golang.org/grpc v1.68.1 // indirect
+	google.golang.org/protobuf v1.35.2 // indirect
 	oss.indeed.com/go/libtime v1.6.0 // indirect
 )

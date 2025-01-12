@@ -446,7 +446,7 @@ func mockWatchAllocations(ctx context.Context, apiMock *nomad.ExecutorAPIMock) {
 
 func createTempFile(t *testing.T, content string) *os.File {
 	t.Helper()
-	file, err := os.CreateTemp("", "test")
+	file, err := os.CreateTemp(t.TempDir(), "test")
 	require.NoError(t, err)
 	n, err := file.WriteString(content)
 	require.NoError(t, err)

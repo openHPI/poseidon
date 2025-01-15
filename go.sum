@@ -168,8 +168,8 @@ github.com/hashicorp/hcl/v2 v2.20.2-0.20240517235513-55d9c02d147d h1:7abftkc86B+
 github.com/hashicorp/hcl/v2 v2.20.2-0.20240517235513-55d9c02d147d/go.mod h1:62ZYHrXgPoX8xBnzl8QzbWq4dyDsDtfCRgIq1rbJEvA=
 github.com/hashicorp/memberlist v0.5.2 h1:rJoNPWZ0juJBgqn48gjy59K5H4rNgvUoM1kUD7bXiuI=
 github.com/hashicorp/memberlist v0.5.2/go.mod h1:Ri9p/tRShbjYnpNf4FFPXG7wxEGY4Nrcn6E7jrVa//4=
-github.com/hashicorp/nomad v1.9.4 h1:6RTJ9YOHsyy03q04W+aNZNcPhs5578kTj+5A7zsMS9s=
-github.com/hashicorp/nomad v1.9.4/go.mod h1:iJwAACAwZt+5O07qr3+n/R3NssBuKVR1hOo6MUc33AA=
+github.com/hashicorp/nomad v1.9.5 h1:0Bnz7bgu/3pAfPrBPMZw+8GXDOpw2GubfDT5MoICOJc=
+github.com/hashicorp/nomad v1.9.5/go.mod h1:3l41hgiSn3m+k/7+ADEF7q6oP4yrB523/Kq0wCp+/M8=
 github.com/hashicorp/nomad/api v0.0.0-20250110194805-cca9a5320d71 h1:c75mAXP0F8S2viYbJU+4UDica7/5Mu6JTDMTjh8ZaNQ=
 github.com/hashicorp/nomad/api v0.0.0-20250110194805-cca9a5320d71/go.mod h1:svtxn6QnrQ69P23VvIWMR34tg3vmwLz4UdUzm1dSCgE=
 github.com/hashicorp/raft v1.7.2 h1:pyvxhfJ4R8VIAlHKvLoKQWElZspsCVT6YWuxVxsPAgc=

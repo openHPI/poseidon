@@ -1,6 +1,3 @@
-run:
-  go: "1.23"
-
 linters:
   enable-all: true
   disable:
@@ -19,7 +16,7 @@ linters:
     - varnamelen
     - wsl
     # Deprecated
-    - exportloopref
+    - tenv
 
 linters-settings:
   cyclop:

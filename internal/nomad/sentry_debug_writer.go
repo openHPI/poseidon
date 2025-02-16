@@ -3,8 +3,10 @@ package nomad
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strconv"
 	"time"
@@ -14,6 +16,7 @@ import (
 )
 
 var (
+	ErrDebugMessageIntegerOverflow = errors.New("SentryDebugWriter data too large to process")
 	// timeDebugMessageFormat is the format of messages that will be converted to debug messages.
 	timeDebugMessageFormat = `echo -ne "\x1EPoseidon %s $(date +%%s%%3N)\x1E"`
 	// Format Parameters: 1. Debug Comment, 2. command.
@@ -65,6 +68,9 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 
 	if s.remaining.Len() > 0 {
 		n -= s.remaining.Len()
+		if len(debugData) > (math.MaxInt64 - s.remaining.Len()) {
+			return 0, ErrDebugMessageIntegerOverflow
+		}
 		joinedDebugData := make([]byte, 0, s.remaining.Len()+len(debugData))
 		joinedDebugData = append(joinedDebugData, s.remaining.Bytes()...)
 		joinedDebugData = append(joinedDebugData, debugData...)

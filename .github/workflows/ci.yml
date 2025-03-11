@@ -5,8 +5,8 @@ on:
   pull_request:
 
 env:
-  NOMAD_VERSION: '1.9.6'
-  CNI_VERSION: '1.6.0'
+  NOMAD_VERSION: '1.9.7'
+  CNI_VERSION: '1.6.2'
 
 jobs:
   compile:

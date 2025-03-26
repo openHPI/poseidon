@@ -68,7 +68,7 @@ clean: ## Remove previous build
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 
 .PHONY: golangci-lint
 golangci-lint: ## Lint the source code using golangci-lint

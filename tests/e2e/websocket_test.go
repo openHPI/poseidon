@@ -38,7 +38,7 @@ func (s *E2ETestSuite) TestExecuteCommandRoute() {
 
 			webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{Command: "true"})
 			s.Require().NoError(err)
-			s.NotEqual("", webSocketURL)
+			s.NotEmpty(webSocketURL)
 
 			var connection *websocket.Conn
 			var connectionClosed bool

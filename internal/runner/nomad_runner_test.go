@@ -238,7 +238,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 		stdin, ok := args.Get(5).(io.Reader)
 		s.Require().True(ok)
 		buffer := make([]byte, 1) //nolint:makezero // If the length is zero, the Read call never reads anything. gofmt want this alignment.
-		for n := 0; !(n == 1 && buffer[0] == SIGQUIT); {
+		for n := 0; n != 1 || buffer[0] != SIGQUIT; {
 			<-time.After(tests.ShortTimeout)
 			n, _ = stdin.Read(buffer) //nolint:errcheck // Read returns EOF errors but that is expected.
 			if n > 0 {
@@ -496,7 +496,7 @@ func (s *UpdateFileSystemTestSuite) TestDirectoriesAreMarkedAsDirectoryInTar() {
 	tarFile := tarFiles[0]
 	s.True(strings.HasSuffix(tarFile.Name+"/", tests.DefaultDirectoryName))
 	s.Equal(byte(tar.TypeDir), tarFile.TypeFlag)
-	s.Equal("", tarFile.Content)
+	s.Empty(tarFile.Content)
 }
 
 func (s *UpdateFileSystemTestSuite) TestFilesToRemoveGetRemoved() {

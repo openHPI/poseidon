@@ -141,7 +141,7 @@ func (a *APIClient) LoadRunnerIDs(prefix string) (runnerIDs []string, err error)
 }
 
 func (a *APIClient) LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapping, error) {
-	alloc, err := a.apiQuerier.allocation(runnerID)
+	alloc, err := a.allocation(runnerID)
 	if err != nil {
 		return nil, fmt.Errorf("error querying allocation for runner %s: %w", runnerID, err)
 	}
@@ -162,7 +162,7 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 	var occurredError error
 	jobs := make([]*nomadApi.Job, 0, len(runnerIDs))
 	for _, runnerID := range runnerIDs {
-		job, err := a.apiQuerier.job(runnerID)
+		job, err := a.job(runnerID)
 		if err != nil {
 			if occurredError == nil {
 				occurredError = ErrLoadingJob
@@ -211,7 +211,7 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 
 	jobs := make([]*nomadApi.Job, 0, len(jobStubs))
 	for _, jobStub := range jobStubs {
-		job, err := a.apiQuerier.job(jobStub.ID)
+		job, err := a.job(jobStub.ID)
 		if err != nil {
 			return []*nomadApi.Job{}, fmt.Errorf("couldn't load job info for job %v: %w", jobStub.ID, err)
 		}

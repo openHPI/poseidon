@@ -1,5 +1,6 @@
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
     - contextcheck
     - depguard
@@ -15,38 +16,52 @@ linters:
     - testpackage
     - varnamelen
     - wsl
-    # Deprecated
-    - tenv
 
-linters-settings:
-  cyclop:
-    max-complexity: 15
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  funlen:
-    lines: 100
-    statements: 50
-  gocognit:
-    min-complexity: 15
-  interfacebloat:
-    max: 12
-  lll:
-    line-length: 150
-  makezero:
-    always: true
-  misspell:
-    locale: US
-  nakedret:
-    max-func-lines: 5
+  settings:
+    cyclop:
+      max-complexity: 15
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    funlen:
+      lines: 100
+      statements: 50
+    gocognit:
+      min-complexity: 15
+    interfacebloat:
+      max: 12
+    lll:
+      line-length: 150
+    makezero:
+      always: true
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 5
 
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        # Always closing the HTTP body unnecessarily complicates the tests
-        - bodyclose
-        - funlen
-        - noctx
-        # We don't need to wrap errors in tests
-        - wrapcheck
+  exclusions:
+    generated: strict
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          # Always closing the HTTP body unnecessarily complicates the tests
+          - bodyclose
+          - funlen
+          - noctx
+          # We don't need to wrap errors in tests
+          - wrapcheck
+        path: _test\.go
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+
+  exclusions:
+    generated: strict

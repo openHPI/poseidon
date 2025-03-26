@@ -85,7 +85,7 @@ func TestListEnvironments(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		environmentsArray := assertEnvironmentArrayInResponse(t, response)
-		assert.Equal(t, len(environmentIDs), len(environmentsArray))
+		assert.Len(t, environmentsArray, len(environmentIDs))
 	})
 
 	t.Run("returns list including the default environment", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestListEnvironments(t *testing.T) {
 		require.Equal(t, http.StatusOK, response.StatusCode)
 
 		environmentsArray := assertEnvironmentArrayInResponse(t, response)
-		require.Equal(t, len(environmentIDs), len(environmentsArray))
+		require.Len(t, environmentsArray, len(environmentIDs))
 		foundIDs := parseIDsFromEnvironments(t, environmentsArray)
 		assert.Contains(t, foundIDs, dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 	})
@@ -132,7 +132,7 @@ func TestListEnvironments(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, response.StatusCode)
 		environmentsArray := assertEnvironmentArrayInResponse(t, response)
-		require.Equal(t, len(environmentIDs), len(environmentsArray))
+		require.Len(t, environmentsArray, len(environmentIDs))
 		foundIDs := parseIDsFromEnvironments(t, environmentsArray)
 		assert.Contains(t, foundIDs, dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 
@@ -373,10 +373,10 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 	assert.Equal(t, expected.Image, task.Config["image"])
 
 	if expected.NetworkAccess {
-		assert.Equal(t, "", task.Config["network_mode"])
+		assert.Empty(t, task.Config["network_mode"])
 		require.Len(t, taskGroup.Networks, 1)
 		network := taskGroup.Networks[0]
-		assert.Equal(t, len(expected.ExposedPorts), len(network.DynamicPorts))
+		assert.Len(t, network.DynamicPorts, len(expected.ExposedPorts))
 		for _, port := range network.DynamicPorts {
 			require.Less(t, port.To, math.MaxUint16)
 			assert.Contains(t, expected.ExposedPorts, uint16(port.To)) //nolint:gosec // We check for an integer overflow right above.

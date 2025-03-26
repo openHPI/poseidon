@@ -439,7 +439,7 @@ func mockAPIExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 			var err error
 			buffer := make([]byte, 1) //nolint:makezero // if the length is zero, the Read call never reads anything
 
-			for n := 0; !(n == 1 && buffer[0] == runner.SIGQUIT); n, err = stdin.Read(buffer) {
+			for n := 0; n != 1 || buffer[0] != runner.SIGQUIT; n, err = stdin.Read(buffer) {
 				if err != nil {
 					return 0, fmt.Errorf("error while reading stdin: %w", err)
 				}

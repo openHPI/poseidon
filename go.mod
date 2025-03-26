@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/nomad v1.9.7
-	github.com/hashicorp/nomad/api v0.0.0-20250311160139-04db81951fd0
+	github.com/hashicorp/nomad/api v0.0.0-20250326163608-0e121b3c2947
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/shirou/gopsutil/v3 v3.24.5
@@ -70,16 +70,16 @@ require (
 	github.com/hashicorp/hcl v1.0.1-vault-7 // indirect
 	github.com/hashicorp/hcl/v2 v2.23.0 // indirect
 	github.com/hashicorp/memberlist v0.5.3 // indirect
-	github.com/hashicorp/raft v1.7.2 // indirect
+	github.com/hashicorp/raft v1.7.3 // indirect
 	github.com/hashicorp/raft-autopilot v0.3.0 // indirect
 	github.com/hashicorp/serf v0.10.2 // indirect
 	github.com/hashicorp/vault/api v1.16.0 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
-	github.com/lufia/plan9stats v0.0.0-20250303091104-876f3ea5145d // indirect
+	github.com/lufia/plan9stats v0.0.0-20250317134145-8bc96cf8fc35 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/miekg/dns v1.1.63 // indirect
+	github.com/miekg/dns v1.1.64 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -107,8 +107,8 @@ require (
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250311190419-81fb87f6b8bf // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
 	google.golang.org/grpc v1.71.0 // indirect
-	google.golang.org/protobuf v1.36.5 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 	oss.indeed.com/go/libtime v1.6.0 // indirect
 )

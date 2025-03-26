@@ -128,9 +128,10 @@ func (s *MainTestSuite) TestNewMonitoredLocalStorage_Callback() {
 	callbackDeletions := 0
 	os := NewMonitoredLocalStorage[string](context.Background(), "testMeasurement", func(_ *write.Point, _ string, eventType EventType) {
 		callbackCalls++
-		if eventType == Deletion {
+		switch eventType {
+		case Deletion:
 			callbackDeletions++
-		} else if eventType == Creation {
+		case Creation:
 			callbackAdditions++
 		}
 	}, 0)

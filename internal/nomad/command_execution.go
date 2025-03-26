@@ -58,7 +58,7 @@ func (a *APIClient) ExecuteCommand(ctx context.Context,
 		return a.executeCommandInteractivelyWithStderr(ctx, jobID, command, privilegedExecution, stdin, stdout, stderr)
 	}
 	command = prepareCommandWithoutTTY(command, privilegedExecution)
-	exitCode, err := a.apiQuerier.Execute(ctx, jobID, command, tty, stdin, stdout, stderr)
+	exitCode, err := a.Execute(ctx, jobID, command, tty, stdin, stdout, stderr)
 	if err != nil {
 		return 1, fmt.Errorf("error executing command in job %s: %w", jobID, err)
 	}

@@ -82,13 +82,13 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 
 			networkResource := testTaskGroup.Networks[0]
 			s.Equal(config.Config.Nomad.Network.Mode, networkResource.Mode)
-			s.Require().Equal(len(ports), len(networkResource.DynamicPorts))
+			s.Require().Len(networkResource.DynamicPorts, len(ports))
 
 			assertExpectedPorts(s.T(), ports, networkResource)
 
 			mode, ok := testTask.Config["network_mode"]
 			s.True(ok)
-			s.Equal("", mode)
+			s.Empty(mode)
 		}
 	})
 }

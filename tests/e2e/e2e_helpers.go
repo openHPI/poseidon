@@ -73,7 +73,7 @@ func ProvideRunner(request *dto.RunnerRequest) (string, error) {
 		return "", fmt.Errorf("cannot post provide runner: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		//nolint:goerr113 // dynamic error is ok in here, as it is a test
+		//nolint:err113 // dynamic error is ok in here, as it is a test
 		return "", fmt.Errorf("expected response code 200 when getting runner, got %v", resp.StatusCode)
 	}
 	runnerResponse := new(dto.RunnerResponse)

@@ -46,7 +46,7 @@ func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
 	taskGroup.Meta = make(map[string]string)
 	taskGroup.Meta[ConfigMetaUsedKey] = ConfigMetaUnusedValue
 
-	evalID, err := a.apiQuerier.RegisterNomadJob(template)
+	evalID, err := a.RegisterNomadJob(template)
 	if err != nil {
 		return fmt.Errorf("couldn't register runner job: %w", err)
 	}
@@ -106,7 +106,7 @@ func FindAndValidateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	}
 	// This function should allow concurrency in the "Find" case.
 	// Therefore, this condition is necessary to remove concurrent writes in the "Find" case.
-	if v, ok := task.Config["command"]; !(ok && v == ConfigTaskCommand) {
+	if v, ok := task.Config["command"]; !ok || v != ConfigTaskCommand {
 		task.Config["command"] = ConfigTaskCommand
 	}
 	return task
@@ -136,11 +136,11 @@ func FindAndValidateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 		task.Config = make(map[string]interface{})
 	}
 	// This function should allow concurrency in the "Find" case.
-	if v, ok := task.Config["command"]; !(ok && v == TaskCommand) {
+	if v, ok := task.Config["command"]; !ok || v != TaskCommand {
 		task.Config["command"] = TaskCommand
 	}
 	v, ok := task.Config["args"]
-	if args, isStringArray := v.([]string); !(ok && isStringArray && len(args) == 1 && args[0] == TaskArgs[0]) {
+	if args, isStringArray := v.([]string); !ok || !isStringArray || len(args) != 1 || args[0] != TaskArgs[0] {
 		task.Config["args"] = TaskArgs
 	}
 	return task

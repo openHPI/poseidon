@@ -50,9 +50,10 @@ func getVcsRevision(short bool) string {
 
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, setting := range info.Settings {
-			if setting.Key == "vcs.revision" {
+			switch setting.Key {
+			case "vcs.revision":
 				vcsRevision = setting.Value
-			} else if setting.Key == "vcs.modified" {
+			case "vcs.modified":
 				var err error
 				vcsModified, err = strconv.ParseBool(setting.Value)
 				if err != nil {

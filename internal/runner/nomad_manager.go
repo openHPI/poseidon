@@ -410,7 +410,7 @@ func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID s
 	}
 	go m.checkPrewarmingPoolAlert(ctx, environment, false)
 
-	return !(stillUsed || stillIdle)
+	return !stillUsed && !stillIdle
 }
 
 // onRunnerDestroyed is the callback when the runner destroys itself.

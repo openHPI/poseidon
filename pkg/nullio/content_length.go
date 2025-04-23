@@ -30,6 +30,13 @@ func (w *ContentLengthWriter) Write(p []byte) (count int, err error) {
 	return w.handleContentLengthParsing(p)
 }
 
+// SendMonitoringData will send a monitoring event of the content length read and written.
+func (w *ContentLengthWriter) SendMonitoringData(p *write.Point) {
+	p.AddField(monitoring.InfluxKeyExpectedContentLength, w.expectedContentLength)
+	p.AddField(monitoring.InfluxKeyActualContentLength, w.actualContentLength)
+	monitoring.WriteInfluxPoint(p)
+}
+
 func (w *ContentLengthWriter) handleDataForwarding(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
@@ -77,11 +84,4 @@ func (w *ContentLengthWriter) handleContentLengthParsing(dataWithContentLength [
 	}
 
 	return len(dataWithContentLength), nil
-}
-
-// SendMonitoringData will send a monitoring event of the content length read and written.
-func (w *ContentLengthWriter) SendMonitoringData(p *write.Point) {
-	p.AddField(monitoring.InfluxKeyExpectedContentLength, w.expectedContentLength)
-	p.AddField(monitoring.InfluxKeyActualContentLength, w.actualContentLength)
-	monitoring.WriteInfluxPoint(p)
 }

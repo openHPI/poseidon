@@ -57,27 +57,6 @@ type nomadAPIClient struct {
 	namespace string
 }
 
-func (nc *nomadAPIClient) init(nomadConfig *config.Nomad) (err error) {
-	nomadTLSConfig := &nomadApi.TLSConfig{}
-	if nomadConfig.TLS.Active {
-		nomadTLSConfig.CACert = nomadConfig.TLS.CAFile
-		nomadTLSConfig.ClientCert = nomadConfig.TLS.CertFile
-		nomadTLSConfig.ClientKey = nomadConfig.TLS.KeyFile
-	}
-
-	nc.client, err = nomadApi.NewClient(&nomadApi.Config{
-		Address:   nomadConfig.URL().String(),
-		TLSConfig: nomadTLSConfig,
-		Namespace: nomadConfig.Namespace,
-		SecretID:  nomadConfig.Token,
-	})
-	if err != nil {
-		return fmt.Errorf("error creating new Nomad client: %w", err)
-	}
-	nc.namespace = nomadConfig.Namespace
-	return nil
-}
-
 func (nc *nomadAPIClient) DeleteJob(jobID string) (err error) {
 	_, _, err = nc.client.Jobs().Deregister(jobID, true, nc.writeOptions())
 	return
@@ -114,6 +93,64 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 	})
 
 	return exitCode, err
+}
+
+func (nc *nomadAPIClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
+	job.Namespace = &nc.namespace
+	resp, _, err := nc.client.Jobs().Register(job, nil)
+	if err != nil {
+		return "", fmt.Errorf("error registering Nomad job: %w", err)
+	}
+	if resp.Warnings != "" {
+		log.
+			WithField("job", job).
+			WithField("warnings", resp.Warnings).
+			Warn("Received warnings when registering job")
+	}
+	return resp.EvalID, nil
+}
+
+func (nc *nomadAPIClient) EventStream(ctx context.Context) (<-chan *nomadApi.Events, error) {
+	stream, err := nc.client.EventStream().Stream(
+		ctx,
+		map[nomadApi.Topic][]string{
+			nomadApi.TopicEvaluation: {"*"},
+			nomadApi.TopicAllocation: {
+				// Necessary to have the "topic" URL param show up in the HTTP request to Nomad.
+				// Without the param, Nomad will try to deliver all event types.
+				// However, this includes some events that require a management authentication token.
+				// As Poseidon uses no such token, the request will return a permission denied error.
+				"*",
+			},
+			nomadApi.TopicJob: {"*"},
+		},
+		0,
+		nc.queryOptions())
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving Nomad Allocation event stream: %w", err)
+	}
+	return stream, nil
+}
+
+func (nc *nomadAPIClient) init(nomadConfig *config.Nomad) (err error) {
+	nomadTLSConfig := &nomadApi.TLSConfig{}
+	if nomadConfig.TLS.Active {
+		nomadTLSConfig.CACert = nomadConfig.TLS.CAFile
+		nomadTLSConfig.ClientCert = nomadConfig.TLS.CertFile
+		nomadTLSConfig.ClientKey = nomadConfig.TLS.KeyFile
+	}
+
+	nc.client, err = nomadApi.NewClient(&nomadApi.Config{
+		Address:   nomadConfig.URL().String(),
+		TLSConfig: nomadTLSConfig,
+		Namespace: nomadConfig.Namespace,
+		SecretID:  nomadConfig.Token,
+	})
+	if err != nil {
+		return fmt.Errorf("error creating new Nomad client: %w", err)
+	}
+	nc.namespace = nomadConfig.Namespace
+	return nil
 }
 
 func (nc *nomadAPIClient) executeInAllocation(ctx context.Context, cmd string, allocation *nomadApi.Allocation, tty bool,
@@ -157,43 +194,6 @@ func (nc *nomadAPIClient) listJobs(prefix string) ([]*nomadApi.JobListStub, erro
 		return nil, fmt.Errorf("error listing Nomad jobs: %w", err)
 	}
 	return jobs, nil
-}
-
-func (nc *nomadAPIClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
-	job.Namespace = &nc.namespace
-	resp, _, err := nc.client.Jobs().Register(job, nil)
-	if err != nil {
-		return "", fmt.Errorf("error registering Nomad job: %w", err)
-	}
-	if resp.Warnings != "" {
-		log.
-			WithField("job", job).
-			WithField("warnings", resp.Warnings).
-			Warn("Received warnings when registering job")
-	}
-	return resp.EvalID, nil
-}
-
-func (nc *nomadAPIClient) EventStream(ctx context.Context) (<-chan *nomadApi.Events, error) {
-	stream, err := nc.client.EventStream().Stream(
-		ctx,
-		map[nomadApi.Topic][]string{
-			nomadApi.TopicEvaluation: {"*"},
-			nomadApi.TopicAllocation: {
-				// Necessary to have the "topic" URL param show up in the HTTP request to Nomad.
-				// Without the param, Nomad will try to deliver all event types.
-				// However, this includes some events that require a management authentication token.
-				// As Poseidon uses no such token, the request will return a permission denied error.
-				"*",
-			},
-			nomadApi.TopicJob: {"*"},
-		},
-		0,
-		nc.queryOptions())
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving Nomad Allocation event stream: %w", err)
-	}
-	return stream, nil
 }
 
 func (nc *nomadAPIClient) queryOptions() *nomadApi.QueryOptions {

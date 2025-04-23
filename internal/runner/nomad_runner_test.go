@@ -530,20 +530,6 @@ type TarFile struct {
 	TypeFlag byte
 }
 
-func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader) (files []TarFile) {
-	reader := tar.NewReader(tarArchive)
-	for {
-		hdr, err := reader.Next()
-		if err != nil {
-			break
-		}
-		bf, err := io.ReadAll(reader)
-		s.Require().NoError(err)
-		files = append(files, TarFile{Name: hdr.Name, Content: string(bf), TypeFlag: hdr.Typeflag})
-	}
-	return files
-}
-
 func (s *UpdateFileSystemTestSuite) TestGetFileContentReturnsErrorIfExitCodeIsNotZero() {
 	s.mockedExecuteCommandCall.RunFn = nil
 	s.mockedExecuteCommandCall.Return(1, nil)
@@ -576,4 +562,18 @@ func (s *UpdateFileSystemTestSuite) TestFileCopyIsCanceledOnRunnerDestroy() {
 
 	<-time.After(2 * tests.ShortTimeout)
 	s.runner.cancel()
+}
+
+func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader) (files []TarFile) {
+	reader := tar.NewReader(tarArchive)
+	for {
+		hdr, err := reader.Next()
+		if err != nil {
+			break
+		}
+		bf, err := io.ReadAll(reader)
+		s.Require().NoError(err)
+		files = append(files, TarFile{Name: hdr.Name, Content: string(bf), TypeFlag: hdr.Typeflag})
+	}
+	return files
 }

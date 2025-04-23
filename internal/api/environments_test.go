@@ -250,16 +250,6 @@ func (s *CreateOrUpdateEnvironmentTestSuite) SetupTest() {
 	}
 }
 
-func (s *CreateOrUpdateEnvironmentTestSuite) recordRequest() *httptest.ResponseRecorder {
-	recorder := httptest.NewRecorder()
-	request, err := http.NewRequest(http.MethodPut, s.path, bytes.NewReader(s.body))
-	if err != nil {
-		s.T().Fatal(err)
-	}
-	s.router.ServeHTTP(recorder, request)
-	return recorder
-}
-
 func (s *CreateOrUpdateEnvironmentTestSuite) TestReturnsBadRequestWhenBadBody() {
 	s.body = []byte{}
 	recorder := s.recordRequest()
@@ -306,4 +296,14 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestFailsOnTooLargeID() {
 	s.path = strings.Join([]string{BasePath, EnvironmentsPath, "/", tooLargeIntStr}, "")
 	recorder := s.recordRequest()
 	s.Equal(http.StatusBadRequest, recorder.Code)
+}
+
+func (s *CreateOrUpdateEnvironmentTestSuite) recordRequest() *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	request, err := http.NewRequest(http.MethodPut, s.path, bytes.NewReader(s.body))
+	if err != nil {
+		s.T().Fatal(err)
+	}
+	s.router.ServeHTTP(recorder, request)
+	return recorder
 }

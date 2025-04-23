@@ -68,22 +68,6 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 	return runner, nil
 }
 
-func (m *NomadRunnerManager) setRunnerMetaUsed(runner Runner, used bool, timeoutDuration int) {
-	err := util.RetryExponential(func() (err error) {
-		if err = m.apiClient.SetRunnerMetaUsed(runner.ID(), used, timeoutDuration); err != nil {
-			err = fmt.Errorf("cannot mark runner as used: %w", err)
-		}
-		return
-	})
-	if err != nil {
-		log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).WithField("used", used).Error("cannot mark runner")
-		err := m.Return(runner)
-		if err != nil {
-			log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).Error("can't mark runner and can't return runner")
-		}
-	}
-}
-
 func (m *NomadRunnerManager) Return(r Runner) error {
 	m.usedRunners.Delete(r.ID())
 	err := r.Destroy(ErrDestroyedByAPIRequest)
@@ -133,6 +117,22 @@ func (m *NomadRunnerManager) StoreEnvironment(environment ExecutionEnvironment) 
 func (m *NomadRunnerManager) DeleteEnvironment(id dto.EnvironmentID) {
 	m.AbstractManager.DeleteEnvironment(id)
 	m.reloadingEnvironment.Delete(id.ToString())
+}
+
+func (m *NomadRunnerManager) setRunnerMetaUsed(runner Runner, used bool, timeoutDuration int) {
+	err := util.RetryExponential(func() (err error) {
+		if err = m.apiClient.SetRunnerMetaUsed(runner.ID(), used, timeoutDuration); err != nil {
+			err = fmt.Errorf("cannot mark runner as used: %w", err)
+		}
+		return
+	})
+	if err != nil {
+		log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).WithField("used", used).Error("cannot mark runner")
+		err := m.Return(runner)
+		if err != nil {
+			log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).Error("can't mark runner and can't return runner")
+		}
+	}
 }
 
 // checkPrewarmingPoolAlert checks if the prewarming pool contains enough idle runners as specified by the PrewarmingPoolThreshold.

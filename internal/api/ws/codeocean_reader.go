@@ -56,6 +56,60 @@ func NewCodeOceanToRawReader(wsCtx, executorCtx context.Context, connection Conn
 	}
 }
 
+// Start starts the read input loop asynchronously.
+func (cr *codeOceanToRawReader) Start() {
+	ctx, cancel := context.WithCancel(cr.readCtx)
+	cr.cancelReadCtx = cancel
+
+	go cr.readInputLoop(ctx)
+}
+
+// Stop stops the asynchronous read input loop.
+func (cr *codeOceanToRawReader) Stop() {
+	cr.cancelReadCtx()
+}
+
+// Read implements the io.Reader interface.
+// It returns bytes from the buffer or priorityBuffer.
+func (cr *codeOceanToRawReader) Read(rawData []byte) (int, error) {
+	if len(rawData) == 0 {
+		return 0, nil
+	}
+
+	// Ensure to not return until at least one byte has been read to avoid busy waiting.
+	select {
+	case <-cr.executorCtx.Done():
+		return 0, io.EOF
+	case rawData[0] = <-cr.priorityBuffer:
+	case rawData[0] = <-cr.buffer:
+	}
+
+	var bytesWritten int
+	for bytesWritten = 1; bytesWritten < len(rawData); bytesWritten++ {
+		select {
+		case rawData[bytesWritten] = <-cr.priorityBuffer:
+		case rawData[bytesWritten] = <-cr.buffer:
+		default:
+			return bytesWritten, nil
+		}
+	}
+	return bytesWritten, nil
+}
+
+// Write implements the io.Writer interface.
+// Data written to a codeOceanToRawReader using this method is returned by Read before other data from the WebSocket.
+func (cr *codeOceanToRawReader) Write(p []byte) (n int, err error) {
+	var c byte
+	for n, c = range p {
+		select {
+		case cr.priorityBuffer <- c:
+		default:
+			break
+		}
+	}
+	return n, nil
+}
+
 // readInputLoop reads from the WebSocket connection and buffers the user's input.
 // This is necessary because input must be read for the connection to handle special messages like close and call the
 // CloseHandler.
@@ -126,58 +180,4 @@ func inputContainsError(ctx context.Context, messageType int, err error) (done b
 		return true
 	}
 	return false
-}
-
-// Start starts the read input loop asynchronously.
-func (cr *codeOceanToRawReader) Start() {
-	ctx, cancel := context.WithCancel(cr.readCtx)
-	cr.cancelReadCtx = cancel
-
-	go cr.readInputLoop(ctx)
-}
-
-// Stop stops the asynchronous read input loop.
-func (cr *codeOceanToRawReader) Stop() {
-	cr.cancelReadCtx()
-}
-
-// Read implements the io.Reader interface.
-// It returns bytes from the buffer or priorityBuffer.
-func (cr *codeOceanToRawReader) Read(rawData []byte) (int, error) {
-	if len(rawData) == 0 {
-		return 0, nil
-	}
-
-	// Ensure to not return until at least one byte has been read to avoid busy waiting.
-	select {
-	case <-cr.executorCtx.Done():
-		return 0, io.EOF
-	case rawData[0] = <-cr.priorityBuffer:
-	case rawData[0] = <-cr.buffer:
-	}
-
-	var bytesWritten int
-	for bytesWritten = 1; bytesWritten < len(rawData); bytesWritten++ {
-		select {
-		case rawData[bytesWritten] = <-cr.priorityBuffer:
-		case rawData[bytesWritten] = <-cr.buffer:
-		default:
-			return bytesWritten, nil
-		}
-	}
-	return bytesWritten, nil
-}
-
-// Write implements the io.Writer interface.
-// Data written to a codeOceanToRawReader using this method is returned by Read before other data from the WebSocket.
-func (cr *codeOceanToRawReader) Write(p []byte) (n int, err error) {
-	var c byte
-	for n, c = range p {
-		select {
-		case cr.priorityBuffer <- c:
-		default:
-			break
-		}
-	}
-	return n, nil
 }

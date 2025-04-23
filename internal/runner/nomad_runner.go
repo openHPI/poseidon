@@ -323,6 +323,20 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 	return nil
 }
 
+// MarshalJSON implements json.Marshaler interface.
+// This exports private attributes like the id too.
+func (r *NomadJob) MarshalJSON() ([]byte, error) {
+	res, err := json.Marshal(struct {
+		ID string `json:"runnerId"`
+	}{
+		ID: r.ID(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling Nomad job: %w", err)
+	}
+	return res, nil
+}
+
 func prepareExecution(environmentCtx context.Context, request *dto.ExecutionRequest) (
 	command string, ctx context.Context, cancel context.CancelFunc,
 ) {
@@ -498,18 +512,4 @@ func tarHeader(file dto.File) *tar.Header {
 		Mode:     filePermission,
 		Size:     int64(len(file.Content)),
 	}
-}
-
-// MarshalJSON implements json.Marshaler interface.
-// This exports private attributes like the id too.
-func (r *NomadJob) MarshalJSON() ([]byte, error) {
-	res, err := json.Marshal(struct {
-		ID string `json:"runnerId"`
-	}{
-		ID: r.ID(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling Nomad job: %w", err)
-	}
-	return res, nil
 }

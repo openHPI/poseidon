@@ -88,6 +88,17 @@ func (w *Ls2JsonWriter) Write(lsData []byte) (int, error) {
 	return len(lsData), nil
 }
 
+func (w *Ls2JsonWriter) Close() error {
+	if w.jsonStartSent {
+		count, err := w.Target.Write([]byte("]}"))
+		if count == 0 || err != nil {
+			log.WithContext(w.sentrySpan.Context()).WithError(err).Warn("Could not Close ls2json writer")
+		}
+		w.sentrySpan.Finish()
+	}
+	return w.err
+}
+
 func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
 	if !w.jsonStartSent {
 		count, err = w.Target.Write([]byte(`{"files": [`))
@@ -102,17 +113,6 @@ func (w *Ls2JsonWriter) initializeJSONObject() (count int, err error) {
 		}
 	}
 	return count, err
-}
-
-func (w *Ls2JsonWriter) Close() error {
-	if w.jsonStartSent {
-		count, err := w.Target.Write([]byte("]}"))
-		if count == 0 || err != nil {
-			log.WithContext(w.sentrySpan.Context()).WithError(err).Warn("Could not Close ls2json writer")
-		}
-		w.sentrySpan.Finish()
-	}
-	return w.err
 }
 
 func (w *Ls2JsonWriter) writeLine(line []byte) (count int, err error) {

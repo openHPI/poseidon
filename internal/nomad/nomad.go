@@ -118,14 +118,6 @@ func NewExecutorAPI(ctx context.Context, nomadConfig *config.Nomad) (ExecutorAPI
 	return client, err
 }
 
-// init prepares an apiClient to be able to communicate to a provided Nomad API.
-func (a *APIClient) init(nomadConfig *config.Nomad) error {
-	if err := a.apiQuerier.init(nomadConfig); err != nil {
-		return fmt.Errorf("error initializing API querier: %w", err)
-	}
-	return nil
-}
-
 func (a *APIClient) LoadRunnerIDs(prefix string) (runnerIDs []string, err error) {
 	list, err := a.listJobs(prefix)
 	if err != nil {
@@ -218,4 +210,12 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 		jobs = append(jobs, job)
 	}
 	return jobs, nil
+}
+
+// init prepares an apiClient to be able to communicate to a provided Nomad API.
+func (a *APIClient) init(nomadConfig *config.Nomad) error {
+	if err := a.apiQuerier.init(nomadConfig); err != nil {
+		return fmt.Errorf("error initializing API querier: %w", err)
+	}
+	return nil
 }

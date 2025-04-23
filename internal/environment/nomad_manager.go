@@ -98,43 +98,6 @@ func (m *NomadEnvironmentManager) List(ctx context.Context, fetch bool) ([]runne
 	return m.runnerManager.ListEnvironments(), nil
 }
 
-func (m *NomadEnvironmentManager) fetchEnvironments(ctx context.Context) error {
-	remoteEnvironmentList, err := m.api.LoadEnvironmentJobs()
-	if err != nil {
-		return fmt.Errorf("failed fetching environments: %w", err)
-	}
-	remoteEnvironments := make(map[string]*nomadApi.Job)
-
-	// Update local environments from remote environments.
-	for _, job := range remoteEnvironmentList {
-		remoteEnvironments[*job.ID] = job
-		id, err := nomad.EnvironmentIDFromTemplateJobID(*job.ID)
-		if err != nil {
-			return fmt.Errorf("cannot parse environment id: %w", err)
-		}
-
-		if localEnvironment, ok := m.runnerManager.GetEnvironment(id); ok {
-			fetchedEnvironment := newNomadEnvironmentFromJob(ctx, job, m.api)
-			localEnvironment.SetConfigFrom(fetchedEnvironment)
-			// We destroy only this (second) local reference to the environment.
-			if err = fetchedEnvironment.Delete(runner.ErrDestroyedAndReplaced); err != nil {
-				log.WithError(err).Warn("Failed to remove environment locally")
-			}
-		} else {
-			m.runnerManager.StoreEnvironment(newNomadEnvironmentFromJob(ctx, job, m.api))
-		}
-	}
-
-	// Remove local environments that are not remote environments.
-	for _, localEnvironment := range m.runnerManager.ListEnvironments() {
-		if _, ok := remoteEnvironments[localEnvironment.ID().ToString()]; !ok {
-			err := localEnvironment.Delete(runner.ErrLocalDestruction)
-			log.WithError(err).Warn("Failed to remove environment locally")
-		}
-	}
-	return nil
-}
-
 func (m *NomadEnvironmentManager) CreateOrUpdate(
 	ctx context.Context, id dto.EnvironmentID, request dto.ExecutionEnvironmentRequest,
 ) (created bool, err error) {
@@ -203,6 +166,43 @@ func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(ctx context.Context, sy
 		level = logrus.FatalLevel
 	}
 	log.WithContext(ctx).WithError(err).Log(level, "Stopped KeepEnvironmentsSynced")
+}
+
+func (m *NomadEnvironmentManager) fetchEnvironments(ctx context.Context) error {
+	remoteEnvironmentList, err := m.api.LoadEnvironmentJobs()
+	if err != nil {
+		return fmt.Errorf("failed fetching environments: %w", err)
+	}
+	remoteEnvironments := make(map[string]*nomadApi.Job)
+
+	// Update local environments from remote environments.
+	for _, job := range remoteEnvironmentList {
+		remoteEnvironments[*job.ID] = job
+		id, err := nomad.EnvironmentIDFromTemplateJobID(*job.ID)
+		if err != nil {
+			return fmt.Errorf("cannot parse environment id: %w", err)
+		}
+
+		if localEnvironment, ok := m.runnerManager.GetEnvironment(id); ok {
+			fetchedEnvironment := newNomadEnvironmentFromJob(ctx, job, m.api)
+			localEnvironment.SetConfigFrom(fetchedEnvironment)
+			// We destroy only this (second) local reference to the environment.
+			if err = fetchedEnvironment.Delete(runner.ErrDestroyedAndReplaced); err != nil {
+				log.WithError(err).Warn("Failed to remove environment locally")
+			}
+		} else {
+			m.runnerManager.StoreEnvironment(newNomadEnvironmentFromJob(ctx, job, m.api))
+		}
+	}
+
+	// Remove local environments that are not remote environments.
+	for _, localEnvironment := range m.runnerManager.ListEnvironments() {
+		if _, ok := remoteEnvironments[localEnvironment.ID().ToString()]; !ok {
+			err := localEnvironment.Delete(runner.ErrLocalDestruction)
+			log.WithError(err).Warn("Failed to remove environment locally")
+		}
+	}
+	return nil
 }
 
 // Load recovers all environments from the Jobs in Nomad.

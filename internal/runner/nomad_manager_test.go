@@ -54,57 +54,6 @@ func (s *ManagerTestSuite) TearDownTest() {
 	s.Require().NoError(err)
 }
 
-func mockRunnerQueries(ctx context.Context, apiMock *nomad.ExecutorAPIMock, returnedRunnerIDs []string) {
-	// reset expected calls to allow new mocked return values
-	apiMock.ExpectedCalls = []*mock.Call{}
-	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
-	call.Run(func(_ mock.Arguments) {
-		<-ctx.Done()
-		call.ReturnArguments = mock.Arguments{nil}
-	})
-	apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
-	apiMock.On("LoadRunnerJobs", mock.AnythingOfType("dto.EnvironmentID")).Return([]*nomadApi.Job{}, nil)
-	apiMock.On("SetRunnerMetaUsed", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("int")).Return(nil)
-	apiMock.On("LoadRunnerIDs", tests.DefaultRunnerID).Return(returnedRunnerIDs, nil)
-	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
-	apiMock.On("RegisterRunnerJob", mock.Anything).Return(nil)
-	apiMock.On("MonitorEvaluation", mock.Anything, mock.Anything).Return(nil)
-}
-
-func mockIdleRunners(environmentMock *ExecutionEnvironmentMock) {
-	tests.RemoveMethodFromMock(&environmentMock.Mock, "DeleteRunner")
-	idleRunner := storage.NewLocalStorage[Runner]()
-	environmentMock.On("AddRunner", mock.Anything).Run(func(args mock.Arguments) {
-		r, ok := args.Get(0).(Runner)
-		if !ok {
-			return
-		}
-		idleRunner.Add(r.ID(), r)
-	})
-	sampleCall := environmentMock.On("Sample", mock.Anything)
-	sampleCall.Run(func(_ mock.Arguments) {
-		r, ok := idleRunner.Sample()
-		sampleCall.ReturnArguments = mock.Arguments{r, ok}
-	})
-	deleteCall := environmentMock.On("DeleteRunner", mock.AnythingOfType("string"))
-	deleteCall.Run(func(args mock.Arguments) {
-		runnerID, ok := args.Get(0).(string)
-		if !ok {
-			log.Fatal("Cannot parse ID")
-		}
-		r, ok := idleRunner.Get(runnerID)
-		deleteCall.ReturnArguments = mock.Arguments{r, ok}
-		if !ok {
-			return
-		}
-		idleRunner.Delete(runnerID)
-	})
-}
-
-func (s *ManagerTestSuite) waitForRunnerRefresh() {
-	<-time.After(tests.ShortTimeout)
-}
-
 func (s *ManagerTestSuite) TestSetEnvironmentAddsNewEnvironment() {
 	anotherEnvironment := createBasicEnvironmentMock(anotherEnvironmentID)
 	s.nomadRunnerManager.StoreEnvironment(anotherEnvironment)
@@ -519,6 +468,57 @@ func (s *ManagerTestSuite) TestOnAllocationStopped() {
 		s.True(alreadyRemoved)
 		s.Empty(hook.Entries)
 	})
+}
+
+func mockRunnerQueries(ctx context.Context, apiMock *nomad.ExecutorAPIMock, returnedRunnerIDs []string) {
+	// reset expected calls to allow new mocked return values
+	apiMock.ExpectedCalls = []*mock.Call{}
+	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
+	call.Run(func(_ mock.Arguments) {
+		<-ctx.Done()
+		call.ReturnArguments = mock.Arguments{nil}
+	})
+	apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
+	apiMock.On("LoadRunnerJobs", mock.AnythingOfType("dto.EnvironmentID")).Return([]*nomadApi.Job{}, nil)
+	apiMock.On("SetRunnerMetaUsed", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("int")).Return(nil)
+	apiMock.On("LoadRunnerIDs", tests.DefaultRunnerID).Return(returnedRunnerIDs, nil)
+	apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+	apiMock.On("RegisterRunnerJob", mock.Anything).Return(nil)
+	apiMock.On("MonitorEvaluation", mock.Anything, mock.Anything).Return(nil)
+}
+
+func mockIdleRunners(environmentMock *ExecutionEnvironmentMock) {
+	tests.RemoveMethodFromMock(&environmentMock.Mock, "DeleteRunner")
+	idleRunner := storage.NewLocalStorage[Runner]()
+	environmentMock.On("AddRunner", mock.Anything).Run(func(args mock.Arguments) {
+		r, ok := args.Get(0).(Runner)
+		if !ok {
+			return
+		}
+		idleRunner.Add(r.ID(), r)
+	})
+	sampleCall := environmentMock.On("Sample", mock.Anything)
+	sampleCall.Run(func(_ mock.Arguments) {
+		r, ok := idleRunner.Sample()
+		sampleCall.ReturnArguments = mock.Arguments{r, ok}
+	})
+	deleteCall := environmentMock.On("DeleteRunner", mock.AnythingOfType("string"))
+	deleteCall.Run(func(args mock.Arguments) {
+		runnerID, ok := args.Get(0).(string)
+		if !ok {
+			log.Fatal("Cannot parse ID")
+		}
+		r, ok := idleRunner.Get(runnerID)
+		deleteCall.ReturnArguments = mock.Arguments{r, ok}
+		if !ok {
+			return
+		}
+		idleRunner.Delete(runnerID)
+	})
+}
+
+func (s *ManagerTestSuite) waitForRunnerRefresh() {
+	<-time.After(tests.ShortTimeout)
 }
 
 func testStoppedInactivityTimer(s *ManagerTestSuite) (r Runner, destroyed chan struct{}) {

@@ -40,23 +40,6 @@ type MemoryLeakTestSuite struct {
 	goroutinesBefore     *bytes.Buffer
 }
 
-func (s *MemoryLeakTestSuite) lookupGoroutines() (debugOutput *bytes.Buffer, goroutineCount int) {
-	debugOutput = &bytes.Buffer{}
-	err := pprof.Lookup("goroutine").WriteTo(debugOutput, 1)
-	s.Require().NoError(err)
-	match := numGoroutines.FindSubmatch(debugOutput.Bytes())
-	if match == nil {
-		s.Fail("gouroutines could not be parsed: " + debugOutput.String())
-	}
-
-	// We do not use runtime.NumGoroutine() to not create inconsistency to the Lookup.
-	goroutineCount, err = strconv.Atoi(string(match[1]))
-	if err != nil {
-		s.Fail("number of goroutines could not be parsed: " + err.Error())
-	}
-	return debugOutput, goroutineCount
-}
-
 func (s *MemoryLeakTestSuite) SetupTest() {
 	runtime.Gosched()          // Flush done Goroutines
 	<-time.After(ShortTimeout) // Just to make sure
@@ -90,4 +73,21 @@ func RemoveMethodFromMock(m *mock.Mock, method string) {
 			return
 		}
 	}
+}
+
+func (s *MemoryLeakTestSuite) lookupGoroutines() (debugOutput *bytes.Buffer, goroutineCount int) {
+	debugOutput = &bytes.Buffer{}
+	err := pprof.Lookup("goroutine").WriteTo(debugOutput, 1)
+	s.Require().NoError(err)
+	match := numGoroutines.FindSubmatch(debugOutput.Bytes())
+	if match == nil {
+		s.Fail("gouroutines could not be parsed: " + debugOutput.String())
+	}
+
+	// We do not use runtime.NumGoroutine() to not create inconsistency to the Lookup.
+	goroutineCount, err = strconv.Atoi(string(match[1]))
+	if err != nil {
+		s.Fail("number of goroutines could not be parsed: " + err.Error())
+	}
+	return debugOutput, goroutineCount
 }

@@ -27,11 +27,13 @@ type webSocketProxy struct {
 // upgradeConnection upgrades a connection to a websocket and returns a webSocketProxy for this connection.
 func upgradeConnection(writer http.ResponseWriter, request *http.Request) (ws.Connection, error) {
 	connUpgrader := websocket.Upgrader{}
+
 	connection, err := connUpgrader.Upgrade(writer, request, nil)
 	if err != nil {
 		log.WithContext(request.Context()).WithError(err).Warn("Connection upgrade failed")
 		return nil, fmt.Errorf("error upgrading the connection: %w", err)
 	}
+
 	return connection, nil
 }
 
@@ -52,8 +54,10 @@ func newWebSocketProxy(proxyCtx context.Context, connection ws.Connection) *webS
 	connection.SetCloseHandler(func(code int, text string) error {
 		log.WithContext(wsCtx).WithField("code", code).WithField("text", text).Debug("The client closed the connection.")
 		cancelWsCommunication()
+
 		return nil
 	})
+
 	return proxy
 }
 
@@ -99,6 +103,7 @@ func (r *RunnerController) connectToRunner(writer http.ResponseWriter, request *
 
 	proxyCtx, cancelProxy := context.WithCancel(proxyCtx)
 	defer cancelProxy()
+
 	proxy := newWebSocketProxy(proxyCtx, connection)
 
 	log.WithContext(proxyCtx).

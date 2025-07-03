@@ -36,6 +36,7 @@ func NewRouter(runnerManager runner.Manager, environmentManager environment.Mana
 	configureV1Router(router, runnerManager, environmentManager)
 	router.Use(logging.HTTPLoggingMiddleware)
 	router.Use(monitoring.InfluxDB2Middleware)
+
 	return router
 }
 
@@ -91,10 +92,12 @@ func Version(writer http.ResponseWriter, request *http.Request) {
 func StatisticsExecutionEnvironments(manager environment.Manager) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		result := make(map[string]*dto.StatisticalExecutionEnvironmentData)
+
 		environmentsData := manager.Statistics()
 		for id, data := range environmentsData {
 			result[id.ToString()] = data
 		}
+
 		sendJSON(request.Context(), writer, result, http.StatusOK)
 	}
 }

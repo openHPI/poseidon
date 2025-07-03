@@ -24,6 +24,7 @@ func (a *AWSEnvironmentManager) List(ctx context.Context, fetch bool) ([]runner.
 	if err != nil {
 		return nil, fmt.Errorf("aws wrapped: %w", err)
 	}
+
 	return append(list, a.runnerManager.ListEnvironments()...), nil
 }
 
@@ -37,6 +38,7 @@ func (a *AWSEnvironmentManager) Get(ctx context.Context, id dto.EnvironmentID, f
 	if err != nil {
 		return nil, fmt.Errorf("aws wrapped: %w", err)
 	}
+
 	return e, nil
 }
 
@@ -48,6 +50,7 @@ func (a *AWSEnvironmentManager) CreateOrUpdate(
 		if err != nil {
 			return false, fmt.Errorf("aws wrapped: %w", err)
 		}
+
 		return isCreated, nil
 	}
 
@@ -56,6 +59,7 @@ func (a *AWSEnvironmentManager) CreateOrUpdate(
 	e.SetID(id)
 	e.SetImage(request.Image)
 	a.runnerManager.StoreEnvironment(e)
+
 	return !ok, nil
 }
 
@@ -65,5 +69,6 @@ func isAWSEnvironment(request dto.ExecutionEnvironmentRequest) bool {
 			return true
 		}
 	}
+
 	return false
 }

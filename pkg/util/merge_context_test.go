@@ -21,8 +21,10 @@ func TestMainTestSuite(t *testing.T) {
 func (s *MainTestSuite) TestMergeContext_Deadline() {
 	ctxWithoutDeadline := context.Background()
 	earlyDeadline := time.Now().Add(time.Second)
+
 	ctxWithEarlyDeadline, cancel := context.WithDeadline(context.Background(), earlyDeadline)
 	defer cancel()
+
 	ctxWithLateDeadline, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Hour))
 	defer cancel()
 
@@ -35,8 +37,10 @@ func (s *MainTestSuite) TestMergeContext_Deadline() {
 
 func (s *MainTestSuite) TestMergeContext_Done() {
 	ctxWithoutDeadline := context.Background()
+
 	ctxWithEarlyDeadline, cancel := context.WithTimeout(context.Background(), 2*tests.ShortTimeout)
 	defer cancel()
+
 	ctxWithLateDeadline, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 

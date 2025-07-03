@@ -39,12 +39,15 @@ func InitializeLogging(logLevel string, formatter dto.Formatter) {
 		log.WithError(err).Fatal("Error parsing loglevel")
 		return
 	}
+
 	log.SetLevel(level)
+
 	if formatter == dto.FormatterJSON {
 		log.Formatter = &logrus.JSONFormatter{
 			TimestampFormat: TimestampFormat,
 		}
 	}
+
 	log.AddHook(&ContextHook{})
 	log.AddHook(&SentryHook{})
 	log.ExitFunc = func(i int) {
@@ -61,6 +64,7 @@ func GetLogger(pkg string) *logrus.Entry {
 // that is written.
 type ResponseWriter struct {
 	http.ResponseWriter
+
 	StatusCode int
 }
 
@@ -83,6 +87,7 @@ func (writer *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if err != nil {
 		return conn, nil, fmt.Errorf("hijacking connection failed: %w", err)
 	}
+
 	return conn, rw, nil
 }
 
@@ -96,6 +101,7 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(lrw, r)
 
 		latency := time.Now().UTC().Sub(start)
+
 		logEntry := log.WithContext(r.Context()).WithFields(logrus.Fields{
 			"code":       lrw.StatusCode,
 			"method":     r.Method,
@@ -115,5 +121,6 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 func RemoveNewlineSymbol(data string) string {
 	data = strings.ReplaceAll(data, "\r", "")
 	data = strings.ReplaceAll(data, "\n", "")
+
 	return data
 }

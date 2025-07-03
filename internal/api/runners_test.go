@@ -25,6 +25,7 @@ const invalidID = "some-invalid-runner-id"
 
 type MiddlewareTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	manager        *runner.ManagerMock
 	router         *mux.Router
 	runner         runner.Runner
@@ -44,10 +45,12 @@ func (s *MiddlewareTestSuite) SetupTest() {
 		s.Require().NoError(err)
 		request, err := http.NewRequest(http.MethodPost, path.String(), http.NoBody)
 		s.Require().NoError(err)
+
 		return request
 	}
 	runnerRouteHandler := func(writer http.ResponseWriter, request *http.Request) {
 		var ok bool
+
 		s.capturedRunner, ok = runner.FromContext(request.Context())
 		if ok {
 			writer.WriteHeader(http.StatusOK)
@@ -64,6 +67,7 @@ func (s *MiddlewareTestSuite) SetupTest() {
 
 func (s *MiddlewareTestSuite) TearDownTest() {
 	defer s.MemoryLeakTestSuite.TearDownTest()
+
 	err := s.runner.Destroy(nil)
 	s.Require().NoError(err)
 }
@@ -100,6 +104,7 @@ func (s *MiddlewareTestSuite) TestFindRunnerMiddlewareDoesNotEarlyRespond() {
 	s.Require().NoError(err)
 
 	s.manager.On("Get", mock.AnythingOfType("string")).Return(nil, runner.ErrRunnerNotFound)
+
 	recorder := httptest.NewRecorder()
 	s.router.ServeHTTP(recorder, request)
 
@@ -113,6 +118,7 @@ func TestRunnerRouteTestSuite(t *testing.T) {
 
 type RunnerRouteTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	runnerManager *runner.ManagerMock
 	router        *mux.Router
 	runner        runner.Runner
@@ -133,6 +139,7 @@ func (s *RunnerRouteTestSuite) SetupTest() {
 
 func (s *RunnerRouteTestSuite) TearDownTest() {
 	defer s.MemoryLeakTestSuite.TearDownTest()
+
 	s.Require().NoError(s.runner.Destroy(nil))
 }
 
@@ -142,6 +149,7 @@ func TestProvideRunnerTestSuite(t *testing.T) {
 
 type ProvideRunnerTestSuite struct {
 	RunnerRouteTestSuite
+
 	defaultRequest *http.Request
 	path           string
 }
@@ -164,6 +172,7 @@ func (s *ProvideRunnerTestSuite) TestValidRequestReturnsRunner() {
 	s.runnerManager.
 		On("Claim", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("int")).
 		Return(s.runner, nil)
+
 	recorder := httptest.NewRecorder()
 
 	s.router.ServeHTTP(recorder, s.defaultRequest)
@@ -171,9 +180,12 @@ func (s *ProvideRunnerTestSuite) TestValidRequestReturnsRunner() {
 
 	s.Run("response contains runnerId", func() {
 		var runnerResponse dto.RunnerResponse
+
 		err := json.NewDecoder(recorder.Result().Body).Decode(&runnerResponse)
 		s.Require().NoError(err)
+
 		_ = recorder.Result().Body.Close()
+
 		s.Equal(s.runner.ID(), runnerResponse.ID)
 	})
 }
@@ -181,6 +193,7 @@ func (s *ProvideRunnerTestSuite) TestValidRequestReturnsRunner() {
 func (s *ProvideRunnerTestSuite) TestInvalidRequestReturnsBadRequest() {
 	badRequest, err := http.NewRequest(http.MethodPost, s.path, strings.NewReader(""))
 	s.Require().NoError(err)
+
 	recorder := httptest.NewRecorder()
 
 	s.router.ServeHTTP(recorder, badRequest)
@@ -191,6 +204,7 @@ func (s *ProvideRunnerTestSuite) TestWhenExecutionEnvironmentDoesNotExistReturns
 	s.runnerManager.
 		On("Claim", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("int")).
 		Return(nil, runner.ErrUnknownExecutionEnvironment)
+
 	recorder := httptest.NewRecorder()
 
 	s.router.ServeHTTP(recorder, s.defaultRequest)
@@ -201,15 +215,19 @@ func (s *ProvideRunnerTestSuite) TestWhenNoRunnerAvailableReturnsNomadOverload()
 	s.runnerManager.
 		On("Claim", mock.AnythingOfType("dto.EnvironmentID"), mock.AnythingOfType("int")).
 		Return(nil, runner.ErrNoRunnersAvailable)
+
 	recorder := httptest.NewRecorder()
 
 	s.router.ServeHTTP(recorder, s.defaultRequest)
 	s.Equal(http.StatusInternalServerError, recorder.Code)
 
 	var internalServerError dto.InternalServerError
+
 	err := json.NewDecoder(recorder.Result().Body).Decode(&internalServerError)
 	s.Require().NoError(err)
+
 	_ = recorder.Result().Body.Close()
+
 	s.Equal(dto.ErrorNomadOverload, internalServerError.ErrorCode)
 }
 
@@ -232,6 +250,7 @@ func (s *RunnerRouteTestSuite) TestExecuteRoute() {
 		s.router.ServeHTTP(recorder, request)
 
 		var webSocketResponse dto.ExecutionResponse
+
 		err = json.NewDecoder(recorder.Result().Body).Decode(&webSocketResponse)
 		s.Require().NoError(err)
 
@@ -240,6 +259,7 @@ func (s *RunnerRouteTestSuite) TestExecuteRoute() {
 		s.Run("creates an execution request for the runner", func() {
 			webSocketURL, err := url.Parse(webSocketResponse.WebSocketURL)
 			s.Require().NoError(err)
+
 			executionID := webSocketURL.Query().Get(ExecutionIDKey)
 			ok := s.runner.ExecutionExists(executionID)
 
@@ -279,6 +299,7 @@ func TestUpdateFileSystemRouteTestSuite(t *testing.T) {
 
 type UpdateFileSystemRouteTestSuite struct {
 	RunnerRouteTestSuite
+
 	path       string
 	recorder   *httptest.ResponseRecorder
 	runnerMock *runner.RunnerMock
@@ -324,6 +345,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestUpdateFileSystemToNonExistingRunner
 	s.runnerManager.On("Get", invalidID).Return(nil, runner.ErrRunnerNotFound)
 	path, err := s.router.Get(UpdateFileSystemPath).URL(RunnerIDKey, invalidID)
 	s.Require().NoError(err)
+
 	copyRequest := dto.UpdateFileSystemRequest{}
 	body, err := json.Marshal(copyRequest)
 	s.Require().NoError(err)
@@ -360,11 +382,14 @@ func (s *UpdateFileSystemRouteTestSuite) TestListFileSystem() {
 			path, ok := args.Get(1).(string)
 			s.True(ok)
 			s.Equal("./", path)
+
 			recursive, ok := args.Get(2).(bool)
 			s.True(ok)
 			s.True(recursive)
+
 			mockCall.ReturnArguments = mock.Arguments{nil}
 		})
+
 		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
 		s.Require().NoError(err)
 		s.router.ServeHTTP(s.recorder, request)
@@ -379,9 +404,11 @@ func (s *UpdateFileSystemRouteTestSuite) TestListFileSystem() {
 			path, ok := args.Get(1).(string)
 			s.True(ok)
 			s.Equal(expectedPath, path)
+
 			recursive, ok := args.Get(2).(bool)
 			s.True(ok)
 			s.False(recursive)
+
 			mockCall.ReturnArguments = mock.Arguments{nil}
 		})
 
@@ -417,6 +444,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestFileContent() {
 
 	s.Run("Not Found", func() {
 		mockCall.Return(runner.ErrFileNotFound)
+
 		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
 		s.Require().NoError(err)
 		s.router.ServeHTTP(s.recorder, request)
@@ -426,6 +454,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestFileContent() {
 	s.recorder = httptest.NewRecorder()
 	s.Run("Unknown Error", func() {
 		mockCall.Return(nomad.ErrExecutorCommunicationFailed)
+
 		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
 		s.Require().NoError(err)
 		s.router.ServeHTTP(s.recorder, request)
@@ -435,6 +464,7 @@ func (s *UpdateFileSystemRouteTestSuite) TestFileContent() {
 	s.recorder = httptest.NewRecorder()
 	s.Run("No Error", func() {
 		mockCall.Return(nil)
+
 		request, err := http.NewRequest(http.MethodGet, routeURL.String(), strings.NewReader(""))
 		s.Require().NoError(err)
 		s.router.ServeHTTP(s.recorder, request)
@@ -448,6 +478,7 @@ func TestDeleteRunnerRouteTestSuite(t *testing.T) {
 
 type DeleteRunnerRouteTestSuite struct {
 	RunnerRouteTestSuite
+
 	path string
 }
 
@@ -490,6 +521,7 @@ func (s *DeleteRunnerRouteTestSuite) TestDeleteInvalidRunnerIdReturnsGone() {
 	s.runnerManager.On("Get", mock.AnythingOfType("string")).Return(nil, tests.ErrDefault)
 	deleteURL, err := s.router.Get(DeleteRoute).URL(RunnerIDKey, "1nv4l1dID")
 	s.Require().NoError(err)
+
 	deletePath := deleteURL.String()
 
 	recorder := httptest.NewRecorder()

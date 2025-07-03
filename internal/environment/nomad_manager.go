@@ -32,6 +32,7 @@ var log = logging.GetLogger("environment")
 
 type NomadEnvironmentManager struct {
 	*AbstractManager
+
 	api                    nomad.ExecutorAPI
 	templateEnvironmentHCL string
 }
@@ -49,6 +50,7 @@ func NewNomadEnvironmentManager(
 		&AbstractManager{nil, runnerManager},
 		apiClient, templateEnvironmentJobHCL,
 	}
+
 	return m, nil
 }
 
@@ -68,6 +70,7 @@ func (m *NomadEnvironmentManager) Get(ctx context.Context, environmentID dto.Env
 			if err != nil {
 				return nil, err
 			}
+
 			ok = false
 		case !ok:
 			m.runnerManager.StoreEnvironment(fetchedEnvironment)
@@ -86,6 +89,7 @@ func (m *NomadEnvironmentManager) Get(ctx context.Context, environmentID dto.Env
 	if !ok {
 		err = runner.ErrUnknownExecutionEnvironment
 	}
+
 	return executionEnvironment, err
 }
 
@@ -95,6 +99,7 @@ func (m *NomadEnvironmentManager) List(ctx context.Context, fetch bool) ([]runne
 			return nil, err
 		}
 	}
+
 	return m.runnerManager.ListEnvironments(), nil
 }
 
@@ -125,6 +130,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	logging.StartSpan(ctx, "env.update.register", "Register Environment", func(_ context.Context, _ *sentry.Span) {
 		err = environment.Register()
 	})
+
 	if err != nil {
 		return false, fmt.Errorf("error registering template job in API: %w", err)
 	}
@@ -133,6 +139,7 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 	logging.StartSpan(ctx, "env.update.poolsize", "Apply Prewarming Pool Size", func(_ context.Context, _ *sentry.Span) {
 		err = environment.ApplyPrewarmingPoolSize()
 	})
+
 	if err != nil {
 		return false, fmt.Errorf("error scaling template job in API: %w", err)
 	}
@@ -148,6 +155,7 @@ func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(ctx context.Context, sy
 			log.WithContext(ctx).WithError(err).
 				WithField(logging.SentryFingerprintFieldKey, []string{"{{ default }}", "environments"}).
 				Warn("Loading Environments failed! Retrying...")
+
 			return err
 		}
 
@@ -156,15 +164,18 @@ func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(ctx context.Context, sy
 			log.WithContext(ctx).WithError(err).
 				WithField(logging.SentryFingerprintFieldKey, []string{"{{ default }}", "runners"}).
 				Warn("Loading and synchronizing Runners failed! Retrying...")
+
 			return err
 		}
 
 		return nil
 	})
+
 	level := logrus.InfoLevel
 	if err != nil && ctx.Err() == nil {
 		level = logrus.FatalLevel
 	}
+
 	log.WithContext(ctx).WithError(err).Log(level, "Stopped KeepEnvironmentsSynced")
 }
 
@@ -173,11 +184,13 @@ func (m *NomadEnvironmentManager) fetchEnvironments(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed fetching environments: %w", err)
 	}
+
 	remoteEnvironments := make(map[string]*nomadApi.Job)
 
 	// Update local environments from remote environments.
 	for _, job := range remoteEnvironmentList {
 		remoteEnvironments[*job.ID] = job
+
 		id, err := nomad.EnvironmentIDFromTemplateJobID(*job.ID)
 		if err != nil {
 			return fmt.Errorf("cannot parse environment id: %w", err)
@@ -202,6 +215,7 @@ func (m *NomadEnvironmentManager) fetchEnvironments(ctx context.Context) error {
 			log.WithError(err).Warn("Failed to remove environment locally")
 		}
 	}
+
 	return nil
 }
 
@@ -228,15 +242,18 @@ func (m *NomadEnvironmentManager) load(ctx context.Context) error {
 			jobLogger.Info("Job not running, skipping...")
 			continue
 		}
+
 		configTaskGroup := nomad.FindAndValidateConfigTaskGroup(job)
 		if configTaskGroup == nil {
 			jobLogger.Error("FindAndValidateConfigTaskGroup is not creating the task group")
 			continue
 		}
+
 		environment := newNomadEnvironmentFromJob(ctx, job, m.api)
 		m.runnerManager.StoreEnvironment(environment)
 		jobLogger.Info("Successfully recovered environment")
 	}
+
 	return nil
 }
 
@@ -253,6 +270,7 @@ func newNomadEnvironmentFromJob(ctx context.Context, job *nomadApi.Job, apiClien
 	}
 	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](
 		ctx, monitoring.MeasurementIdleRunnerNomad, runner.MonitorEnvironmentID[runner.Runner](e.ID()), time.Minute)
+
 	return e
 }
 
@@ -262,11 +280,14 @@ func loadTemplateEnvironmentJobHCL(path string) error {
 	if path == "" {
 		return nil
 	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("error loading template environment job: %w", err)
 	}
+
 	templateEnvironmentJobHCL = string(data)
+
 	return nil
 }
 
@@ -276,16 +297,20 @@ func fetchEnvironment(ctx context.Context, requestedEnvironmentID dto.Environmen
 	if err != nil {
 		return nil, fmt.Errorf("error fetching the environment jobs: %w", err)
 	}
+
 	var fetchedEnvironment runner.ExecutionEnvironment
+
 	for _, job := range environments {
 		fetchedEnvironmentID, err := nomad.EnvironmentIDFromTemplateJobID(*job.ID)
 		if err != nil {
 			log.WithError(err).Warn("Cannot parse environment id of loaded environment")
 			continue
 		}
+
 		if requestedEnvironmentID == fetchedEnvironmentID {
 			fetchedEnvironment = newNomadEnvironmentFromJob(ctx, job, apiClient)
 		}
 	}
+
 	return fetchedEnvironment, nil
 }

@@ -26,6 +26,7 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) (err error) {
 	hub.WithScope(func(scope *sentry.Scope) {
 		err = handleLogEntry(entry, hub, scope)
 	})
+
 	return err
 }
 
@@ -35,9 +36,11 @@ func handleEntryContext(entry *logrus.Entry) *sentry.Hub {
 		hub = sentry.GetHubFromContext(entry.Context)
 		injectContextValuesIntoData(entry)
 	}
+
 	if hub == nil {
 		hub = sentry.CurrentHub()
 	}
+
 	return hub
 }
 
@@ -48,17 +51,21 @@ func handleLogEntry(entry *logrus.Entry, hub *sentry.Hub, scope *sentry.Scope) (
 	}
 
 	scope.SetContext(SentryContextKey, entry.Data)
+
 	if runnerID, ok := entry.Data[dto.KeyRunnerID].(string); ok {
 		scope.SetTag(dto.KeyRunnerID, runnerID)
 	}
+
 	if environmentID, ok := entry.Data[dto.KeyEnvironmentID].(string); ok {
 		scope.SetTag(dto.KeyEnvironmentID, environmentID)
 	}
+
 	if fingerprint, ok := entry.Data[SentryFingerprintFieldKey].([]string); ok {
 		scope.SetFingerprint(fingerprint)
 	}
 
 	event := client.EventFromMessage(entry.Message, sentry.Level(entry.Level.String()))
+
 	event.Timestamp = entry.Time
 	if data, ok := entry.Data["error"]; ok {
 		entryError, ok := data.(error)
@@ -66,7 +73,9 @@ func handleLogEntry(entry *logrus.Entry, hub *sentry.Hub, scope *sentry.Scope) (
 			entry.Data["error"] = entryError.Error()
 		}
 	}
+
 	hub.CaptureEvent(event)
+
 	return nil
 }
 
@@ -83,8 +92,10 @@ func (hook *SentryHook) Levels() []logrus.Level {
 func StartSpan(ctx context.Context, op, description string, callback func(context.Context, *sentry.Span)) {
 	innerCtx := CloneSentryHub(ctx)
 	span := sentry.StartSpan(innerCtx, op)
+
 	span.Description = description
 	defer span.Finish()
+
 	callback(span.Context(), span)
 }
 
@@ -93,6 +104,8 @@ func CloneSentryHub(ctx context.Context) context.Context {
 	if hub == nil {
 		hub = sentry.CurrentHub()
 	}
+
 	innerHub := hub.Clone()
+
 	return sentry.SetHubOnContext(ctx, innerHub)
 }

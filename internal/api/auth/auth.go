@@ -20,7 +20,9 @@ func InitializeAuthentication() bool {
 	if token == "" {
 		return false
 	}
+
 	correctAuthenticationToken = []byte(token)
+
 	return true
 }
 
@@ -32,8 +34,10 @@ func HTTPAuthenticationMiddleware(next http.Handler) http.Handler {
 				WithField("token", logging.RemoveNewlineSymbol(token)).
 				Warn("Incorrect token")
 			w.WriteHeader(http.StatusUnauthorized)
+
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }

@@ -197,10 +197,12 @@ func InitConfig() error {
 	if configurationInitialized {
 		return ErrConfigInitialized
 	}
+
 	configurationInitialized = true
 	content := readConfigFile()
 	Config.mergeYaml(content)
 	Config.mergeEnvironmentVariables()
+
 	return nil
 }
 
@@ -209,6 +211,7 @@ func parseURL(address string, port int, tlsEnabled bool) *url.URL {
 	if tlsEnabled {
 		scheme = "https"
 	}
+
 	return &url.URL{
 		Scheme: scheme,
 		Host:   fmt.Sprintf("%s:%d", address, port),
@@ -217,11 +220,13 @@ func parseURL(address string, port int, tlsEnabled bool) *url.URL {
 
 func readConfigFile() []byte {
 	parseFlags()
+
 	data, err := os.ReadFile(configurationFilePath)
 	if err != nil {
 		log.WithError(err).Info("Using default configuration...")
 		return nil
 	}
+
 	return data
 }
 
@@ -229,6 +234,7 @@ func parseFlags() {
 	if flag.Lookup("config") == nil {
 		flag.StringVar(&configurationFilePath, "config", configurationFilePath, "path of the yaml config file")
 	}
+
 	flag.Parse()
 }
 
@@ -266,6 +272,7 @@ func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
 	if !ok {
 		return
 	}
+
 	logEntry = logEntry.WithField("content", content)
 
 	switch value.Kind() {
@@ -277,6 +284,7 @@ func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
 			logEntry.Warn("Could not parse environment variable as integer")
 			return
 		}
+
 		value.SetInt(int64(integer))
 	case reflect.Bool:
 		boolean, err := strconv.ParseBool(content)
@@ -284,11 +292,13 @@ func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
 			logEntry.Warn("Could not parse environment variable as boolean")
 			return
 		}
+
 		value.SetBool(boolean)
 	case reflect.Slice:
 		if content != "" && content[0] == '"' && content[len(content)-1] == '"' {
 			content = content[1 : len(content)-1] // remove wrapping quotes
 		}
+
 		parts := strings.Fields(content)
 		value.Set(reflect.AppendSlice(value, reflect.ValueOf(parts)))
 	default:
@@ -300,7 +310,9 @@ func loadValue(prefix string, value reflect.Value, logEntry *logrus.Entry) {
 
 func randomFilterToken() string {
 	const tokenLength = 32
+
 	randomBytes := make([]byte, tokenLength) // nozero // rand.Read requires the slice to be pre-allocated.
+
 	n, err := rand.Read(randomBytes)
 	if n != tokenLength || err != nil {
 		log.WithError(err).WithField("byteCount", n).Fatal("Failed to generate random token")

@@ -93,6 +93,7 @@ func (cr *codeOceanToRawReader) Read(rawData []byte) (int, error) {
 			return bytesWritten, nil
 		}
 	}
+
 	return bytesWritten, nil
 }
 
@@ -107,6 +108,7 @@ func (cr *codeOceanToRawReader) Write(p []byte) (n int, err error) {
 			break
 		}
 	}
+
 	return n, nil
 }
 
@@ -115,8 +117,10 @@ func (cr *codeOceanToRawReader) Write(p []byte) (n int, err error) {
 // CloseHandler.
 func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 	readMessage := make(chan bool)
+
 	loopContext, cancelInputLoop := context.WithCancel(ctx)
 	defer cancelInputLoop()
+
 	readingContext, cancelNextMessage := context.WithCancel(loopContext)
 	defer cancelNextMessage()
 
@@ -127,11 +131,13 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 
 		go func() {
 			messageType, reader, err = cr.connection.NextReader()
+
 			select {
 			case <-readingContext.Done():
 			case readMessage <- true:
 			}
 		}()
+
 		select {
 		case <-loopContext.Done():
 			return
@@ -141,6 +147,7 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 		if inputContainsError(loopContext, messageType, err) {
 			return
 		}
+
 		if handleInput(loopContext, reader, cr.buffer) {
 			return
 		}
@@ -156,6 +163,7 @@ func handleInput(ctx context.Context, reader io.Reader, buffer chan byte) (done 
 	}
 
 	log.WithContext(ctx).WithField("message", fmt.Sprintf("%q", message)).Trace("Received message from client")
+
 	for _, character := range message {
 		select {
 		case <-ctx.Done():
@@ -163,6 +171,7 @@ func handleInput(ctx context.Context, reader io.Reader, buffer chan byte) (done 
 		case buffer <- character:
 		}
 	}
+
 	return false
 }
 
@@ -175,9 +184,11 @@ func inputContainsError(ctx context.Context, messageType int, err error) (done b
 		log.WithContext(ctx).WithError(err).Warn("Error reading client message")
 		return true
 	}
+
 	if messageType != websocket.TextMessage {
 		log.WithContext(ctx).WithField("messageType", messageType).Warn("Received message of wrong type")
 		return true
 	}
+
 	return false
 }

@@ -44,6 +44,7 @@ const (
 
 type E2ERecoveryTestSuite struct {
 	suite.Suite
+
 	runnerID string
 }
 
@@ -52,12 +53,15 @@ func TestMain(m *testing.M) {
 	if err := config.InitConfig(); err != nil {
 		log.WithError(err).Fatal("Could not initialize configuration")
 	}
+
 	if *testDockerImage == "" {
 		log.Fatal("You must specify the -dockerImage flag!")
 	}
 
 	nomadNamespace = config.Config.Nomad.Namespace
+
 	var err error
+
 	nomadClient, err = nomadApi.NewClient(&nomadApi.Config{
 		Address:   config.Config.Nomad.URL().String(),
 		TLSConfig: &nomadApi.TLSConfig{},
@@ -90,6 +94,7 @@ func (s *E2ERecoveryTestSuite) TestInactivityTimer_Valid() {
 func (s *E2ERecoveryTestSuite) TestInactivityTimer_Expired() {
 	waitForPoseidon() // The timeout begins only when the runner is recovered.
 	<-time.After(InactivityTimeout * time.Second)
+
 	_, err := e2e.ProvideWebSocketURL(s.runnerID, &dto.ExecutionRequest{Command: "true"})
 	s.Error(err)
 }

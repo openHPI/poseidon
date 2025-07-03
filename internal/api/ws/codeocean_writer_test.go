@@ -13,10 +13,13 @@ import (
 
 func (s *MainTestSuite) TestRawToCodeOceanWriter() {
 	connectionMock, messages := buildConnectionMock(&s.MemoryLeakTestSuite)
+
 	proxyCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	output := NewCodeOceanOutputWriter(proxyCtx, connectionMock, cancel)
 	defer output.Close(nil)
+
 	<-messages // start messages
 
 	s.Run("StdOut", func() {
@@ -78,9 +81,12 @@ func (s *MainTestSuite) TestCodeOceanOutputWriter_SendExitInfo() {
 	for _, test := range testCases {
 		s.Run(test.name, func() {
 			connectionMock, messages := buildConnectionMock(&s.MemoryLeakTestSuite)
+
 			proxyCtx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
 			output := NewCodeOceanOutputWriter(proxyCtx, connectionMock, cancel)
+
 			<-messages // start messages
 
 			output.Close(test.info)
@@ -97,6 +103,7 @@ func (s *MainTestSuite) TestCodeOceanOutputWriter_SendExitInfo() {
 
 func buildConnectionMock(suite *tests.MemoryLeakTestSuite) (conn *ConnectionMock, messages <-chan []byte) {
 	suite.T().Helper()
+
 	message := make(chan []byte)
 	connectionMock := &ConnectionMock{}
 	connectionMock.On("WriteMessage", mock.AnythingOfType("int"), mock.AnythingOfType("[]uint8")).
@@ -112,5 +119,6 @@ func buildConnectionMock(suite *tests.MemoryLeakTestSuite) (conn *ConnectionMock
 	connectionMock.On("CloseHandler").Return(nil)
 	connectionMock.On("SetCloseHandler", mock.Anything).Return()
 	connectionMock.On("Close").Return(nil)
+
 	return connectionMock, message
 }

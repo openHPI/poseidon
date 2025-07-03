@@ -57,6 +57,7 @@ func (n *AbstractManager) NextHandler() AccessorHandler {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+
 	return NewAbstractManager(ctx)
 }
 
@@ -116,6 +117,7 @@ func (n *AbstractManager) Get(runnerID string) (Runner, error) {
 	if err != nil {
 		return r, fmt.Errorf("abstract manager wrapped: %w", err)
 	}
+
 	return r, nil
 }
 

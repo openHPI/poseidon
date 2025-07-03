@@ -18,6 +18,7 @@ func (s *E2ERecoveryTestSuite) SetupTest() {
 	// We do not want runner from the previous tests
 
 	var err error
+
 	s.runnerID, err = e2e.ProvideRunner(&dto.RunnerRequest{
 		ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
 		InactivityTimeout:      InactivityTimeout,
@@ -33,6 +34,7 @@ func (s *E2ERecoveryTestSuite) SetupTest() {
 
 func TearDown() {
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, tests.DefaultEnvironmentIDAsString)
+
 	_, err := helpers.HTTPDelete(path, nil)
 	if err != nil {
 		log.WithError(err).Fatal("Could not remove default environment")
@@ -43,6 +45,7 @@ func waitForPoseidon() {
 	done := false
 	for !done {
 		<-time.After(time.Second)
+
 		resp, err := http.Get(helpers.BuildURL(api.BasePath, api.HealthPath))
 		done = err == nil && resp.StatusCode == http.StatusNoContent
 	}
@@ -55,17 +58,20 @@ func killPoseidon() {
 	if err != nil {
 		log.WithError(err).Error("Error listing processes")
 	}
+
 	for _, proc := range processes {
 		n, err := proc.Name()
 		if err != nil {
 			continue
 		}
+
 		if n == "poseidon" {
 			err = proc.SendSignal(unix.SIGTERM)
 			if err != nil {
 				log.WithError(err).Error("Error killing Poseidon")
 			} else {
 				log.Info("Killed Poseidon")
+
 				PoseidonRestartCount++
 			}
 		}

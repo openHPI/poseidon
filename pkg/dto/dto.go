@@ -38,17 +38,21 @@ type ExecutionRequest struct {
 // It does not handle the TimeLimit or the PrivilegedExecution flag.
 func (er *ExecutionRequest) FullCommand() string {
 	var command string
+
 	command += "env"
 
 	if er.Environment == nil {
 		er.Environment = make(map[string]string)
 	}
+
 	er.Environment["CODEOCEAN"] = "true"
 
 	for variable, value := range er.Environment {
 		command += fmt.Sprintf(" %s=%s", variable, value)
 	}
+
 	command += " " + WrapBashCommand(er.Command)
+
 	return command
 }
 
@@ -60,6 +64,7 @@ func BashEscapeCommand(command string) string {
 	command = fmt.Sprintf("%q", command)
 	command = strings.ReplaceAll(command, "$", "\\$")
 	command = strings.ReplaceAll(command, "`", "\\`")
+
 	return command
 }
 
@@ -86,6 +91,7 @@ func (e EnvironmentID) ToString() string {
 // for routes returning an execution environment.
 type ExecutionEnvironmentData struct {
 	ExecutionEnvironmentRequest
+
 	ID int `json:"id"`
 }
 
@@ -188,6 +194,7 @@ func (f File) ByteContent() []byte {
 	if f.IsDirectory() {
 		return []byte("")
 	}
+
 	return f.Content
 }
 
@@ -261,11 +268,13 @@ func (m *WebSocketMessage) MarshalJSON() (res []byte, err error) {
 			ExitCode    uint8                `json:"data"`
 		}{m.Type, m.ExitCode})
 	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling WebSocketMessage: %w", err)
 	} else if res == nil {
 		return nil, ErrUnknownWebSocketMessageType
 	}
+
 	return res, nil
 }
 
@@ -273,18 +282,22 @@ func (m *WebSocketMessage) MarshalJSON() (res []byte, err error) {
 // It is used by tests in order to ReceiveNextWebSocketMessage.
 func (m *WebSocketMessage) UnmarshalJSON(rawMessage []byte) error {
 	messageMap := make(map[string]interface{})
+
 	err := json.Unmarshal(rawMessage, &messageMap)
 	if err != nil {
 		return fmt.Errorf("error unmarshiling raw WebSocket message: %w", err)
 	}
+
 	messageType, ok := messageMap["type"]
 	if !ok {
 		return ErrMissingType
 	}
+
 	messageTypeString, ok := messageType.(string)
 	if !ok {
 		return fmt.Errorf("value of key type must be a string: %w", ErrInvalidType)
 	}
+
 	switch messageType := WebSocketMessageType(messageTypeString); messageType {
 	case WebSocketExit:
 		data, ok := messageMap["data"]
@@ -296,9 +309,11 @@ func (m *WebSocketMessage) UnmarshalJSON(rawMessage []byte) error {
 		if !ok {
 			return fmt.Errorf("value of key data must be a number: %w", ErrInvalidType)
 		}
+
 		if exit != float64(uint8(exit)) {
 			return fmt.Errorf("value of key data must be uint8: %w", ErrInvalidType)
 		}
+
 		m.Type = messageType
 		m.ExitCode = uint8(exit)
 	case WebSocketOutputStdout, WebSocketOutputStderr, WebSocketOutputError:
@@ -306,10 +321,12 @@ func (m *WebSocketMessage) UnmarshalJSON(rawMessage []byte) error {
 		if !ok {
 			return ErrMissingData
 		}
+
 		text, ok := data.(string)
 		if !ok {
 			return fmt.Errorf("value of key data must be a string: %w", ErrInvalidType)
 		}
+
 		m.Type = messageType
 		m.Data = text
 	case WebSocketMetaStart, WebSocketMetaTimeout:
@@ -317,6 +334,7 @@ func (m *WebSocketMessage) UnmarshalJSON(rawMessage []byte) error {
 	default:
 		return ErrUnknownWebSocketMessageType
 	}
+
 	return nil
 }
 

@@ -27,12 +27,15 @@ import (
 // BuildURL joins multiple route paths.
 func BuildURL(parts ...string) string {
 	url := config.Config.Server.URL().String()
+
 	for _, part := range parts {
 		if !strings.HasPrefix(part, "/") {
 			url += "/"
 		}
+
 		url += part
 	}
+
 	return url
 }
 
@@ -49,6 +52,7 @@ func WebSocketOutputMessages(messages []*dto.WebSocketMessage) (stdout, stderr s
 			errors = append(errors, msg.Data)
 		}
 	}
+
 	return stdout, stderr, errors
 }
 
@@ -60,6 +64,7 @@ func WebSocketControlMessages(messages []*dto.WebSocketMessage) (controls []*dto
 			controls = append(controls, msg)
 		}
 	}
+
 	return controls
 }
 
@@ -69,10 +74,12 @@ func WebSocketControlMessages(messages []*dto.WebSocketMessage) (controls []*dto
 func ReceiveAllWebSocketMessages(connection *websocket.Conn) (messages []*dto.WebSocketMessage, err error) {
 	for {
 		var message *dto.WebSocketMessage
+
 		message, err = ReceiveNextWebSocketMessage(connection)
 		if err != nil {
 			return messages, err
 		}
+
 		messages = append(messages, message)
 	}
 }
@@ -87,11 +94,14 @@ func ReceiveNextWebSocketMessage(connection *websocket.Conn) (*dto.WebSocketMess
 		// the error in this test function and allow tests to use equal
 		return nil, err
 	}
+
 	message := new(dto.WebSocketMessage)
+
 	err = json.NewDecoder(reader).Decode(message)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding WebSocket message: %w", err)
 	}
+
 	return message, nil
 }
 
@@ -108,6 +118,7 @@ func StartTLSServer(t *testing.T, router *mux.Router) (*httptest.Server, error) 
 	if err != nil {
 		return nil, fmt.Errorf("error creating self-signed cert: %w", err)
 	}
+
 	cert, err := tls.LoadX509KeyPair(certOut, keyOut)
 	if err != nil {
 		return nil, fmt.Errorf("error loading x509 key pair: %w", err)
@@ -116,6 +127,7 @@ func StartTLSServer(t *testing.T, router *mux.Router) (*httptest.Server, error) 
 	server := httptest.NewUnstartedServer(router)
 	server.TLS = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13}
 	server.StartTLS()
+
 	return server, nil
 }
 
@@ -126,6 +138,7 @@ func httpRequest(method, url string, body io.Reader) (*http.Request, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
+
 	return req, nil
 }
 
@@ -135,11 +148,14 @@ func HTTPDelete(url string, body io.Reader) (response *http.Response, err error)
 	if err != nil {
 		return nil, err
 	}
+
 	client := &http.Client{}
+
 	response, err = client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
+
 	return response, nil
 }
 
@@ -150,12 +166,16 @@ func HTTPPatch(url, contentType string, body io.Reader) (response *http.Response
 	if err != nil {
 		return nil, err
 	}
+
 	req.Header.Set("Content-Type", contentType)
+
 	client := &http.Client{}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -165,11 +185,14 @@ func HTTPPut(url string, body io.Reader) (response *http.Response, err error) {
 	if err != nil {
 		return nil, err
 	}
+
 	client := &http.Client{}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -178,7 +201,9 @@ func HTTPPutJSON(url string, body interface{}) (response *http.Response, err err
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal json http body: %w", err)
 	}
+
 	reader := bytes.NewReader(requestByteString)
+
 	return HTTPPut(url, reader)
 }
 
@@ -187,6 +212,7 @@ func HTTPPostJSON(url string, body interface{}) (response *http.Response, err er
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal passed http post body: %w", err)
 	}
+
 	bodyReader := bytes.NewReader(requestByteString)
 
 	//nolint:noctx // we don't need a http.NewRequestWithContext in our tests
@@ -194,11 +220,14 @@ func HTTPPostJSON(url string, body interface{}) (response *http.Response, err er
 	if err != nil {
 		return nil, err
 	}
+
 	client := &http.Client{}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -230,5 +259,6 @@ func CreateTemplateJob() (base, job *nomadApi.Job) {
 	defaultTaskGroup.AddTask(defaultTask)
 
 	job.TaskGroups = []*nomadApi.TaskGroup{defaultTaskGroup, configTaskGroup}
+
 	return base, job
 }

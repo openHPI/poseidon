@@ -26,6 +26,7 @@ func (a *AWSEnvironment) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return res, fmt.Errorf("couldn't marshal aws execution environment: %w", err)
 	}
+
 	return res, nil
 }
 
@@ -55,6 +56,7 @@ func (a *AWSEnvironment) Sample() (r runner.Runner, ok bool) {
 	if err != nil {
 		return nil, false
 	}
+
 	return workload, true
 }
 

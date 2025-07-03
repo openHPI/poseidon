@@ -55,6 +55,7 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 	s.Empty(defaultTaskGroup.Networks)
 
 	exposedPortsTests := [][]uint16{{}, {1337}, {42, 1337}}
+
 	s.Run("with no network access", func() {
 		for _, ports := range exposedPortsTests {
 			_, testJob := helpers.CreateTemplateJob()
@@ -63,6 +64,7 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 			testEnvironment := &NomadEnvironment{nil, "", job, nil, context.Background(), nil}
 
 			testEnvironment.SetNetworkAccess(false, ports)
+
 			mode, ok := testTask.Config["network_mode"]
 			s.True(ok)
 			s.Equal("none", mode)
@@ -95,14 +97,17 @@ func (s *MainTestSuite) TestConfigureNetworkSetsCorrectValues() {
 
 func assertExpectedPorts(t *testing.T, expectedPorts []uint16, networkResource *nomadApi.NetworkResource) {
 	t.Helper()
+
 	for _, expectedPort := range expectedPorts {
 		found := false
+
 		for _, actualPort := range networkResource.DynamicPorts {
 			if actualPort.To == int(expectedPort) {
 				found = true
 				break
 			}
 		}
+
 		assert.True(t, found, "port list should contain %v", expectedPort)
 	}
 }
@@ -192,8 +197,10 @@ func (s *MainTestSuite) TestTwoSampleAddExactlyTwoRunners() {
 		storage.NewLocalStorage[runner.Runner](), context.Background(), nil,
 	}
 	environment.SetPrewarmingPoolSize(2)
+
 	runner1 := &runner.RunnerMock{}
 	runner1.On("ID").Return(tests.DefaultRunnerID)
+
 	runner2 := &runner.RunnerMock{}
 	runner2.On("ID").Return(tests.AnotherRunnerID)
 
@@ -254,6 +261,7 @@ func (s *MainTestSuite) TestNomadEnvironment_AddRunner() {
 		apiMock := &nomad.ExecutorAPIMock{}
 		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.Require().NoError(err)
+
 		r := &runner.RunnerMock{}
 		r.On("ID").Return(tests.DefaultRunnerID)
 		r.On("Destroy", mock.Anything).Run(func(args mock.Arguments) {
@@ -261,6 +269,7 @@ func (s *MainTestSuite) TestNomadEnvironment_AddRunner() {
 			s.Require().True(ok)
 			s.ErrorIs(err, runner.ErrLocalDestruction)
 		}).Return(nil).Once()
+
 		r2 := &runner.RunnerMock{}
 		r2.On("ID").Return(tests.DefaultRunnerID)
 

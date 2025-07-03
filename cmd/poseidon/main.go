@@ -55,9 +55,11 @@ func getVcsRevision(short bool) string {
 				vcsRevision = setting.Value
 			case "vcs.modified":
 				var err error
+
 				vcsModified, err = strconv.ParseBool(setting.Value)
 				if err != nil {
 					vcsModified = true // fallback to true, so we can see that something is wrong
+
 					log.WithError(err).Error("Could not parse the vcs.modified setting")
 				}
 			}
@@ -71,6 +73,7 @@ func getVcsRevision(short bool) string {
 	if vcsModified {
 		return vcsRevision + "-modified"
 	}
+
 	return vcsRevision
 }
 
@@ -90,8 +93,10 @@ func initSentry(options *sentry.ClientOptions, profilingEnabled bool) {
 		if event.Tags == nil {
 			event.Tags = make(map[string]string)
 		}
+
 		event.Tags["go_pgo"] = pgoEnabled
 		event.Tags["go_profiling"] = strconv.FormatBool(profilingEnabled)
+
 		return event
 	}
 
@@ -118,6 +123,7 @@ func initProfiling(options config.Profiling) (cancel func()) {
 	}
 
 	log.Debug("Starting CPU profiler")
+
 	if err := pprof.StartCPUProfile(profile); err != nil {
 		log.WithError(err).Error("Error while starting the CPU profiler!!")
 	}
@@ -126,6 +132,7 @@ func initProfiling(options config.Profiling) (cancel func()) {
 		if options.CPUEnabled {
 			log.Debug("Stopping CPU profiler")
 			pprof.StopCPUProfile()
+
 			if err := profile.Close(); err != nil {
 				log.WithError(err).Error("Error while closing profile file")
 			}
@@ -138,13 +145,16 @@ func watchMemoryAndAlert(options config.Profiling) {
 	if options.MemoryInterval == 0 {
 		return
 	}
+
 	if options.MemoryInterval > uint(math.MaxInt64)/uint(time.Millisecond) {
 		log.WithField("interval", options.MemoryInterval).Error("Configured memory interval too big")
 		return
 	}
+
 	intervalDuration := time.Duration(options.MemoryInterval) * time.Millisecond
 
 	var exceeded bool
+
 	for {
 		var stats runtime.MemStats
 		runtime.ReadMemStats(&stats)
@@ -153,6 +163,7 @@ func watchMemoryAndAlert(options config.Profiling) {
 		const megabytesToBytes = 1000 * 1000
 		if !exceeded && stats.HeapAlloc >= uint64(options.MemoryThreshold)*megabytesToBytes {
 			exceeded = true
+
 			log.WithField("heap", stats.HeapAlloc).Warn("Memory Threshold exceeded")
 
 			err := pprof.Lookup("heap").WriteTo(os.Stderr, 1)
@@ -166,6 +177,7 @@ func watchMemoryAndAlert(options config.Profiling) {
 			}
 		} else if exceeded {
 			exceeded = false
+
 			log.WithField("heap", stats.HeapAlloc).Info("Memory Threshold no longer exceeded")
 		}
 
@@ -183,6 +195,7 @@ func runServer(router *mux.Router, server *http.Server, cancel context.CancelFun
 	defer shutdownSentry() // shutdownSentry must be executed in the main goroutine.
 
 	httpListeners := getHTTPListeners(server)
+
 	notifySystemd(router)
 	serveHTTPListeners(server, httpListeners)
 }
@@ -193,34 +206,42 @@ func getHTTPListeners(server *http.Server) (httpListeners []net.Listener) {
 		httpListeners, err = activation.Listeners()
 	} else {
 		var httpListener net.Listener
+
 		httpListener, err = net.Listen("tcp", server.Addr)
 		httpListeners = append(httpListeners, httpListener)
 	}
+
 	if err != nil || httpListeners == nil || len(httpListeners) == 0 {
 		log.WithError(err).
 			WithField("listeners", httpListeners).
 			WithField("systemd_socket", config.Config.Server.SystemdSocketActivation).
 			Fatal("Failed listening to any socket")
+
 		return nil
 	}
+
 	return httpListeners
 }
 
 func serveHTTPListeners(server *http.Server, httpListeners []net.Listener) {
 	var wg sync.WaitGroup
 	wg.Add(len(httpListeners))
+
 	for _, l := range httpListeners {
 		go func(listener net.Listener) {
 			defer wg.Done()
+
 			log.WithField("address", listener.Addr()).Info("Serving Listener")
 			serveHTTPListener(server, listener)
 		}(l)
 	}
+
 	wg.Wait()
 }
 
 func serveHTTPListener(server *http.Server, listener net.Listener) {
 	var err error
+
 	if config.Config.Server.TLS.Active {
 		server.TLSConfig = config.TLSConfig
 		log.WithField("CertFile", config.Config.Server.TLS.CertFile).
@@ -257,6 +278,7 @@ func notifySystemd(router *mux.Router) {
 		log.Debug("Systemd Watchdog is not supported")
 		return
 	}
+
 	go systemdWatchdogLoop(context.Background(), router, interval)
 }
 
@@ -266,6 +288,7 @@ func systemdWatchdogLoop(ctx context.Context, router *mux.Router, interval time.
 		log.WithError(err).Error("Failed to parse Health route")
 		return
 	}
+
 	healthURL := config.Config.Server.URL().String() + healthRoute.String()
 
 	// Workaround for certificate subject names
@@ -273,8 +296,10 @@ func systemdWatchdogLoop(ctx context.Context, router *mux.Router, interval time.
 	healthURL = unspecifiedAddresses.ReplaceAllString(healthURL, "localhost")
 
 	client := &http.Client{}
+
 	if config.Config.Server.TLS.Active {
 		tlsConfig := &tls.Config{RootCAs: x509.NewCertPool()} // #nosec G402 The default MinTLSVersion is secure.
+
 		caCertBytes, err := os.ReadFile(config.Config.Server.TLS.CAFile)
 		if err != nil {
 			log.WithError(err).Warn("Cannot read tls ca file")
@@ -282,11 +307,13 @@ func systemdWatchdogLoop(ctx context.Context, router *mux.Router, interval time.
 			ok := tlsConfig.RootCAs.AppendCertsFromPEM(caCertBytes)
 			log.WithField("success", ok).Trace("Loaded CA certificate")
 		}
+
 		client.Transport = &http.Transport{TLSClientConfig: tlsConfig}
 	}
 
 	// notificationIntervalFactor defines how many more notifications we send than required.
 	const notificationIntervalFactor = 2
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -304,6 +331,7 @@ func notifySystemdWatchdog(ctx context.Context, healthURL string, client *http.C
 	}
 
 	req.Header.Set("User-Agent", dto.UserAgentFiltered)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		log.WithError(err).Debug("Failed watchdog health check")
@@ -311,6 +339,7 @@ func notifySystemdWatchdog(ctx context.Context, healthURL string, client *http.C
 		// by itself. The Watchdog should just check that Poseidon handles http requests at all.
 		return
 	}
+
 	_ = resp.Body.Close()
 
 	notify, err := daemon.SdNotify(false, daemon.SdNotifyWatchdog)
@@ -339,6 +368,7 @@ func createManagerHandler(ctx context.Context, handler managerCreator, enabled b
 	runnerManager, environmentManager = handler(ctx)
 	runnerManager.SetNextHandler(nextRunnerManager)
 	environmentManager.SetNextHandler(nextEnvironmentManager)
+
 	return runnerManager, environmentManager
 }
 
@@ -357,6 +387,7 @@ func createNomadManager(ctx context.Context) (runner.Manager, environment.Manage
 	}
 
 	runnerManager := runner.NewNomadRunnerManager(ctx, nomadAPIClient)
+
 	environmentManager, err := environment.
 		NewNomadEnvironmentManager(runnerManager, nomadAPIClient, config.Config.Server.TemplateJobFile)
 	if err != nil {
@@ -364,12 +395,14 @@ func createNomadManager(ctx context.Context) (runner.Manager, environment.Manage
 	}
 
 	synchronizeNomad(ctx, environmentManager, runnerManager)
+
 	return runnerManager, environmentManager
 }
 
 // synchronizeNomad starts the asynchronous synchronization background task and waits for the first environment and runner recovery.
 func synchronizeNomad(ctx context.Context, environmentManager *environment.NomadEnvironmentManager, runnerManager *runner.NomadRunnerManager) {
 	firstRecoveryDone := make(chan struct{})
+
 	go environmentManager.KeepEnvironmentsSynced(ctx, func(ctx context.Context) error {
 		go func(ctx context.Context) {
 			// `Load` not only recover existing runners, but also applies the prewarming pool size which creates runners.
@@ -390,6 +423,7 @@ func synchronizeNomad(ctx context.Context, environmentManager *environment.Nomad
 		if err := runnerManager.SynchronizeRunners(ctx); err != nil {
 			return fmt.Errorf("synchronize runners failed: %w", err)
 		}
+
 		return nil
 	})
 
@@ -420,6 +454,7 @@ func initRouter(ctx context.Context) *mux.Router {
 // initServer creates a server that serves the routes provided by the router.
 func initServer(router *mux.Router) *http.Server {
 	sentryHandler := sentryhttp.New(sentryhttp.Options{}).Handle(router)
+
 	const readTimeout = 15 * time.Second
 	const idleTimeout = 60 * time.Second
 
@@ -459,8 +494,10 @@ func shutdownOnOSSignal(ctx context.Context, server *http.Server, stopProfiling 
 		log.Info("Received SIGINT, shutting down...")
 
 		defer stopProfiling()
+
 		gracefulCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gracefulShutdownWait)
 		defer cancel()
+
 		if err := server.Shutdown(gracefulCtx); err != nil {
 			log.WithError(err).Warn("error shutting server down")
 		}
@@ -471,6 +508,7 @@ func main() {
 	if err := config.InitConfig(); err != nil {
 		log.WithError(err).Warn("Could not initialize configuration")
 	}
+
 	initializeUserAgent()
 	logging.InitializeLogging(config.Config.Logger.Level, config.Config.Logger.Formatter)
 	initSentry(&config.Config.Sentry, config.Config.Profiling.CPUEnabled)
@@ -483,7 +521,9 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	router := initRouter(ctx)
+
 	server := initServer(router)
 	go runServer(router, server, cancel)
+
 	shutdownOnOSSignal(ctx, server, stopProfiling)
 }

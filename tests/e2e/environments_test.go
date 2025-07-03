@@ -239,10 +239,12 @@ func TestDeleteEnvironment(t *testing.T) {
 
 func parseIDsFromEnvironments(t *testing.T, environments []interface{}) (ids []dto.EnvironmentID) {
 	t.Helper()
+
 	for _, environment := range environments {
 		id, _ := parseEnvironment(t, environment)
 		ids = append(ids, id)
 	}
+
 	return ids
 }
 
@@ -251,6 +253,7 @@ func assertEnvironment(t *testing.T, environment interface{}, expectedID dto.Env
 	id, defaultEnvironmentParams := parseEnvironment(t, environment)
 
 	assert.Equal(t, expectedID, id)
+
 	expectedKeys := []string{"prewarmingPoolSize", "cpuLimit", "memoryLimit", "image", "networkAccess", "exposedPorts"}
 	for _, key := range expectedKeys {
 		_, ok := defaultEnvironmentParams[key]
@@ -260,37 +263,46 @@ func assertEnvironment(t *testing.T, environment interface{}, expectedID dto.Env
 
 func parseEnvironment(t *testing.T, environment interface{}) (id dto.EnvironmentID, params map[string]interface{}) {
 	t.Helper()
+
 	environmentParams, ok := environment.(map[string]interface{})
 	require.True(t, ok)
 	idInterface, ok := environmentParams["id"]
 	require.True(t, ok)
 	idFloat, ok := idInterface.(float64)
 	require.True(t, ok)
+
 	return dto.EnvironmentID(int(idFloat)), environmentParams
 }
 
 func assertEnvironmentArrayInResponse(t *testing.T, response *http.Response) []interface{} {
 	t.Helper()
+
 	paramMap := make(map[string]interface{})
 	err := json.NewDecoder(response.Body).Decode(&paramMap)
 	require.NoError(t, err)
+
 	environments, ok := paramMap["executionEnvironments"]
 	assert.True(t, ok)
 	environmentsArray, ok := environments.([]interface{})
 	assert.True(t, ok)
+
 	return environmentsArray
 }
 
 func getEnvironmentFromResponse(t *testing.T, response *http.Response) interface{} {
 	t.Helper()
+
 	var environment interface{}
+
 	err := json.NewDecoder(response.Body).Decode(&environment)
 	require.NoError(t, err)
+
 	return environment
 }
 
 func deleteEnvironment(t *testing.T, id string) {
 	t.Helper()
+
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, id)
 	_, err := helpers.HTTPDelete(path, nil)
 	require.NoError(t, err)
@@ -315,6 +327,7 @@ func cleanupJobsForEnvironment(t *testing.T, environmentID string) {
 //nolint:unparam // Because its more clear if the environment id is written in the real test
 func createEnvironment(t *testing.T, environmentID string, aws bool) {
 	t.Helper()
+
 	path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, environmentID)
 	request := dto.ExecutionEnvironmentRequest{
 		PrewarmingPoolSize: 1,
@@ -323,6 +336,7 @@ func createEnvironment(t *testing.T, environmentID string, aws bool) {
 		NetworkAccess:      false,
 		ExposedPorts:       nil,
 	}
+
 	if aws {
 		functions := config.Config.AWS.Functions
 		require.NotEmpty(t, functions)
@@ -330,6 +344,7 @@ func createEnvironment(t *testing.T, environmentID string, aws bool) {
 	} else {
 		request.Image = *testDockerImage
 	}
+
 	assertPutReturnsStatusAndZeroContent(t, path, request, http.StatusCreated)
 }
 
@@ -337,6 +352,7 @@ func assertPutReturnsStatusAndZeroContent(t *testing.T, path string,
 	request dto.ExecutionEnvironmentRequest, status int,
 ) {
 	t.Helper()
+
 	resp, err := helpers.HTTPPutJSON(path, request)
 	require.NoError(t, err)
 	assert.Equal(t, status, resp.StatusCode)
@@ -344,6 +360,7 @@ func assertPutReturnsStatusAndZeroContent(t *testing.T, path string,
 	content, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Empty(t, string(content))
+
 	_ = resp.Body.Close()
 }
 
@@ -366,6 +383,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 	require.Len(t, taskGroup.Tasks, 1)
 
 	task := taskGroup.Tasks[0]
+
 	require.Less(t, expected.CPULimit, uint(math.MaxInt32))
 	assertEqualValueIntPointer(t, int(expected.CPULimit), task.Resources.CPU) //nolint:gosec // We check for an integer overflow right above.
 	require.Less(t, expected.MemoryLimit, uint(math.MaxInt32))
@@ -377,6 +395,7 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 		require.Len(t, taskGroup.Networks, 1)
 		network := taskGroup.Networks[0]
 		assert.Len(t, network.DynamicPorts, len(expected.ExposedPorts))
+
 		for _, port := range network.DynamicPorts {
 			require.Less(t, port.To, math.MaxUint16)
 			assert.Contains(t, expected.ExposedPorts, uint16(port.To)) //nolint:gosec // We check for an integer overflow right above.
@@ -389,10 +408,12 @@ func validateJob(t *testing.T, expected dto.ExecutionEnvironmentRequest) {
 
 func findTemplateJob(t *testing.T, id dto.EnvironmentID) *nomadApi.Job {
 	t.Helper()
+
 	job, _, err := nomadClient.Jobs().Info(nomad.TemplateJobID(id), nil)
 	if err != nil {
 		t.Fatalf("Error retrieving Nomad job: %v", err)
 	}
+
 	return job
 }
 

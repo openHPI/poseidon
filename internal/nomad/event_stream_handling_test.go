@@ -33,6 +33,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClo
 	errChan := asynchronouslyMonitorEvaluation(stream)
 
 	close(stream)
+
 	var err error
 	// If close doesn't terminate MonitorEvaluation, this test won't complete without a timeout.
 	select {
@@ -40,6 +41,7 @@ func (s *MainTestSuite) TestApiClient_MonitorEvaluationReturnsNilWhenStreamIsClo
 	case <-time.After(time.Millisecond * 10):
 		s.T().Fatal("MonitorEvaluation didn't finish as expected")
 	}
+
 	s.Require().NoError(err)
 }
 
@@ -193,6 +195,7 @@ func (s *MainTestSuite) TestCheckEvaluationWithFailedAllocations() {
 	}
 
 	var msgWithoutBlockedEval, msgWithBlockedEval string
+
 	s.Run("without blocked eval", func() {
 		err := checkEvaluation(&evaluation)
 		s.Require().Error(err)
@@ -477,6 +480,7 @@ func (s *MainTestSuite) TestHandleAllocationEvent_ReportsOOMKilledStatus() {
 	allocations.Add(restartedAllocation.ID, &allocationData{jobID: restartedAllocation.JobID})
 
 	var reason error
+
 	err := handleAllocationEvent(s.TestCtx, time.Now().UnixNano(), storage.NewLocalStorage[string](),
 		allocations, &restartedEvent, &AllocationProcessing{
 			OnNew: func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
@@ -582,8 +586,10 @@ func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
 	expectedNewAllocations []*nomadApi.Allocation, expectedDeletedAllocations []string,
 ) {
 	s.T().Helper()
+
 	var newAllocations []*nomadApi.Allocation
 	var deletedAllocations []string
+
 	callbacks := &AllocationProcessing{
 		OnNew: func(_ context.Context, alloc *nomadApi.Allocation, _ time.Duration) {
 			newAllocations = append(newAllocations, alloc)
@@ -632,8 +638,10 @@ func runAllocationWatching(s *MainTestSuite, events []*nomadApi.Events, callback
 	eventsProcessed int, err error,
 ) {
 	s.T().Helper()
+
 	stream := make(chan *nomadApi.Events)
 	errChan := asynchronouslyWatchAllocations(stream, callbacks)
+
 	return simulateNomadEventStream(s.TestCtx, stream, errChan, events)
 }
 
@@ -654,9 +662,11 @@ func asynchronouslyWatchAllocations(stream chan *nomadApi.Events, callbacks *All
 	}
 
 	errChan := make(chan error)
+
 	go func() {
 		errChan <- apiClient.WatchEventStream(ctx, callbacks)
 	}()
+
 	return errChan
 }
 
@@ -665,6 +675,7 @@ func asynchronouslyWatchAllocations(stream chan *nomadApi.Events, callbacks *All
 // simply reverse here.
 func eventForAllocation(t *testing.T, alloc *nomadApi.Allocation) nomadApi.Event {
 	t.Helper()
+
 	payload := make(map[string]interface{})
 
 	err := mapstructure.Decode(eventPayload{Allocation: alloc}, &payload)
@@ -672,11 +683,13 @@ func eventForAllocation(t *testing.T, alloc *nomadApi.Allocation) nomadApi.Event
 		t.Fatalf("Couldn't decode allocation %v into payload map", err)
 		return nomadApi.Event{}
 	}
+
 	event := nomadApi.Event{
 		Topic:   nomadApi.TopicAllocation,
 		Type:    structs.TypeAllocationUpdated,
 		Payload: payload,
 	}
+
 	return event
 }
 
@@ -698,6 +711,7 @@ func createRecentAllocationWithID(allocID, jobID, clientStatus, desiredStatus st
 	alloc := createAllocation(time.Now().Add(time.Minute).UnixNano(), clientStatus, desiredStatus)
 	alloc.ID = allocID
 	alloc.JobID = jobID
+
 	return alloc
 }
 
@@ -706,6 +720,7 @@ func createRecentAllocationWithID(allocID, jobID, clientStatus, desiredStatus st
 // simply reverse here.
 func eventForEvaluation(t *testing.T, eval *nomadApi.Evaluation) nomadApi.Event {
 	t.Helper()
+
 	payload := make(map[string]interface{})
 
 	err := mapstructure.Decode(eventPayload{Evaluation: eval}, &payload)
@@ -713,7 +728,9 @@ func eventForEvaluation(t *testing.T, eval *nomadApi.Evaluation) nomadApi.Event 
 		t.Fatalf("Couldn't decode evaluation %v into payload map", eval)
 		return nomadApi.Event{}
 	}
+
 	event := nomadApi.Event{Topic: nomadApi.TopicEvaluation, Payload: payload}
+
 	return event
 }
 
@@ -726,6 +743,7 @@ func simulateNomadEventStream(
 	events []*nomadApi.Events,
 ) (int, error) {
 	eventsProcessed := 0
+
 	var e *nomadApi.Events
 	for _, e = range events {
 		select {
@@ -735,6 +753,7 @@ func simulateNomadEventStream(
 			eventsProcessed++
 		}
 	}
+
 	close(stream)
 	// Wait for last event being processed
 	var err error
@@ -742,6 +761,7 @@ func simulateNomadEventStream(
 	case <-ctx.Done():
 	case err = <-errChan:
 	}
+
 	return eventsProcessed, err
 }
 
@@ -751,6 +771,7 @@ func simulateNomadEventStream(
 func runEvaluationMonitoring(ctx context.Context, events []*nomadApi.Events) (eventsProcessed int, err error) {
 	stream := make(chan *nomadApi.Events)
 	errChan := asynchronouslyMonitorEvaluation(stream)
+
 	return simulateNomadEventStream(ctx, stream, errChan, events)
 }
 
@@ -772,8 +793,10 @@ func asynchronouslyMonitorEvaluation(stream <-chan *nomadApi.Events) chan error 
 	}
 
 	errChan := make(chan error)
+
 	go func() {
 		errChan <- apiClient.MonitorEvaluation(ctx, evaluationID)
 	}()
+
 	return errChan
 }

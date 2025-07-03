@@ -66,27 +66,34 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 	stdin io.Reader, stdout, stderr io.Writer,
 ) (int, error) {
 	log.WithContext(ctx).WithField("command", strings.ReplaceAll(cmd, "\n", "")).Trace("Requesting Nomad Exec")
+
 	var allocations []*nomadApi.AllocationListStub
 	var err error
+
 	logging.StartSpan(ctx, "nomad.execute.list", "List Allocations for id", func(_ context.Context, _ *sentry.Span) {
 		allocations, _, err = nc.client.Jobs().Allocations(runnerID, false, nil)
 	})
+
 	if err != nil {
 		return 1, fmt.Errorf("error retrieving allocations for runner: %w", err)
 	}
+
 	if len(allocations) == 0 {
 		return 1, ErrNoAllocationFound
 	}
 
 	var allocation *nomadApi.Allocation
+
 	logging.StartSpan(ctx, "nomad.execute.info", "List Data of Allocation", func(_ context.Context, _ *sentry.Span) {
 		allocation, _, err = nc.client.Allocations().Info(allocations[0].ID, nil)
 	})
+
 	if err != nil {
 		return 1, fmt.Errorf("error retrieving allocation info: %w", err)
 	}
 
 	var exitCode int
+
 	logging.StartSpan(ctx, "nomad.execute.exec", "Execute Command in Allocation", func(ctx context.Context, span *sentry.Span) {
 		span.SetData("command", cmd)
 		exitCode, err = nc.executeInAllocation(ctx, cmd, allocation, tty, stdin, stdout, stderr)
@@ -97,16 +104,19 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 
 func (nc *nomadAPIClient) RegisterNomadJob(job *nomadApi.Job) (string, error) {
 	job.Namespace = &nc.namespace
+
 	resp, _, err := nc.client.Jobs().Register(job, nil)
 	if err != nil {
 		return "", fmt.Errorf("error registering Nomad job: %w", err)
 	}
+
 	if resp.Warnings != "" {
 		log.
 			WithField("job", job).
 			WithField("warnings", resp.Warnings).
 			Warn("Received warnings when registering job")
 	}
+
 	return resp.EvalID, nil
 }
 
@@ -129,6 +139,7 @@ func (nc *nomadAPIClient) EventStream(ctx context.Context) (<-chan *nomadApi.Eve
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Nomad Allocation event stream: %w", err)
 	}
+
 	return stream, nil
 }
 
@@ -149,7 +160,9 @@ func (nc *nomadAPIClient) init(nomadConfig *config.Nomad) (err error) {
 	if err != nil {
 		return fmt.Errorf("error creating new Nomad client: %w", err)
 	}
+
 	nc.namespace = nomadConfig.Namespace
+
 	return nil
 }
 
@@ -176,6 +189,7 @@ func (nc *nomadAPIClient) executeInAllocation(ctx context.Context, cmd string, a
 		// it does not affect the functionality. Therefore, we don't propagate the error.
 		log.WithContext(ctx).WithError(err).
 			WithField(logging.SentryFingerprintFieldKey, []string{"nomad-unexpected-eof"}).Warn("Unexpected EOF for Execute")
+
 		return 0, nil
 	case strings.Contains(err.Error(), "Unknown allocation"):
 		return 1, ErrNomadUnknownAllocation
@@ -189,10 +203,12 @@ func (nc *nomadAPIClient) listJobs(prefix string) ([]*nomadApi.JobListStub, erro
 		Namespace: nc.namespace,
 		Prefix:    prefix,
 	}
+
 	jobs, _, err := nc.client.Jobs().List(&q)
 	if err != nil {
 		return nil, fmt.Errorf("error listing Nomad jobs: %w", err)
 	}
+
 	return jobs, nil
 }
 
@@ -218,6 +234,7 @@ func (nc *nomadAPIClient) listAllocations() ([]*nomadApi.AllocationListStub, err
 	if err != nil {
 		return nil, fmt.Errorf("error listing Nomad allocations: %w", err)
 	}
+
 	return allocationListStubs, nil
 }
 
@@ -226,12 +243,15 @@ func (nc *nomadAPIClient) allocation(jobID string) (alloc *nomadApi.Allocation, 
 	if err != nil {
 		return nil, fmt.Errorf("error requesting Nomad job allocations: %w", err)
 	}
+
 	if len(allocs) == 0 {
 		return nil, ErrNoAllocationFound
 	}
+
 	alloc, _, err = nc.client.Allocations().Info(allocs[0].ID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error requesting Nomad allocation info: %w", err)
 	}
+
 	return alloc, nil
 }

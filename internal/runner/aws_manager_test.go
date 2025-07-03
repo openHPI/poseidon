@@ -115,5 +115,6 @@ func createBasicEnvironmentMock(id dto.EnvironmentID) *ExecutionEnvironmentMock 
 	environment.On("ApplyPrewarmingPoolSize").Return(nil)
 	environment.On("IdleRunnerCount").Return(uint(1)).Maybe()
 	environment.On("PrewarmingPoolSize").Return(uint(1)).Maybe()
+
 	return environment
 }

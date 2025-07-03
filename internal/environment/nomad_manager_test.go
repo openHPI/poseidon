@@ -20,6 +20,7 @@ import (
 
 type CreateOrUpdateTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	runnerManagerMock runner.ManagerMock
 	apiMock           nomad.ExecutorAPIMock
 	request           dto.ExecutionEnvironmentRequest
@@ -76,6 +77,7 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 	s.apiMock.On("LoadRunnerIDs", mock.AnythingOfType("string")).Return([]string{}, nil)
 	call := s.apiMock.On("RegisterRunnerJob", mock.AnythingOfType("*api.Job"))
 	count := 0
+
 	call.Run(func(args mock.Arguments) {
 		count++
 		job, ok := args.Get(0).(*nomadApi.Job)
@@ -92,6 +94,7 @@ func (s *CreateOrUpdateTestSuite) TestCreateOrUpdatesSetsForcePullFlag() {
 
 		call.ReturnArguments = mock.Arguments{nil}
 	})
+
 	s.ExpectedGoroutineIncrease++ // We don't care about removing the created environment at this point.
 	_, err := s.manager.CreateOrUpdate(
 		context.Background(), dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger), s.request)
@@ -120,6 +123,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 
 		environment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, executorAPIMock, templateJobHCL)
 		s.Require().NoError(err)
+
 		f := createTempFile(s.T(), templateJobHCL)
 		defer os.Remove(f.Name())
 
@@ -133,6 +137,7 @@ func (s *MainTestSuite) TestNewNomadEnvironmentManager() {
 
 	s.Run("returns error if template file is invalid", func() {
 		templateJobHCL := "invalid hcl file"
+
 		f := createTempFile(s.T(), templateJobHCL)
 		defer os.Remove(f.Name())
 
@@ -282,8 +287,10 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_List() {
 		fetchedEnvironment, err := NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock, templateEnvironmentJobHCL)
 		s.Require().NoError(err)
 		fetchedEnvironment.SetID(tests.DefaultEnvironmentIDAsInteger)
+
 		status := structs.JobStatusRunning
 		fetchedEnvironment.job.Status = &status
+
 		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{[]*nomadApi.Job{fetchedEnvironment.job}, nil}
 		})
@@ -319,6 +326,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_Load() {
 
 	s.Run("deletes local environments before loading Nomad environments", func() {
 		call.Return([]*nomadApi.Job{}, nil)
+
 		environment := &runner.ExecutionEnvironmentMock{}
 		environment.On("ID").Return(dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger))
 		environment.On("Image").Return("")
@@ -388,16 +396,20 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_KeepEnvironmentsSynced() {
 		cancel()
 
 		var done bool
+
 		go func() {
 			<-time.After(tests.ShortTimeout)
+
 			if !done {
 				s.Fail("KeepEnvironmentsSynced is ignoring the context")
 			}
 		}()
 
 		environmentManager.KeepEnvironmentsSynced(ctx, func(_ context.Context) error { return nil })
+
 		done = true
 	})
+
 	apiMock.ExpectedCalls = []*mock.Call{}
 	apiMock.Calls = []mock.Call{}
 
@@ -412,11 +424,13 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_KeepEnvironmentsSynced() {
 		environmentManager.KeepEnvironmentsSynced(ctx, func(_ context.Context) error { return nil })
 		apiMock.AssertExpectations(s.T())
 	})
+
 	apiMock.ExpectedCalls = []*mock.Call{}
 	apiMock.Calls = []mock.Call{}
 
 	s.Run("retries synchronizing runners", func() {
 		apiMock.On("LoadEnvironmentJobs").Return([]*nomadApi.Job{}, nil)
+
 		ctx, cancel := context.WithCancel(s.TestCtx)
 
 		count := 0
@@ -426,6 +440,7 @@ func (s *MainTestSuite) TestNomadEnvironmentManager_KeepEnvironmentsSynced() {
 				cancel()
 				return nil
 			}
+
 			return context.DeadlineExceeded
 		}
 		environmentManager.KeepEnvironmentsSynced(ctx, synchronizeRunners)
@@ -440,6 +455,7 @@ func mockWatchAllocations(ctx context.Context, apiMock *nomad.ExecutorAPIMock) {
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
 	call.Run(func(_ mock.Arguments) {
 		<-ctx.Done()
+
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 }

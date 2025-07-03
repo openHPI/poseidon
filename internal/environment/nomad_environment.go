@@ -50,6 +50,7 @@ func NewNomadEnvironment(ctx context.Context, environmentID dto.EnvironmentID, a
 	e := &NomadEnvironment{apiClient, jobHCL, job, nil, ctx, cancel}
 	e.idleRunners = storage.NewMonitoredLocalStorage[runner.Runner](
 		ctx, monitoring.MeasurementIdleRunnerNomad, runner.MonitorEnvironmentID[runner.Runner](environmentID), time.Minute)
+
 	return e, nil
 }
 
@@ -61,18 +62,23 @@ func NewNomadEnvironmentFromRequest(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+
 	environment.SetID(environmentID)
 
 	// Set options according to request
 	environment.SetPrewarmingPoolSize(request.PrewarmingPoolSize)
+
 	if err = environment.SetCPULimit(request.CPULimit); err != nil {
 		return nil, err
 	}
+
 	if err = environment.SetMemoryLimit(request.MemoryLimit); err != nil {
 		return nil, err
 	}
+
 	environment.SetImage(request.Image)
 	environment.SetNetworkAccess(request.NetworkAccess, request.ExposedPorts)
+
 	return environment, nil
 }
 
@@ -81,6 +87,7 @@ func (n *NomadEnvironment) ID() dto.EnvironmentID {
 	if err != nil {
 		log.WithError(err).Error("Environment ID can not be parsed from Job")
 	}
+
 	return id
 }
 
@@ -92,6 +99,7 @@ func (n *NomadEnvironment) SetID(id dto.EnvironmentID) {
 
 func (n *NomadEnvironment) PrewarmingPoolSize() uint {
 	configTaskGroup := nomad.FindAndValidateConfigTaskGroup(n.job)
+
 	count, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaPoolSizeKey])
 	if err != nil {
 		log.WithError(err).Error("Prewarming pool size can not be parsed from Job")
@@ -100,6 +108,7 @@ func (n *NomadEnvironment) PrewarmingPoolSize() uint {
 		log.WithError(util.ErrOverflow).WithField("size", count).Warning("Not a valid Prewarming pool size")
 		return 0
 	}
+
 	return uint(count)
 }
 
@@ -110,17 +119,20 @@ func (n *NomadEnvironment) SetPrewarmingPoolSize(count uint) {
 	if taskGroup.Meta == nil {
 		taskGroup.Meta = make(map[string]string)
 	}
+
 	taskGroup.Meta[nomad.ConfigMetaPoolSizeKey] = strconv.FormatUint(uint64(count), 10)
 }
 
 func (n *NomadEnvironment) CPULimit() uint {
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
+
 	cpuLimit := *defaultTask.Resources.CPU
 	if cpuLimit < 0 {
 		log.WithError(util.ErrOverflow).WithField("limit", cpuLimit).Warning("not a valid CPU limit")
 		return 0
 	}
+
 	return uint(cpuLimit)
 }
 
@@ -134,20 +146,24 @@ func (n *NomadEnvironment) SetCPULimit(limit uint) error {
 
 	integerCPULimit := int(limit)
 	defaultTask.Resources.CPU = &integerCPULimit
+
 	return nil
 }
 
 func (n *NomadEnvironment) MemoryLimit() uint {
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
+
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
 	if defaultTask.Resources.MemoryMaxMB == nil {
 		return 0
 	}
+
 	maxMemoryLimit := *defaultTask.Resources.MemoryMaxMB
 	if maxMemoryLimit < 0 {
 		log.WithError(util.ErrOverflow).WithField("limit", maxMemoryLimit).Warning("not a valid memory limit")
 		return 0
 	}
+
 	return uint(maxMemoryLimit)
 }
 
@@ -161,16 +177,19 @@ func (n *NomadEnvironment) SetMemoryLimit(limit uint) error {
 
 	integerMemoryMaxLimit := int(limit)
 	defaultTask.Resources.MemoryMaxMB = &integerMemoryMaxLimit
+
 	return nil
 }
 
 func (n *NomadEnvironment) Image() string {
 	defaultTaskGroup := nomad.FindAndValidateDefaultTaskGroup(n.job)
 	defaultTask := nomad.FindAndValidateDefaultTask(defaultTaskGroup)
+
 	image, ok := defaultTask.Config["image"].(string)
 	if !ok {
 		image = ""
 	}
+
 	return image
 }
 
@@ -195,6 +214,7 @@ func (n *NomadEnvironment) NetworkAccess() (allowed bool, ports []uint16) {
 			}
 		}
 	}
+
 	return allowed, ports
 }
 
@@ -210,6 +230,7 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 
 	if allow {
 		networkResource := config.Config.Nomad.Network
+
 		for _, portNumber := range exposedPorts {
 			port := nomadApi.Port{
 				Label: strconv.FormatUint(uint64(portNumber), portNumberBase),
@@ -217,6 +238,7 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 			}
 			networkResource.DynamicPorts = append(networkResource.DynamicPorts, port)
 		}
+
 		if len(defaultTaskGroup.Networks) == 0 {
 			defaultTaskGroup.Networks = []*nomadApi.NetworkResource{&networkResource}
 		} else {
@@ -241,16 +263,20 @@ func (n *NomadEnvironment) SetNetworkAccess(allow bool, exposedPorts []uint16) {
 // It registers the job with Nomad and waits until the registration completes.
 func (n *NomadEnvironment) Register() error {
 	nomad.SetForcePullFlag(n.job, true) // This must be the default as otherwise new runners could have different images.
+
 	evalID, err := n.apiClient.RegisterNomadJob(n.job)
 	if err != nil {
 		return fmt.Errorf("couldn't register job: %w", err)
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), nomad.RegisterTimeout)
 	defer cancel()
+
 	err = n.apiClient.MonitorEvaluation(ctx, evalID)
 	if err != nil {
 		return fmt.Errorf("error during the monitoring of the environment job: %w", err)
 	}
+
 	return nil
 }
 
@@ -268,6 +294,7 @@ func (n *NomadEnvironment) Delete(reason runner.DestroyReason) error {
 			return fmt.Errorf("couldn't delete environment job: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -278,8 +305,10 @@ func (n *NomadEnvironment) ApplyPrewarmingPoolSize() error {
 			WithField("pool size", n.PrewarmingPoolSize()).
 			WithField("idle runners", n.idleRunners.Length()).
 			Info("Too many idle runner")
+
 		return nil
 	}
+
 	return n.createRunners(n.PrewarmingPoolSize()-n.idleRunners.Length(), true)
 }
 
@@ -296,6 +325,7 @@ func (n *NomadEnvironment) Sample() (runner.Runner, bool) {
 	} else if ok {
 		log.WithField(dto.KeyEnvironmentID, n.ID().ToString()).Info("Too many idle runner")
 	}
+
 	return r, ok
 }
 
@@ -306,12 +336,14 @@ func (n *NomadEnvironment) AddRunner(object runner.Runner) {
 			log.WithError(err).Warn("failed removing runner before replacing it")
 		}
 	}
+
 	n.idleRunners.Add(object.ID(), object)
 }
 
 func (n *NomadEnvironment) DeleteRunner(id string) (r runner.Runner, ok bool) {
 	r, ok = n.idleRunners.Get(id)
 	n.idleRunners.Delete(id)
+
 	return r, ok
 }
 
@@ -338,6 +370,7 @@ func (n *NomadEnvironment) MarshalJSON() (res []byte, err error) {
 	if err != nil {
 		return res, fmt.Errorf("couldn't marshal execution environment: %w", err)
 	}
+
 	return res, nil
 }
 
@@ -348,9 +381,11 @@ func (n *NomadEnvironment) DeepCopyJob() *nomadApi.Job {
 		log.WithError(err).Error("The HCL of an existing environment should throw no error!")
 		return nil
 	}
+
 	copyEnvironment := &NomadEnvironment{job: copyJob}
 
 	copyEnvironment.SetConfigFrom(n)
+
 	return copyEnvironment.job
 }
 
@@ -360,12 +395,15 @@ func (n *NomadEnvironment) DeepCopyJob() *nomadApi.Job {
 func (n *NomadEnvironment) SetConfigFrom(environment runner.ExecutionEnvironment) {
 	n.SetID(environment.ID())
 	n.SetPrewarmingPoolSize(environment.PrewarmingPoolSize())
+
 	if err := n.SetCPULimit(environment.CPULimit()); err != nil {
 		log.WithError(err).Error("Failed to copy CPU Limit")
 	}
+
 	if err := n.SetMemoryLimit(environment.MemoryLimit()); err != nil {
 		log.WithError(err).Error("Failed to copy Memory Limit")
 	}
+
 	n.SetImage(environment.Image())
 	n.SetNetworkAccess(environment.NetworkAccess())
 }
@@ -376,21 +414,25 @@ func parseJob(jobHCL string) (*nomadApi.Job, error) {
 		AllowFS: false,
 		Strict:  true,
 	}
+
 	job, err := jobspec2.ParseWithConfig(&jobConfig)
 	if err != nil {
 		return job, fmt.Errorf("couldn't parse job HCL: %w", err)
 	}
+
 	return job, nil
 }
 
 func (n *NomadEnvironment) createRunners(count uint, forcePull bool) error {
 	log.WithField("runnersRequired", count).WithField(dto.KeyEnvironmentID, n.ID()).Debug("Creating new runners")
+
 	for range count {
 		err := n.createRunner(forcePull)
 		if err != nil {
 			return fmt.Errorf("couldn't create new runner: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -410,6 +452,7 @@ func (n *NomadEnvironment) createRunner(forcePull bool) error {
 	if err != nil {
 		return fmt.Errorf("error registering new runner job: %w", err)
 	}
+
 	return nil
 }
 
@@ -419,6 +462,7 @@ func (n *NomadEnvironment) removeRunners(reason runner.DestroyReason) error {
 	// based on the number of allocation that has been stopped at the moment of the scaling.
 	for _, r := range n.idleRunners.List() {
 		n.idleRunners.Delete(r.ID())
+
 		if err := r.Destroy(runner.ErrLocalDestruction); err != nil {
 			log.WithError(err).Warn("failed to remove runner locally")
 		}
@@ -440,12 +484,15 @@ func (n *NomadEnvironment) removeRunners(reason runner.DestroyReason) error {
 
 		go func(jobID string) {
 			defer wg.Done()
+
 			deleteErr := n.apiClient.DeleteJob(jobID)
 			if deleteErr != nil {
 				err = deleteErr
 			}
 		}(runnerID)
 	}
+
 	wg.Wait()
+
 	return err
 }

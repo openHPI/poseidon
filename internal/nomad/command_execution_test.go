@@ -23,6 +23,7 @@ func TestExecuteCommandTestSuite(t *testing.T) {
 
 type ExecuteCommandTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	allocationID string
 	//nolint:containedctx // See #630.
 	ctx            context.Context
@@ -53,11 +54,15 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 
 	var stdout, stderr bytes.Buffer
 	var calledStdoutCommand, calledStderrCommand string
+
 	runFn := func(args mock.Arguments) {
 		var ok bool
+
 		calledCommand, ok := args.Get(2).(string)
 		s.Require().True(ok)
+
 		var out string
+
 		if isStderrCommand := strings.Contains(calledCommand, "mkfifo"); isStderrCommand {
 			calledStderrCommand = calledCommand
 			out = s.expectedStderr
@@ -68,6 +73,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 
 		writer, ok := args.Get(5).(io.Writer)
 		s.Require().True(ok)
+
 		_, err := writer.Write([]byte(out))
 		s.Require().NoError(err)
 	}
@@ -94,6 +100,7 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 
 	s.Run("should call correct stderr command", func() {
 		s.Require().NotEmpty(calledStderrCommand)
+
 		stderrFifoCommand := fmt.Sprintf(stderrFifoCommandFormat, stderrFifoFormat, stderrFifoFormat, stderrFifoFormat)
 		stderrFifoRegexp := strings.ReplaceAll(regexp.QuoteMeta(stderrFifoCommand), "%d", "\\d*")
 		s.Regexp(stderrFifoRegexp, calledStderrCommand)
@@ -111,12 +118,14 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
 	call := s.mockExecute(mock.AnythingOfType("string"), 0, nil, func(_ mock.Arguments) {})
 	call.Run(func(args mock.Arguments) {
 		var ok bool
+
 		calledCommand, ok := args.Get(2).(string)
 		s.Require().True(ok)
 
 		if isStderrCommand := strings.Contains(calledCommand, "mkfifo"); isStderrCommand {
 			// Here we defuse the data race condition of the ReturnArguments being set twice at the same time.
 			<-time.After(tests.ShortTimeout)
+
 			call.ReturnArguments = mock.Arguments{1, nil}
 		} else {
 			call.ReturnArguments = mock.Arguments{1, tests.ErrDefault}
@@ -130,7 +139,9 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderrReturnsCommandError() {
 
 func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 	config.Config.Server.InteractiveStderr = false
+
 	var stdout, stderr bytes.Buffer
+
 	commandExitCode := 42
 
 	// mock regular call
@@ -140,6 +151,7 @@ func (s *ExecuteCommandTestSuite) TestWithoutSeparateStderr() {
 		s.Require().True(ok)
 		_, err := stdout.Write([]byte(s.expectedStdout))
 		s.Require().NoError(err)
+
 		stderr, ok := args.Get(6).(io.Writer)
 		s.Require().True(ok)
 		_, err = stderr.Write([]byte(s.expectedStderr))

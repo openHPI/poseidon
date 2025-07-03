@@ -56,6 +56,7 @@ var (
 // NomadJob is an abstraction to communicate with Nomad environments.
 type NomadJob struct {
 	InactivityTimer
+
 	executions   storage.Storage[*dto.ExecutionRequest]
 	id           string
 	portMappings []nomadApi.PortMapping
@@ -90,8 +91,10 @@ func NewNomadJob(ctx context.Context, jobID string, portMappings []nomadApi.Port
 		if err != nil {
 			err = fmt.Errorf("NomadJob: %w", err)
 		}
+
 		return err
 	})
+
 	return job
 }
 
@@ -104,6 +107,7 @@ func (r *NomadJob) Environment() dto.EnvironmentID {
 	if err != nil {
 		log.WithError(err).Error("Runners must have correct IDs")
 	}
+
 	return id
 }
 
@@ -113,11 +117,13 @@ func (r *NomadJob) MappedPorts() []*dto.MappedPort {
 		if portMapping.To < 0 {
 			log.WithError(util.ErrOverflow).WithField("mapping", portMapping.To).Warn("not a valid port")
 		}
+
 		ports = append(ports, &dto.MappedPort{
 			ExposedPort: uint(portMapping.To),
 			HostAddress: fmt.Sprintf("%s:%d", portMapping.HostIP, portMapping.Value),
 		})
 	}
+
 	return ports
 }
 
@@ -126,14 +132,17 @@ func (r *NomadJob) UpdateMappedPorts(ports []*dto.MappedPort) error {
 	mapping := make([]nomadApi.PortMapping, 0, len(ports))
 	for _, portMapping := range ports {
 		hostAddress := strings.Split(portMapping.HostAddress, ":")
+
 		const PartsInHostAddress = 2
 		if len(hostAddress) != PartsInHostAddress {
 			return ErrInvalidPortMapping
 		}
+
 		port, err := strconv.Atoi(hostAddress[1])
 		if err != nil {
 			return fmt.Errorf("failed parsing the port: %w", err)
 		}
+
 		if portMapping.ExposedPort > math.MaxInt32 {
 			return util.ErrOverflow
 		}
@@ -144,7 +153,9 @@ func (r *NomadJob) UpdateMappedPorts(ports []*dto.MappedPort) error {
 			HostIP: hostAddress[0],
 		})
 	}
+
 	r.portMappings = mapping
+
 	return nil
 }
 
@@ -192,6 +203,7 @@ func (r *NomadJob) ListFileSystem(
 ) error {
 	ctx := util.NewMergeContext([]context.Context{r.ctx, requestCtx})
 	r.ResetTimeout()
+
 	command := lsCommand
 	if recursive {
 		command = lsCommandRecursive
@@ -222,6 +234,7 @@ func (r *NomadJob) ListFileSystem(
 	case !ls2json.HasStartedWriting():
 		err = fmt.Errorf("list file system failed silently: %w", nomad.ErrExecutorCommunicationFailed)
 	}
+
 	return err
 }
 
@@ -230,6 +243,7 @@ func (r *NomadJob) UpdateFileSystem(requestCtx context.Context, copyRequest *dto
 	r.ResetTimeout()
 
 	var tarBuffer bytes.Buffer
+
 	if err := createTarArchiveForFiles(ctx, copyRequest.Copy, &tarBuffer); err != nil {
 		return err
 	}
@@ -239,6 +253,7 @@ func (r *NomadJob) UpdateFileSystem(requestCtx context.Context, copyRequest *dto
 	updateFileCommand := (&dto.ExecutionRequest{Command: fileDeletionCommand + copyCommand}).FullCommand()
 	stdOut := bytes.Buffer{}
 	stdErr := bytes.Buffer{}
+
 	exitCode, err := r.api.ExecuteCommand(ctx, r.id, updateFileCommand, false,
 		nomad.PrivilegedExecution, // All files should be written and owned by a privileged user #211.
 		&tarBuffer, &stdOut, &stdErr)
@@ -248,9 +263,11 @@ func (r *NomadJob) UpdateFileSystem(requestCtx context.Context, copyRequest *dto
 			nomad.ErrExecutorCommunicationFailed,
 			err)
 	}
+
 	if stdErr.Len() > 0 {
 		log.WithContext(ctx).WithField("stdErr", fmt.Sprintf("%q", stdErr.Bytes())).Trace("Received stdErr from Nomad update fs")
 	}
+
 	if exitCode != 0 {
 		return fmt.Errorf(
 			"%w: stderr output '%s' and stdout output '%s'",
@@ -258,6 +275,7 @@ func (r *NomadJob) UpdateFileSystem(requestCtx context.Context, copyRequest *dto
 			stdErr.String(),
 			stdOut.String())
 	}
+
 	return nil
 }
 
@@ -270,10 +288,12 @@ func (r *NomadJob) GetFileContent(
 	contentLengthWriter := &nullio.ContentLengthWriter{Target: content}
 	dataPoint := influxdb2.NewPointWithMeasurement(monitoring.MeasurementFileDownload)
 	dataPoint.AddTag(monitoring.InfluxKeyRunnerID, r.ID())
+
 	environmentID, err := nomad.EnvironmentIDFromRunnerID(r.ID())
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Warn("can not parse environment id")
 	}
+
 	dataPoint.AddTag(monitoring.InfluxKeyEnvironmentID, environmentID.ToString())
 	defer contentLengthWriter.SendMonitoringData(dataPoint)
 
@@ -287,9 +307,11 @@ func (r *NomadJob) GetFileContent(
 		return fmt.Errorf("%w: nomad error during retrieve file content copy: %w",
 			nomad.ErrExecutorCommunicationFailed, err)
 	}
+
 	if exitCode != 0 {
 		return ErrFileNotFound
 	}
+
 	return nil
 }
 
@@ -298,6 +320,7 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 	log.WithContext(r.ctx).Debug("Destroying Runner")
 	r.cancel()
 	r.StopTimeout()
+
 	if r.onDestroy != nil {
 		err = r.onDestroy(r)
 		if err != nil {
@@ -314,12 +337,15 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 		if err = r.api.DeleteJob(r.ID()); err != nil {
 			err = fmt.Errorf("error deleting runner in Nomad: %w", err)
 		}
+
 		return
 	})
 	if err != nil {
 		return fmt.Errorf("cannot destroy runner: %w", err)
 	}
+
 	log.WithContext(r.ctx).Trace("Runner destroyed")
+
 	return nil
 }
 
@@ -334,6 +360,7 @@ func (r *NomadJob) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling Nomad job: %w", err)
 	}
+
 	return res, nil
 }
 
@@ -346,6 +373,7 @@ func prepareExecution(environmentCtx context.Context, request *dto.ExecutionRequ
 	} else {
 		ctx, cancel = context.WithTimeout(environmentCtx, time.Duration(request.TimeLimit)*time.Second)
 	}
+
 	return command, ctx, cancel
 }
 
@@ -356,6 +384,7 @@ func (r *NomadJob) executeCommand(ctx context.Context, command string, privilege
 	if exitCode > math.MaxUint8 {
 		log.WithContext(ctx).WithError(err).WithField("exit_code", exitCode).Error("exitCode too big")
 	}
+
 	select {
 	case exit <- ExitInfo{uint8(exitCode), err}: //nolint:gosec // We check for an integer overflow right above.
 	case <-ctx.Done():
@@ -385,6 +414,7 @@ func (r *NomadJob) handleExit(ctx context.Context, exitInfo ExitInfo, exitIntern
 	// Special Handling of OOM Killed allocations. See #401.
 	const exitCodeOfLikelyOOMKilledAllocation = 128
 	const gracePeriodForConfirmingOOMKillReason = time.Second
+
 	if exitInfo.Code == exitCodeOfLikelyOOMKilledAllocation {
 		select {
 		case <-ctx.Done():
@@ -404,6 +434,7 @@ func (r *NomadJob) handleContextDone(ctx context.Context, exitInternal <-chan Ex
 	if errors.Is(err, context.DeadlineExceeded) {
 		err = ErrExecutionTimeout
 	} // for errors.Is(err, context.Canceled) the user likely disconnected from the execution.
+
 	if reason, ok := r.ctx.Value(destroyReasonContextKey).(error); ok {
 		err = reason
 		if r.TimeoutPassed() && !errors.Is(err, ErrRunnerInactivityTimeout) {
@@ -441,6 +472,7 @@ func (r *NomadJob) handleContextDone(ctx context.Context, exitInternal <-chan Ex
 		log.WithContext(ctx).Debug("Execution terminated after SIGQUIT")
 	case <-time.After(executionTimeoutGracePeriod):
 		log.WithContext(ctx).Info(ErrCannotStopExecution.Error())
+
 		if err := r.Destroy(ErrCannotStopExecution); err != nil {
 			log.WithContext(ctx).Error("Error when destroying runner")
 		}
@@ -456,20 +488,25 @@ func createTarArchiveForFiles(ctx context.Context, filesToCopy []dto.File, w io.
 				WithField("path", base64.StdEncoding.EncodeToString([]byte(file.Path))).
 				WithField("content", base64.StdEncoding.EncodeToString(file.Content)).
 				Error(err)
+
 			return err
 		}
+
 		if _, err := tarWriter.Write(file.ByteContent()); err != nil {
 			err := fmt.Errorf("error writing tar file content: %w", err)
 			log.WithContext(ctx).
 				WithField("path", base64.StdEncoding.EncodeToString([]byte(file.Path))).
 				WithField("content", base64.StdEncoding.EncodeToString(file.Content)).
 				Error(err)
+
 			return err
 		}
 	}
+
 	if err := tarWriter.Close(); err != nil {
 		return fmt.Errorf("error closing tar writer: %w", err)
 	}
+
 	return nil
 }
 
@@ -477,7 +514,9 @@ func fileDeletionCommand(pathsToDelete []dto.FilePath) string {
 	if len(pathsToDelete) == 0 {
 		return ""
 	}
+
 	command := "rm --recursive --force "
+
 	for _, filePath := range pathsToDelete {
 		if filePath == "./*" {
 			command += "./* "
@@ -489,7 +528,9 @@ func fileDeletionCommand(pathsToDelete []dto.FilePath) string {
 			command += fmt.Sprintf("'%s' ", singleQuoteEscapedFileName)
 		}
 	}
+
 	command += ";"
+
 	return command
 }
 

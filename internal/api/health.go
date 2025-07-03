@@ -22,6 +22,7 @@ func Health(manager environment.Manager) http.HandlerFunc {
 			sendJSON(request.Context(), writer,
 				&dto.InternalServerError{Message: err.Error(), ErrorCode: dto.PrewarmingPoolDepleting},
 				http.StatusServiceUnavailable)
+
 			return
 		}
 
@@ -42,5 +43,6 @@ func checkPrewarmingPool(manager environment.Manager) error {
 		arrayToString := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(depletingEnvironments)), ", "), "[]")
 		return fmt.Errorf("%w: environments %s", ErrPrewarmingPoolDepleting, arrayToString)
 	}
+
 	return nil
 }

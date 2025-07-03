@@ -57,11 +57,14 @@ func (a *APIClient) ExecuteCommand(ctx context.Context,
 	if tty && config.Config.Server.InteractiveStderr {
 		return a.executeCommandInteractivelyWithStderr(ctx, jobID, command, privilegedExecution, stdin, stdout, stderr)
 	}
+
 	command = prepareCommandWithoutTTY(command, privilegedExecution)
+
 	exitCode, err := a.Execute(ctx, jobID, command, tty, stdin, stdout, stderr)
 	if err != nil {
 		return 1, fmt.Errorf("error executing command in job %s: %w", jobID, err)
 	}
+
 	return exitCode, nil
 }
 
@@ -77,6 +80,7 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(ctx context.Context, a
 	currentNanoTime := time.Now().UnixNano()
 
 	stderrExitChan := make(chan int)
+
 	go func() {
 		readingContext, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -88,33 +92,40 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(ctx context.Context, a
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Warn("Stderr task finished with error")
 			}
+
 			stderrExitChan <- exit
 		})
 	}()
 
 	command = prepareCommandTTY(command, currentNanoTime, privilegedExecution)
+
 	var exit int
 	var err error
+
 	logging.StartSpan(ctx, "nomad.execute.tty", "Interactive Execution", func(ctx context.Context, _ *sentry.Span) {
 		exit, err = a.Execute(ctx, allocationID, command, true, stdin, stdout, io.Discard)
 	})
 
 	// Wait until the stderr catch command finished to make sure we receive all output.
 	<-stderrExitChan
+
 	return exit, err
 }
 
 func prepareCommandWithoutTTY(command string, privilegedExecution bool) string {
 	const commandFieldAfterEnv = 4 // instead of "env CODEOCEAN=true /bin/bash -c sleep infinity" just "sleep infinity".
+
 	command = setInnerDebugMessages(command, commandFieldAfterEnv, -1)
 
 	command = setUserCommand(command, privilegedExecution)
 	command = unsetEnvironmentVariables(command)
+
 	return command
 }
 
 func prepareCommandTTY(command string, currentNanoTime int64, privilegedExecution bool) string {
 	const commandFieldAfterSettingEnvVariables = 4
+
 	command = setInnerDebugMessages(command, commandFieldAfterSettingEnvVariables, -1)
 
 	// Take the command to be executed and wrap it to redirect stderr.
@@ -124,6 +135,7 @@ func prepareCommandTTY(command string, currentNanoTime int64, privilegedExecutio
 
 	command = setUserCommand(command, privilegedExecution)
 	command = unsetEnvironmentVariables(command)
+
 	return command
 }
 
@@ -132,6 +144,7 @@ func prepareCommandTTYStdErr(currentNanoTime int64, privilegedExecution bool) st
 	command := fmt.Sprintf(stderrFifoCommandFormat, stderrFifoPath, stderrFifoPath, stderrFifoPath)
 	command = setInnerDebugMessages(command, 0, 1)
 	command = setUserCommand(command, privilegedExecution)
+
 	return command
 }
 
@@ -145,7 +158,9 @@ func unsetEnvironmentVariables(command string) string {
 
 	// Debug Message
 	const commandFieldBeforeBash = 2 // e.g. instead of "unset ${!NOMAD_@} && /bin/bash -c [...]" just "unset ${!NOMAD_@}".
+
 	command = injectStartDebugMessage(command, 0, commandFieldBeforeBash)
+
 	return command
 }
 
@@ -160,7 +175,9 @@ func setUserCommand(command string, privilegedExecution bool) string {
 
 	// Debug Message
 	const commandFieldBeforeBash = 2 // e.g. instead of "/sbin/setuser user /bin/bash -c [...]" just "/sbin/setuser user".
+
 	command = injectStartDebugMessage(command, 0, commandFieldBeforeBash)
+
 	return command
 }
 
@@ -172,8 +189,10 @@ func injectStartDebugMessage(command string, start uint, end int) string {
 		if (end < 0 && start > uint(math.MaxInt32)) || (end > 0 && start > uint(math.MaxInt32)-uint(end)) {
 			log.WithField("start", start).Error("passed start too big")
 		}
+
 		end -= int(start)
 	}
+
 	if end >= 0 && end < len(commandFields) {
 		commandFields = commandFields[:end]
 	}
@@ -182,11 +201,14 @@ func injectStartDebugMessage(command string, start uint, end int) string {
 	if strings.HasPrefix(description, `"`) && strings.HasSuffix(description, `"`) {
 		description = description[1 : len(description)-1]
 	}
+
 	if description == "" {
 		description = timeDebugFallbackDescription
 	}
+
 	description = dto.BashEscapeCommand(description)
 	description = description[1 : len(description)-1] // The most outer quotes are not escaped!
+
 	return fmt.Sprintf(timeDebugMessageFormatStart, description, command)
 }
 
@@ -196,5 +218,6 @@ func setInnerDebugMessages(command string, descriptionStart uint, descriptionEnd
 	result = injectStartDebugMessage(command, descriptionStart, descriptionEnd)
 
 	result = strings.TrimSuffix(result, ";")
+
 	return fmt.Sprintf(timeDebugMessageFormatEnd, result, "exit $ec")
 }

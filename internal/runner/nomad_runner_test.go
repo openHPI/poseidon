@@ -125,6 +125,7 @@ func (s *MainTestSuite) TestDestroyDoesNotPropagateToNomadForSomeReasons() {
 	apiMock := &nomad.ExecutorAPIMock{}
 	timer := &InactivityTimerMock{}
 	timer.On("StopTimeout").Return()
+
 	ctx, cancel := context.WithCancel(s.TestCtx)
 	r := &NomadJob{
 		executions:      storage.NewLocalStorage[*dto.ExecutionRequest](),
@@ -154,6 +155,7 @@ func TestExecuteInteractivelyTestSuite(t *testing.T) {
 
 type ExecuteInteractivelyTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	runner                   *NomadJob
 	apiMock                  *nomad.ExecutorAPIMock
 	timer                    *InactivityTimerMock
@@ -234,6 +236,7 @@ func (s *ExecuteInteractivelyTestSuite) TestReturnsAfterTimeout() {
 
 func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 	quit := make(chan struct{})
+
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
 		stdin, ok := args.Get(5).(io.Reader)
 		s.Require().True(ok)
@@ -248,6 +251,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 		log.Info("After loop")
 		close(quit)
 	}).Return(0, nil)
+
 	timeLimit := 1
 	executionRequest := &dto.ExecutionRequest{TimeLimit: timeLimit}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
@@ -255,6 +259,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 		s.TestCtx, defaultExecutionID, bytes.NewBuffer(make([]byte, 1)), nil, nil)
 	s.Require().NoError(err)
 	log.Info("Before waiting")
+
 	select {
 	case <-time.After(2 * (time.Duration(timeLimit) * time.Second)):
 		s.FailNow("The execution should receive a SIGQUIT after the timeout")
@@ -267,6 +272,7 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroysRunnerAfterTimeoutAndSignal(
 	s.mockedExecuteCommandCall.Run(func(_ mock.Arguments) {
 		<-s.TestCtx.Done()
 	})
+
 	runnerDestroyed := false
 	s.runner.onDestroy = func(_ Runner) error {
 		runnerDestroyed = true
@@ -300,6 +306,7 @@ func (s *ExecuteInteractivelyTestSuite) TestResetTimerGetsCalled() {
 	case <-time.After(tests.ShortTimeout):
 		s.Fail("ExecuteInteractively did not quit instantly as expected")
 	}
+
 	s.timer.AssertCalled(s.T(), "ResetTimeout")
 }
 
@@ -309,6 +316,7 @@ func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut(
 		<-hangingRequest.Done()
 	}).Return(0, nil)
 	s.mockedTimeoutPassedCall.Return(true)
+
 	executionRequest := &dto.ExecutionRequest{}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 
@@ -317,6 +325,7 @@ func (s *ExecuteInteractivelyTestSuite) TestExitHasTimeoutErrorIfRunnerTimesOut(
 	s.Require().NoError(err)
 	err = s.runner.Destroy(ErrRunnerInactivityTimeout)
 	s.Require().NoError(err)
+
 	exit := <-exitChannel
 	s.Require().ErrorIs(exit.Err, ErrRunnerInactivityTimeout)
 
@@ -329,6 +338,7 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroyReasonIsPassedToExecution() {
 		<-s.TestCtx.Done()
 	}).Return(0, nil)
 	s.mockedTimeoutPassedCall.Return(true)
+
 	executionRequest := &dto.ExecutionRequest{}
 	s.runner.StoreExecution(defaultExecutionID, executionRequest)
 
@@ -337,13 +347,16 @@ func (s *ExecuteInteractivelyTestSuite) TestDestroyReasonIsPassedToExecution() {
 	s.Require().NoError(err)
 	err = s.runner.Destroy(ErrOOMKilled)
 	s.Require().NoError(err)
+
 	exit := <-exitChannel
 	s.ErrorIs(exit.Err, ErrOOMKilled)
 }
 
 func (s *ExecuteInteractivelyTestSuite) TestSuspectedOOMKilledExecutionWaitsForVerification() {
 	s.mockedExecuteCommandCall.Return(128, nil)
+
 	executionRequest := &dto.ExecutionRequest{}
+
 	s.Run("Actually OOM Killed", func() {
 		s.runner.StoreExecution(defaultExecutionID, executionRequest)
 		exitChannel, _, err := s.runner.ExecuteInteractively(
@@ -359,6 +372,7 @@ func (s *ExecuteInteractivelyTestSuite) TestSuspectedOOMKilledExecutionWaitsForV
 
 		err = s.runner.Destroy(ErrOOMKilled)
 		s.Require().NoError(err)
+
 		exit := <-exitChannel
 		s.ErrorIs(exit.Err, ErrOOMKilled)
 	})
@@ -388,6 +402,7 @@ func TestUpdateFileSystemTestSuite(t *testing.T) {
 
 type UpdateFileSystemTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	runner                   *NomadJob
 	timer                    *InactivityTimerMock
 	apiMock                  *nomad.ExecutorAPIMock
@@ -432,6 +447,7 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerPerformsTarExtr
 
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfExitCodeIsNotZero() {
 	s.mockedExecuteCommandCall.Return(1, nil)
+
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.ErrorIs(err, ErrFileCopyFailed)
@@ -439,6 +455,7 @@ func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfE
 
 func (s *UpdateFileSystemTestSuite) TestUpdateFileSystemForRunnerReturnsErrorIfApiCallDid() {
 	s.mockedExecuteCommandCall.Return(0, tests.ErrDefault)
+
 	copyRequest := &dto.UpdateFileSystemRequest{}
 	err := s.runner.UpdateFileSystem(s.TestCtx, copyRequest)
 	s.ErrorIs(err, nomad.ErrExecutorCommunicationFailed)
@@ -556,6 +573,7 @@ func (s *UpdateFileSystemTestSuite) TestFileCopyIsCanceledOnRunnerDestroy() {
 			return
 		}
 	})
+
 	ctx, cancel := context.WithCancel(context.Background())
 	s.runner.ctx = ctx
 	s.runner.cancel = cancel
@@ -571,9 +589,12 @@ func (s *UpdateFileSystemTestSuite) readFilesFromTarArchive(tarArchive io.Reader
 		if err != nil {
 			break
 		}
+
 		bf, err := io.ReadAll(reader)
 		s.Require().NoError(err)
+
 		files = append(files, TarFile{Name: hdr.Name, Content: string(bf), TypeFlag: hdr.Typeflag})
 	}
+
 	return files
 }

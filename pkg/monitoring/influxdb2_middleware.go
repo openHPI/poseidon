@@ -87,6 +87,7 @@ func InitializeInfluxDB(influxConfiguration *config.InfluxDB) (cancel func()) {
 			log.WithError(&err).Warn("Could not write influx data.")
 			return false // Disable retry. We failed to retry writing the data in time.
 		}
+
 		return true // Enable retry (default)
 	})
 
@@ -94,8 +95,10 @@ func InitializeInfluxDB(influxConfiguration *config.InfluxDB) (cancel func()) {
 	cancel = func() {
 		influxClient.Flush()
 		influxClient = nil
+
 		client.Close()
 	}
+
 	return cancel
 }
 
@@ -149,6 +152,7 @@ func AddRequestSize(r *http.Request) {
 		log.WithContext(r.Context()).WithError(err).Debug("Failed to close request body")
 		return
 	}
+
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 	addInfluxDBField(r, influxKeyRequestSize, len(body))
@@ -175,11 +179,14 @@ func WriteInfluxPoint(dataPoint *write.Point) {
 			if tag.Key == "event_type" && tag.Value == "periodically" {
 				return
 			}
+
 			entry = entry.WithField(tag.Key, tag.Value)
 		}
+
 		for _, field := range dataPoint.FieldList() {
 			entry = entry.WithField(field.Key, field.Value)
 		}
+
 		entry.Trace("Influx data point")
 	}
 }
@@ -200,5 +207,6 @@ func dataPointFromRequest(r *http.Request) *write.Point {
 	if !ok {
 		log.WithContext(r.Context()).Error("All http request must contain an influxdb data point!")
 	}
+
 	return p
 }

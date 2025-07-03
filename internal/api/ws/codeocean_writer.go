@@ -81,7 +81,9 @@ func NewCodeOceanOutputWriter(ctx context.Context, connection Connection, done c
 	}
 
 	go cw.startWritingLoop(done)
+
 	cw.send(&dto.WebSocketMessage{Type: dto.WebSocketMetaStart})
+
 	return cw
 }
 
@@ -133,6 +135,7 @@ func (cw *codeOceanOutputWriter) startWritingLoop(writingLoopDone context.Cancel
 	defer func() {
 		message := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		err := cw.connection.WriteMessage(websocket.CloseMessage, message)
+
 		err2 := cw.connection.Close()
 		if err != nil || err2 != nil {
 			log.WithContext(cw.ctx).WithError(err).WithField("err2", err2).Warn("Error during websocket close")
@@ -141,13 +144,16 @@ func (cw *codeOceanOutputWriter) startWritingLoop(writingLoopDone context.Cancel
 
 	for {
 		message := <-cw.queue
+
 		done := true
 		if message.data != nil {
 			done = sendMessage(cw.ctx, cw.connection, message.data)
 		}
+
 		if done || message.done {
 			log.WithContext(cw.ctx).Trace("Writing loop done")
 			writingLoopDone()
+
 			return
 		}
 	}
@@ -166,10 +172,12 @@ func sendMessage(ctx context.Context, connection Connection, message *dto.WebSoc
 	}
 
 	log.WithContext(ctx).WithField("message", message).Trace("Sending message to client")
+
 	err = connection.WriteMessage(websocket.TextMessage, encodedMessage)
 	if err != nil {
 		errorMessage := "Error writing the message"
 		log.WithContext(ctx).WithField("message", message).WithError(err).Warn(errorMessage)
+
 		return true
 	}
 

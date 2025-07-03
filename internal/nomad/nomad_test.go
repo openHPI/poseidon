@@ -17,6 +17,7 @@ func TestLoadRunnersTestSuite(t *testing.T) {
 
 type LoadRunnersTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	jobID                  string
 	mock                   *apiQuerierMock
 	nomadAPIClient         APIClient
@@ -169,6 +170,7 @@ func (s *MainTestSuite) TestAPIClient_LoadRunnerPortMappings() {
 
 	s.Run("should return error when AllocatedResources is nil", func() {
 		mockedCall.Return(&nomadApi.Allocation{AllocatedResources: nil}, nil)
+
 		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
 		s.Require().ErrorIs(err, ErrNoAllocatedResourcesFound)
 		s.Nil(portMappings)
@@ -181,6 +183,7 @@ func (s *MainTestSuite) TestAPIClient_LoadRunnerPortMappings() {
 			},
 		}
 		mockedCall.Return(allocation, nil)
+
 		portMappings, err := nomadAPIClient.LoadRunnerPortMappings(tests.DefaultRunnerID)
 		s.Require().NoError(err)
 		s.Equal(tests.DefaultPortMappings, portMappings)

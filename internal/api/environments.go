@@ -70,6 +70,7 @@ func (e *EnvironmentController) get(writer http.ResponseWriter, request *http.Re
 		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}
+
 	fetch, err := parseFetchParameter(request)
 	if err != nil {
 		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
@@ -112,10 +113,12 @@ func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http
 // createOrUpdate creates/updates an execution environment on the executor.
 func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, request *http.Request) {
 	req := new(dto.ExecutionEnvironmentRequest)
+
 	if err := json.NewDecoder(request.Body).Decode(req); err != nil {
 		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}
+
 	environmentID, err := parseEnvironmentID(request)
 	if err != nil {
 		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
@@ -123,9 +126,11 @@ func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, reque
 	}
 
 	var created bool
+
 	logging.StartSpan(request.Context(), "api.env.update", "Create Environment", func(ctx context.Context, _ *sentry.Span) {
 		created, err = e.manager.CreateOrUpdate(ctx, environmentID, *req)
 	})
+
 	if err != nil {
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 		return
@@ -143,10 +148,12 @@ func parseEnvironmentID(request *http.Request) (dto.EnvironmentID, error) {
 	if !ok {
 		return 0, fmt.Errorf("could not find %s: %w", executionEnvironmentIDKey, ErrMissingURLParameter)
 	}
+
 	environmentID, err := dto.NewEnvironmentID(id)
 	if err != nil {
 		return 0, fmt.Errorf("could not update environment: %w", err)
 	}
+
 	return environmentID, nil
 }
 
@@ -158,5 +165,6 @@ func parseFetchParameter(request *http.Request) (fetch bool, err error) {
 			return false, fmt.Errorf("could not parse fetch parameter: %w", err)
 		}
 	}
+
 	return fetch, nil
 }

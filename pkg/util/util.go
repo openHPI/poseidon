@@ -57,8 +57,10 @@ func retryAttempts(maxAttempts int, f func() error) (err error) {
 		} else if errors.Is(err, ErrRetryContextDone) {
 			return err
 		}
+
 		log.WithField("count", i).WithError(err).Debug("retrying after error")
 	}
+
 	return err
 }
 

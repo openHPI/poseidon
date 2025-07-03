@@ -24,6 +24,7 @@ func (a AWSRunnerManager) Claim(id dto.EnvironmentID, duration int) (Runner, err
 		if err != nil {
 			return nil, fmt.Errorf("aws wrapped: %w", err)
 		}
+
 		return r, nil
 	}
 
@@ -35,6 +36,7 @@ func (a AWSRunnerManager) Claim(id dto.EnvironmentID, duration int) (Runner, err
 
 	a.usedRunners.Add(runner.ID(), runner)
 	runner.SetupTimeout(time.Duration(duration) * time.Second)
+
 	return runner, nil
 }
 
@@ -45,5 +47,6 @@ func (a AWSRunnerManager) Return(r Runner) error {
 	} else if err := a.NextHandler().Return(r); err != nil {
 		return fmt.Errorf("aws wrapped: %w", err)
 	}
+
 	return nil
 }

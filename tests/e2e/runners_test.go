@@ -24,6 +24,7 @@ func (s *E2ETestSuite) TestProvideRunnerRoute() {
 		s.Run(environmentID.ToString(), func() {
 			runnerRequestByteString, err := json.Marshal(dto.RunnerRequest{ExecutionEnvironmentID: int(environmentID)})
 			s.Require().NoError(err)
+
 			reader := bytes.NewReader(runnerRequestByteString)
 
 			s.Run("valid request returns a runner", func() {
@@ -48,6 +49,7 @@ func (s *E2ETestSuite) TestProvideRunnerRoute() {
 					ExecutionEnvironmentID: tests.NonExistingIntegerID,
 				})
 				s.Require().NoError(err)
+
 				reader := bytes.NewReader(runnerRequestByteString)
 				resp, err := http.Post(helpers.BuildURL(api.BasePath, api.RunnersPath), "application/json", reader)
 				s.Require().NoError(err)
@@ -64,7 +66,9 @@ func CopyFiles(runnerID string, request *dto.UpdateFileSystemRequest) (*http.Res
 	if err != nil {
 		return nil, err
 	}
+
 	r := bytes.NewReader(data)
+
 	return helpers.HTTPPatch(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.UpdateFileSystemPath),
 		"application/json", r)
 }
@@ -145,6 +149,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 			response, err := http.Get(getFileURL.String())
 			s.Require().NoError(err)
 			s.Equal(http.StatusOK, response.StatusCode)
+
 			listFilesResponse := new(dto.ListFileSystemResponse)
 			err = json.NewDecoder(response.Body).Decode(listFilesResponse)
 			s.Require().NoError(err)
@@ -161,6 +166,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 			response, err := http.Get(getFileURL.String())
 			s.Require().NoError(err)
 			s.Equal(http.StatusOK, response.StatusCode)
+
 			listFilesResponse := new(dto.ListFileSystemResponse)
 			err = json.NewDecoder(response.Body).Decode(listFilesResponse)
 			s.Require().NoError(err)
@@ -204,6 +210,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 						{Path: dto.FilePath(absoluteFilePath), Content: []byte(absoluteFileContent)},
 					},
 				}
+
 				s.Require().NoError(err)
 
 				resp, err := CopyFiles(runnerID, request)
@@ -224,6 +231,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 				request = &dto.UpdateFileSystemRequest{
 					Delete: []dto.FilePath{tests.DefaultFileName},
 				}
+
 				s.Require().NoError(err)
 
 				resp, err := CopyFiles(runnerID, request)
@@ -242,6 +250,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 					Delete: []dto.FilePath{tests.DefaultFileName},
 					Copy:   []dto.File{{Path: tests.DefaultFileName, Content: []byte(tests.DefaultFileContent)}},
 				}
+
 				s.Require().NoError(err)
 
 				resp, err := CopyFiles(runnerID, request)
@@ -290,10 +299,12 @@ func (s *E2ETestSuite) TestCopyFilesRoute_PermissionDenied() {
 			"application/json", bytes.NewReader(copyFilesRequestByteString))
 		s.Require().NoError(err)
 		s.Equal(http.StatusInternalServerError, resp.StatusCode)
+
 		internalServerError := new(dto.InternalServerError)
 		err = json.NewDecoder(resp.Body).Decode(internalServerError)
 		s.Require().NoError(err)
 		s.Contains(internalServerError.Message, "Cannot open: ")
+
 		_ = resp.Body.Close()
 
 		s.Run("File content can be printed on runner", func() {
@@ -306,6 +317,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_PermissionDenied() {
 			if environmentID == tests.DefaultEnvironmentIDAsInteger {
 				continue
 			}
+
 			s.Run(environmentID.ToString(), func() {
 				runnerID, err := ProvideRunner(&dto.RunnerRequest{ExecutionEnvironmentID: int(environmentID)})
 				s.Require().NoError(err)
@@ -367,6 +379,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 		s.Require().Error(err)
 		s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+
 		stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
 		s.Empty(stdout)
 		s.Empty(stderr)
@@ -384,6 +397,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 		s.Require().Error(err)
 		s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+
 		stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
 		s.Empty(stdout)
 		s.Contains(stderr, "Operation not permitted")
@@ -401,6 +415,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 		s.Require().Error(err)
 		s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+
 		stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
 		s.Empty(stdout)
 		s.Contains(stderr, "Operation not permitted")
@@ -418,6 +433,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute_ProtectedFolders() {
 		messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 		s.Require().Error(err)
 		s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+
 		stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
 		s.Empty(stdout)
 		s.Contains(stderr, "Permission denied")
@@ -437,6 +453,7 @@ func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 	s.Run("Not Found", func() {
 		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.FileContentRawPath))
 		s.Require().NoError(err)
+
 		getFileURL.RawQuery = fmt.Sprintf("%s=%s", api.PathKey, tests.DefaultFileName)
 		response, err := http.Get(getFileURL.String())
 		s.Require().NoError(err)
@@ -453,6 +470,7 @@ func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 
 		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.FileContentRawPath))
 		s.Require().NoError(err)
+
 		getFileURL.RawQuery = fmt.Sprintf("%s=%s", api.PathKey, tests.DefaultFileName)
 		response, err := http.Get(getFileURL.String())
 		s.Require().NoError(err)
@@ -467,6 +485,7 @@ func (s *E2ETestSuite) TestGetFileContent_Nomad() {
 	s.Run("Permission Denied", func() {
 		getFileURL, err := url.Parse(helpers.BuildURL(api.BasePath, api.RunnersPath, runnerID, api.FileContentRawPath))
 		s.Require().NoError(err)
+
 		getFileURL.RawQuery = fmt.Sprintf("%s=%s", api.PathKey, "/proc/1/environ")
 		response, err := http.Get(getFileURL.String())
 		s.Require().NoError(err)
@@ -488,7 +507,9 @@ func (s *E2ETestSuite) TestRunnerGetsDestroyedAfterInactivityTimeout() {
 			s.Require().NoError(err)
 
 			executionTerminated := make(chan bool)
+
 			var lastMessage *dto.WebSocketMessage
+
 			go func() {
 				webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{Command: "sleep infinity"})
 				s.Require().NoError(err)
@@ -499,12 +520,16 @@ func (s *E2ETestSuite) TestRunnerGetsDestroyedAfterInactivityTimeout() {
 				if !s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err) {
 					s.Fail("websocket abnormal closure")
 				}
+
 				controlMessages := helpers.WebSocketControlMessages(messages)
 				s.NotEmpty(controlMessages)
 				lastMessage = controlMessages[len(controlMessages)-1]
+
 				log.Warn("")
+
 				executionTerminated <- true
 			}()
+
 			s.Require().True(tests.ChannelReceivesSomething(executionTerminated, time.Duration(inactivityTimeout+5)*time.Second))
 			s.Equal(dto.WebSocketMetaTimeout, lastMessage.Type)
 		})
@@ -531,5 +556,6 @@ func (s *E2ETestSuite) PrintContentOfFileOnRunner(runnerID, filename string) (st
 	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
 
 	stdout, stderr, _ = helpers.WebSocketOutputMessages(messages)
+
 	return stdout, stderr
 }

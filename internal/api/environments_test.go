@@ -25,6 +25,7 @@ const jobHCLBasicFormat = `job "%s" {}`
 
 type EnvironmentControllerTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	manager *environment.ManagerHandlerMock
 	router  *mux.Router
 }
@@ -44,6 +45,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 	call.Run(func(_ mock.Arguments) {
 		call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{}, nil}
 	})
+
 	path, err := s.router.Get(listRouteName).URL()
 	s.Require().NoError(err)
 	request, err := http.NewRequest(http.MethodGet, path.String(), http.NoBody)
@@ -55,8 +57,10 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 		s.Equal(http.StatusOK, recorder.Code)
 
 		var environmentsResponse ExecutionEnvironmentsResponse
+
 		err = json.NewDecoder(recorder.Result().Body).Decode(&environmentsResponse)
 		s.Require().NoError(err)
+
 		_ = recorder.Result().Body.Close()
 
 		s.Empty(environmentsResponse.ExecutionEnvironments)
@@ -96,6 +100,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
 		var firstEnvironment, secondEnvironment *environment.NomadEnvironment
+
 		call.Run(func(_ mock.Arguments) {
 			firstEnvironment, err = environment.NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
@@ -103,8 +108,10 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 			secondEnvironment, err = environment.NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
+
 			call.ReturnArguments = mock.Arguments{[]runner.ExecutionEnvironment{firstEnvironment, secondEnvironment}, nil}
 		})
+
 		recorder := httptest.NewRecorder()
 		s.router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusOK, recorder.Code)
@@ -112,6 +119,7 @@ func (s *EnvironmentControllerTestSuite) TestList() {
 		paramMap := make(map[string]interface{})
 		err := json.NewDecoder(recorder.Result().Body).Decode(&paramMap)
 		s.Require().NoError(err)
+
 		environmentsInterface, ok := paramMap["executionEnvironments"]
 		s.Require().True(ok)
 		environments, ok := environmentsInterface.([]interface{})
@@ -168,10 +176,12 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 		apiMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
 
 		var testEnvironment *environment.NomadEnvironment
+
 		call.Run(func(_ mock.Arguments) {
 			testEnvironment, err = environment.NewNomadEnvironment(s.TestCtx, tests.DefaultEnvironmentIDAsInteger, apiMock,
 				fmt.Sprintf(jobHCLBasicFormat, nomad.TemplateJobID(tests.DefaultEnvironmentIDAsInteger)))
 			s.Require().NoError(err)
+
 			call.ReturnArguments = mock.Arguments{testEnvironment, nil}
 		})
 
@@ -180,8 +190,10 @@ func (s *EnvironmentControllerTestSuite) TestGet() {
 		s.Equal(http.StatusOK, recorder.Code)
 
 		var environmentParams map[string]interface{}
+
 		err := json.NewDecoder(recorder.Result().Body).Decode(&environmentParams)
 		s.Require().NoError(err)
+
 		idInterface, ok := environmentParams["id"]
 		s.Require().True(ok)
 		idFloat, ok := idInterface.(float64)
@@ -204,6 +216,7 @@ func (s *EnvironmentControllerTestSuite) TestDelete() {
 		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{false, nil}
 		})
+
 		recorder := httptest.NewRecorder()
 		s.router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusNotFound, recorder.Code)
@@ -213,6 +226,7 @@ func (s *EnvironmentControllerTestSuite) TestDelete() {
 		call.Run(func(_ mock.Arguments) {
 			call.ReturnArguments = mock.Arguments{true, nil}
 		})
+
 		recorder := httptest.NewRecorder()
 		s.router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusNoContent, recorder.Code)
@@ -227,6 +241,7 @@ func (s *EnvironmentControllerTestSuite) TestDelete() {
 
 type CreateOrUpdateEnvironmentTestSuite struct {
 	EnvironmentControllerTestSuite
+
 	path string
 	id   dto.EnvironmentID
 	body []byte
@@ -239,11 +254,14 @@ func TestCreateOrUpdateEnvironmentTestSuite(t *testing.T) {
 func (s *CreateOrUpdateEnvironmentTestSuite) SetupTest() {
 	s.EnvironmentControllerTestSuite.SetupTest()
 	s.id = tests.DefaultEnvironmentIDAsInteger
+
 	testURL, err := s.router.Get(createOrUpdateRouteName).URL(executionEnvironmentIDKey, strconv.Itoa(int(s.id)))
 	if err != nil {
 		s.T().Fatal(err)
 	}
+
 	s.path = testURL.String()
+
 	s.body, err = json.Marshal(dto.ExecutionEnvironmentRequest{})
 	if err != nil {
 		s.T().Fatal(err)
@@ -300,10 +318,13 @@ func (s *CreateOrUpdateEnvironmentTestSuite) TestFailsOnTooLargeID() {
 
 func (s *CreateOrUpdateEnvironmentTestSuite) recordRequest() *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
+
 	request, err := http.NewRequest(http.MethodPut, s.path, bytes.NewReader(s.body))
 	if err != nil {
 		s.T().Fatal(err)
 	}
+
 	s.router.ServeHTTP(recorder, request)
+
 	return recorder
 }

@@ -14,12 +14,14 @@ func (hook *ContextHook) Fire(entry *logrus.Entry) error {
 	if entry.Context != nil {
 		injectContextValuesIntoData(entry)
 	}
+
 	return nil
 }
 
 func injectContextValuesIntoData(entry *logrus.Entry) {
 	for _, key := range dto.LoggedContextKeys {
 		value := entry.Context.Value(key)
+
 		_, valueExisting := entry.Data[string(key)]
 		if !valueExisting && value != nil {
 			entry.Data[string(key)] = value

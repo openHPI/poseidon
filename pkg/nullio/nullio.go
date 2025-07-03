@@ -26,6 +26,7 @@ func (r Reader) Read(_ []byte) (int, error) {
 	}
 
 	<-r.Ctx.Done()
+
 	return 0, io.EOF
 }
 
@@ -39,5 +40,6 @@ func (rw *ReadWriter) Write(p []byte) (int, error) {
 	if err != nil {
 		return n, fmt.Errorf("error writing to io.Discard: %w", err)
 	}
+
 	return n, nil
 }

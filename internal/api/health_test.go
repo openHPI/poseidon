@@ -18,6 +18,7 @@ func (s *MainTestSuite) TestHealth() {
 		if err != nil {
 			s.T().Fatal(err)
 		}
+
 		recorder := httptest.NewRecorder()
 		manager := &environment.ManagerHandlerMock{}
 		manager.On("Statistics").Return(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData{})
@@ -31,6 +32,7 @@ func (s *MainTestSuite) TestHealth() {
 			if err != nil {
 				s.T().Fatal(err)
 			}
+
 			recorder := httptest.NewRecorder()
 			manager := &environment.ManagerHandlerMock{}
 			manager.On("Statistics").Return(map[dto.EnvironmentID]*dto.StatisticalExecutionEnvironmentData{
@@ -40,6 +42,7 @@ func (s *MainTestSuite) TestHealth() {
 					IdleRunners:        1,
 				},
 			})
+
 			config.Config.Server.Alert.PrewarmingPoolThreshold = 0.5
 
 			Health(manager).ServeHTTP(recorder, request)
@@ -47,7 +50,9 @@ func (s *MainTestSuite) TestHealth() {
 
 			b, err := io.ReadAll(recorder.Body)
 			s.Require().NoError(err)
+
 			var details dto.InternalServerError
+
 			err = json.Unmarshal(b, &details)
 			s.Require().NoError(err)
 			s.Contains(details.Message, ErrPrewarmingPoolDepleting.Error())

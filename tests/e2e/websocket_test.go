@@ -45,6 +45,7 @@ func (s *E2ETestSuite) TestExecuteCommandRoute() {
 
 			connection, err = ConnectToWebSocket(webSocketURL)
 			s.Require().NoError(err, "websocket connects")
+
 			closeHandler := connection.CloseHandler()
 			connection.SetCloseHandler(func(code int, text string) error {
 				connectionClosed = true
@@ -123,6 +124,7 @@ func (s *E2ETestSuite) TestCommandHead() {
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 	s.Require().Error(err)
 	s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err)
+
 	stdout, _, _ := helpers.WebSocketOutputMessages(messages)
 	s.Regexp(fmt.Sprintf(`(%s\r\n?){2}`, hello), stdout)
 }
@@ -178,10 +180,12 @@ func (s *E2ETestSuite) TestCommandMakeEnvironmentVariables() {
 func (s *E2ETestSuite) expectEnvironmentVariables(stdout string) []string {
 	variables := strings.Split(strings.ReplaceAll(stdout, "\r\n", "\n"), "\n")
 	s.Contains(variables, "CODEOCEAN=true")
+
 	for _, envVar := range variables {
 		s.False(strings.HasPrefix(envVar, "AWS"))
 		s.False(strings.HasPrefix(envVar, "NOMAD_"))
 	}
+
 	return variables
 }
 
@@ -193,12 +197,15 @@ func (s *E2ETestSuite) TestCommandReturnsAfterTimeout() {
 			s.Require().NoError(err)
 
 			timeoutTestChannel := make(chan bool)
+
 			var messages []*dto.WebSocketMessage
+
 			go func() {
 				messages, err = helpers.ReceiveAllWebSocketMessages(connection)
 				if !s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err) {
 					s.T().Fail()
 				}
+
 				close(timeoutTestChannel)
 			}()
 
@@ -210,6 +217,7 @@ func (s *E2ETestSuite) TestCommandReturnsAfterTimeout() {
 					return
 				}
 			}
+
 			s.T().Fail()
 		})
 	}
@@ -251,11 +259,13 @@ func (s *E2ETestSuite) TestNomadStderrFifoIsRemoved() {
 
 func (s *E2ETestSuite) TestTerminatedByClient() {
 	logFile, logFileOk := os.LookupEnv(EnvPoseidonLogFile)
+
 	logFormatter, logFormatterOk := os.LookupEnv(EnvPoseidonLogFormatter)
 	if !logFileOk || !logFormatterOk || logFormatter != dto.FormatterJSON {
 		s.T().Skipf("The environment variables %s and %s are not set", EnvPoseidonLogFile, EnvPoseidonLogFormatter)
 		return
 	}
+
 	start := time.Now()
 
 	// The bug of #325 is triggered in about every second execution. Therefore, we perform
@@ -264,6 +274,7 @@ func (s *E2ETestSuite) TestTerminatedByClient() {
 	for i := range runs {
 		<-time.After(time.Duration(i) * time.Second)
 		log.WithField("i", i).Info("Run")
+
 		runnerID, err := ProvideRunner(&dto.RunnerRequest{
 			ExecutionEnvironmentID: tests.DefaultEnvironmentIDAsInteger,
 		})
@@ -299,34 +310,45 @@ func (s *E2ETestSuite) TestTerminatedByClient() {
 func parseLogFile(t *testing.T, name string, start time.Time, end time.Time) (logRecords []map[string]interface{}) {
 	t.Helper()
 	<-time.After(tests.ShortTimeout)
+
 	file, err := os.Open(name)
+
 	require.NoError(t, err)
 	defer func(t *testing.T, file *os.File) {
 		t.Helper()
+
 		err := file.Close()
 		require.NoError(t, err)
 	}(t, file)
+
 	fileScanner := bufio.NewScanner(file)
 	fileScanner.Split(bufio.ScanLines)
+
 	for fileScanner.Scan() {
 		logRecord := map[string]interface{}{}
 		err = json.Unmarshal(fileScanner.Bytes(), &logRecord)
 		require.NoError(t, err)
+
 		timeString, ok := logRecord["time"].(string)
 		require.True(t, ok)
+
 		entryTime, err := time.ParseInLocation(logging.TimestampFormat, timeString, start.Location())
 		require.NoError(t, err)
+
 		if entryTime.Before(start) || entryTime.After(end) {
 			continue
 		}
+
 		logRecords = append(logRecords, logRecord)
 	}
+
 	return logRecords
 }
 
 func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {
 	allocListStub, _, err := nomadClient.Jobs().Allocations(runnerID, true, nil)
 	s.Require().NoError(err)
+
 	var runningAllocStub *api.AllocationListStub
 	for _, stub := range allocListStub {
 		if stub.ClientStatus == api.AllocClientStatusRunning && stub.DesiredStatus == api.AllocDesiredStatusRun {
@@ -334,20 +356,24 @@ func (s *E2ETestSuite) ListTempDirectory(runnerID string) string {
 			break
 		}
 	}
+
 	if runningAllocStub == nil {
 		s.FailNow("No valid allocation found")
 		return ""
 	}
+
 	alloc, _, err := nomadClient.Allocations().Info(runningAllocStub.ID, nil)
 	s.Require().NoError(err)
 
 	var stdout, stderr bytes.Buffer
+
 	exit, err := nomadClient.Allocations().Exec(context.Background(), alloc, nomad.TaskName,
 		false, []string{"ls", "-a", "/tmp/"}, strings.NewReader(""), &stdout, &stderr, nil, nil)
 
 	s.Require().NoError(err)
 	s.Require().Equal(0, exit)
 	s.Require().Empty(stderr)
+
 	return stdout.String()
 }
 
@@ -373,6 +399,7 @@ func ExecuteNonInteractive(s *suite.Suite, environmentID dto.EnvironmentID, exec
 
 	stdout, stderr, errors := helpers.WebSocketOutputMessages(messages)
 	s.Empty(errors)
+
 	return stdout, stderr, exitMessage.ExitCode
 }
 
@@ -384,17 +411,21 @@ func ProvideWebSocketConnection(s *suite.Suite, environmentID dto.EnvironmentID,
 	if err != nil {
 		return nil, fmt.Errorf("error providing runner: %w", err)
 	}
+
 	if copyRequest != nil {
 		resp, err := CopyFiles(runnerID, copyRequest)
 		s.Require().NoError(err)
 		s.Require().Equal(http.StatusNoContent, resp.StatusCode)
 	}
+
 	webSocketURL, err := ProvideWebSocketURL(runnerID, executionRequest)
 	s.Require().NoError(err)
+
 	connection, err := ConnectToWebSocket(webSocketURL)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to WebSocket: %w", err)
 	}
+
 	return connection, nil
 }
 

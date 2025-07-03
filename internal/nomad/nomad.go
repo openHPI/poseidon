@@ -89,6 +89,7 @@ type ExecutorAPI interface {
 // Executor API and its return values.
 type APIClient struct {
 	apiQuerier
+
 	evaluations storage.Storage[chan error]
 	// jobAllocationMapping maps a Job ID to the most recent Allocation ID.
 	jobAllocationMapping storage.Storage[string]
@@ -115,6 +116,7 @@ func NewExecutorAPI(ctx context.Context, nomadConfig *config.Nomad) (ExecutorAPI
 			}, 0),
 	}
 	err := client.init(nomadConfig)
+
 	return client, err
 }
 
@@ -123,12 +125,14 @@ func (a *APIClient) LoadRunnerIDs(prefix string) (runnerIDs []string, err error)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, jobListStub := range list {
 		// Filter out dead ("complete", "failed" or "lost") jobs
 		if jobListStub.Status != structs.JobStatusDead {
 			runnerIDs = append(runnerIDs, jobListStub.ID)
 		}
 	}
+
 	return runnerIDs, nil
 }
 
@@ -137,9 +141,11 @@ func (a *APIClient) LoadRunnerPortMappings(runnerID string) ([]nomadApi.PortMapp
 	if err != nil {
 		return nil, fmt.Errorf("error querying allocation for runner %s: %w", runnerID, err)
 	}
+
 	if alloc.AllocatedResources == nil {
 		return nil, ErrNoAllocatedResourcesFound
 	}
+
 	return alloc.AllocatedResources.Shared.Ports, nil
 }
 
@@ -152,6 +158,7 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 	}
 
 	var occurredError error
+
 	jobs := make([]*nomadApi.Job, 0, len(runnerIDs))
 	for _, runnerID := range runnerIDs {
 		job, err := a.job(runnerID)
@@ -159,11 +166,15 @@ func (a *APIClient) LoadRunnerJobs(environmentID dto.EnvironmentID) ([]*nomadApi
 			if occurredError == nil {
 				occurredError = ErrLoadingJob
 			}
+
 			occurredError = fmt.Errorf("%w: couldn't load job info for runner %s - %w", occurredError, runnerID, err)
+
 			continue
 		}
+
 		jobs = append(jobs, job)
 	}
+
 	return jobs, occurredError
 }
 
@@ -172,12 +183,14 @@ func (a *APIClient) SetRunnerMetaUsed(runnerID string, used bool, duration int) 
 	if !used {
 		newMetaUsedValue = ConfigMetaUnusedValue
 	}
+
 	newMetaTimeoutValue := strconv.Itoa(duration)
 
 	job, err := a.job(runnerID)
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve job info: %w", err)
 	}
+
 	configTaskGroup := FindAndValidateConfigTaskGroup(job)
 	metaUsedDiffers := configTaskGroup.Meta[ConfigMetaUsedKey] != newMetaUsedValue
 	metaTimeoutDiffers := configTaskGroup.Meta[ConfigMetaTimeoutKey] != newMetaTimeoutValue
@@ -187,11 +200,13 @@ func (a *APIClient) SetRunnerMetaUsed(runnerID string, used bool, duration int) 
 		if used {
 			configTaskGroup.Meta[ConfigMetaTimeoutKey] = newMetaTimeoutValue
 		}
+
 		_, err = a.RegisterNomadJob(job)
 		if err != nil {
 			return fmt.Errorf("couldn't update runner config: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -207,8 +222,10 @@ func (a *APIClient) LoadEnvironmentJobs() ([]*nomadApi.Job, error) {
 		if err != nil {
 			return []*nomadApi.Job{}, fmt.Errorf("couldn't load job info for job %v: %w", jobStub.ID, err)
 		}
+
 		jobs = append(jobs, job)
 	}
+
 	return jobs, nil
 }
 
@@ -217,5 +234,6 @@ func (a *APIClient) init(nomadConfig *config.Nomad) error {
 	if err := a.apiQuerier.init(nomadConfig); err != nil {
 		return fmt.Errorf("error initializing API querier: %w", err)
 	}
+
 	return nil
 }

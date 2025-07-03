@@ -61,6 +61,7 @@ func (s *MainTestSuite) TestShutdownOnOSSignal_Profiling() {
 	})
 
 	<-time.After(tests.ShortTimeout)
+
 	err := unix.Kill(unix.Getpid(), unix.SIGUSR1)
 	s.Require().NoError(err)
 	<-time.After(tests.ShortTimeout)

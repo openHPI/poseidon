@@ -108,6 +108,7 @@ func (s *MainTestSuite) TestSetForcePullFlag() {
 
 	s.Run("Using passed value if not DisableForcePull", func() {
 		config.Config.Nomad.DisableForcePull = false
+
 		SetForcePullFlag(job, true)
 		s.Equal(true, task.Config["force_pull"])
 

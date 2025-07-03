@@ -31,6 +31,7 @@ func (n *AbstractManager) NextHandler() ManagerHandler {
 	if n.HasNextHandler() {
 		return n.nextHandler
 	}
+
 	return &AbstractManager{}
 }
 
@@ -63,13 +64,16 @@ func (n *AbstractManager) Delete(environmentID dto.EnvironmentID) (bool, error) 
 		if err != nil {
 			return false, fmt.Errorf("abstract wrapped: %w", err)
 		}
+
 		return isFound, nil
 	}
 
 	n.runnerManager.DeleteEnvironment(environmentID)
+
 	if err := executionEnvironment.Delete(runner.ErrDestroyedByAPIRequest); err != nil {
 		return true, fmt.Errorf("could not delete environment: %w", err)
 	}
+
 	return true, nil
 }
 
@@ -82,5 +86,6 @@ func (n *AbstractManager) Statistics() map[dto.EnvironmentID]*dto.StatisticalExe
 	for k, v := range n.runnerManager.EnvironmentStatistics() {
 		statistics[k] = v
 	}
+
 	return statistics
 }

@@ -46,15 +46,18 @@ func TestE2ETestSuite(t *testing.T) {
 // Overwrite TestMain for custom setup.
 func TestMain(m *testing.M) {
 	log.Info("Test Setup")
+
 	if err := config.InitConfig(); err != nil {
 		log.WithError(err).Fatal("Could not initialize configuration")
 	}
+
 	initNomad()
 	initAWS()
 
 	// wait for environment to become ready
 	<-time.After(10 * time.Second)
 	log.Info("Test Run")
+
 	code := m.Run()
 
 	deleteE2EEnvironments()
@@ -65,14 +68,18 @@ func TestMain(m *testing.M) {
 func initAWS() {
 	for i, function := range config.Config.AWS.Functions {
 		log.WithField("function", function[0:3]).Info("Yes, we do have AWS functions.")
+
 		environmentID := dto.EnvironmentID(tests.DefaultEnvironmentIDAsInteger + i + 1)
 		path := helpers.BuildURL(api.BasePath, api.EnvironmentsPath, environmentID.ToString())
 		request := dto.ExecutionEnvironmentRequest{Image: function}
+
 		resp, err := helpers.HTTPPutJSON(path, request)
 		if err != nil || resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
 			log.WithField("function", function).WithError(err).Fatal("Couldn't create default environment for e2e tests")
 		}
+
 		environmentIDs = append(environmentIDs, environmentID)
+
 		err = resp.Body.Close()
 		if err != nil {
 			log.Fatal("Failed closing body")
@@ -82,7 +89,9 @@ func initAWS() {
 
 func initNomad() {
 	nomadNamespace = config.Config.Nomad.Namespace
+
 	var err error
+
 	nomadClient, err = nomadApi.NewClient(&nomadApi.Config{
 		Address:   config.Config.Nomad.URL().String(),
 		TLSConfig: &nomadApi.TLSConfig{},
@@ -92,6 +101,7 @@ func initNomad() {
 		log.WithError(err).Fatal("Could not create Nomad client")
 		return
 	}
+
 	createDefaultEnvironment()
 	WaitForDefaultEnvironment()
 }
@@ -100,7 +110,9 @@ func createDefaultEnvironment() {
 	if *testDockerImage == "" {
 		log.Fatal("You must specify the -dockerImage flag!")
 	}
+
 	defaultNomadEnvironment = CreateDefaultEnvironment(10, *testDockerImage)
+
 	environmentIDs = append(environmentIDs, tests.DefaultEnvironmentIDAsInteger)
 }
 

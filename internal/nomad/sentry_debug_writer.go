@@ -46,6 +46,7 @@ func NewSentryDebugWriter(ctx context.Context, target io.Writer) *SentryDebugWri
 	ctx = logging.CloneSentryHub(ctx)
 	span := sentry.StartSpan(ctx, "nomad.execute.connect")
 	span.Description = "/bin/bash -c"
+
 	return &SentryDebugWriter{
 		Target:    target,
 		Ctx:       ctx,
@@ -64,6 +65,7 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 	if _, err = s.Target.Write([]byte{}); err != nil {
 		return 0, fmt.Errorf("SentryDebugWriter cannot write to target: %w", err)
 	}
+
 	log.WithContext(s.lastSpan.Context()).WithField("data", fmt.Sprintf("%q", debugData)).Trace("Received data from Nomad container")
 
 	if s.remaining.Len() > 0 {
@@ -71,10 +73,13 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 		if len(debugData) > (math.MaxInt64 - s.remaining.Len()) {
 			return 0, ErrDebugMessageIntegerOverflow
 		}
+
 		joinedDebugData := make([]byte, 0, s.remaining.Len()+len(debugData))
 		joinedDebugData = append(joinedDebugData, s.remaining.Bytes()...)
 		joinedDebugData = append(joinedDebugData, debugData...)
+
 		s.remaining.Reset()
+
 		debugData = joinedDebugData
 	}
 
@@ -83,6 +88,7 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 		if err != nil {
 			err = fmt.Errorf("SentryDebugWriter Forwarded Error: %w", err)
 		}
+
 		return count, err
 	}
 
@@ -91,6 +97,7 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 		if err != nil {
 			err = fmt.Errorf("SentryDebugWriter failed to buffer data: %w", err)
 		}
+
 		return count, err
 	}
 
@@ -102,6 +109,7 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 
 	if len(match["before"]) > 0 {
 		var count int
+
 		count, err = s.Write(match["before"])
 		n += count
 	}
@@ -111,6 +119,7 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 
 	if len(match["after"]) > 0 {
 		var count int
+
 		count, err = s.Write(match["after"])
 		n += count
 	}
@@ -153,10 +162,12 @@ func matchAndMapTimeDebugMessage(p []byte) map[string][]byte {
 	}
 
 	labelMap := make(map[string][]byte)
+
 	for i, name := range timeDebugMessagePattern.SubexpNames() {
 		if i != 0 && name != "" {
 			labelMap[name] = match[i]
 		}
 	}
+
 	return labelMap
 }

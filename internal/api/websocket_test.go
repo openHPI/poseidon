@@ -32,6 +32,7 @@ func TestWebSocketTestSuite(t *testing.T) {
 
 type WebSocketTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	router      *mux.Router
 	executionID string
 	runner      runner.Runner
@@ -41,6 +42,7 @@ type WebSocketTestSuite struct {
 
 func (s *WebSocketTestSuite) SetupTest() {
 	s.MemoryLeakTestSuite.SetupTest()
+
 	runnerID := "runner-id"
 	s.runner, s.apiMock = newNomadAllocationWithMockedAPIClient(s.TestCtx, runnerID)
 
@@ -57,6 +59,7 @@ func (s *WebSocketTestSuite) SetupTest() {
 
 func (s *WebSocketTestSuite) TearDownTest() {
 	defer s.MemoryLeakTestSuite.TearDownTest()
+
 	s.server.Close()
 	err := s.runner.Destroy(nil)
 	s.Require().NoError(err)
@@ -69,6 +72,7 @@ func (s *WebSocketTestSuite) TestWebsocketConnectionCanBeEstablished() {
 	s.Require().NoError(err)
 
 	<-time.After(tests.ShortTimeout)
+
 	err = conn.Close()
 	s.Require().NoError(err)
 }
@@ -214,6 +218,7 @@ func (s *WebSocketTestSuite) TestWebsocketStdoutAndStderr() {
 	messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 	s.Require().Error(err)
 	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
+
 	stdout, stderr, _ := helpers.WebSocketOutputMessages(messages)
 
 	s.Contains(stdout, "existing-file")
@@ -273,6 +278,7 @@ func (s *MainTestSuite) TestWebsocketTLS() {
 
 	server, err := helpers.StartTLSServer(s.T(), router)
 	s.Require().NoError(err)
+
 	defer server.Close()
 
 	wsURL, err := webSocketURL("wss", server, router, runnerID, executionID)
@@ -286,6 +292,7 @@ func (s *MainTestSuite) TestWebsocketTLS() {
 	message, err := helpers.ReceiveNextWebSocketMessage(connection)
 	s.Require().NoError(err)
 	s.Equal(dto.WebSocketMetaStart, message.Type)
+
 	_, err = helpers.ReceiveAllWebSocketMessages(connection)
 	s.Require().Error(err)
 	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
@@ -313,6 +320,7 @@ func (s *MainTestSuite) TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt
 	_, err = helpers.ReceiveAllWebSocketMessages(connection)
 	s.Require().Error(err)
 	s.True(websocket.IsCloseError(err, websocket.CloseNormalClosure))
+
 	for _, logMsg := range hook.Entries {
 		if logMsg.Level < logrus.InfoLevel {
 			s.Fail(logMsg.Message)
@@ -325,9 +333,11 @@ func (s *MainTestSuite) TestWebSocketProxyStopsReadingTheWebSocketAfterClosingIt
 func newNomadAllocationWithMockedAPIClient(ctx context.Context, runnerID string) (runner.Runner, *nomad.ExecutorAPIMock) {
 	executorAPIMock := &nomad.ExecutorAPIMock{}
 	executorAPIMock.On("DeleteJob", mock.AnythingOfType("string")).Return(nil)
+
 	manager := &runner.ManagerMock{}
 	manager.On("Return", mock.Anything).Return(nil)
 	r := runner.NewNomadJob(ctx, runnerID, nil, executorAPIMock, nil)
+
 	return r, executorAPIMock
 }
 
@@ -342,6 +352,7 @@ func newRunnerWithNotMockedRunnerManager(s *MainTestSuite, apiMock *nomad.Execut
 	call := apiMock.On("WatchEventStream", mock.Anything, mock.Anything, mock.Anything)
 	call.Run(func(_ mock.Arguments) {
 		<-s.TestCtx.Done()
+
 		call.ReturnArguments = mock.Arguments{nil}
 	})
 
@@ -381,13 +392,16 @@ func webSocketURL(scheme string, server *httptest.Server, router *mux.Router,
 	if err != nil {
 		return nil, err
 	}
+
 	path, err := router.Get(WebsocketPath).URL(RunnerIDKey, runnerID)
 	if err != nil {
 		return nil, err
 	}
+
 	websocketURL.Scheme = scheme
 	websocketURL.Path = path.Path
 	websocketURL.RawQuery = "executionID=" + executionID
+
 	return websocketURL, nil
 }
 
@@ -404,6 +418,7 @@ func mockAPIExecuteLs(api *nomad.ExecutorAPIMock) {
 		func(_ context.Context, _ string, _ string, _ bool, _ io.Reader, stdout, stderr io.Writer) (int, error) {
 			_, _ = stdout.Write([]byte("existing-file\n"))
 			_, _ = stderr.Write([]byte("ls: cannot access 'non-existing-file': No such file or directory\n"))
+
 			return 0, nil
 		})
 }
@@ -420,7 +435,9 @@ func mockAPIExecuteHead(api *nomad.ExecutorAPIMock) {
 			for !scanner.Scan() {
 				scanner = bufio.NewScanner(stdin)
 			}
+
 			_, _ = stdout.Write(scanner.Bytes())
+
 			return 0, nil
 		})
 }
@@ -437,6 +454,7 @@ func mockAPIExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 			stdin io.Reader, _ io.Writer, _ io.Writer,
 		) (int, error) {
 			var err error
+
 			buffer := make([]byte, 1) //nolint:makezero // if the length is zero, the Read call never reads anything
 
 			for n := 0; n != 1 || buffer[0] != runner.SIGQUIT; n, err = stdin.Read(buffer) {
@@ -444,9 +462,12 @@ func mockAPIExecuteSleep(api *nomad.ExecutorAPIMock) <-chan bool {
 					return 0, fmt.Errorf("error while reading stdin: %w", err)
 				}
 			}
+
 			close(canceled)
+
 			return 0, ctx.Err()
 		})
+
 	return canceled
 }
 

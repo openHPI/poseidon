@@ -58,6 +58,7 @@ type WriteCallback[T any] func(p *write.Point, object T, eventType EventType)
 // localStorage stores objects in the local application memory.
 type localStorage[T any] struct {
 	sync.RWMutex
+
 	objects     map[string]T
 	measurement string
 	callback    WriteCallback[T]
@@ -84,21 +85,25 @@ func NewMonitoredLocalStorage[T any](ctx context.Context, measurement string, ca
 	if additionalEvents != 0 {
 		go s.periodicallySendMonitoringData(ctx, additionalEvents)
 	}
+
 	return s
 }
 
 func (s *localStorage[T]) List() (o []T) {
 	s.RLock()
 	defer s.RUnlock()
+
 	for _, value := range s.objects {
 		o = append(o, value)
 	}
+
 	return o
 }
 
 func (s *localStorage[T]) Add(id string, o T) {
 	s.Lock()
 	defer s.Unlock()
+
 	s.objects[id] = o
 	s.sendMonitoringData(id, o, Creation, s.unsafeLength())
 }
@@ -106,13 +111,16 @@ func (s *localStorage[T]) Add(id string, o T) {
 func (s *localStorage[T]) Get(id string) (o T, ok bool) {
 	s.RLock()
 	defer s.RUnlock()
+
 	o, ok = s.objects[id]
+
 	return
 }
 
 func (s *localStorage[T]) Delete(objectID string) {
 	s.Lock()
 	defer s.Unlock()
+
 	o, ok := s.objects[objectID]
 	if ok {
 		delete(s.objects, objectID)
@@ -123,32 +131,39 @@ func (s *localStorage[T]) Delete(objectID string) {
 func (s *localStorage[T]) Pop(id string) (T, bool) {
 	o, ok := s.Get(id)
 	s.Delete(id)
+
 	return o, ok
 }
 
 func (s *localStorage[T]) Purge() {
 	s.Lock()
 	defer s.Unlock()
+
 	for key, object := range s.objects {
 		s.sendMonitoringData(key, object, Deletion, 0)
 	}
+
 	s.objects = make(map[string]T)
 }
 
 func (s *localStorage[T]) Sample() (o T, ok bool) {
 	s.Lock()
 	defer s.Unlock()
+
 	for key, object := range s.objects {
 		delete(s.objects, key)
 		s.sendMonitoringData(key, object, Deletion, s.unsafeLength())
+
 		return object, true
 	}
+
 	return o, false
 }
 
 func (s *localStorage[T]) Length() uint {
 	s.RLock()
 	defer s.RUnlock()
+
 	return s.unsafeLength()
 }
 

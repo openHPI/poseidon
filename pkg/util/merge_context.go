@@ -23,24 +23,30 @@ func (m mergeContext) Deadline() (deadline time.Time, ok bool) {
 			if ok && anotherDeadline.After(deadline) {
 				continue
 			}
+
 			deadline = anotherDeadline
 			ok = anotherOk
 		}
 	}
+
 	return deadline, ok
 }
 
 // Done notifies when the first context is done.
 func (m mergeContext) Done() <-chan struct{} {
 	mergeContextDoneChannel := make(chan struct{})
+
 	cases := make([]reflect.SelectCase, 0, len(m.contexts))
 	for _, ctx := range m.contexts {
 		cases = append(cases, reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ctx.Done())})
 	}
+
 	go func(cases []reflect.SelectCase, ch chan struct{}) {
 		_, _, _ = reflect.Select(cases)
+
 		close(ch)
 	}(cases, mergeContextDoneChannel)
+
 	return mergeContextDoneChannel
 }
 
@@ -51,6 +57,7 @@ func (m mergeContext) Err() error {
 			return fmt.Errorf("mergeContext wrapped: %w", ctx.Err())
 		}
 	}
+
 	return nil
 }
 
@@ -62,5 +69,6 @@ func (m mergeContext) Value(key any) any {
 			return value
 		}
 	}
+
 	return nil
 }

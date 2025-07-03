@@ -23,6 +23,7 @@ func TestMainTestSuite(t *testing.T) {
 func (s *MainTestSuite) TestAWSEnvironmentManager_CreateOrUpdate() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	runnerManager := runner.NewAWSRunnerManager(ctx)
 	environmentManager := NewAWSEnvironmentManager(runnerManager)
 	uniqueImage := "java11Exec"
@@ -57,6 +58,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_CreateOrUpdate() {
 func (s *MainTestSuite) TestAWSEnvironmentManager_Get() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	runnerManager := runner.NewAWSRunnerManager(ctx)
 	environmentManager := NewAWSEnvironmentManager(runnerManager)
 
@@ -93,6 +95,7 @@ func (s *MainTestSuite) TestAWSEnvironmentManager_Get() {
 func (s *MainTestSuite) TestAWSEnvironmentManager_List() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	runnerManager := runner.NewAWSRunnerManager(ctx)
 	awsEnvironmentManager := NewAWSEnvironmentManager(runnerManager)
 

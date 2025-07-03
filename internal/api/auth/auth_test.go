@@ -17,6 +17,7 @@ const testToken = "C0rr3ctT0k3n"
 
 type AuthenticationMiddlewareTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	request                      *http.Request
 	recorder                     *httptest.ResponseRecorder
 	httpAuthenticationMiddleware http.Handler
@@ -24,12 +25,15 @@ type AuthenticationMiddlewareTestSuite struct {
 
 func (s *AuthenticationMiddlewareTestSuite) SetupTest() {
 	s.MemoryLeakTestSuite.SetupTest()
+
 	correctAuthenticationToken = []byte(testToken)
 	s.recorder = httptest.NewRecorder()
+
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/test", http.NoBody)
 	if err != nil {
 		s.T().Fatal(err)
 	}
+
 	s.request = request
 	s.httpAuthenticationMiddleware = HTTPAuthenticationMiddleware(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -39,6 +43,7 @@ func (s *AuthenticationMiddlewareTestSuite) SetupTest() {
 
 func (s *AuthenticationMiddlewareTestSuite) TearDownTest() {
 	defer s.MemoryLeakTestSuite.TearDownTest()
+
 	correctAuthenticationToken = []byte(nil)
 }
 
@@ -55,6 +60,7 @@ func (s *AuthenticationMiddlewareTestSuite) TestReturns401WhenTokenWrong() {
 
 func (s *AuthenticationMiddlewareTestSuite) TestWarnsWhenUnauthorized() {
 	var hook *test.Hook
+
 	logger, hook := test.NewNullLogger()
 	log = logger.WithField("pkg", "api/auth")
 
@@ -89,6 +95,7 @@ func TestInitializeAuthentication(t *testing.T) {
 		initialized := InitializeAuthentication()
 		assert.True(t, initialized)
 		assert.Equal(t, []byte(testToken), correctAuthenticationToken, "it should set correctAuthenticationToken")
+
 		config.Config.Server.Token = ""
 		correctAuthenticationToken = []byte(nil)
 	})

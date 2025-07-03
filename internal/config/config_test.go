@@ -50,13 +50,16 @@ func writeConfigurationFile(t *testing.T, name string, content []byte) string {
 	t.Helper()
 	directory := t.TempDir()
 	filePath := filepath.Join(directory, name)
+
 	file, err := os.Create(filePath)
 	if err != nil {
 		t.Fatal("Could not create config file")
 	}
 	defer file.Close()
+
 	_, err = file.Write(content)
 	require.NoError(t, err)
+
 	return filePath
 }
 
@@ -80,10 +83,13 @@ func (s *MainTestSuite) TestCallingInitConfigTwiceDoesNotChangeConfig() {
 	configurationInitialized = false
 	err := InitConfig()
 	s.Require().NoError(err)
+
 	Config = newTestConfiguration()
 	filePath := writeConfigurationFile(s.T(), "test.yaml", []byte("server:\n  port: 5000\n"))
 	oldArgs := os.Args
+
 	defer func() { os.Args = oldArgs }()
+
 	os.Args = append(os.Args, "-config", filePath)
 	err = InitConfig()
 	s.Require().Error(err)
@@ -105,12 +111,16 @@ func (s *MainTestSuite) TestReadEnvironmentVariables() {
 		{"AWS_FUNCTIONS", "java11Exec go118Exec", []string{"java11Exec", "go118Exec"}, getAWSFunctions},
 	}
 	prefix := "POSEIDON_TEST"
+
 	for _, testCase := range environmentTests {
 		config := newTestConfiguration()
 		environmentVariable := fmt.Sprintf("%s_%s", prefix, testCase.variableSuffix)
 		_ = os.Setenv(environmentVariable, testCase.valueToSet)
+
 		readFromEnvironment(prefix, config.getReflectValue())
+
 		_ = os.Unsetenv(environmentVariable)
+
 		s.Equal(testCase.expectedValue, testCase.getTargetField(config))
 	}
 }
@@ -118,16 +128,22 @@ func (s *MainTestSuite) TestReadEnvironmentVariables() {
 func (s *MainTestSuite) TestReadEnvironmentIgnoresNonPointerValue() {
 	config := newTestConfiguration()
 	_ = os.Setenv("POSEIDON_TEST_SERVER_PORT", "4000")
+
 	readFromEnvironment("POSEIDON_TEST", reflect.ValueOf(config))
+
 	_ = os.Unsetenv("POSEIDON_TEST_SERVER_PORT")
+
 	s.Equal(3000, config.Server.Port)
 }
 
 func (s *MainTestSuite) TestReadEnvironmentIgnoresNotSupportedType() {
 	config := &struct{ Timeout float64 }{1.0}
 	_ = os.Setenv("POSEIDON_TEST_TIMEOUT", "2.5")
+
 	readFromEnvironment("POSEIDON_TEST", reflect.ValueOf(config).Elem())
+
 	_ = os.Unsetenv("POSEIDON_TEST_TIMEOUT")
+
 	s.Equal(1, int(config.Timeout))
 }
 
@@ -176,6 +192,7 @@ func (s *MainTestSuite) TestInvalidYamlExitsProgram() {
 func (s *MainTestSuite) TestReadConfigFileOverwritesConfig() {
 	Config = newTestConfiguration()
 	oldArgs := os.Args
+
 	defer func() { os.Args = oldArgs }()
 
 	filePath := writeConfigurationFile(s.T(), "test.yaml", []byte("server:\n  port: 5000\n"))
@@ -189,6 +206,7 @@ func (s *MainTestSuite) TestReadConfigFileOverwritesConfig() {
 func (s *MainTestSuite) TestReadNonExistingConfigFileDoesNotOverwriteConfig() {
 	Config = newTestConfiguration()
 	oldArgs := os.Args
+
 	defer func() { os.Args = oldArgs }()
 
 	os.Args = append(os.Args, "-config", "file_does_not_exist.yaml")

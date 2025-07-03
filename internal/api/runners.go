@@ -68,15 +68,18 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 	if err := parseJSONRequestBody(writer, request, runnerRequest); err != nil {
 		return
 	}
+
 	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
 
 	var (
 		nextRunner runner.Runner
 		err        error
 	)
+
 	logging.StartSpan(request.Context(), "api.runner.claim", "Claim Runner", func(_ context.Context, _ *sentry.Span) {
 		nextRunner, err = r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
 	})
+
 	if err != nil {
 		switch {
 		case errors.Is(err, runner.ErrUnknownExecutionEnvironment):
@@ -87,8 +90,10 @@ func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Req
 		default:
 			writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
 		}
+
 		return
 	}
+
 	monitoring.AddRunnerMonitoringData(request, nextRunner.ID(), nextRunner.Environment())
 	sendJSON(request.Context(), writer, &dto.RunnerResponse{ID: nextRunner.ID(), MappedPorts: nextRunner.MappedPorts()}, http.StatusOK)
 }
@@ -106,6 +111,7 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	if path == "" {
 		path = "./"
 	}
+
 	privilegedExecution, err := strconv.ParseBool(request.URL.Query().Get(PrivilegedExecutionKey))
 	if err != nil {
 		privilegedExecution = false
@@ -115,6 +121,7 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	logging.StartSpan(request.Context(), "api.fs.list", "List File System", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.ListFileSystem(ctx, path, recursive, writer, privilegedExecution)
 	})
+
 	if errors.Is(err, runner.ErrFileNotFound) || errors.Is(err, dto.ErrNotSupported) {
 		// We also want to return a soft error if listing the file system is not supported (i.e., on AWS).
 		writeClientError(request.Context(), writer, err, http.StatusFailedDependency)
@@ -122,6 +129,7 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 	} else if err != nil {
 		log.WithContext(request.Context()).WithError(err).Error("Could not perform the requested listFileSystem.")
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+
 		return
 	}
 }
@@ -130,7 +138,9 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 // It takes an dto.UpdateFileSystemRequest and sends it to the runner for processing.
 func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request *http.Request) {
 	monitoring.AddRequestSize(request)
+
 	fileCopyRequest := new(dto.UpdateFileSystemRequest)
+
 	if err := parseJSONRequestBody(writer, request, fileCopyRequest); err != nil {
 		return
 	}
@@ -138,6 +148,7 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 	targetRunner, _ := runner.FromContext(request.Context())
 
 	var err error
+
 	logging.StartSpan(request.Context(), "api.fs.update", "Update File System", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.UpdateFileSystem(ctx, fileCopyRequest)
 	})
@@ -164,6 +175,7 @@ func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request 
 func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http.Request) {
 	targetRunner, _ := runner.FromContext(request.Context())
 	path := request.URL.Query().Get(PathKey)
+
 	privilegedExecution, err := strconv.ParseBool(request.URL.Query().Get(PrivilegedExecutionKey))
 	if err != nil {
 		privilegedExecution = false
@@ -173,15 +185,18 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 	logging.StartSpan(request.Context(), "api.fs.read", "File Content", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.GetFileContent(ctx, path, writer, privilegedExecution)
 	})
+
 	if errors.Is(err, runner.ErrFileNotFound) {
 		writer.Header().Del("Content-Length")
 		writeClientError(request.Context(), writer, err, http.StatusFailedDependency)
+
 		return
 	} else if err != nil {
 		// Otherwise, might assume that GetFileContent already wrote something and, therefore, the HTTP headers
 		// cannot be modified anymore.
 		log.WithContext(request.Context()).WithError(err).Error("Could not retrieve the requested file.")
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+
 		return
 	}
 }
@@ -191,9 +206,11 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 // It returns a url to connect to for a websocket connection to this execution in the corresponding runner.
 func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Request) {
 	executionRequest := new(dto.ExecutionRequest)
+
 	if err := parseJSONRequestBody(writer, request, executionRequest); err != nil {
 		return
 	}
+
 	forbiddenCharacters := "'"
 	if strings.ContainsAny(executionRequest.Command, forbiddenCharacters) {
 		writeClientError(request.Context(), writer, ErrForbiddenCharacter, http.StatusBadRequest)
@@ -206,20 +223,25 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 	} else {
 		scheme = "ws"
 	}
+
 	targetRunner, _ := runner.FromContext(request.Context())
 
 	path, err := r.runnerRouter.Get(WebsocketPath).URL(RunnerIDKey, targetRunner.ID())
 	if err != nil {
 		log.WithContext(request.Context()).WithError(err).Error("Could not create runner websocket URL.")
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+
 		return
 	}
+
 	newUUID, err := uuid.NewRandom()
 	if err != nil {
 		log.WithContext(request.Context()).WithError(err).Error("Could not create execution id")
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorUnknown)
+
 		return
 	}
+
 	executionID := newUUID.String()
 
 	logging.StartSpan(request.Context(), "api.runner.exec", "Store Execution", func(_ context.Context, _ *sentry.Span) {
@@ -240,6 +262,7 @@ func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Req
 func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		runnerID := mux.Vars(request)[RunnerIDKey]
+
 		targetRunner, err := r.manager.Get(runnerID)
 		if err != nil {
 			// We discard the request body because an early write causes errors for some clients.
@@ -248,9 +271,12 @@ func (r *RunnerController) findRunnerMiddleware(next http.Handler) http.Handler 
 			if readErr != nil {
 				log.WithContext(request.Context()).WithError(readErr).Debug("Failed to discard the request body")
 			}
+
 			writeClientError(request.Context(), writer, err, http.StatusGone)
+
 			return
 		}
+
 		ctx := runner.NewContext(request.Context(), targetRunner)
 		ctx = context.WithValue(ctx, dto.ContextKey(dto.KeyRunnerID), targetRunner.ID())
 		ctx = context.WithValue(ctx, dto.ContextKey(dto.KeyEnvironmentID), targetRunner.Environment().ToString())
@@ -267,9 +293,11 @@ func (r *RunnerController) delete(writer http.ResponseWriter, request *http.Requ
 	targetRunner, _ := runner.FromContext(request.Context())
 
 	var err error
+
 	logging.StartSpan(request.Context(), "api.runner.delete", "Return Runner", func(_ context.Context, _ *sentry.Span) {
 		err = r.manager.Return(targetRunner)
 	})
+
 	if err != nil {
 		writeInternalServerError(request.Context(), writer, err, dto.ErrorNomadInternalServerError)
 		return

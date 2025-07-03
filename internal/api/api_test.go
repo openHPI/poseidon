@@ -37,6 +37,7 @@ func (s *MainTestSuite) TestNewRouterV1WithAuthenticationDisabled() {
 		if err != nil {
 			s.T().Fatal(err)
 		}
+
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusNoContent, recorder.Code)
@@ -44,10 +45,12 @@ func (s *MainTestSuite) TestNewRouterV1WithAuthenticationDisabled() {
 
 	s.Run("added route is accessible", func() {
 		router.HandleFunc("/api/v1/test", mockHTTPHandler)
+
 		request, err := http.NewRequest(http.MethodGet, "/api/v1/test", http.NoBody)
 		if err != nil {
 			s.T().Fatal(err)
 		}
+
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusOK, recorder.Code)
@@ -66,6 +69,7 @@ func (s *MainTestSuite) TestNewRouterV1WithAuthenticationEnabled() {
 		if err != nil {
 			s.T().Fatal(err)
 		}
+
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusNoContent, recorder.Code)
@@ -78,9 +82,11 @@ func (s *MainTestSuite) TestNewRouterV1WithAuthenticationEnabled() {
 		if err != nil {
 			s.T().Fatal(err)
 		}
+
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 		s.Equal(http.StatusUnauthorized, recorder.Code)
 	})
+
 	config.Config.Server.Token = ""
 }

@@ -31,6 +31,7 @@ type awsFunctionRequest struct {
 // AWS terminates the Lambda Function after the [Globals.Function.Timeout](deploy/aws/template.yaml).
 type AWSFunctionWorkload struct {
 	InactivityTimer
+
 	id                string
 	fs                map[dto.FilePath][]byte
 	executions        storage.Storage[*dto.ExecutionRequest]
@@ -66,6 +67,7 @@ func NewAWSFunctionWorkload(
 	workload.InactivityTimer = NewInactivityTimer(workload, func(_ Runner) error {
 		return workload.Destroy(nil)
 	})
+
 	return workload, nil
 }
 
@@ -97,10 +99,12 @@ func (w *AWSFunctionWorkload) ExecuteInteractively(
 	<-chan ExitInfo, context.CancelFunc, error,
 ) {
 	w.ResetTimeout()
+
 	request, ok := w.executions.Pop(id)
 	if !ok {
 		return nil, nil, ErrUnknownExecution
 	}
+
 	hideEnvironmentVariables(request, "AWS")
 	request.PrivilegedExecution = true // AWS does not support multiple users at this moment.
 	command, ctx, cancel := prepareExecution(w.ctx, request)
@@ -129,9 +133,11 @@ func (w *AWSFunctionWorkload) UpdateFileSystem(_ context.Context, request *dto.U
 	for _, path := range request.Delete {
 		delete(w.fs, path)
 	}
+
 	for _, file := range request.Copy {
 		w.fs[file.Path] = file.Content
 	}
+
 	return nil
 }
 
@@ -144,9 +150,11 @@ func (w *AWSFunctionWorkload) GetFileContent(_ context.Context, _ string, _ http
 
 func (w *AWSFunctionWorkload) Destroy(_ DestroyReason) error {
 	w.cancel()
+
 	if err := w.onDestroy(w); err != nil {
 		return fmt.Errorf("error while destroying aws runner: %w", err)
 	}
+
 	return nil
 }
 
@@ -154,12 +162,14 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 	stdout, stderr io.Writer, exit chan<- ExitInfo,
 ) {
 	defer close(exit)
+
 	data := &awsFunctionRequest{
 		Action: w.environment.Image(),
 		Cmd:    command,
 		Files:  w.fs,
 	}
 	log.WithContext(ctx).WithField("request", fmt.Sprintf("%q", data)).Trace("Sending request to AWS")
+
 	rawData, err := json.Marshal(data)
 	if err != nil {
 		exit <- ExitInfo{uint8(1), fmt.Errorf("cannot stingify aws function request: %w", err)}
@@ -171,8 +181,10 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 		exit <- ExitInfo{uint8(1), fmt.Errorf("failed to establish aws connection: %w", err)}
 		return
 	}
+
 	_ = response.Body.Close()
 	defer wsConn.Close()
+
 	err = wsConn.WriteMessage(websocket.TextMessage, rawData)
 	if err != nil {
 		exit <- ExitInfo{uint8(1), fmt.Errorf("cannot send aws request: %w", err)}
@@ -185,6 +197,7 @@ func (w *AWSFunctionWorkload) executeCommand(ctx context.Context, command []stri
 	if w.TimeoutPassed() {
 		err = ErrRunnerInactivityTimeout
 	}
+
 	exit <- ExitInfo{exitCode, err}
 }
 
@@ -196,10 +209,13 @@ func (w *AWSFunctionWorkload) receiveOutput(ctx context.Context,
 		if err != nil {
 			return 1, fmt.Errorf("cannot read from aws connection: %w", err)
 		}
+
 		if messageType != websocket.TextMessage {
 			return 1, ErrWrongMessageType
 		}
+
 		var wsMessage dto.WebSocketMessage
+
 		err = json.NewDecoder(reader).Decode(&wsMessage)
 		if err != nil {
 			return 1, fmt.Errorf("failed to decode message from aws: %w", err)
@@ -218,10 +234,12 @@ func (w *AWSFunctionWorkload) receiveOutput(ctx context.Context,
 		case dto.WebSocketOutputStderr, dto.WebSocketOutputError:
 			_, err = stderr.Write([]byte(wsMessage.Data))
 		}
+
 		if err != nil {
 			return 1, fmt.Errorf("failed to forward message: %w", err)
 		}
 	}
+
 	return 1, fmt.Errorf("receiveOutput stpped by context: %w", ctx.Err())
 }
 
@@ -231,6 +249,7 @@ func (w *AWSFunctionWorkload) handleRunnerTimeout(ctx context.Context,
 	exitInternal <-chan ExitInfo, exit chan<- ExitInfo, executionID string,
 ) {
 	executionCtx, cancelExecution := context.WithCancel(ctx)
+
 	w.runningExecutions[executionID] = cancelExecution
 	defer delete(w.runningExecutions, executionID)
 	defer close(exit)
@@ -248,5 +267,6 @@ func hideEnvironmentVariables(request *dto.ExecutionRequest, unsetPrefix string)
 	if request.Environment == nil {
 		request.Environment = make(map[string]string)
 	}
+
 	request.Command = `unset "${!` + unsetPrefix + `@}" && ` + request.Command
 }

@@ -20,6 +20,7 @@ func TestLs2JsonTestSuite(t *testing.T) {
 
 type Ls2JsonTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	buf    *bytes.Buffer
 	writer *Ls2JsonWriter
 }

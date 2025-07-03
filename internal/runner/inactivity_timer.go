@@ -61,10 +61,12 @@ func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
 	if t.timer != nil {
 		t.timer.Stop()
 	}
+
 	if duration == 0 {
 		t.state = TimerInactive
 		return
 	}
+
 	t.state = TimerRunning
 	t.duration = duration
 
@@ -73,6 +75,7 @@ func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
 		t.state = TimerExpired
 		// The timer must be unlocked here already in order to avoid a deadlock with the call to StopTimout in Manager.Return.
 		t.mu.Unlock()
+
 		err := t.onDestroy(t.runner)
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyRunnerID, t.runner.ID()).
@@ -86,10 +89,12 @@ func (t *InactivityTimerImplementation) SetupTimeout(duration time.Duration) {
 func (t *InactivityTimerImplementation) ResetTimeout() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	if t.state != TimerRunning {
 		// The timer has already expired or been stopped. We don't want to restart it.
 		return
 	}
+
 	if t.timer.Stop() {
 		t.timer.Reset(t.duration)
 	} else {
@@ -100,9 +105,11 @@ func (t *InactivityTimerImplementation) ResetTimeout() {
 func (t *InactivityTimerImplementation) StopTimeout() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	if t.state != TimerRunning {
 		return
 	}
+
 	t.timer.Stop()
 	t.state = TimerInactive
 }

@@ -53,6 +53,7 @@ func (a *APIClient) RegisterRunnerJob(template *nomadApi.Job) error {
 
 	registerTimeout, cancel := context.WithTimeout(context.Background(), RegisterTimeout)
 	defer cancel()
+
 	return a.MonitorEvaluation(registerTimeout, evalID)
 }
 
@@ -62,6 +63,7 @@ func FindTaskGroup(job *nomadApi.Job, name string) *nomadApi.TaskGroup {
 			return tg
 		}
 	}
+
 	return nil
 }
 
@@ -71,7 +73,9 @@ func FindAndValidateDefaultTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 		taskGroup = nomadApi.NewTaskGroup(TaskGroupName, TaskCount)
 		job.AddTaskGroup(taskGroup)
 	}
+
 	FindAndValidateDefaultTask(taskGroup)
+
 	return taskGroup
 }
 
@@ -81,7 +85,9 @@ func FindAndValidateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 		taskGroup = nomadApi.NewTaskGroup(ConfigTaskGroupName, 0)
 		job.AddTaskGroup(taskGroup)
 	}
+
 	FindAndValidateConfigTask(taskGroup)
+
 	return taskGroup
 }
 
@@ -89,6 +95,7 @@ func FindAndValidateConfigTaskGroup(job *nomadApi.Job) *nomadApi.TaskGroup {
 // ensures that a dummy task is in the task group so that the group is accepted by Nomad. It might modify the task.
 func FindAndValidateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	var task *nomadApi.Task
+
 	for _, t := range taskGroup.Tasks {
 		if t.Name == ConfigTaskName {
 			task = t
@@ -109,6 +116,7 @@ func FindAndValidateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	if v, ok := task.Config["command"]; !ok || v != ConfigTaskCommand {
 		task.Config["command"] = ConfigTaskCommand
 	}
+
 	return task
 }
 
@@ -116,6 +124,7 @@ func FindAndValidateConfigTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 // ensures that a default task is in the task group in that the executions are made. It might modify the task.
 func FindAndValidateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	var task *nomadApi.Task
+
 	for _, t := range taskGroup.Tasks {
 		if t.Name == TaskName {
 			task = t
@@ -139,16 +148,19 @@ func FindAndValidateDefaultTask(taskGroup *nomadApi.TaskGroup) *nomadApi.Task {
 	if v, ok := task.Config["command"]; !ok || v != TaskCommand {
 		task.Config["command"] = TaskCommand
 	}
+
 	v, ok := task.Config["args"]
 	if args, isStringArray := v.([]string); !ok || !isStringArray || len(args) != 1 || args[0] != TaskArgs[0] {
 		task.Config["args"] = TaskArgs
 	}
+
 	return task
 }
 
 // SetForcePullFlag sets the flag of a job if the image should be pulled again.
 func SetForcePullFlag(job *nomadApi.Job, value bool) {
 	taskGroup := FindAndValidateDefaultTaskGroup(job)
+
 	task := FindAndValidateDefaultTask(taskGroup)
 	if config.Config.Nomad.DisableForcePull {
 		task.Config["force_pull"] = false
@@ -165,6 +177,7 @@ func IsEnvironmentTemplateID(jobID string) bool {
 	}
 
 	_, err := EnvironmentIDFromTemplateJobID(jobID)
+
 	return err == nil
 }
 
@@ -193,10 +206,12 @@ func partOfJobID(id string, part uint) (dto.EnvironmentID, error) {
 	if len(parts) == 0 {
 		return 0, fmt.Errorf("empty job id: %w", ErrInvalidJobID)
 	}
+
 	environmentID, err := strconv.Atoi(parts[part])
 	if err != nil {
 		return 0, fmt.Errorf("invalid environment id par %w: %w", err, ErrInvalidJobID)
 	}
+
 	return dto.EnvironmentID(environmentID), nil
 }
 
@@ -207,6 +222,7 @@ func isOOMKilled(alloc *nomadApi.Allocation) bool {
 	}
 
 	var oomKilledCount uint64
+
 	for _, event := range state.Events {
 		if oomString, ok := event.Details["oom_killed"]; ok {
 			if oom, err := strconv.ParseBool(oomString); err == nil && oom {
@@ -214,5 +230,6 @@ func isOOMKilled(alloc *nomadApi.Allocation) bool {
 			}
 		}
 	}
+
 	return oomKilledCount >= state.Restarts
 }

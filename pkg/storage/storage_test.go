@@ -16,6 +16,7 @@ func TestRunnerPoolTestSuite(t *testing.T) {
 
 type ObjectPoolTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	objectStorage Storage[any]
 	object        int
 }
@@ -128,6 +129,7 @@ func (s *MainTestSuite) TestNewMonitoredLocalStorage_Callback() {
 	callbackDeletions := 0
 	os := NewMonitoredLocalStorage[string](context.Background(), "testMeasurement", func(_ *write.Point, _ string, eventType EventType) {
 		callbackCalls++
+
 		switch eventType {
 		case Deletion:
 			callbackDeletions++
@@ -140,6 +142,7 @@ func (s *MainTestSuite) TestNewMonitoredLocalStorage_Callback() {
 		beforeTotal := callbackCalls
 		beforeAdditions := callbackAdditions
 		beforeDeletions := callbackDeletions
+
 		test()
 		s.Equal(beforeTotal+totalCalls, callbackCalls)
 		s.Equal(beforeAdditions+additions, callbackAdditions)
@@ -186,8 +189,10 @@ func (s *MainTestSuite) TestNewMonitoredLocalStorage_Callback() {
 
 func (s *MainTestSuite) TestNewMonitoredLocalStorage_Periodically() {
 	callbackCalls := 0
+
 	NewMonitoredLocalStorage[string](s.TestCtx, "testMeasurement", func(_ *write.Point, _ string, eventType EventType) {
 		callbackCalls++
+
 		s.Equal(Periodically, eventType)
 	}, 2*tests.ShortTimeout)
 

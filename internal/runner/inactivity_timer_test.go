@@ -15,6 +15,7 @@ func TestInactivityTimerTestSuite(t *testing.T) {
 
 type InactivityTimerTestSuite struct {
 	tests.MemoryLeakTestSuite
+
 	runner   Runner
 	returned chan bool
 }
@@ -34,6 +35,7 @@ func (s *InactivityTimerTestSuite) SetupTest() {
 
 func (s *InactivityTimerTestSuite) TearDownTest() {
 	defer s.MemoryLeakTestSuite.TearDownTest()
+
 	go func() {
 		select {
 		case <-s.returned:

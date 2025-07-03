@@ -80,6 +80,7 @@ func (a *APIClient) initializeAllocations(environmentID dto.EnvironmentID) {
 
 func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationProcessing) error {
 	startTime := time.Now().UnixNano()
+
 	stream, err := a.EventStream(ctx)
 	if err != nil {
 		return fmt.Errorf("failed retrieving allocation stream: %w", err)
@@ -87,6 +88,7 @@ func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationP
 
 	handler := func(event *nomadApi.Event) (bool, error) {
 		dumpNomadEventToInflux(event)
+
 		switch event.Topic {
 		case nomadApi.TopicEvaluation:
 			return false, handleEvaluationEvent(a.evaluations, event)
@@ -102,6 +104,7 @@ func (a *APIClient) WatchEventStream(ctx context.Context, callbacks *AllocationP
 	a.isListening = true
 	err = receiveAndHandleNomadAPIEvents(stream, handler)
 	a.isListening = false
+
 	return err
 }
 
@@ -111,6 +114,7 @@ func (a *APIClient) MonitorEvaluation(ctx context.Context, evaluationID string) 
 
 	if !a.isListening {
 		var cancel context.CancelFunc
+
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel() // cancel the WatchEventStream when the evaluation result was read.
 
@@ -119,6 +123,7 @@ func (a *APIClient) MonitorEvaluation(ctx context.Context, evaluationID string) 
 				OnNew:     func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
 				OnDeleted: func(_ context.Context, _ string, _ error) bool { return false },
 			})
+
 			cancel() // cancel the waiting for an evaluation result if watching the event stream ends.
 		}()
 	}
@@ -152,15 +157,18 @@ func receiveAndHandleNomadAPIEvents(stream <-chan *nomadApi.Events, handler noma
 		} else if events.IsHeartbeat() {
 			continue
 		}
+
 		for _, event := range events.Events {
 			// Don't take the address of the loop variable as the underlying value might change
 			eventCopy := event
+
 			done, err := handler(&eventCopy)
 			if err != nil || done {
 				return err
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -171,6 +179,7 @@ func handleEvaluationEvent(evaluations storage.Storage[chan error], event *nomad
 	if err != nil {
 		return fmt.Errorf("failed to monitor evaluation: %w", err)
 	}
+
 	switch eval.Status {
 	case structs.EvalStatusComplete, structs.EvalStatusCancelled, structs.EvalStatusFailed:
 		resultChannel, ok := evaluations.Get(eval.ID)
@@ -188,6 +197,7 @@ func handleEvaluationEvent(evaluations storage.Storage[chan error], event *nomad
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -203,10 +213,12 @@ func checkEvaluation(eval *nomadApi.Evaluation) (err error) {
 		for taskGroup, metrics := range eval.FailedTGAllocs {
 			err = fmt.Errorf("%w\n%s: %#v", err, taskGroup, metrics)
 		}
+
 		if eval.BlockedEval != "" {
 			err = fmt.Errorf("%w\nEvaluation %q waiting for additional capacity to place remainder", err, eval.BlockedEval)
 		}
 	}
+
 	return err
 }
 
@@ -258,6 +270,7 @@ func handleAllocationEvent(ctx context.Context, startTime int64, jobMapping stor
 	default:
 		log.WithField("alloc", alloc).Warn("Other Client Status")
 	}
+
 	return nil
 }
 
@@ -270,13 +283,13 @@ func handleJobEvent(ctx context.Context, jobMapping storage.Storage[string],
 	// (and are left in Nomad's buffer) because the job events do only have index information instead of time information.
 	// As we currently only handle `JobDeregistered` events for tracked allocations, the handling of old events does not
 	// change the behavior.
-
 	switch event.Type {
 	case structs.TypeJobDeregistered:
 		return handleDeregisteredJobEvent(ctx, event.Key, jobMapping, allocations, callbacks)
 	default:
 		log.WithField("event", event).Trace("Ignored Job Event")
 	}
+
 	return nil
 }
 
@@ -315,6 +328,7 @@ func updateAllocationData(
 		allocData.allocDesiredStatus = alloc.DesiredStatus
 		allocations.Add(alloc.ID, allocData)
 	}
+
 	return previous
 }
 
@@ -324,6 +338,7 @@ func handlePendingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocatio
 	jobMapping storage.Storage[string], allocations storage.Storage[*allocationData], callbacks *AllocationProcessing,
 ) {
 	var stopExpected bool
+
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusRun:
 		if allocData != nil {
@@ -332,11 +347,13 @@ func handlePendingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocatio
 			if isOOMKilled(alloc) {
 				reason = ErrOOMKilled
 			}
+
 			callbacks.OnDeleted(ctx, alloc.JobID, reason)
 		} else if alloc.PreviousAllocation != "" {
 			// Handle Runner (/Container) re-allocations.
 			if prevData, ok := allocations.Get(alloc.PreviousAllocation); ok {
 				stopExpected = callbacks.OnDeleted(ctx, prevData.jobID, ErrAllocationRescheduled)
+
 				jobMapping.Delete(alloc.JobID)
 				allocations.Delete(alloc.PreviousAllocation)
 			} else {
@@ -396,6 +413,7 @@ func handleDeregisteredJobEvent(ctx context.Context, jobID string,
 			callbacks.OnDeleted(ctx, jobID, ErrJobDeregistered)
 		}
 	}
+
 	return nil
 }
 
@@ -442,6 +460,7 @@ func handleStoppingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocati
 	correctRescheduling := reschedulingExpected == replacementAllocationScheduled
 
 	removedByPoseidon := false
+
 	if !replacementAllocationScheduled {
 		var reason error
 		if correctRescheduling {
@@ -449,6 +468,7 @@ func handleStoppingAllocationEvent(ctx context.Context, alloc *nomadApi.Allocati
 		} else {
 			reason = ErrAllocationRescheduledUnexpectedly
 		}
+
 		removedByPoseidon = callbacks.OnDeleted(ctx, alloc.JobID, reason)
 		jobMapping.Delete(alloc.JobID)
 		allocations.Delete(alloc.ID)

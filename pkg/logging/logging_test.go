@@ -29,13 +29,16 @@ func TestMainTestSuite(t *testing.T) {
 
 func (s *MainTestSuite) TestHTTPMiddlewareDebugsWhenStatusOK() {
 	var hook *test.Hook
+
 	log, hook = test.NewNullLogger()
+
 	InitializeLogging(logrus.DebugLevel.String(), dto.FormatterText)
 
 	request, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
 	if err != nil {
 		s.Fail(err.Error())
 	}
+
 	recorder := httptest.NewRecorder()
 	HTTPLoggingMiddleware(mockHTTPStatusHandler(200)).ServeHTTP(recorder, request)
 

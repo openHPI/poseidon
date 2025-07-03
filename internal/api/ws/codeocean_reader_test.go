@@ -23,16 +23,20 @@ func TestMainTestSuite(t *testing.T) {
 func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead() {
 	readingCtx, cancel := context.WithCancel(context.Background())
 	forwardingCtx := readingCtx
+
 	defer cancel()
+
 	reader, ok := NewCodeOceanToRawReader(readingCtx, forwardingCtx, nil).(*codeOceanToRawReader)
 	s.Require().True(ok)
 
 	read := make(chan bool)
+
 	go func() {
 		//nolint:makezero // we can't make zero initial length here as the reader otherwise doesn't block
 		p := make([]byte, 10)
 		_, err := reader.Read(p)
 		s.NoError(err)
+
 		read <- true
 	}()
 
@@ -42,6 +46,7 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasRead()
 
 	s.Run("Returns when there is data available", func() {
 		reader.buffer <- byte(42)
+
 		s.True(tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 }
@@ -61,16 +66,20 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFr
 
 	readingCtx, cancel := context.WithCancel(context.Background())
 	forwardingCtx := readingCtx
+
 	defer cancel()
+
 	reader := NewCodeOceanToRawReader(readingCtx, forwardingCtx, connection)
 	reader.Start()
 
 	read := make(chan bool)
 	//nolint:makezero // this is required here to make the Read call blocking
 	message := make([]byte, 10)
+
 	go func() {
 		_, err := reader.Read(message)
 		s.NoError(err)
+
 		read <- true
 	}()
 
@@ -80,6 +89,7 @@ func (s *MainTestSuite) TestCodeOceanToRawReaderReturnsOnlyAfterOneByteWasReadFr
 
 	s.Run("Returns when there is data available", func() {
 		messages <- strings.NewReader("Hello")
+
 		s.True(tests.ChannelReceivesSomething(read, tests.ShortTimeout))
 	})
 }

@@ -31,11 +31,13 @@ var (
 
 type alertData struct {
 	*sync.Mutex
+
 	cancel context.CancelFunc
 }
 
 type NomadRunnerManager struct {
 	*AbstractManager
+
 	apiClient            nomad.ExecutorAPI
 	reloadingEnvironment storage.Storage[*alertData]
 }
@@ -53,6 +55,7 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 		if err != nil {
 			return nil, fmt.Errorf("nomad wrapped: %w", err)
 		}
+
 		return r, nil
 	}
 
@@ -62,32 +65,40 @@ func (m *NomadRunnerManager) Claim(environmentID dto.EnvironmentID, duration int
 	}
 
 	m.usedRunners.Add(runner.ID(), runner)
+
 	go m.setRunnerMetaUsed(runner, true, duration)
 
 	runner.SetupTimeout(time.Duration(duration) * time.Second)
+
 	return runner, nil
 }
 
 func (m *NomadRunnerManager) Return(r Runner) error {
 	m.usedRunners.Delete(r.ID())
+
 	err := r.Destroy(ErrDestroyedByAPIRequest)
 	if err != nil {
 		err = fmt.Errorf("cannot return runner: %w", err)
 	}
+
 	return err
 }
 
 // Load recovers all runners for all existing environments.
 func (m *NomadRunnerManager) Load(ctx context.Context) {
 	log.Info("Loading runners")
+
 	newUsedRunners := storage.NewLocalStorage[Runner]()
+
 	for _, environment := range m.ListEnvironments() {
 		usedRunners, err := m.loadEnvironment(ctx, environment)
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyEnvironmentID, environment.ID().ToString()).
 				Warn("Failed loading environment. Skipping...")
+
 			continue
 		}
+
 		for _, r := range usedRunners.List() {
 			newUsedRunners.Add(r.ID(), r)
 		}
@@ -100,12 +111,13 @@ func (m *NomadRunnerManager) Load(ctx context.Context) {
 func (m *NomadRunnerManager) SynchronizeRunners(ctx context.Context) error {
 	// Watch for changes regarding the existing or new runners.
 	log.Info("Watching Event Stream")
+
 	err := m.apiClient.WatchEventStream(ctx,
 		&nomad.AllocationProcessing{OnNew: m.onAllocationAdded, OnDeleted: m.onAllocationStopped})
-
 	if err != nil && ctx.Err() == nil {
 		err = fmt.Errorf("nomad Event Stream failed!: %w", err)
 	}
+
 	return err
 }
 
@@ -124,10 +136,12 @@ func (m *NomadRunnerManager) setRunnerMetaUsed(runner Runner, used bool, timeout
 		if err = m.apiClient.SetRunnerMetaUsed(runner.ID(), used, timeoutDuration); err != nil {
 			err = fmt.Errorf("cannot mark runner as used: %w", err)
 		}
+
 		return
 	})
 	if err != nil {
 		log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).WithField("used", used).Error("cannot mark runner")
+
 		err := m.Return(runner)
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).Error("can't mark runner and can't return runner")
@@ -147,7 +161,9 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, envir
 	if runnerAdded && data.cancel != nil {
 		data.cancel()
 		data.cancel = nil
+
 		m.checkPrewarmingPoolAlert(ctx, environment, false)
+
 		return
 	}
 
@@ -158,10 +174,12 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, envir
 	defer data.Unlock()
 
 	prewarmingPoolThreshold := config.Config.Server.Alert.PrewarmingPoolThreshold
+
 	reloadTimeout := config.Config.Server.Alert.PrewarmingPoolReloadTimeout
 	if reloadTimeout > uint(math.MaxInt64)/uint(time.Second) {
 		log.WithField("timeout", reloadTimeout).Error("configured reload timeout too big")
 	}
+
 	reloadTimeoutDuration := time.Duration(reloadTimeout) * time.Second
 
 	if reloadTimeout == 0 || float64(environment.IdleRunnerCount())/float64(environment.PrewarmingPoolSize()) >= prewarmingPoolThreshold {
@@ -172,6 +190,7 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, envir
 	data.cancel = cancel
 
 	log.WithField(dto.KeyEnvironmentID, environment.ID()).Info("Prewarming Pool Alert. Checking again...")
+
 	select {
 	case <-ctx.Done():
 		return
@@ -183,12 +202,15 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, envir
 	}
 
 	log.WithField(dto.KeyEnvironmentID, environment.ID()).Warn("Prewarming Pool Alert. Reloading environment")
+
 	err := util.RetryExponential(func() error {
 		usedRunners, err := m.loadEnvironment(ctx, environment)
 		if err != nil {
 			return err
 		}
+
 		m.updateUsedRunners(usedRunners, false)
+
 		return nil
 	})
 	if err != nil {
@@ -198,24 +220,29 @@ func (m *NomadRunnerManager) checkPrewarmingPoolAlert(ctx context.Context, envir
 
 func (m *NomadRunnerManager) loadEnvironment(ctx context.Context, environment ExecutionEnvironment) (used storage.Storage[Runner], err error) {
 	used = storage.NewLocalStorage[Runner]()
+
 	runnerJobs, err := m.apiClient.LoadRunnerJobs(environment.ID())
 	if err != nil {
 		return nil, fmt.Errorf("failed fetching the runner jobs: %w", err)
 	}
+
 	for _, job := range runnerJobs {
 		r, isUsed, err := m.loadSingleJob(ctx, job, environment)
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyEnvironmentID, environment.ID().ToString()).
 				WithField("used", isUsed).Warn("Failed loading job. Skipping...")
+
 			continue
 		} else if isUsed {
 			used.Add(r.ID(), r)
 		}
 	}
+
 	err = environment.ApplyPrewarmingPoolSize()
 	if err != nil {
 		return used, fmt.Errorf("couldn't scale environment: %w", err)
 	}
+
 	return used, nil
 }
 
@@ -225,7 +252,9 @@ func (m *NomadRunnerManager) loadSingleJob(ctx context.Context, job *nomadApi.Jo
 	if configTaskGroup == nil {
 		return nil, false, fmt.Errorf("%w, %s", nomad.ErrMissingTaskGroup, *job.ID)
 	}
+
 	isUsed = configTaskGroup.Meta[nomad.ConfigMetaUsedKey] == nomad.ConfigMetaUsedValue
+
 	portMappings, err := m.apiClient.LoadRunnerPortMappings(*job.ID)
 	if err != nil {
 		return nil, false, fmt.Errorf("error loading runner portMappings: %w", err)
@@ -233,17 +262,21 @@ func (m *NomadRunnerManager) loadSingleJob(ctx context.Context, job *nomadApi.Jo
 
 	newJob := NewNomadJob(ctx, *job.ID, portMappings, m.apiClient, m.onRunnerDestroyed)
 	log.WithField("isUsed", isUsed).WithField(dto.KeyRunnerID, newJob.ID()).Debug("Recovered Runner")
+
 	if isUsed {
 		timeout, err := strconv.Atoi(configTaskGroup.Meta[nomad.ConfigMetaTimeoutKey])
 		if err != nil {
 			log.WithField(dto.KeyRunnerID, newJob.ID()).WithError(err).Warn("failed loading timeout from meta values")
+
 			timeout = int(nomad.RunnerTimeoutFallback.Seconds())
 			go m.setRunnerMetaUsed(newJob, true, timeout)
 		}
+
 		newJob.SetupTimeout(time.Duration(timeout) * time.Second)
 	} else {
 		environment.AddRunner(newJob)
 	}
+
 	return newJob, isUsed, nil
 }
 
@@ -258,6 +291,7 @@ func (m *NomadRunnerManager) updateUsedRunners(newUsedRunners storage.Storage[Ru
 			// Remove old reference
 			log.WithField(dto.KeyRunnerID, r.ID()).Warn("Local runner cannot be recovered")
 			m.usedRunners.Delete(r.ID())
+
 			if err := r.Destroy(ErrLocalDestruction); err != nil {
 				log.WithError(err).WithField(dto.KeyRunnerID, r.ID()).Warn("failed to destroy runner locally")
 			}
@@ -287,6 +321,7 @@ func updatePortMapping(target Runner, updated Runner) {
 		log.WithField(dto.KeyRunnerID, target.ID()).Error("Unexpected handling of non-Nomad runner")
 		return
 	}
+
 	if err := nomadRunner.UpdateMappedPorts(updated.MappedPorts()); err != nil {
 		log.WithError(err).WithField(dto.KeyRunnerID, target.ID()).Error("Failed updating the port mapping")
 	}
@@ -303,6 +338,7 @@ func (m *NomadRunnerManager) onAllocationAdded(ctx context.Context, alloc *nomad
 	if _, ok := m.usedRunners.Get(alloc.JobID); ok {
 		log.WithField(dto.KeyRunnerID, alloc.JobID).WithField("states", alloc.TaskStates).
 			Error("Started Runner is already in use")
+
 		return
 	}
 
@@ -323,8 +359,11 @@ func (m *NomadRunnerManager) onAllocationAdded(ctx context.Context, alloc *nomad
 		if alloc.PreviousAllocation != "" {
 			go m.setRunnerMetaUsed(r, false, 0)
 		}
+
 		environment.AddRunner(r)
+
 		go m.checkPrewarmingPoolAlert(ctx, environment, true)
+
 		monitorAllocationStartupDuration(startup, alloc.JobID, environmentID)
 	}
 }
@@ -353,6 +392,7 @@ func (m *NomadRunnerManager) checkForMigratingEnvironmentJob(ctx context.Context
 	}
 
 	var environmentStillRunning bool
+
 	for _, job := range templateJobs {
 		if jobID == *job.ID && *job.Status == structs.JobStatusRunning {
 			environmentStillRunning = true
@@ -374,12 +414,15 @@ func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID s
 		if err != nil {
 			log.WithError(err).WithField(dto.KeyEnvironmentID, runnerID).WithField("reason", reason).
 				Error("Cannot parse environment id")
+
 			return false
 		}
+
 		_, ok := m.environments.Get(environmentID.ToString())
 		if ok {
 			go m.checkForMigratingEnvironmentJob(ctx, runnerID, environmentMigrationDelay)
 		}
+
 		return !ok
 	}
 
@@ -392,6 +435,7 @@ func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID s
 	r, stillUsed := m.usedRunners.Get(runnerID)
 	if stillUsed {
 		m.usedRunners.Delete(runnerID)
+
 		if err := r.Destroy(reason); err != nil {
 			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
 		}
@@ -408,6 +452,7 @@ func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID s
 			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
 		}
 	}
+
 	go m.checkPrewarmingPoolAlert(ctx, environment, false)
 
 	return !stillUsed && !stillIdle
@@ -422,5 +467,6 @@ func (m *NomadRunnerManager) onRunnerDestroyed(r Runner) error {
 	if ok {
 		environment.DeleteRunner(r.ID())
 	}
+
 	return nil
 }

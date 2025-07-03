@@ -32,6 +32,7 @@ var numGoroutines = regexp.MustCompile(`^goroutine profile: total (\d*)\n`)
 // Be aware not to overwrite the SetupTest or TearDownTest function!
 type MemoryLeakTestSuite struct {
 	suite.Suite
+
 	ExpectedGoroutineIncrease int
 	//nolint:containedctx // We have to embed the context into the struct because we have no control over the parameters of testify.
 	TestCtx              context.Context
@@ -43,6 +44,7 @@ type MemoryLeakTestSuite struct {
 func (s *MemoryLeakTestSuite) SetupTest() {
 	runtime.Gosched()          // Flush done Goroutines
 	<-time.After(ShortTimeout) // Just to make sure
+
 	s.ExpectedGoroutineIncrease = 0
 	s.goroutinesBefore, s.goroutineCountBefore = s.lookupGoroutines()
 
@@ -58,6 +60,7 @@ func (s *MemoryLeakTestSuite) TearDownTest() {
 
 	goroutinesAfter, goroutineCountAfter := s.lookupGoroutines()
 	s.Equal(s.goroutineCountBefore+s.ExpectedGoroutineIncrease, goroutineCountAfter)
+
 	if s.goroutineCountBefore+s.ExpectedGoroutineIncrease != goroutineCountAfter {
 		_, err := io.Copy(os.Stderr, s.goroutinesBefore)
 		s.Require().NoError(err)
@@ -79,6 +82,7 @@ func (s *MemoryLeakTestSuite) lookupGoroutines() (debugOutput *bytes.Buffer, gor
 	debugOutput = &bytes.Buffer{}
 	err := pprof.Lookup("goroutine").WriteTo(debugOutput, 1)
 	s.Require().NoError(err)
+
 	match := numGoroutines.FindSubmatch(debugOutput.Bytes())
 	if match == nil {
 		s.Fail("gouroutines could not be parsed: " + debugOutput.String())
@@ -89,5 +93,6 @@ func (s *MemoryLeakTestSuite) lookupGoroutines() (debugOutput *bytes.Buffer, gor
 	if err != nil {
 		s.Fail("number of goroutines could not be parsed: " + err.Error())
 	}
+
 	return debugOutput, goroutineCount
 }

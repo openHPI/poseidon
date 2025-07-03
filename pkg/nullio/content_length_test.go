@@ -7,6 +7,7 @@ import (
 
 type responseWriterStub struct {
 	bytes.Buffer
+
 	header http.Header
 }
 

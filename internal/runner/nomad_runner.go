@@ -244,7 +244,8 @@ func (r *NomadJob) UpdateFileSystem(requestCtx context.Context, copyRequest *dto
 
 	var tarBuffer bytes.Buffer
 
-	if err := createTarArchiveForFiles(ctx, copyRequest.Copy, &tarBuffer); err != nil {
+	err := createTarArchiveForFiles(ctx, copyRequest.Copy, &tarBuffer)
+	if err != nil {
 		return err
 	}
 
@@ -334,7 +335,8 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 	}
 
 	err = util.RetryExponential(func() (err error) {
-		if err = r.api.DeleteJob(r.ID()); err != nil {
+		err = r.api.DeleteJob(r.ID())
+		if err != nil {
 			err = fmt.Errorf("error deleting runner in Nomad: %w", err)
 		}
 
@@ -435,7 +437,8 @@ func (r *NomadJob) handleContextDone(ctx context.Context, exitInternal <-chan Ex
 		err = ErrExecutionTimeout
 	} // for errors.Is(err, context.Canceled) the user likely disconnected from the execution.
 
-	if reason, ok := r.ctx.Value(destroyReasonContextKey).(error); ok {
+	reason, ok := r.ctx.Value(destroyReasonContextKey).(error)
+	if ok {
 		err = reason
 		if r.TimeoutPassed() && !errors.Is(err, ErrRunnerInactivityTimeout) {
 			log.WithError(err).Warn("Wrong destroy reason for expired runner")
@@ -473,7 +476,8 @@ func (r *NomadJob) handleContextDone(ctx context.Context, exitInternal <-chan Ex
 	case <-time.After(executionTimeoutGracePeriod):
 		log.WithContext(ctx).Info(ErrCannotStopExecution.Error())
 
-		if err := r.Destroy(ErrCannotStopExecution); err != nil {
+		err := r.Destroy(ErrCannotStopExecution)
+		if err != nil {
 			log.WithContext(ctx).Error("Error when destroying runner")
 		}
 	}
@@ -482,7 +486,8 @@ func (r *NomadJob) handleContextDone(ctx context.Context, exitInternal <-chan Ex
 func createTarArchiveForFiles(ctx context.Context, filesToCopy []dto.File, w io.Writer) error {
 	tarWriter := tar.NewWriter(w)
 	for _, file := range filesToCopy {
-		if err := tarWriter.WriteHeader(tarHeader(file)); err != nil {
+		err := tarWriter.WriteHeader(tarHeader(file))
+		if err != nil {
 			err := fmt.Errorf("error writing tar file header: %w", err)
 			log.WithContext(ctx).
 				WithField("path", base64.StdEncoding.EncodeToString([]byte(file.Path))).
@@ -492,7 +497,8 @@ func createTarArchiveForFiles(ctx context.Context, filesToCopy []dto.File, w io.
 			return err
 		}
 
-		if _, err := tarWriter.Write(file.ByteContent()); err != nil {
+		_, err = tarWriter.Write(file.ByteContent())
+		if err != nil {
 			err := fmt.Errorf("error writing tar file content: %w", err)
 			log.WithContext(ctx).
 				WithField("path", base64.StdEncoding.EncodeToString([]byte(file.Path))).
@@ -503,7 +509,8 @@ func createTarArchiveForFiles(ctx context.Context, filesToCopy []dto.File, w io.
 		}
 	}
 
-	if err := tarWriter.Close(); err != nil {
+	err := tarWriter.Close()
+	if err != nil {
 		return fmt.Errorf("error closing tar writer: %w", err)
 	}
 

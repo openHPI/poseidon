@@ -64,17 +64,19 @@ func (r *RunnerController) ConfigureRoutes(router *mux.Router) {
 // It tries to respond with the id of a unused runner.
 // This runner is then reserved for future use.
 func (r *RunnerController) provide(writer http.ResponseWriter, request *http.Request) {
-	runnerRequest := new(dto.RunnerRequest)
-	if err := parseJSONRequestBody(writer, request, runnerRequest); err != nil {
-		return
-	}
-
-	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
-
 	var (
 		nextRunner runner.Runner
 		err        error
 	)
+
+	runnerRequest := new(dto.RunnerRequest)
+
+	err = parseJSONRequestBody(writer, request, runnerRequest)
+	if err != nil {
+		return
+	}
+
+	environmentID := dto.EnvironmentID(runnerRequest.ExecutionEnvironmentID)
 
 	logging.StartSpan(request.Context(), "api.runner.claim", "Claim Runner", func(_ context.Context, _ *sentry.Span) {
 		nextRunner, err = r.manager.Claim(environmentID, runnerRequest.InactivityTimeout)
@@ -137,17 +139,18 @@ func (r *RunnerController) listFileSystem(writer http.ResponseWriter, request *h
 // updateFileSystem handles the files API route.
 // It takes an dto.UpdateFileSystemRequest and sends it to the runner for processing.
 func (r *RunnerController) updateFileSystem(writer http.ResponseWriter, request *http.Request) {
+	var err error
+
 	monitoring.AddRequestSize(request)
 
 	fileCopyRequest := new(dto.UpdateFileSystemRequest)
 
-	if err := parseJSONRequestBody(writer, request, fileCopyRequest); err != nil {
+	err = parseJSONRequestBody(writer, request, fileCopyRequest)
+	if err != nil {
 		return
 	}
 
 	targetRunner, _ := runner.FromContext(request.Context())
-
-	var err error
 
 	logging.StartSpan(request.Context(), "api.fs.update", "Update File System", func(ctx context.Context, _ *sentry.Span) {
 		err = targetRunner.UpdateFileSystem(ctx, fileCopyRequest)
@@ -207,7 +210,8 @@ func (r *RunnerController) fileContent(writer http.ResponseWriter, request *http
 func (r *RunnerController) execute(writer http.ResponseWriter, request *http.Request) {
 	executionRequest := new(dto.ExecutionRequest)
 
-	if err := parseJSONRequestBody(writer, request, executionRequest); err != nil {
+	err := parseJSONRequestBody(writer, request, executionRequest)
+	if err != nil {
 		return
 	}
 

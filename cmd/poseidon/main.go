@@ -100,7 +100,8 @@ func initSentry(options *sentry.ClientOptions, profilingEnabled bool) {
 		return event
 	}
 
-	if err := sentry.Init(*options); err != nil {
+	err := sentry.Init(*options)
+	if err != nil {
 		log.Errorf("sentry.Init: %s", err)
 	}
 }
@@ -124,7 +125,8 @@ func initProfiling(options config.Profiling) (cancel func()) {
 
 	log.Debug("Starting CPU profiler")
 
-	if err := pprof.StartCPUProfile(profile); err != nil {
+	err = pprof.StartCPUProfile(profile)
+	if err != nil {
 		log.WithError(err).Error("Error while starting the CPU profiler!!")
 	}
 
@@ -133,7 +135,8 @@ func initProfiling(options config.Profiling) (cancel func()) {
 			log.Debug("Stopping CPU profiler")
 			pprof.StopCPUProfile()
 
-			if err := profile.Close(); err != nil {
+			err := profile.Close()
+			if err != nil {
 				log.WithError(err).Error("Error while closing profile file")
 			}
 		}
@@ -420,7 +423,8 @@ func synchronizeNomad(ctx context.Context, environmentManager *environment.Nomad
 		// because setting the start time of the stream is the first thing done in `SynchronizeRunners` while `Load`
 		// first starts an HTTP request for each individual existing runner.
 
-		if err := runnerManager.SynchronizeRunners(ctx); err != nil {
+		err := runnerManager.SynchronizeRunners(ctx)
+		if err != nil {
 			return fmt.Errorf("synchronize runners failed: %w", err)
 		}
 
@@ -498,14 +502,16 @@ func shutdownOnOSSignal(ctx context.Context, server *http.Server, stopProfiling 
 		gracefulCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gracefulShutdownWait)
 		defer cancel()
 
-		if err := server.Shutdown(gracefulCtx); err != nil {
+		err := server.Shutdown(gracefulCtx)
+		if err != nil {
 			log.WithError(err).Warn("error shutting server down")
 		}
 	}
 }
 
 func main() {
-	if err := config.InitConfig(); err != nil {
+	err := config.InitConfig()
+	if err != nil {
 		log.WithError(err).Warn("Could not initialize configuration")
 	}
 

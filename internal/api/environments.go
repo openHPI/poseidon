@@ -114,7 +114,8 @@ func (e *EnvironmentController) delete(writer http.ResponseWriter, request *http
 func (e *EnvironmentController) createOrUpdate(writer http.ResponseWriter, request *http.Request) {
 	req := new(dto.ExecutionEnvironmentRequest)
 
-	if err := json.NewDecoder(request.Body).Decode(req); err != nil {
+	err := json.NewDecoder(request.Body).Decode(req)
+	if err != nil {
 		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return
 	}

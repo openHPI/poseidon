@@ -239,7 +239,8 @@ func parseFlags() {
 }
 
 func (c *configuration) mergeYaml(content []byte) {
-	if err := yaml.Unmarshal(content, c); err != nil {
+	err := yaml.Unmarshal(content, c)
+	if err != nil {
 		log.WithError(err).Fatal("Could not parse configuration file")
 	}
 }

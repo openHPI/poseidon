@@ -50,7 +50,10 @@ type E2ERecoveryTestSuite struct {
 
 // Overwrite TestMain for custom setup.
 func TestMain(m *testing.M) {
-	if err := config.InitConfig(); err != nil {
+	var err error
+
+	err = config.InitConfig()
+	if err != nil {
 		log.WithError(err).Fatal("Could not initialize configuration")
 	}
 
@@ -59,8 +62,6 @@ func TestMain(m *testing.M) {
 	}
 
 	nomadNamespace = config.Config.Nomad.Namespace
-
-	var err error
 
 	nomadClient, err = nomadApi.NewClient(&nomadApi.Config{
 		Address:   config.Config.Nomad.URL().String(),

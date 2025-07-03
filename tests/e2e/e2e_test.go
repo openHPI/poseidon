@@ -47,7 +47,8 @@ func TestE2ETestSuite(t *testing.T) {
 func TestMain(m *testing.M) {
 	log.Info("Test Setup")
 
-	if err := config.InitConfig(); err != nil {
+	err := config.InitConfig()
+	if err != nil {
 		log.WithError(err).Fatal("Could not initialize configuration")
 	}
 

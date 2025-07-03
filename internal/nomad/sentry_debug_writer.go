@@ -62,7 +62,8 @@ func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 	}
 	// Peaking if the target is able to write.
 	// If not we should not process the data (see #325).
-	if _, err = s.Target.Write([]byte{}); err != nil {
+	_, err = s.Target.Write([]byte{})
+	if err != nil {
 		return 0, fmt.Errorf("SentryDebugWriter cannot write to target: %w", err)
 	}
 

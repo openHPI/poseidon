@@ -68,11 +68,13 @@ func NewNomadEnvironmentFromRequest(ctx context.Context,
 	// Set options according to request
 	environment.SetPrewarmingPoolSize(request.PrewarmingPoolSize)
 
-	if err = environment.SetCPULimit(request.CPULimit); err != nil {
+	err = environment.SetCPULimit(request.CPULimit)
+	if err != nil {
 		return nil, err
 	}
 
-	if err = environment.SetMemoryLimit(request.MemoryLimit); err != nil {
+	err = environment.SetMemoryLimit(request.MemoryLimit)
+	if err != nil {
 		return nil, err
 	}
 
@@ -396,11 +398,13 @@ func (n *NomadEnvironment) SetConfigFrom(environment runner.ExecutionEnvironment
 	n.SetID(environment.ID())
 	n.SetPrewarmingPoolSize(environment.PrewarmingPoolSize())
 
-	if err := n.SetCPULimit(environment.CPULimit()); err != nil {
+	err := n.SetCPULimit(environment.CPULimit())
+	if err != nil {
 		log.WithError(err).Error("Failed to copy CPU Limit")
 	}
 
-	if err := n.SetMemoryLimit(environment.MemoryLimit()); err != nil {
+	err = n.SetMemoryLimit(environment.MemoryLimit())
+	if err != nil {
 		log.WithError(err).Error("Failed to copy Memory Limit")
 	}
 
@@ -463,7 +467,8 @@ func (n *NomadEnvironment) removeRunners(reason runner.DestroyReason) error {
 	for _, r := range n.idleRunners.List() {
 		n.idleRunners.Delete(r.ID())
 
-		if err := r.Destroy(runner.ErrLocalDestruction); err != nil {
+		err := r.Destroy(runner.ErrLocalDestruction)
+		if err != nil {
 			log.WithError(err).Warn("failed to remove runner locally")
 		}
 	}

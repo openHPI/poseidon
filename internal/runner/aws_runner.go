@@ -151,7 +151,8 @@ func (w *AWSFunctionWorkload) GetFileContent(_ context.Context, _ string, _ http
 func (w *AWSFunctionWorkload) Destroy(_ DestroyReason) error {
 	w.cancel()
 
-	if err := w.onDestroy(w); err != nil {
+	err := w.onDestroy(w)
+	if err != nil {
 		return fmt.Errorf("error while destroying aws runner: %w", err)
 	}
 

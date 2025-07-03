@@ -44,8 +44,11 @@ func (a AWSRunnerManager) Return(r Runner) error {
 	_, isAWSRunner := r.(*AWSFunctionWorkload)
 	if isAWSRunner {
 		a.usedRunners.Delete(r.ID())
-	} else if err := a.NextHandler().Return(r); err != nil {
-		return fmt.Errorf("aws wrapped: %w", err)
+	} else {
+		err := a.NextHandler().Return(r)
+		if err != nil {
+			return fmt.Errorf("aws wrapped: %w", err)
+		}
 	}
 
 	return nil

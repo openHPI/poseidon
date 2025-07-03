@@ -224,8 +224,10 @@ func isOOMKilled(alloc *nomadApi.Allocation) bool {
 	var oomKilledCount uint64
 
 	for _, event := range state.Events {
-		if oomString, ok := event.Details["oom_killed"]; ok {
-			if oom, err := strconv.ParseBool(oomString); err == nil && oom {
+		oomString, ok := event.Details["oom_killed"]
+		if ok {
+			oom, err := strconv.ParseBool(oomString)
+			if err == nil && oom {
 				oomKilledCount++
 			}
 		}

@@ -28,14 +28,16 @@ func sendJSON(ctx context.Context, writer http.ResponseWriter, content interface
 		return
 	}
 
-	if _, err = writer.Write(response); err != nil {
+	_, err = writer.Write(response)
+	if err != nil {
 		log.WithError(err).WithContext(ctx).Error("Could not write JSON response")
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func parseJSONRequestBody(writer http.ResponseWriter, request *http.Request, structure interface{}) error {
-	if err := json.NewDecoder(request.Body).Decode(structure); err != nil {
+	err := json.NewDecoder(request.Body).Decode(structure)
+	if err != nil {
 		writeClientError(request.Context(), writer, err, http.StatusBadRequest)
 		return fmt.Errorf("error parsing JSON request body: %w", err)
 	}

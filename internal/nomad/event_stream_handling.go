@@ -152,7 +152,8 @@ func dumpNomadEventToInflux(event *nomadApi.Event) {
 func receiveAndHandleNomadAPIEvents(stream <-chan *nomadApi.Events, handler nomadAPIEventHandler) error {
 	// If original context is canceled, the stream will be closed by Nomad, and we exit the for loop.
 	for events := range stream {
-		if err := events.Err; err != nil {
+		err := events.Err
+		if err != nil {
 			return fmt.Errorf("error receiving events: %w", err)
 		} else if events.IsHeartbeat() {
 			continue

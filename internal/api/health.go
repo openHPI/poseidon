@@ -18,7 +18,8 @@ var ErrPrewarmingPoolDepleting = errors.New("the prewarming pool is depleting")
 // If it is not, the response won't reach the client.
 func Health(manager environment.Manager) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		if err := checkPrewarmingPool(manager); err != nil {
+		err := checkPrewarmingPool(manager)
+		if err != nil {
 			sendJSON(request.Context(), writer,
 				&dto.InternalServerError{Message: err.Error(), ErrorCode: dto.PrewarmingPoolDepleting},
 				http.StatusServiceUnavailable)

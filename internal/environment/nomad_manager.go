@@ -42,7 +42,8 @@ func NewNomadEnvironmentManager(
 	apiClient nomad.ExecutorAPI,
 	templateJobFile string,
 ) (*NomadEnvironmentManager, error) {
-	if err := loadTemplateEnvironmentJobHCL(templateJobFile); err != nil {
+	err := loadTemplateEnvironmentJobHCL(templateJobFile)
+	if err != nil {
 		return nil, err
 	}
 
@@ -95,7 +96,8 @@ func (m *NomadEnvironmentManager) Get(ctx context.Context, environmentID dto.Env
 
 func (m *NomadEnvironmentManager) List(ctx context.Context, fetch bool) ([]runner.ExecutionEnvironment, error) {
 	if fetch {
-		if err := m.fetchEnvironments(ctx); err != nil {
+		err := m.fetchEnvironments(ctx)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -151,7 +153,8 @@ func (m *NomadEnvironmentManager) CreateOrUpdate(
 func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(ctx context.Context, synchronizeRunners func(ctx context.Context) error) {
 	err := util.RetryConstantAttemptsWithContext(ctx, math.MaxInt, func() error {
 		// Load Environments
-		if err := m.load(ctx); err != nil {
+		err := m.load(ctx)
+		if err != nil {
 			log.WithContext(ctx).WithError(err).
 				WithField(logging.SentryFingerprintFieldKey, []string{"{{ default }}", "environments"}).
 				Warn("Loading Environments failed! Retrying...")
@@ -160,7 +163,8 @@ func (m *NomadEnvironmentManager) KeepEnvironmentsSynced(ctx context.Context, sy
 		}
 
 		// Load Runners and keep them synchronized.
-		if err := synchronizeRunners(ctx); err != nil && ctx.Err() == nil {
+		err = synchronizeRunners(ctx)
+		if err != nil && ctx.Err() == nil {
 			log.WithContext(ctx).WithError(err).
 				WithField(logging.SentryFingerprintFieldKey, []string{"{{ default }}", "runners"}).
 				Warn("Loading and synchronizing Runners failed! Retrying...")
@@ -200,7 +204,8 @@ func (m *NomadEnvironmentManager) fetchEnvironments(ctx context.Context) error {
 			fetchedEnvironment := newNomadEnvironmentFromJob(ctx, job, m.api)
 			localEnvironment.SetConfigFrom(fetchedEnvironment)
 			// We destroy only this (second) local reference to the environment.
-			if err = fetchedEnvironment.Delete(runner.ErrDestroyedAndReplaced); err != nil {
+			err = fetchedEnvironment.Delete(runner.ErrDestroyedAndReplaced)
+			if err != nil {
 				log.WithError(err).Warn("Failed to remove environment locally")
 			}
 		} else {

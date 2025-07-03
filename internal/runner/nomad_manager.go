@@ -133,7 +133,8 @@ func (m *NomadRunnerManager) DeleteEnvironment(id dto.EnvironmentID) {
 
 func (m *NomadRunnerManager) setRunnerMetaUsed(runner Runner, used bool, timeoutDuration int) {
 	err := util.RetryExponential(func() (err error) {
-		if err = m.apiClient.SetRunnerMetaUsed(runner.ID(), used, timeoutDuration); err != nil {
+		err = m.apiClient.SetRunnerMetaUsed(runner.ID(), used, timeoutDuration)
+		if err != nil {
 			err = fmt.Errorf("cannot mark runner as used: %w", err)
 		}
 
@@ -292,7 +293,8 @@ func (m *NomadRunnerManager) updateUsedRunners(newUsedRunners storage.Storage[Ru
 			log.WithField(dto.KeyRunnerID, r.ID()).Warn("Local runner cannot be recovered")
 			m.usedRunners.Delete(r.ID())
 
-			if err := r.Destroy(ErrLocalDestruction); err != nil {
+			err := r.Destroy(ErrLocalDestruction)
+			if err != nil {
 				log.WithError(err).WithField(dto.KeyRunnerID, r.ID()).Warn("failed to destroy runner locally")
 			}
 		}
@@ -311,7 +313,8 @@ func (m *NomadRunnerManager) updateUsedRunners(newUsedRunners storage.Storage[Ru
 func updatePortMapping(target Runner, updated Runner) {
 	defer func() {
 		// Remove updated reference. We keep using the old reference to not cancel running executions.
-		if err := updated.Destroy(ErrLocalDestruction); err != nil {
+		err := updated.Destroy(ErrLocalDestruction)
+		if err != nil {
 			log.WithError(err).WithField(dto.KeyRunnerID, target.ID()).Warn("failed to destroy runner locally")
 		}
 	}()
@@ -322,7 +325,8 @@ func updatePortMapping(target Runner, updated Runner) {
 		return
 	}
 
-	if err := nomadRunner.UpdateMappedPorts(updated.MappedPorts()); err != nil {
+	err := nomadRunner.UpdateMappedPorts(updated.MappedPorts())
+	if err != nil {
 		log.WithError(err).WithField(dto.KeyRunnerID, target.ID()).Error("Failed updating the port mapping")
 	}
 }
@@ -436,7 +440,8 @@ func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID s
 	if stillUsed {
 		m.usedRunners.Delete(runnerID)
 
-		if err := r.Destroy(reason); err != nil {
+		err := r.Destroy(reason)
+		if err != nil {
 			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
 		}
 	}
@@ -448,7 +453,8 @@ func (m *NomadRunnerManager) onAllocationStopped(ctx context.Context, runnerID s
 
 	r, stillIdle := environment.DeleteRunner(runnerID)
 	if stillIdle {
-		if err := r.Destroy(reason); err != nil {
+		err := r.Destroy(reason)
+		if err != nil {
 			log.WithError(err).Warn("Runner of stopped allocation cannot be destroyed")
 		}
 	}

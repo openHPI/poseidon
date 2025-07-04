@@ -40,8 +40,10 @@ func (s *E2ETestSuite) TestExecuteCommandRoute() {
 			s.Require().NoError(err)
 			s.NotEmpty(webSocketURL)
 
-			var connection *websocket.Conn
-			var connectionClosed bool
+			var (
+				connection       *websocket.Conn
+				connectionClosed bool
+			)
 
 			connection, err = ConnectToWebSocket(webSocketURL)
 			s.Require().NoError(err, "websocket connects")

@@ -67,8 +67,10 @@ func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd stri
 ) (int, error) {
 	log.WithContext(ctx).WithField("command", strings.ReplaceAll(cmd, "\n", "")).Trace("Requesting Nomad Exec")
 
-	var allocations []*nomadApi.AllocationListStub
-	var err error
+	var (
+		allocations []*nomadApi.AllocationListStub
+		err         error
+	)
 
 	logging.StartSpan(ctx, "nomad.execute.list", "List Allocations for id", func(_ context.Context, _ *sentry.Span) {
 		allocations, _, err = nc.client.Jobs().Allocations(runnerID, false, nil)

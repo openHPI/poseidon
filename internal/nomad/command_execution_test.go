@@ -52,8 +52,10 @@ func (s *ExecuteCommandTestSuite) TestWithSeparateStderr() {
 	commandExitCode := 42
 	stderrExitCode := 1
 
-	var stdout, stderr bytes.Buffer
-	var calledStdoutCommand, calledStderrCommand string
+	var (
+		stdout, stderr                           bytes.Buffer
+		calledStdoutCommand, calledStderrCommand string
+	)
 
 	runFn := func(args mock.Arguments) {
 		var ok bool

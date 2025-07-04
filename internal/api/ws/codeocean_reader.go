@@ -125,9 +125,11 @@ func (cr *codeOceanToRawReader) readInputLoop(ctx context.Context) {
 	defer cancelNextMessage()
 
 	for loopContext.Err() == nil {
-		var messageType int
-		var reader io.Reader
-		var err error
+		var (
+			messageType int
+			reader      io.Reader
+			err         error
+		)
 
 		go func() {
 			messageType, reader, err = cr.connection.NextReader()

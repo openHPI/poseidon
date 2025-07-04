@@ -587,8 +587,10 @@ func assertWatchAllocation(s *MainTestSuite, events []*nomadApi.Events,
 ) {
 	s.T().Helper()
 
-	var newAllocations []*nomadApi.Allocation
-	var deletedAllocations []string
+	var (
+		newAllocations     []*nomadApi.Allocation
+		deletedAllocations []string
+	)
 
 	callbacks := &AllocationProcessing{
 		OnNew: func(_ context.Context, alloc *nomadApi.Allocation, _ time.Duration) {

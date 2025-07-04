@@ -414,8 +414,10 @@ func (r *NomadJob) handleExitOrContextDone(ctx context.Context, cancelExecute co
 
 func (r *NomadJob) handleExit(ctx context.Context, exitInfo ExitInfo, exitInternal <-chan ExitInfo, exit chan<- ExitInfo, stdin io.ReadWriter) {
 	// Special Handling of OOM Killed allocations. See #401.
-	const exitCodeOfLikelyOOMKilledAllocation = 128
-	const gracePeriodForConfirmingOOMKillReason = time.Second
+	const (
+		exitCodeOfLikelyOOMKilledAllocation   = 128
+		gracePeriodForConfirmingOOMKillReason = time.Second
+	)
 
 	if exitInfo.Code == exitCodeOfLikelyOOMKilledAllocation {
 		select {
@@ -543,8 +545,10 @@ func fileDeletionCommand(pathsToDelete []dto.FilePath) string {
 
 func tarHeader(file dto.File) *tar.Header {
 	// See #236. Sticky bit is to allow creating files next to write-protected files.
-	const directoryPermission int64 = 0o1777
-	const filePermission int64 = 0o744
+	const (
+		directoryPermission int64 = 0o1777
+		filePermission      int64 = 0o744
+	)
 
 	if file.IsDirectory() {
 		return &tar.Header{

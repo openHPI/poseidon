@@ -99,8 +99,10 @@ func (a *APIClient) executeCommandInteractivelyWithStderr(ctx context.Context, a
 
 	command = prepareCommandTTY(command, currentNanoTime, privilegedExecution)
 
-	var exit int
-	var err error
+	var (
+		exit int
+		err  error
+	)
 
 	logging.StartSpan(ctx, "nomad.execute.tty", "Interactive Execution", func(ctx context.Context, _ *sentry.Span) {
 		exit, err = a.Execute(ctx, allocationID, command, true, stdin, stdout, io.Discard)

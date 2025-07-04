@@ -459,8 +459,10 @@ func initRouter(ctx context.Context) *mux.Router {
 func initServer(router *mux.Router) *http.Server {
 	sentryHandler := sentryhttp.New(sentryhttp.Options{}).Handle(router)
 
-	const readTimeout = 15 * time.Second
-	const idleTimeout = 60 * time.Second
+	const (
+		readTimeout = 15 * time.Second
+		idleTimeout = 60 * time.Second
+	)
 
 	return &http.Server{
 		Addr: config.Config.Server.URL().Host,

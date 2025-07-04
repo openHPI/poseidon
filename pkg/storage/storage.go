@@ -114,7 +114,7 @@ func (s *localStorage[T]) Get(id string) (o T, ok bool) {
 
 	o, ok = s.objects[id]
 
-	return
+	return o, ok
 }
 
 func (s *localStorage[T]) Delete(objectID string) {

@@ -340,7 +340,7 @@ func (r *NomadJob) Destroy(reason DestroyReason) (err error) {
 			err = fmt.Errorf("error deleting runner in Nomad: %w", err)
 		}
 
-		return
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("cannot destroy runner: %w", err)

@@ -138,7 +138,7 @@ func (m *NomadRunnerManager) setRunnerMetaUsed(runner Runner, used bool, timeout
 			err = fmt.Errorf("cannot mark runner as used: %w", err)
 		}
 
-		return
+		return err
 	})
 	if err != nil {
 		log.WithError(err).WithField(dto.KeyRunnerID, runner.ID()).WithField("used", used).Error("cannot mark runner")

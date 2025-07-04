@@ -161,7 +161,6 @@ func HTTPDelete(url string, body io.Reader) (response *http.Response, err error)
 
 // HTTPPatch sends a Patch Http Request with body to the passed url.
 func HTTPPatch(url, contentType string, body io.Reader) (response *http.Response, err error) {
-	//nolint:noctx // we don't need a http.NewRequestWithContext in our tests
 	req, err := httpRequest(http.MethodPatch, url, body)
 	if err != nil {
 		return nil, err
@@ -180,7 +179,6 @@ func HTTPPatch(url, contentType string, body io.Reader) (response *http.Response
 }
 
 func HTTPPut(url string, body io.Reader) (response *http.Response, err error) {
-	//nolint:noctx // we don't need a http.NewRequestWithContext in our tests
 	req, err := httpRequest(http.MethodPut, url, body)
 	if err != nil {
 		return nil, err
@@ -215,7 +213,6 @@ func HTTPPostJSON(url string, body interface{}) (response *http.Response, err er
 
 	bodyReader := bytes.NewReader(requestByteString)
 
-	//nolint:noctx // we don't need a http.NewRequestWithContext in our tests
 	req, err := httpRequest(http.MethodPost, url, bodyReader)
 	if err != nil {
 		return nil, err

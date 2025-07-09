@@ -55,6 +55,10 @@ linters:
           # We don't need to wrap errors in tests
           - wrapcheck
         path: _test\.go
+      - linters:
+          # We won't rename this package, since it is used in many places already.
+          - revive
+        path: /util/
 
 formatters:
   enable:

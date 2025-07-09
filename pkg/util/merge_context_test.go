@@ -1,4 +1,4 @@
-package util //nolint:revive // We won't rename this package, since it is used in many places already.
+package util
 
 import (
 	"context"

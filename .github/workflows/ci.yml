@@ -5,7 +5,7 @@ on:
   pull_request:
 
 env:
-  NOMAD_VERSION: '1.10.2'
+  NOMAD_VERSION: '1.10.3'
   CNI_VERSION: '1.7.1'
 
 jobs:

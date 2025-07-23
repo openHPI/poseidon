@@ -4,8 +4,10 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -23,6 +26,10 @@ import (
 	"github.com/openHPI/poseidon/pkg/dto"
 	"github.com/openHPI/poseidon/tests"
 )
+
+var errCertificateTimeout = errors.New("generating a self-signed certificate timed out")
+
+const opensslTimeout = 15 * time.Second
 
 // BuildURL joins multiple route paths.
 func BuildURL(parts ...string) string {
@@ -112,10 +119,17 @@ func StartTLSServer(t *testing.T, router *mux.Router) (*httptest.Server, error) 
 	keyOut := filepath.Join(dir, "poseidon-test.key")
 	certOut := filepath.Join(dir, "poseidon-test.crt")
 
-	err := exec.Command("openssl", "req", "-x509", "-nodes", "-newkey", "rsa:2048",
+	ctx, cancel := context.WithTimeout(context.Background(), opensslTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "openssl", "req", "-x509", "-nodes", "-newkey", "rsa:2048",
 		"-keyout", keyOut, "-out", certOut, "-days", "1",
-		"-subj", "/CN=Poseidon test", "-addext", "subjectAltName=IP:127.0.0.1,DNS:localhost").Run()
-	if err != nil {
+		"-subj", "/CN=Poseidon test", "-addext", "subjectAltName=IP:127.0.0.1,DNS:localhost")
+	err := cmd.Run()
+
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil, errCertificateTimeout
+	} else if err != nil {
 		return nil, fmt.Errorf("error creating self-signed cert: %w", err)
 	}
 

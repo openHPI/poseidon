@@ -208,9 +208,12 @@ func getHTTPListeners(server *http.Server) (httpListeners []net.Listener) {
 	if config.Config.Server.SystemdSocketActivation {
 		httpListeners, err = activation.Listeners()
 	} else {
-		var httpListener net.Listener
+		var (
+			httpListener net.Listener
+			listenConfig net.ListenConfig
+		)
 
-		httpListener, err = net.Listen("tcp", server.Addr)
+		httpListener, err = listenConfig.Listen(context.Background(), "tcp", server.Addr)
 		httpListeners = append(httpListeners, httpListener)
 	}
 

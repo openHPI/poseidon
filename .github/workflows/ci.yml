@@ -166,7 +166,7 @@ jobs:
           name: poseidon
       - name: Get current branch name
         id: branch-name
-        uses: tj-actions/branch-names@v8
+        uses: tj-actions/branch-names@v9
       - name: Checkout matching branch for Dockerfiles (optional)
         id: checkout-dockerfiles
         if: steps.branch-name.outputs.is_default == 'false'

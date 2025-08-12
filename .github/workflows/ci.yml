@@ -16,7 +16,7 @@ jobs:
       # Enable additional processor optimizations: https://golang.org/wiki/MinimumRequirements#amd64
       GOAMD64: v3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -46,7 +46,7 @@ jobs:
       # Optional: Allow write access to checks to allow the action to annotate code in the PR.
       checks: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ compile ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -96,7 +96,7 @@ jobs:
     if: github.event_name != 'push' || github.actor != 'dependabot[bot]' && github.actor != 'dependabot-preview[bot]' && github.actor != 'dependabot'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@master
         with:
@@ -119,7 +119,7 @@ jobs:
       POSEIDON_AWS_FUNCTIONS: ${{ secrets.POSEIDON_AWS_FUNCTIONS }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Write secrets to environment file
         run: cat ./.github/workflows/resources/.env | envsubst > ./.env
       - name: Set up Go
@@ -170,7 +170,7 @@ jobs:
       - name: Checkout matching branch for Dockerfiles (optional)
         id: checkout-dockerfiles
         if: steps.branch-name.outputs.is_default == 'false'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         continue-on-error: true
         with:
           repository: openHPI/dockerfiles

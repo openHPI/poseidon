@@ -3,7 +3,7 @@ module github.com/openHPI/poseidon
 go 1.25.0
 
 require (
-	github.com/coreos/go-systemd/v22 v22.5.0
+	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/getsentry/sentry-go v0.35.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1

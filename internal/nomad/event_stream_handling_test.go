@@ -544,8 +544,10 @@ func (s *MainTestSuite) TestAPIClient_WatchAllocationsReturnsLocalDestroyReasonO
 		OnNew: func(_ context.Context, _ *nomadApi.Allocation, _ time.Duration) {},
 		OnDeleted: func(_ context.Context, jobID string, reason error) bool {
 			callbackCalled = true
+
 			s.Equal(tests.DefaultRunnerID, jobID)
 			s.ErrorIs(reason, ErrLocalDestruction)
+
 			return false
 		},
 	}
@@ -621,6 +623,7 @@ func assertAllocationRunning(s *MainTestSuite, events []*nomadApi.Events, runnin
 		OnDeleted: func(_ context.Context, jobID string, _ error) bool {
 			_, ok := activeAllocations[jobID]
 			delete(activeAllocations, jobID)
+
 			return !ok
 		},
 	}

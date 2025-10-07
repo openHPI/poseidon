@@ -55,7 +55,7 @@ func NewSentryDebugWriter(ctx context.Context, target io.Writer) *SentryDebugWri
 	}
 }
 
-// Improve: Handling of a split debug messages (usually, p is exactly one debug message, not less and not more).
+// Write: Improve handling of a split debug messages (usually, p is exactly one debug message, not less and not more).
 func (s *SentryDebugWriter) Write(debugData []byte) (n int, err error) {
 	if s.Ctx.Err() != nil {
 		return 0, fmt.Errorf("SentryDebugWriter context error: %w", s.Ctx.Err())

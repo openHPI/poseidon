@@ -435,5 +435,9 @@ func ProvideWebSocketConnection(s *suite.Suite, environmentID dto.EnvironmentID,
 // It requires a running Poseidon instance.
 func ConnectToWebSocket(url string) (conn *websocket.Conn, err error) {
 	conn, _, err = websocket.DefaultDialer.Dial(url, nil)
-	return
+	if err != nil {
+		return conn, fmt.Errorf("websocket dial failed: %w", err)
+	}
+
+	return conn, nil
 }

@@ -870,6 +870,7 @@ func (s *MainTestSuite) TestNomadRunnerManager_checkPrewarmingPoolAlert_reloadsR
 	environment.On("AddRunner", mock.Anything).Run(func(args mock.Arguments) {
 		job, ok := args[0].(*NomadJob)
 		s.Require().True(ok)
+
 		err := job.Destroy(ErrLocalDestruction)
 		s.Require().NoError(err)
 	}).Return().Once()

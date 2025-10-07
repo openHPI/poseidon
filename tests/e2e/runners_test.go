@@ -131,7 +131,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 		listFilesResponse := new(dto.ListFileSystemResponse)
 		err = json.NewDecoder(response.Body).Decode(listFilesResponse)
 		s.Require().NoError(err)
-		s.Require().Equal(1, len(listFilesResponse.Files))
+		s.Require().Len(listFilesResponse.Files, 1)
 		fileHeader := listFilesResponse.Files[0]
 		s.Equal(dto.FilePath("./"+tests.DefaultFileName), fileHeader.Name)
 		s.Equal(dto.EntryTypeRegularFile, fileHeader.EntryType)
@@ -153,7 +153,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 			listFilesResponse := new(dto.ListFileSystemResponse)
 			err = json.NewDecoder(response.Body).Decode(listFilesResponse)
 			s.Require().NoError(err)
-			s.Require().Equal(1, len(listFilesResponse.Files))
+			s.Require().Len(listFilesResponse.Files, 1)
 			fileHeader := listFilesResponse.Files[0]
 			s.Equal(dto.FilePath(path), fileHeader.Name)
 			s.Equal(dto.EntryTypeLink, fileHeader.EntryType)
@@ -170,7 +170,7 @@ func (s *E2ETestSuite) TestListFileSystem_Nomad() {
 			listFilesResponse := new(dto.ListFileSystemResponse)
 			err = json.NewDecoder(response.Body).Decode(listFilesResponse)
 			s.Require().NoError(err)
-			s.Require().Equal(1, len(listFilesResponse.Files))
+			s.Require().Len(listFilesResponse.Files, 1)
 			fileHeader := listFilesResponse.Files[0]
 			s.Equal(dto.FilePath(path), fileHeader.Name)
 			s.Equal(dto.EntryTypeLink, fileHeader.EntryType)
@@ -240,7 +240,7 @@ func (s *E2ETestSuite) TestCopyFilesRoute() {
 
 				s.Run("File content can no longer be printed", func() {
 					stdout, stderr := s.PrintContentOfFileOnRunner(runnerID, tests.DefaultFileName)
-					s.Equal("", stdout)
+					s.Empty(stdout)
 					s.Contains(stderr, "No such file or directory")
 				})
 			})
@@ -512,9 +512,9 @@ func (s *E2ETestSuite) TestRunnerGetsDestroyedAfterInactivityTimeout() {
 
 			go func() {
 				webSocketURL, err := ProvideWebSocketURL(runnerID, &dto.ExecutionRequest{Command: "sleep infinity"})
-				s.Require().NoError(err)
+				s.NoError(err)
 				connection, err := ConnectToWebSocket(webSocketURL)
-				s.Require().NoError(err)
+				s.NoError(err)
 
 				messages, err := helpers.ReceiveAllWebSocketMessages(connection)
 				if !s.Equal(&websocket.CloseError{Code: websocket.CloseNormalClosure}, err) {
@@ -539,7 +539,7 @@ func (s *E2ETestSuite) TestRunnerGetsDestroyedAfterInactivityTimeout() {
 func (s *E2ETestSuite) assertFileContent(runnerID, fileName, expectedContent string) {
 	stdout, stderr := s.PrintContentOfFileOnRunner(runnerID, fileName)
 	s.Equal(expectedContent, stdout)
-	s.Equal("", stderr)
+	s.Empty(stderr)
 }
 
 func (s *E2ETestSuite) PrintContentOfFileOnRunner(runnerID, filename string) (stdout, stderr string) {

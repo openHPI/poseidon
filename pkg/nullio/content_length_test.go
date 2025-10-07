@@ -31,7 +31,7 @@ func (s *MainTestSuite) TestContentLengthWriter_Write() {
 	s.Require().NoError(err)
 	s.Equal(len(part1), count)
 	s.Empty(buf.String())
-	s.Equal("", header.Get("Content-Length"))
+	s.Empty(header.Get("Content-Length"))
 
 	count, err = writer.Write(part2)
 	s.Require().NoError(err)

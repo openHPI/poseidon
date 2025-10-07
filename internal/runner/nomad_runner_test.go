@@ -240,14 +240,17 @@ func (s *ExecuteInteractivelyTestSuite) TestSendsSignalAfterTimeout() {
 	s.mockedExecuteCommandCall.Run(func(args mock.Arguments) {
 		stdin, ok := args.Get(5).(io.Reader)
 		s.Require().True(ok)
+
 		buffer := make([]byte, 1) //nolint:makezero // If the length is zero, the Read call never reads anything. gofmt want this alignment.
 		for n := 0; n != 1 || buffer[0] != SIGQUIT; {
 			<-time.After(tests.ShortTimeout)
+
 			n, _ = stdin.Read(buffer) //nolint:errcheck // Read returns EOF errors but that is expected.
 			if n > 0 {
 				log.WithField("buffer", strconv.FormatUint(uint64(buffer[0]), 16)).Info("Received Stdin")
 			}
 		}
+
 		log.Info("After loop")
 		close(quit)
 	}).Return(0, nil)
@@ -427,6 +430,7 @@ func (s *UpdateFileSystemTestSuite) SetupTest() {
 		mock.Anything, false, mock.AnythingOfType("bool"), mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			var ok bool
+
 			s.command, ok = args.Get(2).(string)
 			s.Require().True(ok)
 			s.stdin, ok = args.Get(5).(*bytes.Buffer)

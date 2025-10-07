@@ -59,7 +59,11 @@ type nomadAPIClient struct {
 
 func (nc *nomadAPIClient) DeleteJob(jobID string) (err error) {
 	_, _, err = nc.client.Jobs().Deregister(jobID, true, nc.writeOptions())
-	return
+	if err != nil {
+		return fmt.Errorf("error deregistering Nomad job: %w", err)
+	}
+
+	return nil
 }
 
 func (nc *nomadAPIClient) Execute(ctx context.Context, runnerID string, cmd string, tty bool,
@@ -228,7 +232,11 @@ func (nc *nomadAPIClient) writeOptions() *nomadApi.WriteOptions {
 
 func (nc *nomadAPIClient) job(jobID string) (job *nomadApi.Job, err error) {
 	job, _, err = nc.client.Jobs().Info(jobID, nil)
-	return
+	if err != nil {
+		return job, fmt.Errorf("error retrieving Nomad job info: %w", err)
+	}
+
+	return job, nil
 }
 
 func (nc *nomadAPIClient) listAllocations() ([]*nomadApi.AllocationListStub, error) {

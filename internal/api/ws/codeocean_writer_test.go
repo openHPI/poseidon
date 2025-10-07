@@ -110,6 +110,7 @@ func buildConnectionMock(suite *tests.MemoryLeakTestSuite) (conn *ConnectionMock
 		Run(func(args mock.Arguments) {
 			m, ok := args.Get(1).([]byte)
 			suite.Require().True(ok)
+
 			select {
 			case <-suite.TestCtx.Done():
 			case message <- m:

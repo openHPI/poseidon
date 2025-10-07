@@ -26,7 +26,7 @@ func (s *MainTestSuite) TestFindOrCreateDefaultTask() {
 		group := FindAndValidateDefaultTaskGroup(job)
 		s.NotNil(group)
 		s.Equal(TaskGroupName, *group.Name)
-		s.Equal(1, len(job.TaskGroups))
+		s.Len(job.TaskGroups, 1)
 		s.Equal(group, job.TaskGroups[0])
 		s.Equal(TaskCount, *group.Count)
 	})
@@ -39,7 +39,7 @@ func (s *MainTestSuite) TestFindOrCreateDefaultTask() {
 
 		group := FindAndValidateDefaultTaskGroup(job)
 		s.NotNil(group)
-		s.Equal(1, len(job.TaskGroups))
+		s.Len(job.TaskGroups, 1)
 		s.Equal(expectedGroup, group)
 	})
 }
@@ -50,7 +50,7 @@ func (s *MainTestSuite) TestFindOrCreateConfigTaskGroup() {
 		group := FindAndValidateConfigTaskGroup(job)
 		s.NotNil(group)
 		s.Equal(group, job.TaskGroups[0])
-		s.Equal(1, len(job.TaskGroups))
+		s.Len(job.TaskGroups, 1)
 
 		s.Equal(ConfigTaskGroupName, *group.Name)
 		s.Equal(0, *group.Count)
@@ -64,7 +64,7 @@ func (s *MainTestSuite) TestFindOrCreateConfigTaskGroup() {
 
 		group := FindAndValidateConfigTaskGroup(job)
 		s.NotNil(group)
-		s.Equal(1, len(job.TaskGroups))
+		s.Len(job.TaskGroups, 1)
 		s.Equal(expectedGroup, group)
 	})
 }
@@ -78,7 +78,7 @@ func (s *MainTestSuite) TestFindOrCreateTask() {
 
 		task := FindAndValidateDefaultTask(group)
 		s.NotNil(task)
-		s.Equal(1, len(group.Tasks))
+		s.Len(group.Tasks, 1)
 		s.Equal(expectedTask, task)
 	})
 
@@ -90,7 +90,7 @@ func (s *MainTestSuite) TestFindOrCreateTask() {
 
 		task := FindAndValidateConfigTask(group)
 		s.NotNil(task)
-		s.Equal(1, len(group.Tasks))
+		s.Len(group.Tasks, 1)
 		s.Equal(expectedTask, task)
 	})
 }

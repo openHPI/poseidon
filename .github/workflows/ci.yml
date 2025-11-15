@@ -30,7 +30,7 @@ jobs:
       - name: Build
         run: make build-cover
       - name: Upload Poseidon binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: poseidon
           path: poseidon
@@ -80,7 +80,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ success() || failure() }}
         with:
           name: coverage_unit
@@ -224,7 +224,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ success() || failure() }}
         with:
           name: coverage_run

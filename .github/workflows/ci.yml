@@ -133,7 +133,7 @@ jobs:
         run: date +%s > ~/.cache/go-build/trim.txt
         continue-on-error: true
       - name: Cache Nomad and CNI binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/nomad
